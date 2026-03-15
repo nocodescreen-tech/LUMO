@@ -1,14 +1,17 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5000/api',
 });
 
-// Interceptor to add token
+// Add a request interceptor to add the JWT token to headers
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const auth = localStorage.getItem('hub-auth');
+  if (auth) {
+    const { token } = JSON.parse(auth);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

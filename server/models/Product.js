@@ -42,6 +42,18 @@ const Product = sequelize.define('Product', {
   unite: {
     type: DataTypes.STRING,
     defaultValue: 'pcs'
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  taxe: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0.0
+  },
+  metadata: {
+    type: DataTypes.JSONB,
+    defaultValue: {}
   }
 });
 

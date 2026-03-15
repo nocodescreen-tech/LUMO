@@ -19,6 +19,11 @@ exports.protect = async (req, res, next) => {
     if (!req.user) {
         return res.status(401).json({ message: 'Utilisateur non trouvé' });
     }
+    
+    // Mettre à jour la dernière activité
+    req.user.lastActivity = new Date();
+    await req.user.save({ hooks: false }); // Pas besoin de re-hasher le mot de passe
+    
     next();
   } catch (error) {
     res.status(401).json({ message: 'Non autorisé, jeton invalide' });

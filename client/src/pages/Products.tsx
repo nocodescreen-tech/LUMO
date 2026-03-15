@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -20,7 +21,9 @@ import {
   TrendingDown,
   Layers,
   ChevronRight,
-  Boxes
+  Boxes,
+  Loader2,
+  Calendar
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
@@ -42,6 +45,9 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   
   const [actionMenuId, setActionMenuId] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const [newProduct, setNewProduct] = useState({
       nom: '',
@@ -49,7 +55,7 @@ const Products = () => {
       prix: 0,
       prixAchat: 0,
       stock: 0,
-      seuilAlerte: 5,
+      stockAlerte: 5,
       description: ''
   });
 
@@ -57,8 +63,9 @@ const Products = () => {
     setLoading(true);
     try {
       const { data } = await api.get('/products');
-      setAllProducts(data.products || []);
-      setProducts(data.products || []);
+      const productsList = Array.isArray(data) ? data : (data.products || []);
+      setAllProducts(productsList);
+      setProducts(productsList);
     } catch (error) {
       console.error(error);
       toast.error("Échec de la récupération des produits.");
@@ -80,15 +87,31 @@ const Products = () => {
     setProducts(filtered);
   }, [searchTerm, allProducts]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formData = new FormData();
+    Object.entries(newProduct).forEach(([key, value]) => formData.append(key, value.toString()));
+    if (selectedImage) formData.append('image', selectedImage);
+
     try {
-        await api.post('/products', newProduct);
+        await api.post('/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success(`Produit "${newProduct.nom}" ajouté avec succès !`);
         setShowAddModal(false);
         setNewProduct({
-            nom: '', categorie: 'Général', prix: 0, prixAchat: 0, stock: 0, seuilAlerte: 5, description: ''
+            nom: '', categorie: 'Général', prix: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: ''
         });
+        setSelectedImage(null);
+        setImagePreview(null);
         fetchProducts();
     } catch (error: any) {
         toast.error(error.response?.data?.message || "Erreur lors de l’ajout du produit");
@@ -97,10 +120,20 @@ const Products = () => {
 
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    const formData = new FormData();
+    Object.entries(selectedProduct).forEach(([key, value]) => {
+      if (key !== 'image' && value !== null && value !== undefined) {
+        formData.append(key, value.toString());
+      }
+    });
+    if (selectedImage) formData.append('image', selectedImage);
+
     try {
-        await api.put(`/products/${selectedProduct.id}`, selectedProduct);
+        await api.put(`/products/${selectedProduct.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success(`Modification de "${selectedProduct.nom}" enregistrée !`);
         setShowEditModal(false);
+        setSelectedImage(null);
+        setImagePreview(null);
         fetchProducts();
     } catch (error: any) {
         toast.error(error.response?.data?.message || "Erreur lors de la modification");
@@ -119,7 +152,7 @@ const Products = () => {
   };
 
   const totalProducts = allProducts.length;
-  const lowStockCount = allProducts.filter((p: any) => p.stock <= p.seuilAlerte).length;
+  const lowStockCount = allProducts.filter((p: any) => p.stock <= p.stockAlerte).length;
   const outOfStockCount = allProducts.filter((p: any) => p.stock <= 0).length;
 
   return (
@@ -242,8 +275,12 @@ const Products = () => {
                   >
                     <td style={{ padding: '28px 32px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '950', color: 'white', fontSize: '1.4rem', boxShadow: '0 10px 20px -5px var(--primary-glow)' }}>
-                          {p.nom[0].toUpperCase()}
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '950', color: 'white', fontSize: '1.4rem', boxShadow: '0 10px 20px -5px var(--primary-glow)', overflow: 'hidden' }}>
+                          {p.image ? (
+                            <img src={p.image} alt={p.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            p.nom[0].toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div style={{ fontWeight: '900', color: 'white', fontSize: '1.1rem', letterSpacing: '-0.01em' }}>{p.nom}</div>
@@ -274,13 +311,13 @@ const Products = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ 
                             padding: '10px 18px', borderRadius: '14px', 
-                            backgroundColor: p.stock <= p.seuilAlerte ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                            border: `1px solid ${p.stock <= p.seuilAlerte ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+                            backgroundColor: p.stock <= p.stockAlerte ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                            border: `1px solid ${p.stock <= p.stockAlerte ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                         }}>
-                             <span style={{ fontWeight: '950', fontSize: '1.2rem', color: p.stock <= p.seuilAlerte ? '#ef4444' : '#10b981' }}>{p.stock}</span>
+                             <span style={{ fontWeight: '950', fontSize: '1.2rem', color: p.stock <= p.stockAlerte ? '#ef4444' : '#10b981' }}>{p.stock}</span>
                              <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '800', opacity: 0.5 }}>unités</span>
                         </div>
-                        {p.stock <= p.seuilAlerte && <AlertTriangle size={20} color="#ef4444" className="animate-pulse" />}
+                        {p.stock <= p.stockAlerte && <AlertTriangle size={20} color="#ef4444" className="animate-pulse" />}
                       </div>
                     </td>
                     <td style={{ padding: '28px 32px' }}>
@@ -337,15 +374,28 @@ const Products = () => {
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Désignation / Nom de l'article</label>
             <div style={{ position: 'relative' }}>
               <Package style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-              <input required type="text" placeholder="ex: Laptop HP Spectre x360" value={newProduct.nom} onChange={(e) => setNewProduct({...newProduct, nom: e.target.value})} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
+              <input required type="text" placeholder="ex: Laptop HP Spectre x360" value={newProduct.nom} onChange={(e) => setNewProduct({...newProduct, nom: e.target.value})} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
             </div>
+          </div>
+          
+          <div style={{ gridColumn: '1 / -1' }}>
+             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Image du Produit (Optionnel)</label>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'var(--bg-main)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {imagePreview ? <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={24} color="var(--text-muted)" />}
+                </div>
+                <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
+                <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 20px', borderRadius: '14px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}>
+                   Choisir une image
+                </button>
+             </div>
           </div>
           
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Groupe / Catégorie</label>
             <div style={{ position: 'relative' }}>
               <Tag style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-              <input type="text" placeholder="ex: Electronique" value={newProduct.categorie} onChange={(e) => setNewProduct({...newProduct, categorie: e.target.value})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
+              <input type="text" placeholder="ex: Electronique" value={newProduct.categorie} onChange={(e) => setNewProduct({...newProduct, categorie: e.target.value})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
             </div>
           </div>
 
@@ -353,7 +403,7 @@ const Products = () => {
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock de départ</label>
             <div style={{ position: 'relative' }}>
               <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.stock} onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <input type="number" required value={newProduct.stock} onChange={(e) => setNewProduct({...newProduct, stock: parseInt(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
             </div>
           </div>
 
@@ -361,7 +411,7 @@ const Products = () => {
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.A. (Achat CDF)</label>
             <div style={{ position: 'relative' }}>
               <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.prixAchat} onChange={(e) => setNewProduct({...newProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <input type="number" required value={newProduct.prixAchat} onChange={(e) => setNewProduct({...newProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
             </div>
           </div>
 
@@ -395,17 +445,32 @@ const Products = () => {
           <form onSubmit={handleUpdateProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Désignation</label>
-              <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
                 <Package style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                <input required type="text" value={selectedProduct.nom} onChange={(e) => setSelectedProduct({...selectedProduct, nom: e.target.value})} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
+                <input required type="text" value={selectedProduct.nom} onChange={(e) => setSelectedProduct({...selectedProduct, nom: e.target.value})} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
               </div>
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Image du Produit</label>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'var(--bg-main)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {imagePreview ? <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (
+                        selectedProduct.image ? <img src={selectedProduct.image} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={24} color="var(--text-muted)" />
+                      )}
+                  </div>
+                  <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 20px', borderRadius: '14px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}>
+                     Modifier l'image
+                  </button>
+               </div>
             </div>
 
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Catégorie</label>
               <div style={{ position: 'relative' }}>
                 <Tag style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                <input type="text" value={selectedProduct.categorie} onChange={(e) => setSelectedProduct({...selectedProduct, categorie: e.target.value})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
+                <input type="text" value={selectedProduct.categorie} onChange={(e) => setSelectedProduct({...selectedProduct, categorie: e.target.value})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
               </div>
             </div>
 
@@ -413,7 +478,7 @@ const Products = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock Actuel</label>
               <div style={{ position: 'relative' }}>
                 <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.stock} onChange={(e) => setSelectedProduct({...selectedProduct, stock: parseInt(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <input type="number" required value={selectedProduct.stock} onChange={(e) => setSelectedProduct({...selectedProduct, stock: parseInt(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
               </div>
             </div>
 
@@ -421,7 +486,7 @@ const Products = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat</label>
               <div style={{ position: 'relative' }}>
                 <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({...selectedProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'white', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <input type="number" required value={selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({...selectedProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
               </div>
             </div>
 

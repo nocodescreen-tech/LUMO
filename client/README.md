@@ -11,10 +11,10 @@ Modern, glassmorphic management interface built with React and Vite.
 
 ## ⚙️ Configuration
 
-Copy `.env.example` to `.env` and configure your `VITE_API_URL`.
+Copiez `.env.example` vers `.env` et configurez votre `VITE_API_BASE_URL`.
 
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_BASE_URL=http://localhost:5001/api
 ```
 
 ## 🎨 UI & UX

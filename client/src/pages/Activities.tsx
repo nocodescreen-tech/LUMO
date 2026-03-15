@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import {
     Activity,
     Clock,
@@ -25,7 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
-import { useTranslation } from '../hooks/useTranslation';
+import { useTranslation } from '../hooks';
 
 const Activities = () => {
     const { t } = useTranslation();
@@ -103,7 +104,7 @@ const Activities = () => {
             </div>
 
             {/* Controls */}
-            <div className="glass" style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '16px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <div className="premium-card" style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '16px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                     <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
@@ -114,7 +115,7 @@ const Activities = () => {
                         style={{ width: '100%', padding: '16px 16px 16px 60px', borderRadius: '18px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', fontWeight: '700' }}
                     />
                 </div>
-                <div className="glass" style={{ padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', gap: '6px', background: 'var(--bg-main)' }}>
+                <div className="premium-card" style={{ padding: '6px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', gap: '6px', background: 'var(--bg-main)' }}>
                     {['ALL', 'VENTE', 'PRODUIT', 'DETTE'].map(f => (
                         <button
                             key={f}
@@ -138,7 +139,7 @@ const Activities = () => {
                 </div>
             </div>
 
-            <div className="glass" style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.3)' }}>
+            <div className="premium-card" style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.3)' }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '120px' }}>
                         <Loader2 size={60} className="animate-spin" style={{ margin: '0 auto', color: 'var(--primary)', opacity: 0.5 }} />

@@ -14,8 +14,13 @@ module.exports = {
     user: process.env.DB_USER,
     pass: process.env.DB_PASSWORD
   },
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+  ai: {
+    deepseekKey: process.env.DEEPSEEK_API_KEY,
+    model: process.env.AI_MODEL || 'deepseek-chat'
+  },
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
   }
 };

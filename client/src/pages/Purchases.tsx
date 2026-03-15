@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Package, 
@@ -11,10 +12,10 @@ import {
   MoreHorizontal,
   Download
 } from 'lucide-react';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 const Purchases = () => {
-    const { currency } = useSettingsStore();
+    const { currency } = useAuthStore();
 
     const purchases = [
         { id: 'ORD-9921', supplier: 'Distributeur Alpha', items: 150, total: 2450000, date: '12 Mars 2026', status: 'reçu' },

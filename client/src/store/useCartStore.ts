@@ -5,6 +5,7 @@ interface CartItem {
   nom: string;
   prix: number;
   quantite: number;
+  image?: string;
 }
 
 interface CartState {
@@ -13,7 +14,7 @@ interface CartState {
   removeFromCart: (productId: number) => void;
   updateQuantity: (productId: number, qte: number) => void;
   clearCart: () => void;
-  total: number;
+  getTotal: () => number;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -26,7 +27,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         cart: cart.map(item => item.id === product.id ? { ...item, quantite: item.quantite + 1 } : item) 
       });
     } else {
-      set({ cart: [...cart, { id: product.id, nom: product.nom, prix: product.prix, quantite: 1 }] });
+      set({ cart: [...cart, { 
+        id: product.id, 
+        nom: product.nom, 
+        prix: product.prixVente || product.prix || 0, 
+        quantite: 1,
+        image: product.image 
+      }] });
     }
   },
   removeFromCart: (productId) => {
@@ -36,7 +43,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ cart: get().cart.map(item => item.id === productId ? { ...item, quantite: qte } : item) });
   },
   clearCart: () => set({ cart: [] }),
-  get total() {
-    return get().cart.reduce((acc, item) => acc + (item.prix * item.quantite), 0);
+  getTotal: () => {
+    return get().cart.reduce((acc, item) => {
+        const p = (item as any).prixVente || (item as any).prix || 0;
+        const q = (item as any).quantite || (item as any).quantity || 1;
+        return acc + (p * q);
+    }, 0);
   }
 }));

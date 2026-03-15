@@ -25,6 +25,10 @@ const Depense = sequelize.define('Depense', {
   },
   description: {
     type: DataTypes.TEXT
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 });
 

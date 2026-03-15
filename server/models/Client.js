@@ -27,6 +27,10 @@ const Client = sequelize.define('Client', {
   pointsFidelite: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 });
 

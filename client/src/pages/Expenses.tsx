@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   DollarSign, 
@@ -13,10 +14,10 @@ import {
   Truck,
   MoreHorizontal
 } from 'lucide-react';
-import { useSettingsStore } from '../store/useSettingsStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 const Expenses = () => {
-    const { currency } = useSettingsStore();
+    const { currency } = useAuthStore();
 
     const expenses = [
         { id: 1, title: 'Loyer Bureau', amount: 350000, category: 'Fixe', icon: Zap, date: '2026-03-01' },

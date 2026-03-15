@@ -26,6 +26,10 @@ const Fournisseur = sequelize.define('Fournisseur', {
   },
   categorie: {
     type: DataTypes.STRING
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
   }
 });
 

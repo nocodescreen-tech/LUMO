@@ -3,8 +3,10 @@ const Product = require('./Product');
 const Client = require('./Client');
 const Fournisseur = require('./Fournisseur');
 const Depense = require('./Depense');
-const Sale = require('./Sale');
-const Purchase = require('./Purchase');
+// Utiliser les nouvelles définitions enrichies pour les ventes et achats
+const Sale = require('./sale.model');
+const Purchase = require('./purchase.model');
+const Notification = require('./notification.model');
 
 // Associations
 Sale.belongsTo(Client, { foreignKey: 'clientId', as: 'client' });
@@ -20,5 +22,6 @@ module.exports = {
   Fournisseur,
   Depense,
   Sale,
-  Purchase
+  Purchase,
+  Notification
 };

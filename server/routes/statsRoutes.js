@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getStats } = require('../controllers/statsController');
+const { getDashboardStats, getSalesChartData } = require('../controllers/statsController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/', protect, getStats);
+// Statistiques globales du dashboard
+router.get('/dashboard', protect, getDashboardStats);
+
+// Données pour les graphiques de ventes
+router.get('/sales-chart', protect, getSalesChartData);
 
 module.exports = router;

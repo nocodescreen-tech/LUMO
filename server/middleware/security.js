@@ -1,28 +1,28 @@
 const helmet = require('helmet');
-const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const config = require('../config');
+const hpp = require('hpp');
+const xss = require('xss-clean');
+const cors = require('cors');
 
 const securityMiddleware = (app) => {
-  // Helmet pour la sécurité des headers HTTP
-  app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-  }));
+    // Set security HTTP headers
+    app.use(helmet());
 
-  // CORS Configuration
-  app.use(cors({
-    origin: '*', // En développement, on laisse ouvert
-    credentials: true
-  }));
+    // Prevent XSS attacks
+    app.use(xss());
 
-  // Rate Limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 500, 
-    message: 'Trop de requêtes, veuillez réessayer plus tard.'
-  });
-  
-  app.use('/api/', limiter);
+    // Prevent http param pollution
+    app.use(hpp());
+
+    // Enable CORS
+    app.use(cors());
+
+    // Rate limiting
+    const limiter = rateLimit({
+        windowMs: 10 * 60 * 1000, // 10 mins
+        max: 100 // limit each IP to 100 requests per windowMs
+    });
+    app.use('/api', limiter);
 };
 
 module.exports = securityMiddleware;

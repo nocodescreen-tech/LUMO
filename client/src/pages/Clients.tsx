@@ -15,7 +15,9 @@ import {
   UserPlus,
   RefreshCw,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -169,10 +171,10 @@ const Clients = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '28px' }}>
         {loading ? (
              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="glass skeleton" style={{ borderRadius: '32px', height: '300px', opacity: 0.1 }}></div>
+                <div key={i} className="premium-card skeleton" style={{ borderRadius: '32px', height: '300px', opacity: 0.1 }}></div>
             ))
         ) : clients.length === 0 ? (
-          <div className="glass" style={{ gridColumn: '1 / -1', padding: '100px', textAlign: 'center', borderRadius: '40px' }}>
+          <div className="premium-card" style={{ gridColumn: '1 / -1', padding: '100px', textAlign: 'center', borderRadius: '40px' }}>
             <Users size={80} opacity={0.1} style={{ marginBottom: '24px' }} />
             <h2 style={{ fontSize: '1.8rem', fontWeight: '950' }}>Base de données vide</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Commencez par ajouter votre premier client pour le suivi.</p>
@@ -182,12 +184,12 @@ const Clients = () => {
             key={c.id} 
             layout
             whileHover={{ y: -8, scale: 1.01 }}
-            className="glass" 
-            style={{ padding: '36px', borderRadius: '40px', display: 'flex', flexDirection: 'column', gap: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}
+            className="premium-card" 
+            style={{ padding: '36px', borderRadius: '40px', display: 'flex', flexDirection: 'column', gap: '24px' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '950', fontSize: '1.8rem', border: '1px solid var(--border)', boxShadow: '0 10px 20px -5px var(--primary-glow)' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', fontWeight: '950', fontSize: '1.8rem', border: '1px solid var(--border)' }}>
                   {c.nom.charAt(0).toUpperCase()}
                 </div>
                 <div>
