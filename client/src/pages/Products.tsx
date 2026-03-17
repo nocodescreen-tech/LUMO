@@ -343,7 +343,7 @@ const Products = () => {
                           )}
                         </div>
                         <div>
-                          <div style={{ fontWeight: '900', color: 'white', fontSize: '1.1rem', letterSpacing: '-0.01em' }}>{p.nom}</div>
+                          <div style={{ fontWeight: '900', color: 'var(--text-main)', fontSize: '1.1rem', letterSpacing: '-0.01em' }}>{p.nom}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px' }}>REF: #{p.id.toString().padStart(5, '0')}</div>
                         </div>
                       </div>
