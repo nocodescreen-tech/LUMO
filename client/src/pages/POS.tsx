@@ -30,6 +30,8 @@ const POS = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [amountReceived, setAmountReceived] = useState('');
     const [receivedCurrency, setReceivedCurrency] = useState('LOCAL'); // 'LOCAL' or 'ALT'
+    const [clientName, setClientName] = useState('');
+    const [clientPhone, setClientPhone] = useState('');
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
     const { currency, user, exchangeRate } = useAuthStore();
     
@@ -64,7 +66,11 @@ const POS = () => {
             const { data } = await api.post('/sales', {
                 items: cart,
                 montantTotal: getTotal(),
-                methodePaiement: 'Espèces'
+                methodePaiement: 'Espèces',
+                clientInfo: {
+                    nom: clientName.trim() || 'Client de passage',
+                    telephone: clientPhone.trim() || ''
+                }
             });
             
             // Generate and print invoice
@@ -76,6 +82,8 @@ const POS = () => {
                 clearCart();
                 setAmountReceived('');
                 setReceivedCurrency('LOCAL');
+                setClientName('');
+                setClientPhone('');
             }, 3000);
             
             toast.success("Vente terminée avec succès !");
@@ -190,6 +198,25 @@ const POS = () => {
 
                 <div style={{ padding: '32px', backgroundColor: 'rgba(255,255,255,0.02)', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                        {/* Client details */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <input
+                                type="text"
+                                placeholder="Nom du client (Optionnel)"
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}
+                            />
+                            <input
+                                type="text"
+                                placeholder="Numéro (Optionnel)"
+                                value={clientPhone}
+                                onChange={(e) => setClientPhone(e.target.value)}
+                                style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}
+                            />
+                        </div>
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.2rem' }}>Total à payer</span>
                             <div style={{ textAlign: 'right' }}>

@@ -15,6 +15,7 @@ export interface InvoiceData {
   clientInfo?: {
     nom?: string;
     email?: string;
+    telephone?: string;
   };
   createdAt?: string;
   montantTotal?: number;
@@ -75,6 +76,7 @@ export const generateInvoice = (data: any, user: any = null) => {
             <div class="info-block" style="background: #f8fafc; padding: 20px; border-radius: 12px;">
               <h4>Facturer à</h4>
               <p style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px;">${invoiceData.clientName || invoiceData.clientInfo?.nom || 'Client de passage'}</p>
+              ${invoiceData.clientInfo?.telephone ? `<p style="font-size: 14px; font-weight: 600; color: #64748b; margin-top: 2px;">${invoiceData.clientInfo.telephone}</p>` : ''}
             </div>
             <div class="info-block" style="text-align: right; background: #f8fafc; padding: 20px; border-radius: 12px;">
               <h4>Détails de facturation</h4>

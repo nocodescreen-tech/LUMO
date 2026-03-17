@@ -6,15 +6,25 @@ interface ChartProps {
 }
 
 const DashboardCharts = ({ salesData = [] }: ChartProps) => {
-  const data = salesData.length > 0 ? salesData : [
-    { day: 'Lun', sales: 145000 },
-    { day: 'Mar', sales: 162000 },
-    { day: 'Mer', sales: 148000 },
-    { day: 'Jeu', sales: 271000 },
-    { day: 'Ven', sales: 255000 },
-    { day: 'Sam', sales: 392000 },
-    { day: 'Dim', sales: 385000 },
-  ];
+  const parseData = () => {
+    if (salesData && salesData.length > 0) {
+      return salesData.map(d => ({
+        day: new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'short' }),
+        sales: parseFloat(d.total) || 0
+      }));
+    }
+    return [
+      { day: 'Lun', sales: 0 },
+      { day: 'Mar', sales: 0 },
+      { day: 'Mer', sales: 0 },
+      { day: 'Jeu', sales: 0 },
+      { day: 'Ven', sales: 0 },
+      { day: 'Sam', sales: 0 },
+      { day: 'Dim', sales: 0 },
+    ];
+  };
+
+  const data = parseData();
 
   const maxSales = Math.max(...data.map(d => d.sales)) * 1.2 || 1;
   const height = 300;
