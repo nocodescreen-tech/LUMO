@@ -123,7 +123,7 @@ const POS = () => {
                             <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.nom}</h3>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>{product.categorie}</p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '1.2rem' }}>{product.prixVente.toLocaleString()} {currency}</span>
+                                <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '1.2rem' }}>{Number(product.prix || 0).toLocaleString()} {currency}</span>
                                 <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Plus size={20} />
                                 </div>
@@ -174,7 +174,7 @@ const POS = () => {
                                     </div>
                                     <div style={{ flex: 1 }}>
                                         <h4 style={{ fontWeight: 800, margin: '0 0 4px 0' }}>{item.nom}</h4>
-                                        <p style={{ fontWeight: 900, color: 'var(--primary)', margin: 0 }}>{(item as any).prixVente?.toLocaleString()} {currency}</p>
+                                        <p style={{ fontWeight: 900, color: 'var(--primary)', margin: 0 }}>{Number((item as any).prix || 0).toLocaleString()} {currency}</p>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-main)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border)' }}>
                                         <button onClick={() => updateQuantity(item.id, Math.max(1, ((item as any).quantity || (item as any).quantite || 1) - 1))} style={{ border: 'none', background: 'none', color: 'var(--text-main)', cursor: 'pointer' }}><Minus size={16} /></button>

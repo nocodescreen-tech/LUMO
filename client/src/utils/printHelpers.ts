@@ -11,6 +11,13 @@ export interface InvoiceData {
     telephone?: string;
     email?: string;
   };
+  methodePaiement?: string;
+  clientInfo?: {
+    nom?: string;
+    email?: string;
+  };
+  createdAt?: string;
+  montantTotal?: number;
 }
 
 export const generateInvoice = (data: any, user: any = null) => {
@@ -55,64 +62,68 @@ export const generateInvoice = (data: any, user: any = null) => {
           <div class="header">
             <div>
                <div class="logo">${invoiceData.entreprise?.nom || 'LumoCommerce'}</div>
-               <p>${invoiceData.entreprise?.adresse || ''}</p>
-               <p>${invoiceData.entreprise?.telephone || ''}</p>
+               <p style="color: #64748b; margin-top: 8px;">${invoiceData.entreprise?.adresse || 'Adresse de l\'entreprise'}</p>
+               <p style="color: #64748b;">${invoiceData.entreprise?.telephone || 'Téléphone non défini'}</p>
             </div>
-            <div class="title">FACTURE</div>
+            <div style="text-align: right;">
+               <div class="title" style="font-size: 36px; font-weight: 900; color: #1e293b; letter-spacing: -1px;">FACTURE</div>
+               <p style="color: #64748b; font-weight: 600; margin-top: 4px;">Paiement: ${invoiceData.methodePaiement || 'Validé'}</p>
+            </div>
           </div>
           
           <div class="info-grid">
-            <div class="info-block">
+            <div class="info-block" style="background: #f8fafc; padding: 20px; border-radius: 12px;">
               <h4>Facturer à</h4>
-              <p><strong>${invoiceData.clientName || 'Client de passage'}</strong></p>
+              <p style="font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px;">${invoiceData.clientName || invoiceData.clientInfo?.nom || 'Client de passage'}</p>
             </div>
-            <div class="info-block" style="text-align: right;">
-              <h4>Détails</h4>
-              <p>N° Facture: #${invoiceData.id}</p>
-              <p>Date: ${new Date(invoiceData.date || Date.now()).toLocaleDateString()}</p>
+            <div class="info-block" style="text-align: right; background: #f8fafc; padding: 20px; border-radius: 12px;">
+              <h4>Détails de facturation</h4>
+              <p style="font-weight: 600; color: #0f172a; margin-top: 4px;">N° Facture: <span style="color: #6366f1;">#${invoiceData.id?.toString().toUpperCase()}</span></p>
+              <p style="font-weight: 600; color: #0f172a;">Date: ${new Date(invoiceData.date || invoiceData.createdAt || Date.now()).toLocaleDateString()}</p>
             </div>
           </div>
  
-          <table>
+          <table style="margin-bottom: 20px;">
             <thead>
               <tr>
-                <th>Désignation</th>
-                <th>Quantité</th>
-                <th>Prix Unitaire</th>
-                <th style="text-align: right;">Total</th>
+                <th style="border-radius: 8px 0 0 8px;">Désignation de l'article</th>
+                <th style="text-align: center;">Quantité</th>
+                <th style="text-align: right;">Prix Unitaire</th>
+                <th style="text-align: right; border-radius: 0 8px 8px 0;">Total</th>
               </tr>
             </thead>
             <tbody>
               ${(invoiceData.items || []).map((item: any) => `
                 <tr>
-                  <td style="font-weight: 600;">${item.nom}</td>
-                  <td>${item.quantite}</td>
-                  <td>${(item.prix || item.prixUnitaire)?.toLocaleString()} ${invoiceData.currency}</td>
-                  <td style="text-align: right; font-weight: 600;">${((item.prix || item.prixUnitaire) * item.quantite).toLocaleString()} ${invoiceData.currency}</td>
+                  <td style="font-weight: 700; color: #0f172a;">${item.nom}</td>
+                  <td style="text-align: center; color: #475569; font-weight: 600;">${item.quantite || item.quantity || 1}</td>
+                  <td style="text-align: right; color: #475569; font-weight: 600;">${(item.prixUnitaire || item.prix || 0).toLocaleString()} ${invoiceData.currency}</td>
+                  <td style="text-align: right; font-weight: 800; color: #0f172a;">${((item.prixUnitaire || item.prix || 0) * (item.quantite || item.quantity || 1)).toLocaleString()} ${invoiceData.currency}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
  
           <div class="total-section">
-            <div class="total-card">
-              <div class="total-row">
-                <span>Sous-total</span>
-                <span>${(invoiceData.total || 0).toLocaleString()} ${invoiceData.currency}</span>
+            <div class="total-card" style="box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; border-radius: 16px;">
+              <div class="total-row" style="color: #64748b; font-weight: 600;">
+                <span>Sous-total HT</span>
+                <span>${(invoiceData.montantTotal || invoiceData.total || 0).toLocaleString()} ${invoiceData.currency}</span>
               </div>
-              <div class="total-row">
-                <span>Taxe (0%)</span>
+              <div class="total-row" style="color: #64748b; font-weight: 600;">
+                <span>TVA (0%)</span>
                 <span>0 ${invoiceData.currency}</span>
               </div>
-              <div class="total-row grand-total">
-                <span>TOTAL</span>
-                <span>${(invoiceData.total || 0).toLocaleString()} ${invoiceData.currency}</span>
+              <div class="total-row grand-total" style="background: #1e293b; color: white; margin: 16px -24px -24px; padding: 20px 24px; border-radius: 0 0 16px 16px;">
+                <span style="font-size: 16px;">Net à Payer</span>
+                <span style="color: #4ade80;">${(invoiceData.montantTotal || invoiceData.total || 0).toLocaleString()} ${invoiceData.currency}</span>
               </div>
             </div>
           </div>
           
-          <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 14px;">
-            Merci pour votre confiance !
+          <div style="margin-top: 80px; text-align: center; color: #94a3b8; font-size: 14px; padding-top: 20px; border-top: 2px dashed #e2e8f0;">
+            <p style="font-weight: 600; color: #64748b; margin-bottom: 4px;">Merci pour votre confiance !</p>
+            <p>Ce document est une preuve d'achat valable.</p>
           </div>
         </div>
         <script>

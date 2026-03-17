@@ -391,7 +391,7 @@ const Sales = () => {
                                 {selectedSale.articles?.map((art: any, idx: number) => (
                                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)' }}>
                                         <div>
-                                            <p style={{ fontWeight: 800 }}>{art.nom}</p>
+                                            <p style={{ fontWeight: 800, color: 'var(--text-main)' }}>{art.nom}</p>
                                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{art.quantite} x {art.prixUnitaire?.toLocaleString()} {currency}</p>
                                         </div>
                                         <p style={{ fontWeight: 900 }}>{(art.quantite * art.prixUnitaire)?.toLocaleString()} {currency}</p>
