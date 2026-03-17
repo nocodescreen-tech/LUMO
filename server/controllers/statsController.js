@@ -82,17 +82,30 @@ const getDashboardStats = async (req, res, next) => {
 const getSalesChartData = async (req, res, next) => {
     try {
         const userId = req.user.id;
+        const period = req.query.period || '7d';
+
+        let interval = "7d";
+        let dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
+
+        if (period === 'today') {
+            interval = "1d";
+            // Group by hour for today to show interesting graph pattern instead of 1 point
+            dateExpr = sequelize.literal("DATE_TRUNC('hour', \"createdAt\")");
+        } else if (period === '30d') {
+            interval = "30d";
+        }
+
         const stats = await Sale.findAll({
             where: {
                 userId,
-                createdAt: { [Op.gte]: sequelize.literal("NOW() - INTERVAL '7d'") }
+                createdAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '${interval}'`) }
             },
             attributes: [
-                [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
+                [dateExpr, 'date'],
                 [sequelize.fn('SUM', sequelize.col('montantTotal')), 'total']
             ],
-            group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
-            order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
+            group: [dateExpr],
+            order: [[dateExpr, 'ASC']]
         });
         res.json(stats);
     } catch (error) {

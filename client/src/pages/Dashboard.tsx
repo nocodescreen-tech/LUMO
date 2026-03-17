@@ -91,14 +91,13 @@ const Dashboard = () => {
   const [stats, setStats] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartPeriod, setChartPeriod] = useState('7d');
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const { data } = await api.get('/stats/dashboard');
         setStats(data);
-        const chartRes = await api.get('/stats/sales-chart');
-        setChartData(chartRes.data);
       } catch (error) {
         console.error("Failed to fetch dashboard stats", error);
       } finally {
@@ -107,6 +106,18 @@ const Dashboard = () => {
     };
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    const fetchChart = async () => {
+      try {
+        const chartRes = await api.get(`/stats/sales-chart?period=${chartPeriod}`);
+        setChartData(chartRes.data);
+      } catch (error) {
+        console.error("Failed to fetch chart data", error);
+      }
+    };
+    fetchChart();
+  }, [chartPeriod]);
 
   const allActions = [
     { id: 'pos', label: 'Vente Rapide', icon: Zap, path: '/pos', color: 'var(--primary)', desc: 'Terminal de vente' },
@@ -212,12 +223,26 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
              <div>
                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.04em' }}>Trajectoire Financière</h3>
-               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '4px' }}>Évolution de vos revenus sur les 7 derniers jours.</p>
+               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '4px' }}>
+                 Évolution de vos revenus sur {chartPeriod === 'today' ? "aujourd'hui" : chartPeriod === '7d' ? 'les 7 derniers jours' : chartPeriod === '30d' ? 'les 30 derniers jours' : 'la période'}.
+               </p>
              </div>
-             <div className="glass" style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>Temps Réel</div>
+             <div style={{ display: 'flex', gap: '10px' }}>
+               <select 
+                  value={chartPeriod} 
+                  onChange={(e) => setChartPeriod(e.target.value)}
+                  className="glass" 
+                  style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
+               >
+                  <option value="today">Aujourd'hui</option>
+                  <option value="7d">7 derniers jours</option>
+                  <option value="30d">30 derniers jours</option>
+               </select>
+               <div className="glass" style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>Temps Réel</div>
+             </div>
           </div>
           <div style={{ height: '420px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <DashboardCharts salesData={chartData} />
+            <DashboardCharts salesData={chartData} period={chartPeriod} />
           </div>
         </motion.div>
 

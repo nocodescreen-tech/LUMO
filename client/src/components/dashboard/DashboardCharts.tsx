@@ -3,24 +3,36 @@ import { motion } from 'framer-motion';
 
 interface ChartProps {
   salesData?: any[];
+  period?: string;
 }
 
-const DashboardCharts = ({ salesData = [] }: ChartProps) => {
+const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
   const parseData = () => {
     if (salesData && salesData.length > 0) {
-      return salesData.map(d => ({
-        day: new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'short' }),
-        sales: parseFloat(d.total) || 0
-      }));
+      return salesData.map(d => {
+        const dateObj = new Date(d.date);
+        let dayFormat = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
+        
+        if (period === 'today') {
+           dayFormat = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        } else if (period === '30d') {
+           dayFormat = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        }
+        
+        return {
+          day: dayFormat,
+          sales: parseFloat(d.total) || 0
+        };
+      });
     }
     return [
-      { day: 'Lun', sales: 0 },
-      { day: 'Mar', sales: 0 },
-      { day: 'Mer', sales: 0 },
-      { day: 'Jeu', sales: 0 },
-      { day: 'Ven', sales: 0 },
-      { day: 'Sam', sales: 0 },
-      { day: 'Dim', sales: 0 },
+      { day: '00h', sales: 0 },
+      { day: '04h', sales: 0 },
+      { day: '08h', sales: 0 },
+      { day: '12h', sales: 0 },
+      { day: '16h', sales: 0 },
+      { day: '20h', sales: 0 },
+      { day: '24h', sales: 0 },
     ];
   };
 
@@ -96,23 +108,29 @@ const DashboardCharts = ({ salesData = [] }: ChartProps) => {
           />
 
           {/* Points */}
-          {points.map((p, i) => (
-            <g key={i}>
-                <motion.circle
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 1.5 + i * 0.1 }}
-                    cx={p.x} cy={p.y} r="8"
-                    fill="var(--bg-card)"
-                    stroke="var(--primary)"
-                    strokeWidth="4"
-                    style={{ cursor: 'pointer' }}
-                />
-                <text x={p.x} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
-                    {data[i].day}
-                </text>
-            </g>
-          ))}
+          {points.map((p, i) => {
+            // Only show labels for some data points if there's too many
+            const showLabel = data.length > 10 ? i % Math.ceil(data.length / 7) === 0 || i === data.length - 1 : true;
+            return (
+              <g key={i}>
+                  <motion.circle
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 1.5 + i * 0.1 }}
+                      cx={p.x} cy={p.y} r="8"
+                      fill="var(--bg-card)"
+                      stroke="var(--primary)"
+                      strokeWidth="4"
+                      style={{ cursor: 'pointer' }}
+                  />
+                  {showLabel && (
+                    <text x={p.x} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
+                        {data[i].day}
+                    </text>
+                  )}
+              </g>
+            );
+          })}
         </svg>
     </div>
   );
