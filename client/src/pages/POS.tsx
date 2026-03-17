@@ -28,8 +28,12 @@ const POS = () => {
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [amountReceived, setAmountReceived] = useState('');
+    const [receivedCurrency, setReceivedCurrency] = useState('LOCAL'); // 'LOCAL' or 'ALT'
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
-    const { currency, user } = useAuthStore();
+    const { currency, user, exchangeRate } = useAuthStore();
+    
+    const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
 
     useEffect(() => {
         fetchProducts();
@@ -70,6 +74,8 @@ const POS = () => {
             setTimeout(() => {
                 setShowSuccess(false);
                 clearCart();
+                setAmountReceived('');
+                setReceivedCurrency('LOCAL');
             }, 3000);
             
             toast.success("Vente terminée avec succès !");
@@ -183,16 +189,100 @@ const POS = () => {
                 </div>
 
                 <div style={{ padding: '32px', backgroundColor: 'rgba(255,255,255,0.02)', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.2rem' }}>Total à payer</span>
-                        <span className="text-gradient" style={{ fontWeight: 900, fontSize: '2.2rem' }}>{getTotal().toLocaleString()} {currency}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.2rem' }}>Total à payer</span>
+                            <div style={{ textAlign: 'right' }}>
+                              <div className="text-gradient" style={{ fontWeight: 900, fontSize: '2.2rem', lineHeight: '1' }}>{getTotal().toLocaleString()} {currency}</div>
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '4px' }}>
+                                ≈ {(currency === 'CDF' ? getTotal() / exchangeRate : getTotal() * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 2 })} {altCurrency}
+                              </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-main)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Rendu en</span>
+                                <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border)' }}>
+                                    <button 
+                                      onClick={() => setReceivedCurrency('LOCAL')} 
+                                      style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: receivedCurrency === 'LOCAL' ? 'var(--primary)' : 'transparent', color: receivedCurrency === 'LOCAL' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                                    >
+                                        {currency}
+                                    </button>
+                                    <button 
+                                      onClick={() => setReceivedCurrency('ALT')} 
+                                      style={{ padding: '4px 12px', borderRadius: '6px', border: 'none', background: receivedCurrency === 'ALT' ? 'var(--primary)' : 'transparent', color: receivedCurrency === 'ALT' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}
+                                    >
+                                        {altCurrency}
+                                    </button>
+                                </div>
+                            </div>
+                            <input
+                                type="number"
+                                value={amountReceived}
+                                onChange={(e) => setAmountReceived(e.target.value)}
+                                placeholder="0"
+                                style={{ 
+                                    background: 'transparent', border: 'none', outline: 'none', 
+                                    color: 'var(--text-main)', fontSize: '1.4rem', fontWeight: 800, 
+                                    textAlign: 'right', width: '40%', fontFamily: 'inherit'
+                                }}
+                            />
+                        </div>
+
+                        <AnimatePresence>
+                            {Number(amountReceived) > 0 && (() => {
+                                const inputAmount = Number(amountReceived);
+                                // Convert input to local currency if it was entered in ALT
+                                const receivedInLocal = receivedCurrency === 'LOCAL' 
+                                    ? inputAmount 
+                                    : (currency === 'CDF' ? inputAmount * exchangeRate : inputAmount / exchangeRate);
+                                
+                                const changeInLocal = receivedInLocal - getTotal();
+                                const isEnough = changeInLocal >= 0;
+
+                                return (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        style={{ overflow: 'hidden' }}
+                                    >
+                                        {isEnough ? (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'var(--success-glow)', borderRadius: '16px', border: '1px solid rgba(34, 197, 94, 0.2)', marginTop: '8px' }}>
+                                                <span style={{ color: 'var(--success)', fontWeight: 800 }}>Monnaie à rendre</span>
+                                                <div style={{ textAlign: 'right' }}>
+                                                  <div style={{ color: 'var(--success)', fontWeight: 900, fontSize: '1.6rem', lineHeight: '1' }}>{changeInLocal.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}</div>
+                                                  <div style={{ fontSize: '0.85rem', color: 'var(--success)', opacity: 0.8, fontWeight: 700, marginTop: '4px' }}>
+                                                    ou {(currency === 'CDF' ? changeInLocal / exchangeRate : changeInLocal * exchangeRate).toLocaleString(undefined, { maximumFractionDigits: 2 })} {altCurrency}
+                                                  </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', background: 'var(--danger-glow)', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', marginTop: '8px' }}>
+                                                <span style={{ color: 'var(--danger)', fontWeight: 800 }}>Montant insuffisant (manque {Math.abs(changeInLocal).toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency})</span>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                );
+                            })()}
+                        </AnimatePresence>
                     </div>
 
                     <button
                         onClick={handleCheckout}
-                        disabled={cart.length === 0}
+                        disabled={cart.length === 0 || (Number(amountReceived) > 0 && (() => {
+                            const inputAmount = Number(amountReceived);
+                            const receivedInLocal = receivedCurrency === 'LOCAL' ? inputAmount : (currency === 'CDF' ? inputAmount * exchangeRate : inputAmount / exchangeRate);
+                            return receivedInLocal < getTotal();
+                        })())}
                         className="btn-premium primary"
-                        style={{ width: '100%', padding: '24px', borderRadius: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: cart.length === 0 ? 0.5 : 1 }}
+                        style={{ width: '100%', padding: '24px', borderRadius: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: (cart.length === 0 || (Number(amountReceived) > 0 && (() => {
+                            const inputAmount = Number(amountReceived);
+                            const receivedInLocal = receivedCurrency === 'LOCAL' ? inputAmount : (currency === 'CDF' ? inputAmount * exchangeRate : inputAmount / exchangeRate);
+                            return receivedInLocal < getTotal();
+                        })())) ? 0.5 : 1 }}
                     >
                         <CreditCard size={24} /> Finaliser la vente <ChevronRight size={20} />
                     </button>

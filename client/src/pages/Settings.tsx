@@ -78,7 +78,9 @@ const Settings = () => {
     enabledModules, 
     toggleModule,
     currency,
-    setCurrency
+    setCurrency,
+    exchangeRate,
+    setExchangeRate
   } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState('profile');
@@ -156,7 +158,8 @@ const Settings = () => {
             theme,
             language,
             enabledModules,
-            currency
+            currency,
+            exchangeRate
         },
         ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse } : {})
       };
@@ -342,6 +345,19 @@ const Settings = () => {
                       >
                         {devises.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Taux de change (1 USD = X)</label>
+                    <div style={{ position: 'relative' }}>
+                      <RefreshCcw size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
+                      <input
+                        type="number"
+                        value={exchangeRate}
+                        onChange={(e) => setExchangeRate(Number(e.target.value))}
+                        placeholder="Ex: 2800"
+                        style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700', outline: 'none', boxSizing: 'border-box', appearance: 'none', fontFamily: 'inherit' }}
+                      />
                     </div>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>

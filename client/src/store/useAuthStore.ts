@@ -13,6 +13,7 @@ interface UserPreferences {
   language?: 'fr' | 'en';
   enabledModules?: string[];
   currency?: 'USD' | 'CDF';
+  exchangeRate?: number;
 }
 
 interface User {
@@ -33,6 +34,7 @@ interface AuthState {
   theme: 'light' | 'dark';
   language: 'fr' | 'en';
   currency: 'USD' | 'CDF';
+  exchangeRate: number;
   enabledModules: string[];
   setAuth: (user: User, token: string) => void;
   logout: () => void;
@@ -41,7 +43,9 @@ interface AuthState {
   setTheme: (theme: 'light' | 'dark') => void;
   setLanguage: (lang: 'fr' | 'en') => void;
   setCurrency: (curr: 'USD' | 'CDF') => void;
+  setExchangeRate: (rate: number) => void;
   toggleModule: (moduleId: string) => void;
+  syncPreferencesToServer: (prefs: Partial<UserPreferences>) => Promise<void>;
 }
 
 const loadInitialAuth = () => {
@@ -65,10 +69,11 @@ const initialAuth = loadInitialAuth();
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialAuth.user,
   token: initialAuth.token,
-  theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
-  language: (localStorage.getItem('language') as 'fr' | 'en') || 'fr',
-  currency: (localStorage.getItem('currency') as 'USD' | 'CDF') || 'CDF',
-  enabledModules: JSON.parse(localStorage.getItem('enabledModules') || '[]'),
+  theme: initialAuth.user?.preferences?.theme || (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
+  language: initialAuth.user?.preferences?.language || (localStorage.getItem('language') as 'fr' | 'en') || 'fr',
+  currency: initialAuth.user?.preferences?.currency || (localStorage.getItem('currency') as 'USD' | 'CDF') || 'CDF',
+  exchangeRate: initialAuth.user?.preferences?.exchangeRate || 2250,
+  enabledModules: initialAuth.user?.preferences?.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
 
   setAuth: (user, token) => {
     localStorage.setItem('hub-auth', JSON.stringify({ user, token }));
@@ -79,10 +84,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     const lang = prefs.language || 'fr';
     const modules = prefs.enabledModules || [];
     const curr = prefs.currency || 'CDF';
+    const rate = prefs.exchangeRate || 2250;
 
     localStorage.setItem('theme', theme);
     localStorage.setItem('language', lang);
     localStorage.setItem('currency', curr);
+    localStorage.setItem('exchangeRate', rate.toString());
     localStorage.setItem('enabledModules', JSON.stringify(modules));
     document.documentElement.setAttribute('data-theme', theme);
 
@@ -92,7 +99,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         theme: theme as any, 
         language: lang as any, 
         enabledModules: modules,
-        currency: curr as any 
+        currency: curr as any,
+        exchangeRate: rate
     });
   },
 
@@ -116,6 +124,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (prefs.language) localStorage.setItem('language', prefs.language);
       if (prefs.enabledModules) localStorage.setItem('enabledModules', JSON.stringify(prefs.enabledModules));
       if (prefs.currency) localStorage.setItem('currency', prefs.currency);
+      if (prefs.exchangeRate) localStorage.setItem('exchangeRate', prefs.exchangeRate.toString());
 
       set({ 
         user, 
@@ -123,7 +132,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         theme: prefs.theme || (localStorage.getItem('theme') as any) || 'dark',
         language: prefs.language || (localStorage.getItem('language') as any) || 'fr',
         enabledModules: prefs.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
-        currency: prefs.currency || (localStorage.getItem('currency') as any) || 'CDF'
+        currency: prefs.currency || (localStorage.getItem('currency') as any) || 'CDF',
+        exchangeRate: prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '2250')
       });
       
       document.documentElement.setAttribute('data-theme', prefs.theme || localStorage.getItem('theme') || 'dark');
@@ -142,7 +152,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     return { user: updated };
   }),
 
-  syncPreferencesToServer: async (prefs: any) => {
+  syncPreferencesToServer: async (prefs: Partial<UserPreferences>) => {
       try {
           const state = useAuthStore.getState();
           if (state.token && state.user) {
@@ -155,7 +165,9 @@ export const useAuthStore = create<AuthState>((set) => ({
               };
               await api.put('/auth/profile', payload);
           }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Failed to sync preferences to server:", e);
+      }
   },
 
   setTheme: (theme) => set((state) => {
@@ -170,7 +182,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       };
       localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
       // Fire and forget sync to backend
-      (useAuthStore.getState() as any).syncPreferencesToServer({ theme });
+      useAuthStore.getState().syncPreferencesToServer({ theme });
     }
     return { theme, user: updatedUser };
   }),
@@ -185,7 +197,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         preferences: { ...state.user.preferences, language }
       };
       localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
-      (useAuthStore.getState() as any).syncPreferencesToServer({ language });
+      useAuthStore.getState().syncPreferencesToServer({ language });
     }
     return { language, user: updatedUser };
   }),
@@ -200,9 +212,24 @@ export const useAuthStore = create<AuthState>((set) => ({
         preferences: { ...state.user.preferences, currency }
       };
       localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
-      (useAuthStore.getState() as any).syncPreferencesToServer({ currency });
+      useAuthStore.getState().syncPreferencesToServer({ currency });
     }
     return { currency, user: updatedUser };
+  }),
+
+  setExchangeRate: (rate) => set((state) => {
+    localStorage.setItem('exchangeRate', rate.toString());
+    
+    let updatedUser = state.user;
+    if (state.user) {
+      updatedUser = {
+        ...state.user,
+        preferences: { ...state.user.preferences, exchangeRate: rate }
+      };
+      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
+      useAuthStore.getState().syncPreferencesToServer({ exchangeRate: rate });
+    }
+    return { exchangeRate: rate, user: updatedUser };
   }),
 
   toggleModule: (moduleId) => set((state) => {
@@ -223,7 +250,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
       };
       localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
-      (useAuthStore.getState() as any).syncPreferencesToServer({ enabledModules: updated });
+      useAuthStore.getState().syncPreferencesToServer({ enabledModules: updated });
     }
 
     return { enabledModules: updated, user: updatedUser };
