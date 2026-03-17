@@ -57,3 +57,14 @@ exports.deleteProduct = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.createBulkProducts = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const products = req.body.products.map(p => ({ ...p, userId }));
+    const createdProducts = await Product.bulkCreate(products);
+    res.status(201).json(createdProducts);
+  } catch (error) {
+    next(error);
+  }
+};

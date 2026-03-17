@@ -115,7 +115,7 @@ const Modal: React.FC<ModalProps> = ({
                                 fontSize: '2.5rem', 
                                 fontWeight: '950', 
                                 letterSpacing: '-0.05em', 
-                                color: 'white',
+                                color: 'var(--text-main)',
                                 margin: 0,
                                 lineHeight: 1.1
                             }}>{title}</h2>

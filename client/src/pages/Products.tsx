@@ -30,6 +30,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
+import * as XLSX from 'xlsx';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -49,6 +50,56 @@ const Products = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const importInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleExportExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(products.map((p: any) => ({
+      Reference: p.id,
+      Nom: p.nom,
+      Categorie: p.categorie,
+      Stock: p.stock,
+      PrixVente: p.prix,
+      PrixAchat: p.prixAchat,
+      Devise: p.devise || currency,
+      DatePeremption: p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : ''
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produits");
+    XLSX.writeFile(wb, "Produits_Export.xlsx");
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData: any[] = XLSX.utils.sheet_to_json(sheet);
+        
+        let validProducts = parsedData.map(row => ({
+          nom: row.Nom || row.nom || row.Name || 'Produit Inconnu',
+          categorie: row.Categorie || row.categorie || row.Category || 'Général',
+          prix: parseFloat(row.PrixVente || row.prix || 0),
+          prixAchat: parseFloat(row.PrixAchat || row.prixAchat || 0),
+          stock: parseInt(row.Stock || row.stock || 0),
+          devise: row.Devise || row.devise || currency
+        }));
+
+        const res = await api.post('/products/bulk', { products: validProducts });
+        toast.success(`${res.data.length} produits importés avec succès !`);
+        fetchProducts();
+      } catch (err) {
+        toast.error("Erreur lors de l'importation. Vérifiez le format du fichier.");
+        console.error(err);
+      }
+    };
+    reader.readAsBinaryString(file);
+    if(importInputRef.current) importInputRef.current.value = '';
+  };
 
   const [newProduct, setNewProduct] = useState({
       nom: '',
@@ -221,6 +272,13 @@ const Products = () => {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+           <input type="file" ref={importInputRef} accept=".xlsx, .xls, .csv" onChange={handleImportExcel} style={{ display: 'none' }} />
+           <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
+             <Upload size={20} /> Import
+           </button>
+           <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
+             <Download size={20} /> Export
+           </button>
            <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '56px', height: '56px', borderRadius: '18px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
              <RefreshCw size={20} />
            </button>
