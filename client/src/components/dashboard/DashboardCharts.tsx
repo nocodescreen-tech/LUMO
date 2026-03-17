@@ -41,23 +41,6 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
   const maxSales = Math.max(...data.map(d => d.sales)) * 1.2 || 1;
   const height = 300;
   const width = 800;
-  const stepX = width / (data.length - 1);
-
-  // Generate path points
-  const points = data.map((d, i) => ({
-    x: i * stepX,
-    y: height - (d.sales / maxSales) * height
-  }));
-
-  // Create smooth cubic bezier path
-  const linePath = points.reduce((acc, p, i, a) => {
-    if (i === 0) return `M ${p.x},${p.y}`;
-    const prev = a[i - 1];
-    const cp1x = prev.x + (p.x - prev.x) / 2;
-    return `${acc} C ${cp1x},${prev.y} ${cp1x},${p.y} ${p.x},${p.y}`;
-  }, '');
-
-  const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -85,47 +68,51 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
             />
           ))}
 
-          {/* Area */}
-          <motion.path
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
-            d={areaPath}
-            fill="url(#areaGradient)"
-          />
-
-          {/* Line */}
-          <motion.path
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 2, ease: "circOut" }}
-            d={linePath}
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            filter="url(#glow)"
-          />
-
-          {/* Points */}
-          {points.map((p, i) => {
+          {/* Barres (Candlestick style) */}
+          {data.map((d, i) => {
+            const barWidth = Math.min(30, (width / data.length) * 0.5);
+            const xPos = (width / data.length) * i + (width / data.length) / 2 - barWidth / 2;
+            const barHeight = Math.max((d.sales / maxSales) * height, 4); // minimum height
+            
             // Only show labels for some data points if there's too many
             const showLabel = data.length > 10 ? i % Math.ceil(data.length / 7) === 0 || i === data.length - 1 : true;
+            
             return (
               <g key={i}>
-                  <motion.circle
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 1.5 + i * 0.1 }}
-                      cx={p.x} cy={p.y} r="8"
-                      fill="var(--bg-card)"
-                      stroke="var(--primary)"
-                      strokeWidth="4"
+                  {/* Background shadow for hover effect */}
+                  <rect 
+                    x={xPos - 10} y={0} width={barWidth + 20} height={height} 
+                    fill="transparent" 
+                    className="chart-hover-bg"
+                  />
+                  
+                  {/* The bar */}
+                  <motion.rect
+                      initial={{ height: 0, y: height }}
+                      animate={{ height: barHeight, y: height - barHeight }}
+                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
+                      x={xPos}
+                      width={barWidth}
+                      rx={6}
+                      fill="url(#areaGradient)"
                       style={{ cursor: 'pointer' }}
                   />
+                  
+                  {/* Accent dot on top of the bar */}
+                  <motion.circle
+                      initial={{ opacity: 0, cy: height }}
+                      animate={{ opacity: 1, cy: height - barHeight }}
+                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
+                      cx={xPos + barWidth / 2}
+                      r="4"
+                      fill="var(--bg-main)"
+                      stroke="var(--primary)"
+                      strokeWidth="2"
+                  />
+
                   {showLabel && (
-                    <text x={p.x} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
-                        {data[i].day}
+                    <text x={xPos + barWidth / 2} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
+                        {d.day}
                     </text>
                   )}
               </g>
