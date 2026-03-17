@@ -91,6 +91,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { name: t.products, icon: Package, path: '/products', group: 'STORE' },
     { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
     { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
+    { name: t.purchases, icon: Truck, path: '/purchases', group: 'STORE' },
     { name: t.stats, icon: BarChart3, path: '/stats', group: 'STORE' },
     ...(enabledModules.includes('suppliers') ? [{ name: t.suppliers, icon: Truck, path: '/fournisseurs', group: 'STORE' }] : []),
     ...(enabledModules.includes('debts') ? [{ name: t.debts, icon: CreditCard, path: '/dettes', group: 'STORE' }] : []),

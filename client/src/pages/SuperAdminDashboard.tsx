@@ -358,7 +358,7 @@ const SuperAdminDashboard = () => {
                                                     <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'white' }}>{u.nom}</div>
+                                                    <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>{u.nom}</div>
                                                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '700' }}>{u.entreprise?.nom || 'Indépendant'}</div>
                                                 </div>
                                             </div>
@@ -499,7 +499,7 @@ const SuperAdminDashboard = () => {
                             )}
                         </AnimatePresence>
 
-                        <div style={{ overflowX: 'auto', paddingBottom: '120px' }}>
+                        <div style={{ overflow: 'auto', maxHeight: '70vh', paddingBottom: '120px' }}>
                             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 16px' }}>
                                 <thead>
                                     <tr style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '900', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.15em' }}>

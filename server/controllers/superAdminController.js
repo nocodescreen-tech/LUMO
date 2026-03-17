@@ -66,10 +66,10 @@ const suspendUser = async (req, res, next) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    user.isSuspended = !user.isSuspended;
+    user.isAdminValidated = !user.isAdminValidated;
     await user.save();
 
-    res.json({ message: `Utilisateur ${user.isSuspended ? 'suspendu' : 'activé'} avec succès`, isSuspended: user.isSuspended });
+    res.json({ message: `Utilisateur ${!user.isAdminValidated ? 'suspendu' : 'activé'} avec succès`, isAdminValidated: user.isAdminValidated });
   } catch (error) {
     next(error);
   }
