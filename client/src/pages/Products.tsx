@@ -109,7 +109,7 @@ const Products = () => {
       stock: 0,
       stockAlerte: 5,
       description: '',
-      devise: currency
+      devise: currency as string
   });
 
   const fetchProducts = async () => {
