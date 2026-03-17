@@ -219,7 +219,7 @@ const SuperAdminDashboard = () => {
                 cursor: 'pointer', borderRadius: '14px', transition: 'all 0.3s',
                 width: '100%', textAlign: 'left'
             }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--sidebar-active)'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
             <Icon size={20} /> {label}
@@ -276,7 +276,7 @@ const SuperAdminDashboard = () => {
             </header>
 
             {/* NAVIGATION */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '48px', overflowX: 'auto', paddingBottom: '2px' }} className="hide-scrollbar">
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '48px', overflowX: 'auto', paddingBottom: '12px' }} className="premium-scroll">
                 <TabButton id="overview" icon={BarChart3} label="Architecture & Flux" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
                 <TabButton id="users" icon={Users} label="Utilisateurs" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
                 <TabButton id="logs" icon={Activity} label="Audit Log Central" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
@@ -342,7 +342,7 @@ const SuperAdminDashboard = () => {
                                         Exploration Totale <ArrowRight size={18} />
                                     </button>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }} className="premium-scroll">
                                     {users.slice(0, 5).map((u, i) => (
                                         <motion.div
                                             initial={{ opacity: 0, x: -20 }}
@@ -355,7 +355,7 @@ const SuperAdminDashboard = () => {
                                         >
                                             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                                                 <div style={{ width: '52px', height: '52px', borderRadius: '16px', border: '2px solid var(--border)', overflow: 'hidden' }}>
-                                                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <img src={u.avatar ? (u.avatar.startsWith('http') ? u.avatar : `http://localhost:5001${u.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 </div>
                                                 <div>
                                                     <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>{u.nom}</div>
@@ -475,7 +475,7 @@ const SuperAdminDashboard = () => {
                                     <div style={{ padding: '24px', borderRadius: '24px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                                         <div>
                                             <label style={{ fontSize: '0.7rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Rôle Système</label>
-                                            <select style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'white', fontWeight: '700' }}>
+                                            <select style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700' }}>
                                                 <option>Tous les rôles</option>
                                                 <option>Admin</option>
                                                 <option>Vendeur</option>
@@ -484,11 +484,11 @@ const SuperAdminDashboard = () => {
                                         </div>
                                         <div>
                                             <label style={{ fontSize: '0.7rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Date d'inscription</label>
-                                            <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'white', fontWeight: '700' }} />
+                                            <input type="date" style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700' }} />
                                         </div>
                                         <div>
                                             <label style={{ fontSize: '0.7rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Tri par Activité</label>
-                                            <select style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'white', fontWeight: '700' }}>
+                                            <select style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)', color: 'var(--text-main)', fontWeight: '700' }}>
                                                 <option>Plus récents</option>
                                                 <option>Plus anciens</option>
                                                 <option>A-Z</option>

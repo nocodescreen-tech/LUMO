@@ -38,6 +38,7 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const user = useAuthStore(state => state.user);
+  const currency = useAuthStore(state => state.currency) || 'CDF';
   const isPharmacy = user?.typeActivite === 'Pharmacie';
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -56,7 +57,8 @@ const Products = () => {
       prixAchat: 0,
       stock: 0,
       stockAlerte: 5,
-      description: ''
+      description: '',
+      devise: currency
   });
 
   const fetchProducts = async () => {
@@ -108,7 +110,7 @@ const Products = () => {
         toast.success(`Produit "${newProduct.nom}" ajouté avec succès !`);
         setShowAddModal(false);
         setNewProduct({
-            nom: '', categorie: 'Général', prix: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: ''
+            nom: '', categorie: 'Général', prix: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency
         });
         setSelectedImage(null);
         setImagePreview(null);
@@ -303,7 +305,7 @@ const Products = () => {
                     )}
                     <td style={{ padding: '28px 32px' }}>
                         <div style={{ fontWeight: '950', fontSize: '1.2rem', color: 'var(--primary)' }}>
-                            {p.prix?.toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>CDF</span>
+                            {p.prix?.toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{p.devise || currency}</span>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px' }}>Achat: {p.prixAchat?.toLocaleString()}</div>
                     </td>
@@ -400,6 +402,17 @@ const Products = () => {
           </div>
 
           <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Devise</label>
+            <div style={{ position: 'relative' }}>
+              <select value={newProduct.devise} onChange={(e) => setNewProduct({...newProduct, devise: e.target.value})} style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none', cursor: 'pointer' }}>
+                <option value="CDF">Francs Congolais (CDF)</option>
+                <option value="USD">Dollars (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock de départ</label>
             <div style={{ position: 'relative' }}>
               <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
@@ -408,7 +421,7 @@ const Products = () => {
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.A. (Achat CDF)</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.A. (Achat {newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
               <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
               <input type="number" required value={newProduct.prixAchat} onChange={(e) => setNewProduct({...newProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
@@ -416,7 +429,7 @@ const Products = () => {
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.V. (Vente CDF)</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.V. (Vente {newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
               <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
               <input type="number" required value={newProduct.prix} onChange={(e) => setNewProduct({...newProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
@@ -475,6 +488,17 @@ const Products = () => {
             </div>
 
             <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Devise</label>
+              <div style={{ position: 'relative' }}>
+                <select value={selectedProduct.devise || currency} onChange={(e) => setSelectedProduct({...selectedProduct, devise: e.target.value})} style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none', cursor: 'pointer' }}>
+                  <option value="CDF">Francs Congolais (CDF)</option>
+                  <option value="USD">Dollars (USD)</option>
+                  <option value="EUR">Euros (EUR)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock Actuel</label>
               <div style={{ position: 'relative' }}>
                 <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
@@ -483,7 +507,7 @@ const Products = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
                 <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
                 <input type="number" required value={selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({...selectedProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
@@ -491,7 +515,7 @@ const Products = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix de Vente</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
                 <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
                 <input type="number" required value={selectedProduct.prix} onChange={(e) => setSelectedProduct({...selectedProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />

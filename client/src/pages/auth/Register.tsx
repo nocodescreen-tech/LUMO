@@ -193,7 +193,7 @@ const Register = () => {
       >
         <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Logo size={60} />
-          <h2 style={{ fontSize: '2.6rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', lineHeight: 1.1, marginTop: '24px' }}>
+          <h2 style={{ fontSize: '2.6rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', lineHeight: 1.1, marginTop: '24px', color: 'var(--text-main)' }}>
             Propulsez votre <span style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Commerce</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem' }}>Une configuration rapide pour une gestion sans limite.</p>
@@ -439,7 +439,7 @@ const Register = () => {
                       ) : (
                         <>
                           <Camera size={28} />
-                          <span style={{ fontSize: '0.8rem', fontWeight: '800' }}>PHOTO PROFIL</span>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-main)' }}>PHOTO PROFIL</span>
                         </>
                       )}
                   </motion.div>

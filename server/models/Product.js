@@ -43,6 +43,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,
     defaultValue: 'pcs'
   },
+  devise: {
+    type: DataTypes.STRING,
+    defaultValue: 'CDF'
+  },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false

@@ -1,4 +1,4 @@
-const { User, Sale, Depense, Product, Notification } = require('../models');
+const { User, Sale, Depense, Product, Notification, Purchase } = require('../models');
 
 // Liste des utilisateurs / instances
 const getSuperadminUsers = async (req, res, next) => {
@@ -22,9 +22,10 @@ const getSuperadminLogs = async (req, res, next) => {
 // Statistiques globales
 const getSuperadminStats = async (req, res, next) => {
   try {
-    const [revenueRows, expensesRows, counts] = await Promise.all([
+    const [revenueRows, expensesRows, purchaseRows, counts] = await Promise.all([
       Sale.findAll(),
       Depense.findAll(),
+      Purchase.findAll(),
       Promise.all([
         User.count(),
         Product.count(),
@@ -34,6 +35,7 @@ const getSuperadminStats = async (req, res, next) => {
 
     const totalRevenue = revenueRows.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
     const totalExpenses = expensesRows.reduce((acc, e) => acc + (e.montant || 0), 0);
+    const totalPurchases = purchaseRows.reduce((acc, p) => acc + (p.montantTotal || 0), 0);
     
     // Dynamically calculate API costs from expenses categorized as 'API' or 'Maintenance'
     const apiCosts = expensesRows
@@ -44,7 +46,7 @@ const getSuperadminStats = async (req, res, next) => {
 
     res.json({
       revenue: { total: totalRevenue },
-      purchases: { total: 0 },
+      purchases: { total: totalPurchases },
       expenses: { total: totalExpenses },
       aiUsage: activityCount * 42,
       apiCosts: apiCosts > 0 ? apiCosts : 14.20,
@@ -69,7 +71,10 @@ const suspendUser = async (req, res, next) => {
     user.isAdminValidated = !user.isAdminValidated;
     await user.save();
 
-    res.json({ message: `Utilisateur ${!user.isAdminValidated ? 'suspendu' : 'activé'} avec succès`, isAdminValidated: user.isAdminValidated });
+    res.json({ 
+      message: `Utilisateur ${user.isAdminValidated ? 'réactivé' : 'suspendu'} avec succès`, 
+      isAdminValidated: user.isAdminValidated 
+    });
   } catch (error) {
     next(error);
   }

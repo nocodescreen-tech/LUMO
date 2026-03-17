@@ -71,6 +71,7 @@ const ForgotPassword = () => {
             fontWeight: 900,
             marginBottom: 8,
             letterSpacing: '-0.04em',
+            color: 'var(--text-main)',
           }}
         >
           Mot de passe oublié ?
