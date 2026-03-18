@@ -64,3 +64,22 @@ exports.settleDebt = async (req, res, next) => {
 exports.sendReminder = async (req, res, next) => {
     res.status(200).json({ success: true, message: 'Rappel envoyé' });
 };
+
+const Sale = require('../models/Sale');
+
+exports.getClientSales = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const clientId = req.params.id;
+    const client = await Client.findOne({ where: { id: clientId, userId } });
+    if (!client) return res.status(404).json({ message: 'Client non trouvé' });
+
+    const sales = await Sale.findAll({
+      where: { clientId, userId },
+      order: [['createdAt', 'DESC']]
+    });
+    res.status(200).json(sales);
+  } catch (error) {
+    next(error);
+  }
+};

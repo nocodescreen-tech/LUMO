@@ -120,18 +120,33 @@ const getAnalytics = async (req, res, next) => {
         const userId = req.user.id;
         const now = new Date();
 
-        // -- 1. Ventes des 7 derniers jours (pour graph linéaire) --
-        const weeklySales = await Sale.findAll({
+        const period = req.query.period || '7d';
+
+        let interval = "7d";
+        let dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
+
+        if (period === 'today') {
+            interval = "1d";
+            dateExpr = sequelize.literal("DATE_TRUNC('hour', \"createdAt\")");
+        } else if (period === '30d') {
+            interval = "30d";
+        } else if (period === '1y') {
+            interval = "1y";
+            dateExpr = sequelize.literal("DATE_TRUNC('month', \"createdAt\")");
+        }
+
+        // -- 1. Ventes selon la période choisie --
+        const periodSales = await Sale.findAll({
             where: { 
                 userId, 
-                createdAt: { [Op.gte]: sequelize.literal("NOW() - INTERVAL '7d'") } 
+                createdAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '${interval}'`) } 
             },
             attributes: [
-                [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
+                [dateExpr, 'date'],
                 [sequelize.fn('SUM', sequelize.col('montantTotal')), 'total']
             ],
-            group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
-            order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
+            group: [dateExpr],
+            order: [[dateExpr, 'ASC']]
         });
 
         // -- 2. Répartition du stock par catégorie --
@@ -165,7 +180,7 @@ const getAnalytics = async (req, res, next) => {
         });
 
         res.json({
-            weeklySales: weeklySales.map(s => ({ date: s.dataValues.date, total: parseFloat(s.dataValues.total) || 0 })),
+            periodSales: periodSales.map(s => ({ date: s.dataValues.date, total: parseFloat(s.dataValues.total) || 0 })),
             stockByCategory,
             monthlyRevenue: {
                 labels: Object.keys(monthlyMap),

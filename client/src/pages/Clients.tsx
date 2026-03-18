@@ -17,7 +17,10 @@ import {
   ChevronRight,
   UserCheck,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ShoppingBag,
+  Clock,
+  ArrowDownCircle
 } from 'lucide-react';
 import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,7 +35,11 @@ const Clients = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
+  
+  const [clientHistory, setClientHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const [newClient, setNewClient] = useState({
     nom: '',
@@ -238,7 +245,12 @@ const Clients = () => {
                 <button className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                   <History size={20} />
                 </button>
-                <button onClick={() => toast.info('La page détaillée du client sera disponible lors de la prochaine mise à jour !')} className="glass btn-hover" style={{ height: '48px', padding: '0 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                <button onClick={() => {
+                  setSelectedClient(c);
+                  setShowDetailsModal(true);
+                  setHistoryLoading(true);
+                  api.get(`/clients/${c.id}/sales`).then(res => setClientHistory(res.data)).catch(err => console.error(err)).finally(() => setHistoryLoading(false));
+                }} className="glass btn-hover" style={{ height: '48px', padding: '0 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                   Fiche Complète <ChevronRight size={18} />
                 </button>
               </div>
@@ -350,6 +362,83 @@ const Clients = () => {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Modal Fiche Complète */}
+      <Modal 
+        isOpen={showDetailsModal} 
+        onClose={() => { setShowDetailsModal(false); setClientHistory([]); }} 
+        title={`Dossier Client : ${selectedClient?.nom || ''}`}
+      >
+        {selectedClient && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+              <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>TOTAL ACHATS</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--primary)', marginTop: '4px' }}>
+                  {clientHistory.reduce((acc, curr) => acc + (parseFloat(curr.montantTotal) || 0), 0).toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>CDF</span>
+                </div>
+              </div>
+              <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>DETTE RESTANTE</span>
+                 <div style={{ fontSize: '1.4rem', fontWeight: 950, color: selectedClient.detteTotale > 0 ? '#ef4444' : '#10b981', marginTop: '4px' }}>
+                   {selectedClient.detteTotale?.toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>CDF</span>
+                 </div>
+              </div>
+              <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>NB. DE VISITES</span>
+                 <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--text-main)', marginTop: '4px' }}>
+                   {clientHistory.length} visite{clientHistory.length > 1 ? 's' : ''}
+                 </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 900, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <History size={18} color="var(--primary)" /> Historique des Achats
+              </h4>
+              {historyLoading ? (
+                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Chargement de l'historique...</div>
+              ) : clientHistory.length === 0 ? (
+                 <div className="glass" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+                    Ce client n'a pas encore effectué d'achats ou les données sont introuvables.
+                 </div>
+              ) : (
+                <div className="custom-scrollbar" style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '10px' }}>
+                  {clientHistory.map(sale => (
+                    <div key={sale.id} className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--bg-main)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                              <Clock size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleString()}
+                            </div>
+                            <span style={{ background: sale.methodePaiement === 'Dette' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: sale.methodePaiement === 'Dette' ? '#ef4444' : '#10b981', padding: '4px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 900 }}>
+                              {sale.methodePaiement}
+                            </span>
+                        </div>
+                        
+                        {/* Liste des articles */}
+                        {sale.articles && sale.articles.length > 0 && (
+                          <div style={{ background: 'var(--bg-body)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                            {sale.articles.map((art: any, i: number) => (
+                               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: i !== sale.articles.length - 1 ? '8px' : '0', color: 'var(--text-main)', borderBottom: i !== sale.articles.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: i !== sale.articles.length - 1 ? '8px' : '0' }}>
+                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <ArrowDownCircle size={14} opacity={0.5} /> <span style={{ fontWeight: 700 }}>{art.nom}</span> <span style={{ color: 'var(--text-muted)' }}>x{art.quantite}</span>
+                                 </div>
+                                 <span style={{ fontWeight: 800 }}>{(art.prixUnitaire * art.quantite).toLocaleString()}</span>
+                               </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', fontWeight: 900, fontSize: '1.1rem', color: 'var(--primary)', borderTop: '1px solid var(--border)' }}>
+                           Total : {parseFloat(sale.montantTotal).toLocaleString()} CDF
+                        </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </Modal>
 

@@ -18,13 +18,15 @@ const Stats = () => {
     const { currency } = useAuthStore();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [period, setPeriod] = useState('7d');
 
     useEffect(() => {
-        api.get('/stats/analytics')
+        setLoading(true);
+        api.get(`/stats/analytics?period=${period}`)
             .then(res => setData(res.data))
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
-    }, []);
+    }, [period]);
 
     const monthlyLabels = data?.monthlyRevenue?.labels || [];
     const monthlyValues = data?.monthlyRevenue?.values || [];
@@ -47,9 +49,22 @@ const Stats = () => {
                     <h1 className="title-xl">Analytiques <span className="text-gradient">Avancées</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Rapports détaillés depuis vos vraies données.</p>
                 </div>
-                <button className="btn-premium primary">
-                    <Download size={18} /> Télécharger le rapport
-                </button>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                    <select 
+                        value={period} 
+                        onChange={(e) => setPeriod(e.target.value)}
+                        className="glass" 
+                        style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
+                    >
+                        <option value="today">Aujourd'hui</option>
+                        <option value="7d">7 derniers jours</option>
+                        <option value="30d">30 derniers jours</option>
+                        <option value="1y">12 derniers mois</option>
+                    </select>
+                    <button className="btn-premium primary">
+                        <Download size={18} /> Télécharger le rapport
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -62,22 +77,24 @@ const Stats = () => {
                     {/* Row 1 : Line chart + Donut */}
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
 
-                        {/* Ventes 7 derniers jours */}
+                        {/* Ventes selon période */}
                         <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Ventes des 7 derniers jours</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires journalier</p>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+                                        {period === 'today' ? "Ventes d'aujourd'hui" : period === '30d' ? 'Ventes des 30 derniers jours' : period === '1y' ? 'Ventes de l\'année' : 'Ventes des 7 derniers jours'}
+                                    </h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires</p>
                                 </div>
                                 <Activity size={20} color="var(--primary)" />
                             </div>
                             <div style={{ height: '250px' }}>
-                                {data?.weeklySales?.length > 0 ? (
-                                    <DashboardCharts salesData={data.weeklySales} period="7d" />
+                                {data?.periodSales?.length > 0 ? (
+                                    <DashboardCharts salesData={data.periodSales} period={period} />
                                 ) : (
                                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                         <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                        <p style={{ fontWeight: 700 }}>Aucune vente cette semaine</p>
+                                        <p style={{ fontWeight: 700 }}>Aucune vente sur cette période</p>
                                     </div>
                                 )}
                             </div>
