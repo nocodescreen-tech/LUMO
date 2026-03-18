@@ -13,7 +13,7 @@ const Purchase = sequelize.define('Purchase', {
     },
     fournisseurId: {
         type: DataTypes.INTEGER,
-        allowNull: false // Facture doit provenir d'un fournisseur
+        allowNull: true
     },
     numeroFacture: {
         type: DataTypes.STRING,
