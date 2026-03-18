@@ -113,4 +113,64 @@ const getSalesChartData = async (req, res, next) => {
     }
 };
 
-module.exports = { getDashboardStats, getSalesChartData };
+module.exports = { getDashboardStats, getSalesChartData, getAnalytics };
+
+const getAnalytics = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const now = new Date();
+
+        // -- 1. Ventes des 7 derniers jours (pour graph linéaire) --
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const weeklySales = await Sale.findAll({
+            where: { userId, createdAt: { [Op.gte]: sevenDaysAgo } },
+            attributes: [
+                [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
+                [sequelize.fn('SUM', sequelize.col('montantTotal')), 'total']
+            ],
+            group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
+            order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
+        });
+
+        // -- 2. Répartition du stock par catégorie --
+        const products = await Product.findAll({ where: { userId } });
+        const categoryMap = {};
+        products.forEach(p => {
+            const cat = p.categorie || 'Autre';
+            if (!categoryMap[cat]) categoryMap[cat] = 0;
+            categoryMap[cat] += p.stock;
+        });
+        const stockByCategory = Object.entries(categoryMap).map(([label, value], id) => ({
+            id, label, value
+        }));
+
+        // -- 3. Revenu par mois (6 derniers mois) --
+        const sixMonthsAgo = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000);
+        const allSales = await Sale.findAll({ where: { userId, createdAt: { [Op.gte]: sixMonthsAgo } } });
+
+        const monthlyMap = {};
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+            monthlyMap[key] = 0;
+        }
+        allSales.forEach(s => {
+            const d = new Date(s.createdAt);
+            const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+            if (monthlyMap[key] !== undefined) {
+                monthlyMap[key] += parseFloat(s.montantTotal) || 0;
+            }
+        });
+
+        res.json({
+            weeklySales: weeklySales.map(s => ({ date: s.dataValues.date, total: parseFloat(s.dataValues.total) || 0 })),
+            stockByCategory,
+            monthlyRevenue: {
+                labels: Object.keys(monthlyMap),
+                values: Object.values(monthlyMap)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
