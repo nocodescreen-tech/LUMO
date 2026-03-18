@@ -113,7 +113,7 @@ const getSalesChartData = async (req, res, next) => {
     }
 };
 
-module.exports = { getDashboardStats, getSalesChartData, getAnalytics };
+// module.exports will be at the bottom
 
 const getAnalytics = async (req, res, next) => {
     try {
@@ -121,9 +121,11 @@ const getAnalytics = async (req, res, next) => {
         const now = new Date();
 
         // -- 1. Ventes des 7 derniers jours (pour graph linéaire) --
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const weeklySales = await Sale.findAll({
-            where: { userId, createdAt: { [Op.gte]: sevenDaysAgo } },
+            where: { 
+                userId, 
+                createdAt: { [Op.gte]: sequelize.literal("NOW() - INTERVAL '7d'") } 
+            },
             attributes: [
                 [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
                 [sequelize.fn('SUM', sequelize.col('montantTotal')), 'total']
@@ -174,3 +176,5 @@ const getAnalytics = async (req, res, next) => {
         next(error);
     }
 };
+
+module.exports = { getDashboardStats, getSalesChartData, getAnalytics };

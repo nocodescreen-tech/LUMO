@@ -238,7 +238,7 @@ const Clients = () => {
                 <button className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                   <History size={20} />
                 </button>
-                <button className="glass btn-hover" style={{ height: '48px', padding: '0 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                <button onClick={() => toast.info('La page détaillée du client sera disponible lors de la prochaine mise à jour !')} className="glass btn-hover" style={{ height: '48px', padding: '0 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                   Fiche Complète <ChevronRight size={18} />
                 </button>
               </div>
