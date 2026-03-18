@@ -28,6 +28,7 @@ import api from '../api/axios';
 import { toast } from 'sonner';
 import { generateInvoice } from '../utils/printHelpers';
 import Modal from '../components/common/Modal';
+import { exportToExcel } from '../utils/exportUtils';
 
 interface Sale {
     id: number;
@@ -90,30 +91,21 @@ const Sales = () => {
         }
     };
 
-    const handleExportCSV = () => {
+    const handleExportExcel = () => {
         if (sales.length === 0) return toast.error("Aucune donnée à exporter");
         
-        const headers = ["ID", "Client", "Date", "Méthode", "Articles", "Total"];
-        const rows = filteredSales.map(s => [
-            s.id,
-            s.clientInfo?.nom || 'Client de passage',
-            new Date(s.createdAt).toLocaleDateString(),
-            s.methodePaiement,
-            s.articles?.length || 0,
-            s.montantTotal
-        ]);
+        const rows = filteredSales.map(s => ({
+            "ID": s.id,
+            "Client": s.clientInfo?.nom || 'Client de passage',
+            "Date": new Date(s.createdAt).toLocaleDateString(),
+            "Méthode Paiement": s.methodePaiement,
+            "Nb Articles": s.articles?.length || 0,
+            "Montant Total": s.montantTotal,
+            "Remise": s.remise || 0
+        }));
 
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `ventes_${new Date().toISOString().slice(0,10)}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success("Exportation CSV réussie");
+        exportToExcel(rows, 'Ventes_Report');
+        toast.success("Exportation Excel réussie");
     };
 
     const filteredSales = sales.filter(s => {

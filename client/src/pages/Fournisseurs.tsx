@@ -15,10 +15,12 @@ import {
   Edit2,
   Trash2,
   X,
-  Filter
+  Filter,
+  Download
 } from 'lucide-react';
 import api from '../api/axios';
 import { toast } from 'sonner';
+import { exportToExcel } from '../utils/exportUtils';
 
 const Fournisseurs = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -75,9 +77,30 @@ const Fournisseurs = () => {
           <h1 className="title-xl">Gestion <span className="text-gradient">Fournisseurs</span></h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Gérez vos partenaires et approvisionnements.</p>
         </div>
-        <button className="btn-premium primary" onClick={() => setShowAddModal(true)}>
-          <Plus size={18} /> Nouveau Fournisseur
-        </button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <button
+            onClick={() => exportToExcel(suppliers, 'Fournisseurs_Report')}
+            className="btn-hover"
+            style={{
+              padding: '16px 24px',
+              borderRadius: '20px',
+              backgroundColor: 'var(--bg-main)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontWeight: '900',
+              cursor: 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            <Download size={22} /> Rapport
+          </button>
+          <button className="btn-premium primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={18} /> Nouveau Fournisseur
+          </button>
+        </div>
       </div>
 
       {/* Stats Mini Row */}

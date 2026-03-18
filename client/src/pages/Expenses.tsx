@@ -12,9 +12,11 @@ import {
   Zap,
   Coffee,
   Truck,
-  MoreHorizontal
+  MoreHorizontal,
+  Download
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { exportToExcel } from '../utils/exportUtils';
 
 const Expenses = () => {
     const { currency } = useAuthStore();
@@ -32,7 +34,18 @@ const Expenses = () => {
                     <h1 className="title-xl">Suivi des <span className="text-gradient">Dépenses</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Contrôlez vos sorties de trésorerie.</p>
                 </div>
-                <button className="btn-premium btn-primary"><Plus size={18} /> Nouvelle Dépense</button>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                    <button 
+                      onClick={() => exportToExcel(expenses, 'Depenses_Report')}
+                      className="btn-hover"
+                      style={{ padding: '12px 20px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 800 }}
+                    >
+                        <Download size={18} /> Rapport
+                    </button>
+                    <button className="btn-premium primary" style={{ padding: '12px 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 800 }}>
+                        <Plus size={18} /> Nouvelle Dépense
+                    </button>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>

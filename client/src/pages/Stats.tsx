@@ -11,6 +11,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
+import { exportToExcel } from '../utils/exportUtils';
 
 const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
@@ -61,7 +62,23 @@ const Stats = () => {
                         <option value="30d">30 derniers jours</option>
                         <option value="1y">12 derniers mois</option>
                     </select>
-                    <button className="btn-premium primary">
+                    <button 
+                        onClick={() => {
+                           if (!data) return;
+                           const exportData = [
+                             { Section: 'Ventes' },
+                             ...(data.periodSales || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Total: s.total })),
+                             { Section: '' },
+                             { Section: 'Stock Par Catégorie' },
+                             ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
+                             { Section: '' },
+                             { Section: 'Revenus Mensuels (6 mois)' },
+                             ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: data.monthlyRevenue.values[idx] }))
+                           ];
+                           exportToExcel(exportData, 'Statistiques_Avancees_Report');
+                        }}
+                        className="btn-premium primary"
+                    >
                         <Download size={18} /> Télécharger le rapport
                     </button>
                 </div>

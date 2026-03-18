@@ -37,6 +37,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../api/axios';
+import { exportToExcel } from '../utils/exportUtils';
+import { Download } from 'lucide-react';
 
 // ──────────────────────────────────────────────
 // Global App Search Config
@@ -333,8 +335,16 @@ const Dettes = () => {
           <button className="btn-premium secondary" onClick={fetchClients} title="Actualiser">
             <RefreshCw size={16} />
           </button>
-          <button className="btn-premium secondary">
-            <Calendar size={16} /> Rapports
+          <button className="btn-premium secondary" onClick={() => {
+              const rows = filtered.map(c => ({
+                  "Client": c.nom,
+                  "Email": c.email || 'N/A',
+                  "Téléphone": c.telephone || 'N/A',
+                  "Dette Restante": c.detteTotale
+              }));
+              exportToExcel(rows, 'Dettes_Report');
+          }}>
+            <Download size={16} /> Rapport
           </button>
           <button className="btn-premium primary" onClick={() => navigate('/clients')}>
             <Plus size={16} /> Crédit Client

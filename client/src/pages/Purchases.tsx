@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import { toast } from 'sonner';
+import { exportToExcel } from '../utils/exportUtils';
 
 const Purchases = () => {
     const { currency } = useAuthStore();
@@ -106,13 +107,32 @@ const Purchases = () => {
                     <h1 className="title-xl">Gestion des <span className="text-gradient">Achats</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Commandes fournisseurs et suivi des marchandises entrantes.</p>
                 </div>
-                <button 
-                  onClick={() => setShowModal(true)} 
-                  className="btn-premium primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '16px', fontWeight: 800 }}
-                >
-                    <Plus size={18} /> Nouvel Achat
-                </button>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <button 
+                    onClick={() => {
+                        const rows = filteredPurchases.map(p => ({
+                            "Facture": p.numeroFacture || `Achat #${p.id}`,
+                            "Fournisseur": fournisseurs.find(f => f.id === p.fournisseurId)?.nom || 'Fournisseur Inconnu',
+                            "Description": p.description,
+                            "Date": new Date(p.createdAt).toLocaleDateString(),
+                            "Statut": p.statut,
+                            "Montant": p.montantTotal
+                        }));
+                        exportToExcel(rows, 'Achats_Report');
+                    }} 
+                    className="btn-hover"
+                    style={{ padding: '14px 24px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
+                  >
+                      <Download size={18} /> Rapport
+                  </button>
+                  <button 
+                    onClick={() => setShowModal(true)} 
+                    className="btn-premium primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '16px', fontWeight: 800 }}
+                  >
+                      <Plus size={18} /> Nouvel Achat
+                  </button>
+                </div>
             </div>
 
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>

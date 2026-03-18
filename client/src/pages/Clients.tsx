@@ -20,12 +20,14 @@ import {
   AlertCircle,
   ShoppingBag,
   Clock,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Download
 } from 'lucide-react';
 import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
+import { exportToExcel } from '../utils/exportUtils';
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
@@ -127,25 +129,46 @@ const Clients = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Centralisez les informations de vos clients et suivez leur cycle d'achat.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            padding: '16px 32px',
-            borderRadius: '20px',
-            backgroundColor: 'var(--primary)',
-            color: 'white',
-            border: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            fontWeight: '950',
-            cursor: 'pointer',
-            boxShadow: '0 20px 40px -10px var(--primary-glow)',
-            fontSize: '1rem'
-          }}
-        >
-          <UserPlus size={22} /> Nouveau Client
-        </button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <button
+            onClick={() => exportToExcel(clients, 'Clients_Report')}
+            className="btn-hover"
+            style={{
+              padding: '16px 24px',
+              borderRadius: '20px',
+              backgroundColor: 'var(--bg-main)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontWeight: '900',
+              cursor: 'pointer',
+              fontSize: '1rem'
+            }}
+          >
+            <Download size={22} /> Rapport
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              padding: '16px 32px',
+              borderRadius: '20px',
+              backgroundColor: 'var(--primary)',
+              color: 'white',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontWeight: '950',
+              cursor: 'pointer',
+              boxShadow: '0 20px 40px -10px var(--primary-glow)',
+              fontSize: '1rem'
+            }}
+          >
+            <UserPlus size={22} /> Nouveau Client
+          </button>
+        </div>
       </div>
 
       {/* Control Bar */}
