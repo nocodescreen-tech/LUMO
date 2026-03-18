@@ -218,9 +218,9 @@ const Dashboard = () => {
       </div>
 
       {/* Main Grid: Charts & Activities */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', minHeight: '500px' }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="premium-card" style={{ padding: '40px', borderRadius: '32px', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="premium-card" style={{ padding: '24px', borderRadius: '24px', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
              <div>
                <h3 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.04em' }}>Trajectoire Financière</h3>
                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '4px' }}>
@@ -241,7 +241,7 @@ const Dashboard = () => {
                <div className="glass" style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>Temps Réel</div>
              </div>
           </div>
-          <div style={{ height: '420px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ height: '280px', width: '100%' }}>
             <DashboardCharts salesData={chartData} period={chartPeriod} />
           </div>
         </motion.div>

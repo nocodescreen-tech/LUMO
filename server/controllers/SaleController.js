@@ -1,4 +1,4 @@
-const { Sale, Product } = require('../models');
+const { Sale, Product, Client } = require('../models');
 
 exports.getSales = async (req, res, next) => {
   try {
@@ -40,9 +40,29 @@ exports.createSale = async (req, res, next) => {
         }))
       : [];
 
+    // Auto-créer ou trouver le client si nom/téléphone fourni
+    let resolvedClientId = clientId || null;
+    if (!resolvedClientId && clientInfo && clientInfo.nom && clientInfo.nom.trim() !== 'Client de passage') {
+      const existingClient = clientInfo.telephone
+        ? await Client.findOne({ where: { telephone: clientInfo.telephone.trim(), userId } })
+        : null;
+
+      if (existingClient) {
+        resolvedClientId = existingClient.id;
+      } else {
+        const newClient = await Client.create({
+          nom: clientInfo.nom.trim(),
+          telephone: clientInfo.telephone?.trim() || '',
+          email: clientInfo.email?.trim() || '',
+          userId
+        });
+        resolvedClientId = newClient.id;
+      }
+    }
+
     const sale = await Sale.create({
       userId,
-      clientId: clientId || null,
+      clientId: resolvedClientId,
       articles,
       montantTotal,
       remise: 0,
