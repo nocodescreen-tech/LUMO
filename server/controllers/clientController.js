@@ -65,7 +65,7 @@ exports.sendReminder = async (req, res, next) => {
     res.status(200).json({ success: true, message: 'Rappel envoyé' });
 };
 
-const Sale = require('../models/Sale');
+const { Sale } = require('../models');
 
 exports.getClientSales = async (req, res, next) => {
   try {
