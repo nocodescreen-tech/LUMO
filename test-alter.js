@@ -1,0 +1,1 @@
+require('dotenv').config({ path: './server/.env' }); const db = require('./server/config/database'); db.sequelize.query('ALTER TABLE "Purchases" ALTER COLUMN "fournisseurId" DROP NOT NULL').then(() => console.log('Done')).catch(console.error).finally(()=>process.exit())

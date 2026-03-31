@@ -32,6 +32,12 @@ const Client = sequelize.define('Client', {
     type: DataTypes.INTEGER,
     allowNull: false
   }
+}, {
+  indexes: [
+    { fields: ['userId'] },
+    { fields: ['nom'] },
+    { fields: ['telephone'] }
+  ]
 });
 
 module.exports = Client;

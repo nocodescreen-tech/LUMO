@@ -92,3 +92,13 @@ exports.deleteSale = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.deleteAllSales = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await Sale.destroy({ where: { userId } });
+    res.status(200).json({ message: 'Historique des ventes entièrement vidé' });
+  } catch (error) {
+    next(error);
+  }
+};

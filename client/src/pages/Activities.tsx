@@ -22,11 +22,13 @@ import {
     Layers,
     ChevronRight,
     Database,
-    Loader2
+    Loader2,
+    Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
 import { useTranslation } from '../hooks';
+import { exportToExcel } from '../utils/exportUtils';
 
 const Activities = () => {
     const { t } = useTranslation();
@@ -94,13 +96,31 @@ const Activities = () => {
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>Journal d'<span className="text-gradient">Activités</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Historique complet des actions effectuées sur votre instance HubCommerce.</p>
                 </div>
-                <button
-                    onClick={fetchActivities}
-                    className="glass btn-hover"
-                    style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
-                >
-                    <RefreshCw size={22} className={loading ? 'animate-spin' : ''} /> Actualiser les logs
-                </button>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                    <button
+                        onClick={() => {
+                            const rows = filtered.map(a => ({
+                                "Description": a.description,
+                                "Type": a.type,
+                                "Module": a.module || 'Système',
+                                "Utilisateur": a.userNom || 'Système',
+                                "Date": new Date(a.createdAt).toLocaleString()
+                            }));
+                            exportToExcel(rows, 'Activites_Report');
+                        }}
+                        className="btn-hover"
+                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
+                    >
+                        <Download size={22} /> Rapport
+                    </button>
+                    <button
+                        onClick={fetchActivities}
+                        className="btn-hover primary-glow"
+                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
+                    >
+                        <RefreshCw size={22} className={loading ? 'animate-spin' : ''} /> Actualiser
+                    </button>
+                </div>
             </div>
 
             {/* Controls */}

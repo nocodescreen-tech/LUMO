@@ -31,11 +31,14 @@ const Purchases = () => {
 
     const [formData, setFormData] = useState({
         fournisseurId: '',
+        fournisseurNom: '', // Added to store the typed/selected name
         numeroFacture: '',
         description: '',
         montantTotal: '',
         statut: 'En attente'
     });
+    const [showFournisseurSuggestions, setShowFournisseurSuggestions] = useState(false);
+
 
     useEffect(() => {
         fetchData();
@@ -60,9 +63,28 @@ const Purchases = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
+            let finalFournisseurId = formData.fournisseurId;
+
+            // If a name is typed but no ID is selected, try to find a match or create if needed
+            // For now, let's check if there's an exact match in the existing list
+            if (!finalFournisseurId && formData.fournisseurNom) {
+                const match = fournisseurs.find(f => f.nom?.toLowerCase() === formData.fournisseurNom.toLowerCase());
+                if (match) {
+                    finalFournisseurId = match.id;
+                } else {
+                    // Create new supplier if it doesn't exist
+                    const newFour = await api.post('/fournisseurs', { 
+                        nom: formData.fournisseurNom,
+                        entreprise: formData.fournisseurNom, // default same
+                        categorie: 'Importé via Achat'
+                    });
+                    finalFournisseurId = newFour.data.id;
+                }
+            }
+
             await api.post('/purchases', {
                 ...formData,
-                fournisseurId: formData.fournisseurId ? Number(formData.fournisseurId) : null,
+                fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
                 montantTotal: Number(formData.montantTotal)
             });
             toast.success("Achat enregistré avec succès !");
@@ -70,6 +92,7 @@ const Purchases = () => {
             fetchData();
             setFormData({
                 fournisseurId: '',
+                fournisseurNom: '',
                 numeroFacture: '',
                 description: '',
                 montantTotal: '',
@@ -210,18 +233,60 @@ const Purchases = () => {
                             </div>
 
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Maison / Fournisseur (Optionnel)</label>
-                                    <select 
-                                        value={formData.fournisseurId} 
-                                        onChange={e => setFormData({...formData, fournisseurId: e.target.value})}
-                                        style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, appearance: 'none' }}
-                                    >
-                                        <option value="">-- Sélectionnez un fournisseur --</option>
-                                        {fournisseurs.map(f => (
-                                            <option key={f.id} value={f.id}>{f.nom}</option>
-                                        ))}
-                                    </select>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
+                                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Maison / Fournisseur (Sélection et écriture)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Truck size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input 
+                                            type="text" 
+                                            value={formData.fournisseurNom} 
+                                            autoComplete="off"
+                                            onFocus={() => setShowFournisseurSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowFournisseurSuggestions(false), 200)}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const match = fournisseurs.find(f => f.nom === val);
+                                                setFormData({
+                                                    ...formData, 
+                                                    fournisseurNom: val, 
+                                                    fournisseurId: match ? match.id : ''
+                                                });
+                                            }}
+                                            placeholder="Tapez ou sélectionnez un fournisseur..." 
+                                            style={{ width: '100%', padding: '14px 14px 14px 44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, boxSizing: 'border-box' }}
+                                        />
+                                    </div>
+                                    
+                                    {showFournisseurSuggestions && (
+                                        <div style={{ 
+                                            position: 'absolute', top: '100%', left: 0, right: 0, 
+                                            background: 'var(--bg-card)', border: '1px solid var(--border)', 
+                                            borderRadius: '12px', marginTop: '8px', maxHeight: '200px', 
+                                            overflowY: 'auto', zIndex: 10, boxShadow: 'var(--shadow-lg)' 
+                                        }}>
+                                            {fournisseurs.filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase())).length === 0 ? (
+                                                <div style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                                                    " {formData.fournisseurNom} " (Nouveau fournisseur)
+                                                </div>
+                                            ) : fournisseurs
+                                                .filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase()))
+                                                .map(f => (
+                                                    <div 
+                                                        key={f.id} 
+                                                        onClick={() => {
+                                                            setFormData({...formData, fournisseurNom: f.nom, fournisseurId: f.id});
+                                                            setShowFournisseurSuggestions(false);
+                                                        }}
+                                                        style={{ padding: '12px 16px', cursor: 'pointer', transition: '0.2s', borderBottom: '1px solid var(--border)', fontWeight: 600 }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        {f.nom}
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>

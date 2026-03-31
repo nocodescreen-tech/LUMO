@@ -83,3 +83,13 @@ exports.getClientSales = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.deleteAllClients = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await Client.destroy({ where: { userId } });
+    res.status(200).json({ message: 'Tous vos clients ont été supprimés' });
+  } catch (error) {
+    next(error);
+  }
+};

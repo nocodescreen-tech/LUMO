@@ -24,11 +24,14 @@ import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Sun, Moon } from 'lucide-react';
+
 
 import Logo from '../../components/layout/Logo';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useAuthStore();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +149,7 @@ const Register = () => {
           width: i === step ? '48px' : '12px', 
           height: '10px', 
           borderRadius: '20px', 
-          backgroundColor: i <= step ? 'var(--primary)' : 'var(--border)',
+          backgroundColor: i <= step ? 'var(--primary)' : 'rgba(0,0,0,0.1)',
           transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           boxShadow: i === step ? '0 4px 10px rgba(109, 40, 217, 0.3)' : 'none'
         }} />
@@ -155,26 +158,67 @@ const Register = () => {
   );
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      background: 'radial-gradient(circle at top right, var(--primary-glow) 0%, var(--bg-main) 60%), radial-gradient(circle at bottom left, var(--secondary-glow) 0%, var(--bg-main) 60%)',
-      padding: '80px 20px',
-      position: 'relative',
-      overflowX: 'hidden'
-    }}>
-      {/* Background blobs */}
+    <div 
+      className="hide-scrollbar"
+      style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: 'url(/lumo_bg.png) no-repeat center center fixed',
+        backgroundSize: 'cover',
+        padding: '80px 20px',
+        position: 'relative',
+        overflow: 'auto',
+        backgroundColor: theme === 'dark' ? '#09090b' : '#f1f5f9'
+      }}>
+      <style>{`
+        input::placeholder, select::placeholder { color: ${theme === 'dark' ? '#64748b' : '#94a3b8'} !important; opacity: 1 !important; }
+      `}</style>
+
+      {/* Theme Toggle Button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        style={{
+          position: 'absolute',
+          top: '32px',
+          right: '32px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '16px',
+          background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+          border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+          color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 100,
+          backdropFilter: 'blur(10px)'
+        }}
+      >
+        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+      </motion.button>
+      {/* Background Blur Overlay */}
+      <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.4)',
+          backdropFilter: 'blur(15px)',
+          zIndex: 1
+      }} />
+      
       <motion.div 
-        animate={{ scale: [1, 1.1, 1], opacity: [0.03, 0.05, 0.03] }}
-        transition={{ duration: 10, repeat: Infinity }}
-        style={{ position: 'absolute', top: '-10%', right: '-10%', width: '600px', height: '600px', borderRadius: '50%', background: 'var(--primary)', filter: 'blur(120px)' }} 
+        animate={{ scale: [1, 1.1, 1], opacity: [0.05, 0.08, 0.05] }}
+        transition={{ duration: 15, repeat: Infinity }}
+        style={{ position: 'absolute', top: '-10%', right: '5%', width: '600px', height: '600px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), transparent)', filter: 'blur(100px)', zIndex: 0 }} 
       />
       <motion.div 
-        animate={{ scale: [1.1, 1, 1.1], opacity: [0.03, 0.05, 0.03] }}
-        transition={{ duration: 12, repeat: Infinity }}
-        style={{ position: 'absolute', bottom: '-10%', left: '-10%', width: '500px', height: '500px', borderRadius: '50%', background: 'var(--secondary)', filter: 'blur(100px)' }} 
+        animate={{ scale: [1.1, 1, 1.1], opacity: [0.05, 0.08, 0.05] }}
+        transition={{ duration: 18, repeat: Infinity }}
+        style={{ position: 'absolute', bottom: '-10%', left: '5%', width: '500px', height: '500px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), transparent)', filter: 'blur(90px)', zIndex: 0 }} 
       />
 
       <motion.div 
@@ -182,21 +226,23 @@ const Register = () => {
         animate={{ opacity: 1, y: 0 }}
         className="glass" 
         style={{ 
-          padding: '60px 48px', 
+          padding: '50px 48px', 
           borderRadius: '36px', 
           width: '100%',
           maxWidth: '580px',
-          border: '1px solid var(--border)',
-          boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4)',
-          zIndex: 10
+          border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(255, 255, 255, 0.8)',
+          background: theme === 'dark' ? 'rgba(18, 18, 22, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+          boxShadow: theme === 'dark' ? '0 40px 100px -20px rgba(0, 0, 0, 0.6)' : '0 40px 100px -20px rgba(0, 0, 0, 0.1)',
+          zIndex: 10,
+          position: 'relative'
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Logo size={60} />
-          <h2 style={{ fontSize: '2.6rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', lineHeight: 1.1, marginTop: '24px', color: 'var(--text-main)' }}>
+          <Logo size={60} textColor={theme === 'dark' ? '#f8fafc' : '#0f172a'} />
+          <h2 style={{ fontSize: '2.6rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', lineHeight: 1.1, marginTop: '24px', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
             Propulsez votre <span style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Commerce</span>
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem' }}>Une configuration rapide pour une gestion sans limite.</p>
+          <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1.05rem', fontWeight: 600 }}>Une configuration rapide pour une gestion sans limite.</p>
         </div>
 
         <StepIndicator />
@@ -235,7 +281,7 @@ const Register = () => {
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.4, ease: "circOut" }}
             >
-              <h3 style={{ marginBottom: '28px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)' }}>Quel est votre domaine ?</h3>
+              <h3 style={{ marginBottom: '28px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Quel est votre domaine ?</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '18px' }}>
                 {activityTypes.map((type) => {
                   const Icon = type.icon;
@@ -271,8 +317,8 @@ const Register = () => {
                         <Icon size={28} />
                       </div>
                       <div>
-                        <p style={{ fontWeight: '800', fontSize: '0.95rem', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)', margin: '0 0 4px 0' }}>{type.label}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.6 }}>{type.desc}</p>
+                        <p style={{ fontWeight: '800', fontSize: '0.95rem', color: isSelected ? '#0f172a' : '#475569', margin: '0 0 4px 0' }}>{type.label}</p>
+                        <p style={{ fontSize: '0.75rem', color: theme === 'dark' ? '#94a3b8' : '#475569', opacity: 0.6 }}>{type.desc}</p>
                       </div>
                     </motion.div>
                   );
@@ -317,62 +363,62 @@ const Register = () => {
               transition={{ duration: 0.4, ease: "circOut" }}
               style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
             >
-              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)' }}>Identité du Propriétaire</h3>
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '8px' }}>Ces informations sont nécessaires pour sécuriser votre accès.</p>
+              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Identité du Propriétaire</h3>
+              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '8px' }}>Ces informations sont nécessaires pour sécuriser votre accès.</p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginLeft: '4px' }}>Nom Complet</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Nom Complet</label>
                     <div style={{ position: 'relative' }}>
-                        <User size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <User size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="text" 
                             placeholder="Ex: Jean Mukendi" 
                             value={formData.nom}
                             onChange={(e) => updateForm({ nom: e.target.value })}
-                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} 
+                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
                         />
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginLeft: '4px' }}>Email Professionnel</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Email Professionnel</label>
                     <div style={{ position: 'relative' }}>
-                        <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="email" 
                             placeholder="jean@commerce.com" 
                             value={formData.email}
                             onChange={(e) => updateForm({ email: e.target.value })}
-                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} 
+                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
                         />
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginLeft: '4px' }}>Téléphone</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Téléphone</label>
                     <div style={{ position: 'relative' }}>
-                        <Phone size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <Phone size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="tel" 
                             placeholder="+243 ..." 
                             value={formData.telephone}
                             onChange={(e) => updateForm({ telephone: e.target.value })}
-                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} 
+                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
                         />
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', marginLeft: '4px' }}>Mot de Passe</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Mot de Passe</label>
                     <div style={{ position: 'relative' }}>
-                        <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="password" 
                             placeholder="Min. 8 caractères" 
                             value={formData.motDePasse}
                             onChange={(e) => updateForm({ motDePasse: e.target.value })}
-                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }} 
+                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
                         />
                     </div>
                 </div>
@@ -381,7 +427,7 @@ const Register = () => {
               <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
                 <button 
                   onClick={prevStep}
-                  style={{ flex: 1, padding: '18px', borderRadius: '18px', border: '1.5px solid var(--border)', background: 'none', color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontWeight: '700' }}
+                  style={{ flex: 1, padding: '18px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', background: 'none', color: theme === 'dark' ? '#f8fafc' : '#0f172a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontWeight: '700' }}
                 >
                   <ArrowLeft size={20} /> Retour
                 </button>
@@ -411,8 +457,8 @@ const Register = () => {
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.4, ease: "circOut" }}
             >
-              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)' }}>Détails du Commerce</h3>
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '32px' }}>Finalisez le profil de votre enseigne.</p>
+              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Détails du Commerce</h3>
+              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '32px' }}>Finalisez le profil de votre enseigne.</p>
               
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
                   <input 
@@ -428,7 +474,7 @@ const Register = () => {
                     style={{ 
                       width: '120px', height: '120px', borderRadius: '32px', border: '2px dashed var(--border)', 
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      gap: '10px', color: 'var(--text-muted)', cursor: 'pointer', backgroundColor: 'rgba(255,255,255,0.02)',
+                      gap: '10px', color: theme === 'dark' ? '#94a3b8' : '#475569', cursor: 'pointer', backgroundColor: 'rgba(255,255,255,0.02)',
                       transition: 'all 0.3s',
                       overflow: 'hidden',
                       position: 'relative'
@@ -439,7 +485,7 @@ const Register = () => {
                       ) : (
                         <>
                           <Camera size={28} />
-                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-main)' }}>PHOTO PROFIL</span>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>PHOTO PROFIL</span>
                         </>
                       )}
                   </motion.div>
@@ -447,28 +493,28 @@ const Register = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>Nom de l'Enseigne</label>
+                  <label style={{ fontSize: '0.9rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Nom de l'Enseigne</label>
                   <div style={{ position: 'relative' }}>
-                    <Building2 size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <Building2 size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                     <input 
                       type="text" 
                       placeholder="Ex: L'Élégance de Kinshasa" 
                       value={formData.entrepriseNom}
                       onChange={(e) => updateForm({ entrepriseNom: e.target.value })}
-                      style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
+                      style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
                     />
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>Devise</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Devise</label>
                         <div style={{ position: 'relative' }}>
-                            <Coins size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <Coins size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                             <select 
                                 value={formData.devise}
                                 onChange={(e) => updateForm({ devise: e.target.value })}
-                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', appearance: 'none', outline: 'none', fontWeight: '700', cursor: 'pointer' }}
+                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'var(--bg-main)', color: theme === 'dark' ? '#f8fafc' : '#0f172a', appearance: 'none', outline: 'none', fontWeight: '700', cursor: 'pointer' }}
                             >
                                 <option value="FC">Francs CFA (FC)</option>
                                 <option value="USD">Dollars (USD)</option>
@@ -477,15 +523,15 @@ const Register = () => {
                         </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>Ville</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Ville</label>
                         <div style={{ position: 'relative' }}>
-                            <MapPin size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <MapPin size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                             <input 
                                 type="text" 
                                 placeholder="Kinshasa" 
                                 value={formData.ville}
                                 onChange={(e) => updateForm({ ville: e.target.value })}
-                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: '1.5px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-main)', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
+                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
                             />
                         </div>
                     </div>
@@ -512,7 +558,7 @@ const Register = () => {
               
               <button 
                 onClick={prevStep}
-                style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text-muted)', marginTop: '24px', cursor: 'pointer', fontSize: '1rem', fontWeight: '700', opacity: 0.8 }}
+                style={{ width: '100%', background: 'none', border: 'none', color: theme === 'dark' ? '#94a3b8' : '#475569', marginTop: '24px', cursor: 'pointer', fontSize: '1rem', fontWeight: '700', opacity: 0.8 }}
               >
                 Retour à l'étape précédente
               </button>
@@ -521,14 +567,14 @@ const Register = () => {
         </AnimatePresence>
 
         <div style={{ textAlign: 'center', marginTop: '48px', borderTop: '1px solid var(--border)', paddingTop: '32px' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: '500' }}>
+          <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1rem', fontWeight: '500' }}>
             Déjà partenaire Lumo ? <Link to="/login" style={{ color: 'var(--primary)', fontWeight: '900', textDecoration: 'none', borderBottom: '2px solid var(--primary-glow)' }}>Se connecter ici</Link>
           </p>
         </div>
       </motion.div>
 
       {/* Trust Footer */}
-      <div style={{ position: 'absolute', bottom: '24px', display: 'flex', gap: '32px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '600', opacity: 0.7 }}>
+      <div style={{ position: 'absolute', bottom: '24px', display: 'flex', gap: '32px', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.85rem', fontWeight: '600', opacity: 0.7 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={14} /> Précision Absolue</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} /> Sécurité Bancaire</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={14} /> Intelligence Artificielle</div>

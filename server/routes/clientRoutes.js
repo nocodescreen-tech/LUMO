@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getClients, createClient, updateClient, deleteClient, settleDebt, sendReminder, getClientSales } = require('../controllers/clientController');
+const { getClients, createClient, updateClient, deleteClient, settleDebt, sendReminder, getClientSales, deleteAllClients } = require('../controllers/clientController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.get('/', protect, getClients);
+router.delete('/all', protect, deleteAllClients);
 router.get('/:id/sales', protect, getClientSales);
 router.post('/', protect, createClient);
 router.put('/:id', protect, updateClient);

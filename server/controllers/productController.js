@@ -68,3 +68,13 @@ exports.createBulkProducts = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.deleteAllProducts = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await Product.destroy({ where: { userId } });
+    res.status(200).json({ message: 'Tous vos produits ont été supprimés' });
+  } catch (error) {
+    next(error);
+  }
+};

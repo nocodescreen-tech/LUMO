@@ -27,6 +27,7 @@ exports.createPurchase = async (req, res, next) => {
     const purchase = await Purchase.create(payload);
     res.status(201).json(purchase);
   } catch (error) {
+    console.error("Erreur lors de la création de l'achat:", error);
     next(error);
   }
 };

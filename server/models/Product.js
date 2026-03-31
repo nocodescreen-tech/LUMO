@@ -59,6 +59,12 @@ const Product = sequelize.define('Product', {
     type: DataTypes.JSONB,
     defaultValue: {}
   }
+}, {
+  indexes: [
+    { fields: ['userId'] },
+    { fields: ['codeBarre'] },
+    { fields: ['nom'] }
+  ]
 });
 
 module.exports = Product;

@@ -8,15 +8,34 @@ interface ChartProps {
 
 const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
   const parseData = () => {
+    const daysArr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    
+    if (period === '7d') {
+      const weekData = daysArr.map(name => ({ day: name, sales: 0 }));
+      
+      salesData.forEach(d => {
+        const dateObj = new Date(d.date);
+        // getDay(): 0=Dim, 1=Lun -> 0=Lun ... 6=Dim
+        const dayIdx = (dateObj.getDay() + 6) % 7;
+        if (dayIdx >= 0 && dayIdx < 7) {
+          weekData[dayIdx].sales += parseFloat(d.total) || 0;
+        }
+      });
+      return weekData;
+    }
+
     if (salesData && salesData.length > 0) {
       return salesData.map(d => {
         const dateObj = new Date(d.date);
-        let dayFormat = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
+        let dayFormat = '';
         
         if (period === 'today') {
            dayFormat = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         } else if (period === '30d') {
            dayFormat = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        } else {
+           dayFormat = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' });
+           dayFormat = dayFormat.charAt(0).toUpperCase() + dayFormat.slice(1);
         }
         
         return {
@@ -25,15 +44,15 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
         };
       });
     }
-    return [
-      { day: '00h', sales: 0 },
-      { day: '04h', sales: 0 },
-      { day: '08h', sales: 0 },
-      { day: '12h', sales: 0 },
-      { day: '16h', sales: 0 },
-      { day: '20h', sales: 0 },
-      { day: '24h', sales: 0 },
-    ];
+    
+    // Default fallback if no data
+    if (period === 'today') {
+       return [
+         { day: '00h', sales: 0 }, { day: '04h', sales: 0 }, { day: '08h', sales: 0 },
+         { day: '12h', sales: 0 }, { day: '16h', sales: 0 }, { day: '20h', sales: 0 }
+       ];
+    }
+    return daysArr.map(name => ({ day: name, sales: 0 }));
   };
 
   const data = parseData();

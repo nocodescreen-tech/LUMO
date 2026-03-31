@@ -1,41 +1,58 @@
 import * as React from 'react';
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
+import { Loader2 } from 'lucide-react';
 
-// Lazy loading for pages would be better, but for restoration we'll do direct imports
-import Dashboard from './pages/Dashboard';
-import POS from './pages/POS';
-import Products from './pages/Products';
-import Clients from './pages/Clients';
-import Fournisseurs from './pages/Fournisseurs';
-import Expenses from './pages/Expenses';
-import Sales from './pages/Sales';
-import Purchases from './pages/Purchases';
-import Dettes from './pages/Dettes';
-import Settings from './pages/Settings';
-import Activities from './pages/Activities';
-import Stats from './pages/Stats';
+// Chargement paresseux (Lazy Loading) pour optimiser les performances
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const POS = lazy(() => import('./pages/POS'));
+const Products = lazy(() => import('./pages/Products'));
+const Clients = lazy(() => import('./pages/Clients'));
+const Fournisseurs = lazy(() => import('./pages/Fournisseurs'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Sales = lazy(() => import('./pages/Sales'));
+const Purchases = lazy(() => import('./pages/Purchases'));
+const Dettes = lazy(() => import('./pages/Dettes'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Activities = lazy(() => import('./pages/Activities'));
+const Stats = lazy(() => import('./pages/Stats'));
 
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import VerifyEmail from './pages/auth/VerifyEmail';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-import VerifyResetOTP from './pages/auth/VerifyResetOTP';
-import Layout from './components/layout/Layout';
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
+const VerifyResetOTP = lazy(() => import('./pages/auth/VerifyResetOTP'));
+const Layout = lazy(() => import('./components/layout/Layout'));
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
 
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
+const LoadingFallback = () => (
+  <div style={{ height: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
+    <motion.div 
+      animate={{ rotate: 360 }}
+      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+    >
+      <Loader2 size={40} color="var(--primary)" />
+    </motion.div>
+  </div>
+);
+
+import { motion } from 'framer-motion';
 
 const App = () => {
   const { token, checkAuth, theme, user } = useAuthStore();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]); // Met à jour l'attribut CSS uniquement quand le thème change
+
+  useEffect(() => {
     if (token) {
       checkAuth();
     }
-  }, [theme, token]); // On réagit aux changements de token et de thème
+    // On ne vérifie l'auth qu'au montage ou si le token change (connexion/déconnexion)
+  }, [token]);
 
   return (
     <BrowserRouter>

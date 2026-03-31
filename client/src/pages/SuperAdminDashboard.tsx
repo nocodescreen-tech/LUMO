@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmModal from '../components/common/ConfirmModal';
 import {
     Users, ShieldCheck, UserX, CheckCircle, Clock, Search, Mail,
     Building2, Trash2, ArrowRight, Activity, TrendingUp, Zap,
@@ -26,6 +27,7 @@ const SuperAdminDashboard = () => {
     const [showUserModal, setShowUserModal] = useState(false);
     const [actionMenuOpenId, setActionMenuOpenId] = useState<number | null>(null);
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
     // Notification states
     const [notifTitre, setNotifTitre] = useState('');
@@ -87,14 +89,20 @@ const SuperAdminDashboard = () => {
     };
 
     const deleteUser = async (id: number) => {
-        if (!window.confirm("Action critique : Supprimer définitivement cet utilisateur et TOUTES ses données ? Cette action est irréversible.")) return;
-        try {
-            await api.delete(`/superadmin/users/${id}`);
-            toast.success("Utilisateur supprimé définitivement");
-            fetchData();
-        } catch (error) {
-            toast.error("Erreur lors de la suppression");
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: "Suppression Critique",
+            message: "Action critique : Supprimer définitivement cet utilisateur et TOUTES ses données ? Cette action est irréversible.",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/superadmin/users/${id}`);
+                    toast.success("Utilisateur supprimé définitivement");
+                    fetchData();
+                } catch (error) {
+                    toast.error("Erreur lors de la suppression");
+                }
+            }
+        });
     };
 
     const handleSendNotification = async (e: React.FormEvent) => {
@@ -933,6 +941,13 @@ const SuperAdminDashboard = () => {
             </AnimatePresence>
 
 
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+            />
         </motion.div >
     );
 };

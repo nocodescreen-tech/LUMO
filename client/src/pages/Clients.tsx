@@ -27,6 +27,7 @@ import api from '../api/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 
 const Clients = () => {
@@ -42,6 +43,7 @@ const Clients = () => {
   
   const [clientHistory, setClientHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const [newClient, setNewClient] = useState({
     nom: '',
@@ -103,14 +105,37 @@ const Clients = () => {
   };
 
   const handleDeleteClient = async (id: number, name: string) => {
-    if (!window.confirm(`Supprimer définitivement le client ${name} ?`)) return;
-    try {
-      await api.delete(`/clients/${id}`);
-      toast.success("Client retiré de la base.");
-      fetchClients();
-    } catch (error) {
-      toast.error("Échec de la suppression");
-    }
+    setConfirmModal({
+        isOpen: true,
+        title: "Supprimer Client",
+        message: `Supprimer définitivement le client ${name} ? Tous ses historiques et dettes seront effacés.`,
+        onConfirm: async () => {
+            try {
+                await api.delete(`/clients/${id}`);
+                toast.success("Client retiré de la base.");
+                fetchClients();
+            } catch (error) {
+                toast.error("Échec de la suppression");
+            }
+        }
+    });
+  };
+
+  const handleAllDelete = async () => {
+    setConfirmModal({
+        isOpen: true,
+        title: "SUPPRESSION MASSIVE",
+        message: "ATTENTION : Voulez-vous vraiment supprimer TOUS les clients de votre base CRM ? Tous les historiques et dettes associés seront supprimés définitivement.",
+        onConfirm: async () => {
+            try {
+                await api.delete('/clients/all');
+                toast.success("Répertoire client entièrement vidé.");
+                fetchClients();
+            } catch (error) {
+                toast.error("Erreur lors de la suppression massive");
+            }
+        }
+    });
   };
 
   return (
@@ -149,6 +174,27 @@ const Clients = () => {
           >
             <Download size={22} /> Rapport
           </button>
+          {clients.length > 0 && (
+            <button
+               onClick={handleAllDelete}
+               className="btn-hover"
+               style={{
+                 padding: '16px 24px',
+                 borderRadius: '20px',
+                 backgroundColor: 'var(--bg-main)',
+                 color: '#ef4444',
+                 border: '1px solid rgba(239, 68, 68, 0.2)',
+                 display: 'flex',
+                 alignItems: 'center',
+                 gap: '12px',
+                 fontWeight: '900',
+                 cursor: 'pointer',
+                 fontSize: '1rem'
+               }}
+            >
+               <Trash2 size={22} /> Tout Supprimer
+            </button>
+          )}
           <button
             onClick={() => setShowAddModal(true)}
             style={{
@@ -470,6 +516,13 @@ const Clients = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); borderRadius: 10px; }
       `}</style>
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </motion.div>
   );
 };

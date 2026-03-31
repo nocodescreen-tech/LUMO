@@ -25,6 +25,7 @@ import AIChat from '../components/dashboard/AIChat';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import { exportToExcel } from '../utils/exportUtils';
 
 const KpiCard = ({ title, value, icon: Icon, trend, color, delay }: any) => (
   <motion.div 
@@ -173,8 +174,24 @@ const Dashboard = () => {
         </motion.div>
         
         <div style={{ display: 'flex', gap: '16px' }}>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => window.print()} className="btn-premium secondary" style={{ padding: '16px 28px', borderRadius: '18px' }}>
-            <Download size={20} /> Rapport Analytique
+          <motion.button 
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }} 
+            onClick={() => {
+                if (!stats) return;
+                const rows = [
+                    { Key: 'CA Total Période', Value: stats?.summary?.revenue || 0 },
+                    { Key: 'Estimation Profits', Value: stats?.summary?.profitNetEstimation || 0 },
+                    { Key: 'Nombre de Clients', Value: stats?.summary?.totalClients || 0 },
+                    { Key: 'Alertes Stock', Value: stats?.summary?.lowStockCount || 0 },
+                    { Key: 'Généré le', Value: new Date().toLocaleString() }
+                ];
+                exportToExcel(rows, 'Dashboard_Analytics_Report');
+            }} 
+            className="btn-premium secondary" 
+            style={{ padding: '16px 28px', borderRadius: '18px' }}
+          >
+            <Download size={20} /> Rapport
           </motion.button>
           <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.4)' }}>
             <Plus size={22} /> Nouvelle Vente

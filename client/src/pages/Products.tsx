@@ -30,6 +30,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/common/ConfirmModal';
+import { exportToExcel } from '../utils/exportUtils';
 import * as XLSX from 'xlsx';
 
 const Products = () => {
@@ -49,11 +51,12 @@ const Products = () => {
   const [actionMenuId, setActionMenuId] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const importInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleExportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(products.map((p: any) => ({
+    const dataToExport = products.map((p: any) => ({
       Reference: p.id,
       Nom: p.nom,
       Categorie: p.categorie,
@@ -62,10 +65,8 @@ const Products = () => {
       PrixAchat: p.prixAchat,
       Devise: p.devise || currency,
       DatePeremption: p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : ''
-    })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Produits");
-    XLSX.writeFile(wb, "Produits_Export.xlsx");
+    }));
+    exportToExcel(dataToExport, "Produits_Report");
   };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +112,37 @@ const Products = () => {
       description: '',
       devise: currency as string
   });
+
+  const [calc, setCalc] = useState({
+    packSize: 1,
+    totalCost: 0,
+    marginPct: 20,
+    active: false
+  });
+
+  // Auto-calcul des prix basés sur la marge
+  useEffect(() => {
+    if (calc.active && calc.packSize > 0) {
+      const unitAchat = calc.totalCost / calc.packSize;
+      const unitVente = unitAchat * (1 + calc.marginPct / 100);
+      
+      const roundedAchat = Math.round(unitAchat * 100) / 100;
+      const roundedVente = Math.round(unitVente * 100) / 100;
+
+      if (showAddModal) {
+          setNewProduct((prev: any) => ({ ...prev, prixAchat: roundedAchat, prix: roundedVente }));
+      } else if (showEditModal && selectedProduct) {
+          setSelectedProduct((prev: any) => ({ ...prev, prixAchat: roundedAchat, prix: roundedVente }));
+      }
+    }
+  }, [calc.totalCost, calc.packSize, calc.marginPct, calc.active, showAddModal, showEditModal]);
+
+  // Réinitialiser le calculateur lors de la fermeture des modals
+  useEffect(() => {
+    if (!showAddModal && !showEditModal) {
+      setCalc({ packSize: 1, totalCost: 0, marginPct: 20, active: false });
+    }
+  }, [showAddModal, showEditModal]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -163,6 +195,7 @@ const Products = () => {
         setNewProduct({
             nom: '', categorie: 'Général', prix: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency
         });
+        setCalc({ packSize: 1, totalCost: 0, marginPct: 20, active: false });
         setSelectedImage(null);
         setImagePreview(null);
         fetchProducts();
@@ -194,14 +227,37 @@ const Products = () => {
   };
 
   const handleDeleteProduct = async (id: number, name: string) => {
-    if (!window.confirm(`Supprimer le produit "${name}" ?`)) return;
-    try {
-        await api.delete(`/products/${id}`);
-        toast.success("Produit supprimé.");
-        fetchProducts();
-    } catch (error: any) {
-        toast.error("Erreur lors de la suppression");
-    }
+    setConfirmModal({
+        isOpen: true,
+        title: "Supprimer Produit",
+        message: `Voulez-vous vraiment supprimer le produit "${name}" ? Cette action est irréversible.`,
+        onConfirm: async () => {
+            try {
+                await api.delete(`/products/${id}`);
+                toast.success("Produit supprimé.");
+                fetchProducts();
+            } catch (error: any) {
+                toast.error("Erreur lors de la suppression");
+            }
+        }
+    });
+  };
+
+  const handleAllDelete = async () => {
+    setConfirmModal({
+        isOpen: true,
+        title: "SUPPRESSION TOTALE",
+        message: "ATTENTION : Voulez-vous vraiment supprimer TOUS les produits de votre catalogue ? Cette action est irréversible.",
+        onConfirm: async () => {
+            try {
+                await api.delete('/products/all');
+                toast.success("Catalogue entièrement vidé.");
+                fetchProducts();
+            } catch (error: any) {
+                toast.error("Erreur lors de la suppression massive");
+            }
+        }
+    });
   };
 
   const totalProducts = allProducts.length;
@@ -277,8 +333,13 @@ const Products = () => {
              <Upload size={20} /> Import
            </button>
            <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-             <Download size={20} /> Export
+             <Download size={20} /> Rapport
            </button>
+           {products.length > 0 && (
+             <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '800' }}>
+               <Trash2 size={20} /> Tout Supprimer
+             </button>
+           )}
            <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '56px', height: '56px', borderRadius: '18px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
              <RefreshCw size={20} />
            </button>
@@ -478,11 +539,43 @@ const Products = () => {
             </div>
           </div>
 
+          <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: '24px', border: '1px dashed var(--primary)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <TrendingUp size={18} /> Système de Marge Automatique
+                </h4>
+                <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
+                    <input type="checkbox" checked={calc.active} onChange={(e) => setCalc({...calc, active: e.target.checked})} style={{ width: '40px', height: '20px' }} />
+                </label>
+            </div>
+            
+            {calc.active && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div>
+                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Qté (ex: 12 pcs)</label>
+                        <input type="number" value={calc.packSize} onChange={(e) => setCalc({...calc, packSize: parseFloat(e.target.value) || 1})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    </div>
+                    <div>
+                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Coût Total ({newProduct.devise})</label>
+                        <input type="number" value={calc.totalCost} onChange={(e) => setCalc({...calc, totalCost: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    </div>
+                    <div>
+                        <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
+                        <input type="number" value={calc.marginPct} onChange={(e) => setCalc({...calc, marginPct: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    </div>
+                </div>
+            )}
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', fontWeight: '600' }}>
+               L''activation de ce système calculera automatiquement votre P.A (Prix d''Achat Unitaire) et votre P.V (Prix de Vente) selon la marge définie.
+            </p>
+          </div>
+
           <div>
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.A. (Achat {newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
               <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.prixAchat} onChange={(e) => setNewProduct({...newProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <input type="number" required readOnly={calc.active} value={newProduct.prixAchat} onChange={(e) => setNewProduct({...newProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
             </div>
           </div>
 
@@ -490,7 +583,7 @@ const Products = () => {
             <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>P.V. (Vente {newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
               <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.prix} onChange={(e) => setNewProduct({...newProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
+              <input type="number" required readOnly={calc.active} value={newProduct.prix} onChange={(e) => setNewProduct({...newProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
             </div>
           </div>
           
@@ -556,6 +649,35 @@ const Products = () => {
               </div>
             </div>
 
+            <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: '24px', border: '1px dashed var(--primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <TrendingUp size={18} /> Système de Marge Automatique
+                    </h4>
+                    <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
+                        <input type="checkbox" checked={calc.active} onChange={(e) => setCalc({...calc, active: e.target.checked})} style={{ width: '40px', height: '20px' }} />
+                    </label>
+                </div>
+                
+                {calc.active && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                        <div>
+                            <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Qté (ex: 12 pcs)</label>
+                            <input type="number" value={calc.packSize} onChange={(e) => setCalc({...calc, packSize: parseFloat(e.target.value) || 1})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Coût Total ({selectedProduct.devise || currency})</label>
+                            <input type="number" value={calc.totalCost} onChange={(e) => setCalc({...calc, totalCost: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
+                            <input type="number" value={calc.marginPct} onChange={(e) => setCalc({...calc, marginPct: parseFloat(e.target.value) || 0})} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock Actuel</label>
               <div style={{ position: 'relative' }}>
@@ -568,7 +690,7 @@ const Products = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
                 <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({...selectedProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <input type="number" required readOnly={calc.active} value={selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({...selectedProduct, prixAchat: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
               </div>
             </div>
 
@@ -576,7 +698,7 @@ const Products = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
                 <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.prix} onChange={(e) => setSelectedProduct({...selectedProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
+                <input type="number" required readOnly={calc.active} value={selectedProduct.prix} onChange={(e) => setSelectedProduct({...selectedProduct, prix: parseFloat(e.target.value)})} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
               </div>
             </div>
 
@@ -596,6 +718,13 @@ const Products = () => {
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); borderRadius: 10px; }
       `}</style>
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </motion.div>
   );
 };

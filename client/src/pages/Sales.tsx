@@ -28,6 +28,7 @@ import api from '../api/axios';
 import { toast } from 'sonner';
 import { generateInvoice } from '../utils/printHelpers';
 import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 
 interface Sale {
@@ -59,6 +60,7 @@ const Sales = () => {
     const [filterMethod, setFilterMethod] = useState('');
     const [showReportModal, setShowReportModal] = useState(false);
     const [actionMenuId, setActionMenuId] = useState<number | null>(null);
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
     useEffect(() => {
         fetchSales();
@@ -81,14 +83,37 @@ const Sales = () => {
     };
 
     const deleteSale = async (id: number) => {
-        if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.")) return;
-        try {
-            await api.delete(`/sales/${id}`);
-            toast.success("Transaction supprimée");
-            fetchSales();
-        } catch (error) {
-            toast.error("Échec de la suppression");
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: "Supprimer Transaction",
+            message: "Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible et affectera vos rapports financiers.",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/sales/${id}`);
+                    toast.success("Transaction supprimée");
+                    fetchSales();
+                } catch (error) {
+                    toast.error("Échec de la suppression");
+                }
+            }
+        });
+    };
+
+    const handleAllDelete = async () => {
+        setConfirmModal({
+            isOpen: true,
+            title: "RAZ HISTORIQUE",
+            message: "ATTENTION : Voulez-vous vraiment effacer TOUT l'historique de vos ventes ? Cette action est irréversible et supprimera toutes les données de rapports.",
+            onConfirm: async () => {
+                try {
+                    await api.delete('/sales/all');
+                    toast.success("Historique des ventes vidé.");
+                    fetchSales();
+                } catch (error) {
+                    toast.error("Erreur lors de la remise à zéro");
+                }
+            }
+        });
     };
 
     const handleExportExcel = () => {
@@ -146,7 +171,12 @@ const Sales = () => {
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
                     <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> Rapports Financiers</button>
-                    <button onClick={handleExportCSV} className="btn-premium secondary"><Download size={18} /> Exporter CSV</button>
+                    <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> Rapport</button>
+                    {sales.length > 0 && (
+                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                            <Trash2 size={18} /> Purger Historique
+                        </button>
+                    )}
                     <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> Nouvelle Vente</button>
                 </div>
             </div>
@@ -471,6 +501,13 @@ const Sales = () => {
                     </button>
                 </div>
             </Modal>
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+            />
         </div>
     );
 };

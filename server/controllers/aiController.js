@@ -4,7 +4,7 @@ const { Sale, Product, Depense } = require("../models");
 const getClient = () => {
     const key = process.env.DEEPSEEK_API_KEY;
     if (!key) throw new Error("DEEPSEEK_API_KEY non configurée dans .env");
-
+    
     return new OpenAI({
         apiKey: key,
         baseURL: "https://api.deepseek.com",
@@ -17,7 +17,7 @@ const getAIInsights = async (req, res, next) => {
     try {
         const client = getClient();
         const userId = req.user.id;
-
+        
         const products = await Product.findAll({ where: { userId } });
         const recentSales = await Sale.findAll({ where: { userId }, limit: 50, order: [['createdAt', 'DESC']] });
         const recentExpenses = await Depense.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']] });
@@ -25,7 +25,7 @@ const getAIInsights = async (req, res, next) => {
         const totalRevenue = recentSales.reduce((acc, s) => acc + s.montantTotal, 0);
         const totalExpenses = recentExpenses.reduce((acc, e) => acc + e.montant, 0);
         const lowStock = products.filter(p => p.stock <= p.stockAlerte);
-
+        
         const productStats = {};
         recentSales.forEach(sale => {
             (sale.articles || []).forEach(art => {
@@ -33,7 +33,7 @@ const getAIInsights = async (req, res, next) => {
             });
         });
         const topProducts = Object.entries(productStats)
-            .sort(([, a], [, b]) => b - a).slice(0, 3)
+            .sort(([,a], [,b]) => b - a).slice(0, 3)
             .map(([name, qty]) => `${name} (${qty} vendus)`);
 
         const prompt = `
@@ -72,7 +72,7 @@ RÉPONDS UNIQUEMENT EN JSON VALIDE.
 
     } catch (error) {
         console.error("DeepSeek Insights Error:", error.message);
-
+        
         // Dynamic fallback based on real numbers if AI fails
         const productsCount = await Product.count({ where: { userId: req.user.id } });
         const sales = await Sale.findAll({ where: { userId: req.user.id }, limit: 10 });
