@@ -14,7 +14,7 @@ export const normalizeAuthUser = (userData: any) => {
     typeActivite: data.typeActivite,
     entreprise: {
       nom: data.entreprise?.nom || '',
-      devise: data.entreprise?.devise || 'FC',
+      devise: data.entreprise?.devise || 'CDF',
       adresse: data.entreprise?.adresse || '',
       logo: data.entreprise?.logo || '',
     },

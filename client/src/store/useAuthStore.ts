@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import api from '../api/axios';
 
+/** M5 Fix: Centralized currency normalizer – maps legacy 'FC' to canonical 'CDF' */
+const normalizeCurrency = (raw: string | undefined | null): 'USD' | 'CDF' => {
+  if (raw === 'FC' || raw === 'CDF') return 'CDF';
+  if (raw === 'USD') return 'USD';
+  return 'CDF';
+};
+
 interface EntrepriseInfo {
   nom?: string;
   devise?: string;
@@ -14,6 +21,8 @@ interface UserPreferences {
   enabledModules?: string[];
   currency?: 'USD' | 'CDF';
   exchangeRate?: number;
+  autoBackupEnabled?: boolean;
+  backupTime?: string;
 }
 
 interface User {
@@ -26,6 +35,8 @@ interface User {
   typeActivite?: string;
   entreprise?: EntrepriseInfo;
   preferences?: UserPreferences;
+  twoFactorEnabled?: boolean;
+  permissions?: string[];
 }
 
 interface AuthState {
@@ -36,9 +47,9 @@ interface AuthState {
   currency: 'USD' | 'CDF';
   exchangeRate: number;
   enabledModules: string[];
-  setAuth: (user: User, token: string) => void;
-  logout: () => void;
-  checkAuth: () => Promise<void>;
+  setAuth: (user: User, token: string, refreshToken?: string) => void;
+  logout: (shouldRedirect?: boolean) => void;
+  checkAuth: (shouldRedirect?: boolean) => Promise<void>;
   updateUser: (data: Partial<User>) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   setLanguage: (lang: 'fr' | 'en') => void;
@@ -48,18 +59,36 @@ interface AuthState {
   syncPreferencesToServer: (prefs: Partial<UserPreferences>) => Promise<void>;
 }
 
-const loadInitialAuth = () => {
+export const encodeData = (data: any) => {
   try {
-    const stored = localStorage.getItem('hub-auth');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return {
-        user: (parsed.user || null) as User | null,
-        token: (parsed.token || null) as string | null,
-      };
-    }
-  } catch {
-    // ignore
+    const json = JSON.stringify(data);
+    // Safe UTF-8 Base64 encoding
+    return btoa(unescape(encodeURIComponent(json)));
+  } catch (e) {
+    return JSON.stringify(data);
+  }
+};
+
+export const decodeData = (encoded: string | null) => {
+  if (!encoded) return null;
+  try {
+    if (encoded.startsWith('{')) return JSON.parse(encoded);
+    // Safe UTF-8 Base64 decoding
+    const decoded = decodeURIComponent(escape(atob(encoded)));
+    return JSON.parse(decoded);
+  } catch (e) {
+    try { return JSON.parse(encoded); } catch(ee) { return null; }
+  }
+};
+
+const loadInitialAuth = () => {
+  const stored = localStorage.getItem('hub-auth');
+  const decoded = decodeData(stored);
+  if (decoded) {
+    return {
+      user: (decoded.user || null) as User | null,
+      token: (decoded.token || null) as string | null,
+    };
   }
   return { user: null, token: localStorage.getItem('token') };
 };
@@ -71,19 +100,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: initialAuth.token,
   theme: initialAuth.user?.preferences?.theme || (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
   language: initialAuth.user?.preferences?.language || (localStorage.getItem('language') as 'fr' | 'en') || 'fr',
-  currency: initialAuth.user?.preferences?.currency || (localStorage.getItem('currency') as 'USD' | 'CDF') || 'CDF',
+  currency: normalizeCurrency((initialAuth.user?.preferences?.currency as any) || localStorage.getItem('currency') as any),
   exchangeRate: initialAuth.user?.preferences?.exchangeRate || 2250,
   enabledModules: initialAuth.user?.preferences?.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
 
-  setAuth: (user, token) => {
-    localStorage.setItem('hub-auth', JSON.stringify({ user, token }));
+  setAuth: (user, token, refreshToken) => {
+    const current = decodeData(localStorage.getItem('hub-auth')) || {};
+    const authData: any = { user, token };
+    if (refreshToken) {
+        authData.refreshToken = refreshToken;
+    } else if (current.refreshToken) {
+        authData.refreshToken = current.refreshToken;
+    }
+    localStorage.setItem('hub-auth', encodeData(authData));
     localStorage.setItem('token', token);
     
     const prefs = user.preferences || {};
     const theme = prefs.theme || 'dark';
     const lang = prefs.language || 'fr';
     const modules = prefs.enabledModules || [];
-    const curr = prefs.currency || 'CDF';
+    const curr = normalizeCurrency((prefs.currency as any) || (user.entreprise?.devise as any));
+    
     const rate = prefs.exchangeRate || 2250;
 
     localStorage.setItem('theme', theme);
@@ -99,56 +136,93 @@ export const useAuthStore = create<AuthState>((set) => ({
         theme: theme as any, 
         language: lang as any, 
         enabledModules: modules,
-        currency: curr as any,
+        currency: curr,
         exchangeRate: rate
     });
   },
 
-  logout: () => {
-    localStorage.removeItem('hub-auth');
-    localStorage.removeItem('token');
-    set({ token: null, user: null });
+  logout: async (shouldRedirect = true) => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      // Ignorer si déjà expiré ou réseau coupé
+    }
+    
+    // Nettoyage radical pour éviter la pollution de session (Bug persistance)
+    localStorage.clear();
+    
+    // On peut réinitialiser certaines valeurs par défaut après le clear si besoin
+    localStorage.setItem('theme', 'light'); 
+    
+    set({ 
+        token: null, 
+        user: null,
+        theme: 'light',
+        language: 'fr',
+        currency: 'CDF',
+        enabledModules: []
+    });
+    
+    if (shouldRedirect) {
+      // Force un rechargement complet pour vider les caches mémoire et réinitialiser l'état axios
+      window.location.replace('/login');
+    }
   },
 
-  checkAuth: async () => {
+  checkAuth: async (shouldRedirect = true) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
     try {
-      const { data } = await api.get('/auth/profile');
+      // Ajout d'un cache-buster (?t=...) pour forcer le réseau et ignorer le cache PWA/Navigateur
+      const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
       const user = data.user || data;
       const prefs = user.preferences || {};
       
-      // Update local storage to match server preferences if they exist
-      if (prefs.theme) localStorage.setItem('theme', prefs.theme);
-      if (prefs.language) localStorage.setItem('language', prefs.language);
-      if (prefs.enabledModules) localStorage.setItem('enabledModules', JSON.stringify(prefs.enabledModules));
-      if (prefs.currency) localStorage.setItem('currency', prefs.currency);
-      if (prefs.exchangeRate) localStorage.setItem('exchangeRate', prefs.exchangeRate.toString());
+      const curr = normalizeCurrency((prefs.currency as any) || (user.entreprise?.devise as any));
+      const theme = prefs.theme || localStorage.getItem('theme') || 'dark';
+      const lang = prefs.language || localStorage.getItem('language') || 'fr';
+      const modules = prefs.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]');
+      const rate = prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '2250');
+
+      // Update localStorage with latest server data (including nom changes)
+      localStorage.setItem('theme', theme);
+      localStorage.setItem('language', lang);
+      localStorage.setItem('enabledModules', JSON.stringify(modules));
+      localStorage.setItem('exchangeRate', rate.toString());
+      
+      // Persist full user object using safe encoding (handles accents/unicode)
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user, token }));
 
       set({ 
         user, 
         token, 
-        theme: prefs.theme || (localStorage.getItem('theme') as any) || 'dark',
-        language: prefs.language || (localStorage.getItem('language') as any) || 'fr',
-        enabledModules: prefs.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
-        currency: prefs.currency || (localStorage.getItem('currency') as any) || 'CDF',
-        exchangeRate: prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '2250')
+        theme: theme as any,
+        language: lang as any,
+        enabledModules: modules,
+        currency: curr,
+        exchangeRate: rate
       });
       
-      document.documentElement.setAttribute('data-theme', prefs.theme || localStorage.getItem('theme') || 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
     } catch (err) {
       // Token probably invalid
       localStorage.removeItem('hub-auth');
       localStorage.removeItem('token');
       set({ token: null, user: null });
+      if (shouldRedirect && window.location.pathname !== '/login' && window.location.pathname !== '/' && window.location.pathname !== '/register') {
+          window.location.href = '/login?expired=true';
+      }
+      throw err;
     }
   },
 
   updateUser: (data) => set((state) => {
     if (!state.user) return { user: null };
     const updated = { ...state.user, ...data };
-    localStorage.setItem('hub-auth', JSON.stringify({ user: updated, token: state.token }));
+    const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+    localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updated, token: state.token }));
     return { user: updated };
   }),
 
@@ -180,7 +254,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, theme }
       };
-      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       // Fire and forget sync to backend
       useAuthStore.getState().syncPreferencesToServer({ theme });
     }
@@ -196,25 +271,29 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, language }
       };
-      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ language });
     }
     return { language, user: updatedUser };
   }),
 
   setCurrency: (currency) => set((state) => {
-    localStorage.setItem('currency', currency);
+    let curr = normalizeCurrency(currency as any);
+    localStorage.setItem('currency', curr);
     
     let updatedUser = state.user;
     if (state.user) {
       updatedUser = {
         ...state.user,
-        preferences: { ...state.user.preferences, currency }
+        entreprise: { ...state.user.entreprise, devise: curr },
+        preferences: { ...state.user.preferences, currency: curr }
       };
-      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
-      useAuthStore.getState().syncPreferencesToServer({ currency });
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      useAuthStore.getState().syncPreferencesToServer({ currency: curr });
     }
-    return { currency, user: updatedUser };
+    return { currency: curr, user: updatedUser };
   }),
 
   setExchangeRate: (rate) => set((state) => {
@@ -226,7 +305,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, exchangeRate: rate }
       };
-      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ exchangeRate: rate });
     }
     return { exchangeRate: rate, user: updatedUser };
@@ -249,7 +329,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           enabledModules: updated
         }
       };
-      localStorage.setItem('hub-auth', JSON.stringify({ user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
+      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ enabledModules: updated });
     }
 

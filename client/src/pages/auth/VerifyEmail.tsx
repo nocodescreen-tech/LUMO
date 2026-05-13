@@ -5,11 +5,13 @@ import { Mail, CheckCircle2, ArrowRight, RefreshCcw, ShieldCheck, Sparkles } fro
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../api/axios';
 import { toast } from 'sonner';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const VerifyEmail = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const setAuth = useAuthStore(state => state.setAuth);
+    const { t } = useTranslation();
     const email = location.state?.email;
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -54,10 +56,11 @@ const VerifyEmail = () => {
                     entreprise: data.entreprise,
                     preferences: data.preferences,
                 } as any,
-                data.token
+                data.token,
+                data.refreshToken
             );
             toast.success('Compte vérifié ! Bienvenue sur Lumo.');
-            navigate('/');
+            navigate('/dashboard');
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Code invalide');
         } finally {
@@ -116,9 +119,9 @@ const VerifyEmail = () => {
                     />
                 </div>
 
-                <h2 style={{ fontSize: '2.8rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em' }}>Vérification</h2>
+                <h2 style={{ fontSize: '2.8rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em' }}>{t.verifyTitle}</h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '40px' }}>
-                    Un code de 6 chiffres a été envoyé à <br/>
+                    {t.verifySubtitle} <br/>
                     <strong style={{ color: 'var(--text-main)', fontWeight: '800' }}>{email}</strong>
                 </p>
 
@@ -181,8 +184,8 @@ const VerifyEmail = () => {
                             boxShadow: '0 20px 40px -10px rgba(16, 185, 129, 0.4)'
                         }}
                     >
-                        {loading ? 'Vérification en cours...' : (
-                            <>Continuer vers Lumo <ArrowRight size={24} /></>
+                        {loading ? t.verifyLoading : (
+                            <>{t.verifySubmit} <ArrowRight size={24} /></>
                         )}
                     </motion.button>
                 </form>
@@ -200,7 +203,7 @@ const VerifyEmail = () => {
                         fontWeight: '700',
                         opacity: 0.8
                     }}>
-                        <RefreshCcw size={18} /> Renvoyer un nouveau code
+                        <RefreshCcw size={18} /> {t.verifyResend}
                     </button>
                 </div>
             </motion.div>

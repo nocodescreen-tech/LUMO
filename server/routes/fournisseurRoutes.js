@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { getFournisseurs, createFournisseur, updateFournisseur, deleteFournisseur } = require('../controllers/fournisseurController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, checkPermission } = require('../middleware/authMiddleware');
 
-router.get('/', protect, getFournisseurs);
-router.post('/', protect, createFournisseur);
-router.put('/:id', protect, updateFournisseur);
-router.delete('/:id', protect, deleteFournisseur);
+router.get('/', protect, checkPermission('suppliers'), getFournisseurs);
+router.post('/', protect, checkPermission('suppliers.add'), createFournisseur);
+router.put('/:id', protect, checkPermission('suppliers.edit'), updateFournisseur);
+router.delete('/:id', protect, checkPermission('suppliers.delete'), deleteFournisseur);
 
 module.exports = router;

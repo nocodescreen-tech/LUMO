@@ -12,19 +12,34 @@ import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import { exportToExcel } from '../utils/exportUtils';
+import { generateMonthlyReport } from '../utils/printHelpers';
 
 const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
 const Stats = () => {
-    const { currency } = useAuthStore();
+    const { currency, user } = useAuthStore();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('7d');
 
     useEffect(() => {
         setLoading(true);
-        api.get(`/stats/analytics?period=${period}`)
-            .then(res => setData(res.data))
+        api.get(`/stats/analytics?period=${period}&_t=${Date.now()}`)
+            .then(res => {
+                const resData = res.data;
+                const rawData = resData.success && resData.data ? resData.data : (resData.data || resData || {});
+                
+                // Ensure common array fields exist and are arrays
+                if (rawData) {
+                    if (!Array.isArray(rawData.periodData)) rawData.periodData = [];
+                    if (!Array.isArray(rawData.stockByCategory)) rawData.stockByCategory = [];
+                    if (!Array.isArray(rawData.topProducts)) rawData.topProducts = [];
+                    if (!rawData.monthlyRevenue) rawData.monthlyRevenue = { labels: [], values: [] };
+                    if (!Array.isArray(rawData.monthlyRevenue.labels)) rawData.monthlyRevenue.labels = [];
+                    if (!Array.isArray(rawData.monthlyRevenue.values)) rawData.monthlyRevenue.values = [];
+                }
+                setData(rawData);
+            })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
     }, [period]);
@@ -64,22 +79,41 @@ const Stats = () => {
                     </select>
                     <button 
                         onClick={() => {
-                           if (!data) return;
-                           const exportData = [
-                             { Section: 'Ventes' },
-                             ...(data.periodSales || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Total: s.total })),
-                             { Section: '' },
-                             { Section: 'Stock Par Catégorie' },
-                             ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
-                             { Section: '' },
-                             { Section: 'Revenus Mensuels (6 mois)' },
-                             ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: data.monthlyRevenue.values[idx] }))
-                           ];
-                           exportToExcel(exportData, 'Statistiques_Avancees_Report');
+                       if (!data) return;
+                       const exportData = [
+                         { Section: 'Ventes & Dépenses' },
+                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: s.revenue, Depenses: s.expenses })),
+                         { Section: '' },
+                         { Section: 'Stock Par Catégorie' },
+                         ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
+                         { Section: '' },
+                         { Section: 'Produits les plus vendus' },
+                         ...(data.topProducts || []).map((p: any) => ({ Produit: p.nom, Quantite: p.quantite, Revenu: p.revenu })),
+                         { Section: '' },
+                         { Section: 'Revenus Mensuels (6 mois)' },
+                         ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: data.monthlyRevenue.values[idx] }))
+                       ];
+                       exportToExcel(exportData, 'Statistiques_Avancees_Report');
+                        }}
+                        className="btn-premium"
+                        style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}
+                    >
+                        <Download size={18} /> Excel
+                    </button>
+                    <button 
+                        onClick={() => {
+                          if (!data) return;
+                          const labelsMap: any = {
+                            'today': "Aujourd'hui",
+                            '7d': '7 derniers jours',
+                            '30d': '30 derniers jours',
+                            '1y': '12 derniers mois'
+                          };
+                          generateMonthlyReport(data, { ...user, preferences: { currency } }, labelsMap[period]);
                         }}
                         className="btn-premium primary"
                     >
-                        <Download size={18} /> Télécharger le rapport
+                        <BarChart3 size={18} /> Générer Bilan (PDF)
                     </button>
                 </div>
             </div>
@@ -99,19 +133,26 @@ const Stats = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                                        {period === 'today' ? "Ventes d'aujourd'hui" : period === '30d' ? 'Ventes des 30 derniers jours' : period === '1y' ? 'Ventes de l\'année' : 'Ventes des 7 derniers jours'}
+                                        {period === 'today' ? "Performance d'aujourd'hui" : period === '30d' ? 'Performance des 30 derniers jours' : period === '1y' ? 'Performance de l\'année' : 'Performance des 7 derniers jours'}
                                     </h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires</p>
+                                    <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div> Revenus
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--danger)' }}></div> Dépenses
+                                        </div>
+                                    </div>
                                 </div>
                                 <Activity size={20} color="var(--primary)" />
                             </div>
                             <div style={{ height: '250px' }}>
-                                {data?.periodSales?.length > 0 ? (
-                                    <DashboardCharts salesData={data.periodSales} period={period} />
+                                {data?.periodData?.length > 0 ? (
+                                    <DashboardCharts salesData={data.periodData} period={period} />
                                 ) : (
                                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                         <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                        <p style={{ fontWeight: 700 }}>Aucune vente sur cette période</p>
+                                        <p style={{ fontWeight: 700 }}>Aucune donnée sur cette période</p>
                                     </div>
                                 )}
                             </div>
@@ -157,7 +198,44 @@ const Stats = () => {
                         </div>
                     </div>
 
-                    {/* Row 2 : Revenu mensuel (barres) */}
+                    {/* Row 2 : Produits les plus vendus & Revenu mensuel */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
+                        
+                        {/* Produits les plus vendus */}
+                        <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Top Produits</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Les plus vendus</p>
+                                </div>
+                                <TrendingUp size={20} color="var(--primary)" />
+                            </div>
+                            {(!data?.topProducts || data.topProducts.length === 0) ? (
+                                <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
+                                    <Package size={48} style={{ opacity: 0.15 }} />
+                                    <p style={{ fontWeight: 700 }}>Aucune donnée</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    {data.topProducts.map((p: any, i: number) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.9rem' }}>
+                                                {i + 1}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{p.nom}</h4>
+                                                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} unités vendues</p>
+                                            </div>
+                                            <div style={{ fontWeight: 900, color: 'var(--text-main)' }}>
+                                                {Number(p.revenu).toLocaleString()} {currency}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Revenu mensuel (barres) */}
                     <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <div>
@@ -221,6 +299,8 @@ const Stats = () => {
                                 </svg>
                             </div>
                         )}
+                    </div>
+
                     </div>
                 </div>
             )}

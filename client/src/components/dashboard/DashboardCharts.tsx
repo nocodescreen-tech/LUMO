@@ -11,14 +11,14 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
     const daysArr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
     
     if (period === '7d') {
-      const weekData = daysArr.map(name => ({ day: name, sales: 0 }));
+      const weekData = daysArr.map(name => ({ day: name, sales: 0, expenses: 0 }));
       
       salesData.forEach(d => {
         const dateObj = new Date(d.date);
-        // getDay(): 0=Dim, 1=Lun -> 0=Lun ... 6=Dim
         const dayIdx = (dateObj.getDay() + 6) % 7;
         if (dayIdx >= 0 && dayIdx < 7) {
-          weekData[dayIdx].sales += parseFloat(d.total) || 0;
+          weekData[dayIdx].sales += parseFloat(d.revenue || d.total) || 0;
+          weekData[dayIdx].expenses += parseFloat(d.expenses) || 0;
         }
       });
       return weekData;
@@ -40,7 +40,8 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
         
         return {
           day: dayFormat,
-          sales: parseFloat(d.total) || 0
+          sales: parseFloat(d.revenue || d.total) || 0,
+          expenses: parseFloat(d.expenses) || 0
         };
       });
     }
@@ -48,11 +49,11 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
     // Default fallback if no data
     if (period === 'today') {
        return [
-         { day: '00h', sales: 0 }, { day: '04h', sales: 0 }, { day: '08h', sales: 0 },
-         { day: '12h', sales: 0 }, { day: '16h', sales: 0 }, { day: '20h', sales: 0 }
+         { day: '00h', sales: 0, expenses: 0 }, { day: '04h', sales: 0, expenses: 0 }, { day: '08h', sales: 0, expenses: 0 },
+         { day: '12h', sales: 0, expenses: 0 }, { day: '16h', sales: 0, expenses: 0 }, { day: '20h', sales: 0, expenses: 0 }
        ];
     }
-    return daysArr.map(name => ({ day: name, sales: 0 }));
+    return daysArr.map(name => ({ day: name, sales: 0, expenses: 0 }));
   };
 
   const data = parseData();
@@ -87,11 +88,13 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
             />
           ))}
 
-          {/* Barres (Candlestick style) */}
+          {/* Bars */}
           {data.map((d, i) => {
-            const barWidth = Math.min(30, (width / data.length) * 0.5);
-            const xPos = (width / data.length) * i + (width / data.length) / 2 - barWidth / 2;
-            const barHeight = Math.max((d.sales / maxSales) * height, 4); // minimum height
+            const groupWidth = Math.min(60, (width / data.length) * 0.8);
+            const barWidth = groupWidth / 2 - 2;
+            const xPos = (width / data.length) * i + (width / data.length) / 2 - groupWidth / 2;
+            const salesHeight = Math.max((d.sales / maxSales) * height, 4);
+            const expHeight = Math.max((d.expenses / maxSales) * height, 4);
             
             // Only show labels for some data points if there's too many
             const showLabel = data.length > 10 ? i % Math.ceil(data.length / 7) === 0 || i === data.length - 1 : true;
@@ -100,37 +103,58 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
               <g key={i}>
                   {/* Background shadow for hover effect */}
                   <rect 
-                    x={xPos - 10} y={0} width={barWidth + 20} height={height} 
+                    x={xPos - 10} y={0} width={groupWidth + 20} height={height} 
                     fill="transparent" 
                     className="chart-hover-bg"
                   />
                   
-                  {/* The bar */}
+                  {/* Revenue Bar */}
                   <motion.rect
                       initial={{ height: 0, y: height }}
-                      animate={{ height: barHeight, y: height - barHeight }}
+                      animate={{ height: salesHeight, y: height - salesHeight }}
                       transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
                       x={xPos}
                       width={barWidth}
-                      rx={6}
+                      rx={4}
                       fill="url(#areaGradient)"
                       style={{ cursor: 'pointer' }}
                   />
-                  
-                  {/* Accent dot on top of the bar */}
                   <motion.circle
                       initial={{ opacity: 0, cy: height }}
-                      animate={{ opacity: 1, cy: height - barHeight }}
+                      animate={{ opacity: 1, cy: height - salesHeight }}
                       transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
                       cx={xPos + barWidth / 2}
-                      r="4"
+                      r="3"
                       fill="var(--bg-main)"
                       stroke="var(--primary)"
                       strokeWidth="2"
                   />
 
+                  {/* Expenses Bar */}
+                  <motion.rect
+                      initial={{ height: 0, y: height }}
+                      animate={{ height: expHeight, y: height - expHeight }}
+                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
+                      x={xPos + barWidth + 4}
+                      width={barWidth}
+                      rx={4}
+                      fill="var(--danger)"
+                      opacity="0.8"
+                      style={{ cursor: 'pointer' }}
+                  />
+                  <motion.circle
+                      initial={{ opacity: 0, cy: height }}
+                      animate={{ opacity: 1, cy: height - expHeight }}
+                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
+                      cx={xPos + barWidth + 4 + barWidth / 2}
+                      r="3"
+                      fill="var(--bg-main)"
+                      stroke="var(--danger)"
+                      strokeWidth="2"
+                  />
+
                   {showLabel && (
-                    <text x={xPos + barWidth / 2} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
+                    <text x={xPos + groupWidth / 2} y={height + 30} textAnchor="middle" fill="var(--text-muted)" fontSize="12" fontWeight="800">
                         {d.day}
                     </text>
                   )}

@@ -37,7 +37,8 @@ const Client = sequelize.define('Client', {
     { fields: ['userId'] },
     { fields: ['nom'] },
     { fields: ['telephone'] }
-  ]
+  ],
+  paranoid: true
 });
 
 module.exports = Client;

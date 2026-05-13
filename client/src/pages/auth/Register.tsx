@@ -24,14 +24,17 @@ import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Globe } from 'lucide-react';
+import { africanCountries } from '../../constants/countries';
+import { useTranslation } from '../../hooks/useTranslation';
 
 
 import Logo from '../../components/layout/Logo';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useAuthStore();
+  const { theme, setTheme, language, setLanguage } = useAuthStore();
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,15 +45,16 @@ const Register = () => {
     motDePasse: '',
     telephone: '',
     entrepriseNom: '',
-    devise: 'FC',
-    ville: ''
+    devise: 'CDF',
+    ville: '',
+    tauxDollar: '2250',
+    countryCode: '+243'
   });
 
   const activityTypes = [
-    { id: 'Boutique', label: 'Magasin / Boutique', icon: Store, color: '#6d28d9', desc: 'Gestion de stocks et ventes' },
-    { id: 'Pharmacie', label: 'Pharmacie', icon: Stethoscope, color: '#10b981', desc: 'Produits médicaux et ordonnances' },
-    { id: 'Restaurant', label: 'Restaurant / Café', icon: UtensilsCrossed, color: '#f59e0b', desc: 'Menu et service en salle' },
-    { id: 'Services', label: 'Services Pro', icon: Briefcase, color: '#ef4444', desc: 'Prestations et facturation' },
+    { id: 'Boutique', label: t.bizBoutiqueTitle, icon: Store, color: '#6d28d9', desc: t.bizBoutiqueDesc },
+    { id: 'Restaurant', label: t.bizRestaurantTitle, icon: UtensilsCrossed, color: '#f59e0b', desc: t.bizRestaurantDesc },
+    { id: 'Services', label: t.bizServicesTitle, icon: Briefcase, color: '#ef4444', desc: t.bizServicesDesc },
   ];
 
   const updateForm = (fields: Partial<typeof formData>) => {
@@ -97,12 +101,24 @@ const Register = () => {
     data.append('nom', formData.nom);
     data.append('email', formData.email);
     data.append('motDePasse', formData.motDePasse);
-    data.append('telephone', formData.telephone);
+    data.append('telephone', formData.countryCode + formData.telephone);
     data.append('typeActivite', formData.typeActivite);
     data.append('entrepriseNom', formData.entrepriseNom);
     data.append('devise', formData.devise);
     data.append('ville', formData.ville);
+    data.append('tauxDollar', formData.tauxDollar);
     
+    if (formData.motDePasse) {
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
+        if (!passwordRegex.test(formData.motDePasse)) {
+            setError("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+            toast.error("Mot de passe trop faible");
+            setStep(2);
+            setLoading(false);
+            return;
+        }
+    }
+
     if (avatarFile) {
       data.append('avatar', avatarFile);
     }
@@ -122,7 +138,8 @@ const Register = () => {
               avatar: responseData.avatar,
               preferences: responseData.preferences,
             } as any, 
-            responseData.token
+            responseData.token,
+            responseData.refreshToken
           );
           navigate('/');
         }
@@ -174,33 +191,75 @@ const Register = () => {
       }}>
       <style>{`
         input::placeholder, select::placeholder { color: ${theme === 'dark' ? '#64748b' : '#94a3b8'} !important; opacity: 1 !important; }
+        
+        @media (max-width: 600px) {
+          .auth-container { padding: 32px 20px !important; border-radius: 24px !important; }
+          .auth-top-bar { 
+            position: fixed !important; top: 0; left: 0; right: 0; 
+            padding: 16px 20px; display: flex; justify-content: space-between; 
+            z-index: 100; backdrop-filter: blur(10px);
+            background: ${theme === 'dark' ? 'rgba(9,9,11,0.5)' : 'rgba(255,255,255,0.5)'};
+          }
+          .auth-top-btn { position: static !important; width: 44px !important; height: 44px !important; }
+          .auth-back-btn { position: static !important; height: 44px !important; padding: 0 12px !important; }
+          .hide-mobile { display: none; }
+        }
       `}</style>
 
-      {/* Theme Toggle Button */}
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        style={{
-          position: 'absolute',
-          top: '32px',
-          right: '32px',
-          width: '50px',
-          height: '50px',
-          borderRadius: '16px',
-          background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-          border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-          color: theme === 'dark' ? '#f8fafc' : '#0f172a',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 100,
-          backdropFilter: 'blur(10px)'
-        }}
-      >
-        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-      </motion.button>
+      {/* Responsive Top Bar */}
+      <div className="auth-top-bar" style={{ position: 'absolute', top: '32px', left: '32px', right: '32px', display: 'flex', justifyContent: 'space-between', zIndex: 100 }}>
+        <motion.button
+          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+          onClick={() => navigate('/')}
+          className="auth-back-btn"
+          style={{
+            padding: '0 20px', height: '50px', borderRadius: '16px',
+            background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+            border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+            color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            backdropFilter: 'blur(10px)', fontWeight: '800', fontSize: '0.85rem', gap: '10px'
+          }}
+        >
+          <ArrowLeft size={18} />
+          <span className="hide-mobile">{language === 'fr' ? 'Retour' : 'Back'}</span>
+        </motion.button>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <motion.button
+            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+            onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}
+            className="auth-top-btn"
+            style={{
+              padding: '0 12px', height: '50px', borderRadius: '16px',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              backdropFilter: 'blur(10px)', fontWeight: '800', fontSize: '0.85rem', gap: '8px'
+            }}
+          >
+            <Globe size={18} />
+            {language === 'fr' ? 'FR' : 'EN'}
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="auth-top-btn"
+            style={{
+              width: '50px', height: '50px', borderRadius: '16px',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+              color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </motion.button>
+        </div>
+      </div>
+
       {/* Background Blur Overlay */}
       <div style={{
           position: 'absolute',
@@ -224,7 +283,7 @@ const Register = () => {
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass" 
+        className="auth-container" 
         style={{ 
           padding: '50px 48px', 
           borderRadius: '36px', 
@@ -238,11 +297,13 @@ const Register = () => {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Logo size={60} textColor={theme === 'dark' ? '#f8fafc' : '#0f172a'} />
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <Logo size={60} textColor={theme === 'dark' ? '#f8fafc' : '#0f172a'} />
+          </Link>
           <h2 style={{ fontSize: '2.6rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', lineHeight: 1.1, marginTop: '24px', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>
-            Propulsez votre <span style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Commerce</span>
+            {t.registerTitle}
           </h2>
-          <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1.05rem', fontWeight: 600 }}>Une configuration rapide pour une gestion sans limite.</p>
+          <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1.05rem', fontWeight: 600 }}>{t.registerSubtitle}</p>
         </div>
 
         <StepIndicator />
@@ -281,7 +342,7 @@ const Register = () => {
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.4, ease: "circOut" }}
             >
-              <h3 style={{ marginBottom: '28px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Quel est votre domaine ?</h3>
+              <h3 style={{ marginBottom: '28px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>{t.registerStep1}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '18px' }}>
                 {activityTypes.map((type) => {
                   const Icon = type.icon;
@@ -363,17 +424,17 @@ const Register = () => {
               transition={{ duration: 0.4, ease: "circOut" }}
               style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
             >
-              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Identité du Propriétaire</h3>
-              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '8px' }}>Ces informations sont nécessaires pour sécuriser votre accès.</p>
+              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>{t.registerStep2Title}</h3>
+              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '8px' }}>{t.registerStep2Sub}</p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Nom Complet</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerFullName}</label>
                     <div style={{ position: 'relative' }}>
                         <User size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="text" 
-                            placeholder="Ex: Jean Mukendi" 
+                            placeholder={t.phName}
                             value={formData.nom}
                             onChange={(e) => updateForm({ nom: e.target.value })}
                             style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
@@ -382,12 +443,12 @@ const Register = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Email Professionnel</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerEmail}</label>
                     <div style={{ position: 'relative' }}>
                         <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="email" 
-                            placeholder="jean@commerce.com" 
+                            placeholder={t.phEmailReg}
                             value={formData.email}
                             onChange={(e) => updateForm({ email: e.target.value })}
                             style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
@@ -396,31 +457,84 @@ const Register = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Téléphone</label>
-                    <div style={{ position: 'relative' }}>
-                        <Phone size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
-                        <input 
-                            type="tel" 
-                            placeholder="+243 ..." 
-                            value={formData.telephone}
-                            onChange={(e) => updateForm({ telephone: e.target.value })}
-                            style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
-                        />
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerPhone}</label>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ width: '130px', position: 'relative' }}>
+                            <select
+                                value={formData.countryCode}
+                                onChange={(e) => updateForm({ countryCode: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '16px 12px 16px 42px',
+                                    borderRadius: '16px',
+                                    border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)',
+                                    backgroundColor: 'transparent',
+                                    color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+                                    fontSize: '1rem',
+                                    outline: 'none',
+                                    appearance: 'none',
+                                    cursor: 'pointer',
+                                    fontWeight: '800'
+                                }}
+                            >
+                                {africanCountries.map(c => (
+                                    <option key={c.code} value={c.code} style={{ background: theme === 'dark' ? '#1f2937' : '#fff' }}>
+                                        {c.flag} {c.code}
+                                    </option>
+                                ))}
+                            </select>
+                            <Globe size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
+                        </div>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                            <Phone size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
+                            <input 
+                                type="tel" 
+                                placeholder={t.phPhone}
+                                value={formData.telephone}
+                                onChange={(e) => updateForm({ telephone: e.target.value })}
+                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none', fontWeight: '600' }} 
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Mot de Passe</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerPassword}</label>
                     <div style={{ position: 'relative' }}>
                         <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                         <input 
                             type="password" 
-                            placeholder="Min. 8 caractères" 
+                            placeholder={t.phPassword}
                             value={formData.motDePasse}
+                            maxLength={100}
                             onChange={(e) => updateForm({ motDePasse: e.target.value })}
                             style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem', outline: 'none' }} 
                         />
                     </div>
+                    {formData.motDePasse && (
+                      <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {[
+                          { label: '8+ Caract.', met: formData.motDePasse.length >= 8 },
+                          { label: 'Maj.', met: /[A-Z]/.test(formData.motDePasse) },
+                          { label: 'Min.', met: /[a-z]/.test(formData.motDePasse) },
+                          { label: 'Chiffre', met: /\d/.test(formData.motDePasse) },
+                          { label: 'Symbole', met: /[@$!%*?&#]/.test(formData.motDePasse) },
+                        ].map((req, idx) => (
+                          <span key={idx} style={{ 
+                            fontSize: '0.7rem', 
+                            padding: '4px 8px', 
+                            borderRadius: '8px', 
+                            backgroundColor: req.met ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                            color: req.met ? '#10b981' : theme === 'dark' ? '#64748b' : '#94a3b8',
+                            border: `1px solid ${req.met ? '#10b981' : 'transparent'}`,
+                            fontWeight: '700',
+                            transition: 'all 0.3s'
+                          }}>
+                            {req.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -429,7 +543,7 @@ const Register = () => {
                   onClick={prevStep}
                   style={{ flex: 1, padding: '18px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', background: 'none', color: theme === 'dark' ? '#f8fafc' : '#0f172a', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontWeight: '700' }}
                 >
-                  <ArrowLeft size={20} /> Retour
+                  <ArrowLeft size={20} /> {t.registerBack}
                 </button>
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
@@ -457,8 +571,8 @@ const Register = () => {
               exit={{ opacity: 0, x: -30 }}
               transition={{ duration: 0.4, ease: "circOut" }}
             >
-              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Détails du Commerce</h3>
-              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '32px' }}>Finalisez le profil de votre enseigne.</p>
+              <h3 style={{ marginBottom: '8px', textAlign: 'center', fontSize: '1.2rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>{t.registerStep3Title}</h3>
+              <p style={{ textAlign: 'center', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.95rem', marginBottom: '32px' }}>{t.registerStep3Sub}</p>
               
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
                   <input 
@@ -493,12 +607,12 @@ const Register = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Nom de l'Enseigne</label>
+                  <label style={{ fontSize: '0.9rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerCompanyName}</label>
                   <div style={{ position: 'relative' }}>
                     <Building2 size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                     <input 
                       type="text" 
-                      placeholder="Ex: L'Élégance de Kinshasa" 
+                      placeholder={t.phCompany}
                       value={formData.entrepriseNom}
                       onChange={(e) => updateForm({ entrepriseNom: e.target.value })}
                       style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
@@ -508,7 +622,7 @@ const Register = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Devise</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerCurrency}</label>
                         <div style={{ position: 'relative' }}>
                             <Coins size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                             <select 
@@ -516,19 +630,32 @@ const Register = () => {
                                 onChange={(e) => updateForm({ devise: e.target.value })}
                                 style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'var(--bg-main)', color: theme === 'dark' ? '#f8fafc' : '#0f172a', appearance: 'none', outline: 'none', fontWeight: '700', cursor: 'pointer' }}
                             >
-                                <option value="FC">Francs CFA (FC)</option>
+                                <option value="CDF">Franc Congolais (CDF)</option>
                                 <option value="USD">Dollars (USD)</option>
-                                <option value="EUR">Euros (EUR)</option>
                             </select>
                         </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>Ville</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerExchangeRate}</label>
+                        <div style={{ position: 'relative' }}>
+                            <Target size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
+                            <input 
+                                type="number" 
+                                placeholder={t.phRate}
+                                value={formData.tauxDollar}
+                                min="1"
+                                onChange={(e) => updateForm({ tauxDollar: Math.max(1, Number(e.target.value)).toString() })}
+                                style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
+                            />
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: '800', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.registerCity}</label>
                         <div style={{ position: 'relative' }}>
                             <MapPin size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
                             <input 
                                 type="text" 
-                                placeholder="Kinshasa" 
+                                placeholder={t.phCity}
                                 value={formData.ville}
                                 onChange={(e) => updateForm({ ville: e.target.value })}
                                 style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '18px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'transparent', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '600' }} 
@@ -553,14 +680,14 @@ const Register = () => {
                   opacity: (loading || !formData.entrepriseNom) ? 0.6 : 1
                 }}
               >
-                {loading ? 'Création en cours...' : (<>Finaliser mon Compte <CheckCircle2 size={26} /></>)}
+                {loading ? t.registerLoading : (<>{t.registerFinish} <CheckCircle2 size={26} /></>)}
               </motion.button>
               
               <button 
                 onClick={prevStep}
                 style={{ width: '100%', background: 'none', border: 'none', color: theme === 'dark' ? '#94a3b8' : '#475569', marginTop: '24px', cursor: 'pointer', fontSize: '1rem', fontWeight: '700', opacity: 0.8 }}
               >
-                Retour à l'étape précédente
+                {t.registerBack} à l'étape précédente
               </button>
             </motion.div>
           )}
@@ -568,7 +695,7 @@ const Register = () => {
 
         <div style={{ textAlign: 'center', marginTop: '48px', borderTop: '1px solid var(--border)', paddingTop: '32px' }}>
           <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1rem', fontWeight: '500' }}>
-            Déjà partenaire Lumo ? <Link to="/login" style={{ color: 'var(--primary)', fontWeight: '900', textDecoration: 'none', borderBottom: '2px solid var(--primary-glow)' }}>Se connecter ici</Link>
+            {t.registerHaveAccount} <Link to="/login" style={{ color: 'var(--primary)', fontWeight: '900', textDecoration: 'none', borderBottom: '2px solid var(--primary-glow)' }}>{t.registerLogin}</Link>
           </p>
         </div>
       </motion.div>
@@ -576,7 +703,7 @@ const Register = () => {
       {/* Trust Footer */}
       <div style={{ position: 'absolute', bottom: '24px', display: 'flex', gap: '32px', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.85rem', fontWeight: '600', opacity: 0.7 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={14} /> Précision Absolue</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} /> Sécurité Bancaire</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} /> Sécurité Avancée</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Sparkles size={14} /> Intelligence Artificielle</div>
       </div>
     </div>

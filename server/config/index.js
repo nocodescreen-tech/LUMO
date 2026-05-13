@@ -10,7 +10,7 @@ module.exports = {
   db: {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    name: process.env.DB_NAME,
+    name: (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) ? (process.env.DB_NAME_TEST || process.env.DB_NAME || 'hubcommerce_db') : process.env.DB_NAME,
     user: process.env.DB_USER,
     pass: process.env.DB_PASSWORD
   },
@@ -22,5 +22,10 @@ module.exports = {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
+  },
+  redis: {
+    host: process.env.REDIS_HOST || '127.0.0.1',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD || null
   }
 };

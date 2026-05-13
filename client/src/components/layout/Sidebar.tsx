@@ -23,6 +23,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import Logo from './Logo';
 import { useTranslation } from '../../hooks/useTranslation';
+import ConfirmModal from '../common/ConfirmModal';
 
 const Sidebar = () => {
   const { t } = useTranslation();
@@ -30,6 +31,7 @@ const Sidebar = () => {
   const location = useLocation();
   const { logout, user, enabledModules } = useAuthStore();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown if clicking outside
@@ -44,21 +46,39 @@ const Sidebar = () => {
   }, []);
 
   const menuItems = [
-    { icon: LayoutDashboard, label: t('dashboard'), path: '/dashboard' },
-    { icon: ShoppingCart, label: t('pos'), path: '/pos' },
-    { icon: Package, label: t('products'), path: '/products' },
-    { icon: FileText, label: t('sales'), path: '/sales' },
-    { icon: Truck, label: t('purchases'), path: '/purchases' },
-    { icon: Users, label: t('clients'), path: '/clients' },
+    { id: 'dashboard', icon: LayoutDashboard, label: t('dashboard'), path: '/dashboard' },
+    { id: 'cash', icon: Wallet, label: t('cashSession'), path: '/cash' },
+    { id: 'pos', icon: ShoppingCart, label: t('pos'), path: '/pos' },
+    { id: 'products', icon: Package, label: t('products'), path: '/products' },
+    { id: 'sales', icon: FileText, label: t('sales'), path: '/sales' },
+    { id: 'purchases', icon: Truck, label: t('purchases'), path: '/purchases' },
+    { id: 'clients', icon: Users, label: t('clients'), path: '/clients' },
+    { id: 'staff', icon: ShieldCheck, label: t('team'), path: '/users' },
     { id: 'suppliers', icon: Building2, label: t('suppliers'), path: '/fournisseurs' },
-    { icon: Wallet, label: t('expenses'), path: '/expenses' },
+    { id: 'expenses', icon: Wallet, label: t('expenses'), path: '/expenses' },
     { id: 'debts', icon: ArrowUpDown, label: t('debts'), path: '/dettes' },
-    { id: 'analytics', icon: BarChart3, label: t('stats'), path: '/stats' },
-    { icon: Activity, label: t('activities'), path: '/activities' },
+    { id: 'stats', icon: BarChart3, label: t('stats'), path: '/stats' },
+    { id: 'activities', icon: Activity, label: t('activities'), path: '/activities', superOnly: true },
   ];
 
   const filteredMenuItems = menuItems.filter(item => {
-    if (item.id) return enabledModules.includes(item.id);
+    // SuperAdmin restricted items
+    if (item.superOnly && user?.role !== 'superadmin') return false;
+
+    // 1. If it's a sub-user (has parentId or role != admin/superadmin), check their specific permissions
+    if (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.permissions) {
+      if (item.id === 'dashboard') return true; // Always allow dashboard
+      return user.permissions.includes(item.id);
+    }
+
+    // 2. If it's the main admin, check enabledModules and special cases
+    if (user?.role === 'admin') {
+      if (item.id === 'staff') return true;
+      if (item.id === 'dashboard' || item.id === 'cash') return true;
+      if (item.id === 'suppliers') return enabledModules.includes('purchases') || enabledModules.includes('suppliers');
+      return enabledModules.includes(item.id);
+    }
+
     return true;
   });
 
@@ -66,8 +86,8 @@ const Sidebar = () => {
     ? (user.avatar.startsWith('http') ? user.avatar : `http://localhost:5001${user.avatar}`)
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=128`;
 
-  const roleLabel = user?.role === 'superadmin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : 'Vendeur';
-  const roleColor = user?.role === 'superadmin' ? '#a855f7' : user?.role === 'admin' ? '#6366f1' : '#10b981';
+  const roleLabel = user?.role === 'superadmin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Manager' : 'Caissier';
+  const roleColor = user?.role === 'superadmin' ? '#a855f7' : user?.role === 'admin' ? '#6366f1' : user?.role === 'manager' ? '#f59e0b' : '#10b981';
 
   return (
     <div className="glass" style={{
@@ -229,7 +249,7 @@ const Sidebar = () => {
               {[
                 {
                   icon: User,
-                  label: 'Mon Profil',
+                  label: t('myProfile'),
                   color: 'var(--text-main)',
                   onClick: () => { navigate('/settings'); setUserMenuOpen(false); }
                 },
@@ -260,7 +280,7 @@ const Sidebar = () => {
               <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
 
               <div
-                onClick={() => { logout(); navigate('/login'); setUserMenuOpen(false); }}
+                onClick={() => setShowLogoutModal(true)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '11px 14px', borderRadius: '13px', cursor: 'pointer',
@@ -276,6 +296,21 @@ const Sidebar = () => {
             </div>
           )}
         </div>
+
+        <ConfirmModal 
+            isOpen={showLogoutModal}
+            onClose={() => setShowLogoutModal(false)}
+            onConfirm={() => {
+                logout();
+                navigate('/login');
+                setShowLogoutModal(false);
+            }}
+            title={t('logoutConfirmTitle')}
+            message={t('logoutConfirmMessage')}
+            confirmText={t('logout')}
+            cancelText={t('stay')}
+            type="danger"
+        />
       </div>
     </div>
   );

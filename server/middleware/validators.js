@@ -1,7 +1,6 @@
 const Joi = require('joi');
 
 const validateRegister = (data) => {
-    console.log(`--- [LUMO_VAL_STAMP_${Date.now()}] ---`);
     const schema = Joi.object({
         nom: Joi.string().required().messages({
             'string.empty': 'Veuillez saisir votre nom complet (Propriétaire)',
@@ -12,11 +11,18 @@ const validateRegister = (data) => {
             'string.empty': "L'adresse email est obligatoire",
             'any.required': "L'email est requis pour l'inscription"
         }).label('Email'),
-        motDePasse: Joi.string().min(8).required().messages({
-            'string.min': 'Le mot de passe doit contenir au moins 8 caractères pour votre sécurité',
-            'string.empty': 'Un mot de passe est indispensable',
-            'any.required': 'Le mot de passe est obligatoire'
-        }).label('Mot de passe'),
+        motDePasse: Joi.string()
+            .min(8)
+            .max(100)
+            .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])'))
+            .required()
+            .messages({
+                'string.min': 'Le mot de passe doit contenir au moins 8 caractères',
+                'string.max': 'Le mot de passe ne peut pas dépasser 100 caractères',
+                'string.pattern.base': 'Le mot de passe doit contenir au moins une lettre majuscule, une lettre minuscule, un chiffre et un caractère spécial (@$!%*?&#)',
+                'string.empty': 'Un mot de passe est indispensable',
+                'any.required': 'Le mot de passe est obligatoire'
+            }).label('Mot de passe'),
         typeActivite: Joi.string().optional(),
         telephone: Joi.string().optional(),
         entrepriseNom: Joi.string().required().messages({
@@ -38,20 +44,110 @@ const validateLogin = (data) => {
 };
 
 const validateProduct = (data) => {
+    // Normalize: frontend sends prixVente, backend stores as prix
+    // FormData sends numbers as strings, so we convert them
+    const normalized = { ...data };
+    if (normalized.prixVente !== undefined && normalized.prix === undefined) {
+        normalized.prix = parseFloat(normalized.prixVente) || normalized.prixVente;
+    }
+    if (normalized.prix !== undefined && typeof normalized.prix === 'string') {
+        normalized.prix = parseFloat(normalized.prix);
+    }
+    if (normalized.prixAchat !== undefined && typeof normalized.prixAchat === 'string') {
+        normalized.prixAchat = parseFloat(normalized.prixAchat);
+    }
+    if (normalized.stock !== undefined && typeof normalized.stock === 'string') {
+        normalized.stock = parseInt(normalized.stock, 10);
+    }
     const schema = Joi.object({
         nom: Joi.string().required(),
-        prix: Joi.number().positive().required(),
+        prix: Joi.number().min(0).required(),
+        prixVente: Joi.number().min(0).optional(), // alias accepted
+        prixAchat: Joi.number().min(0).optional(),
         categorie: Joi.string().required(),
-        stock: Joi.number().integer().min(0),
-        stockAlerte: Joi.number().integer().min(0),
-        description: Joi.string().allow(''),
-        image: Joi.string().allow('')
-    });
+        stock: Joi.number().integer().min(0).default(0),
+        stockAlerte: Joi.number().integer().min(0).default(5),
+        description: Joi.string().allow('', null),
+        codeBarre: Joi.string().allow('', null),
+        unite: Joi.string().optional(),
+        devise: Joi.string().valid('USD', 'CDF').optional()
+    }).unknown(true);
+    return schema.validate(normalized);
+};
+
+const validateClient = (data) => {
+    const schema = Joi.object({
+        nom: Joi.string().required(),
+        email: Joi.string().email().allow('', null),
+        telephone: Joi.string().allow('', null),
+        adresse: Joi.string().allow('', null)
+    }).unknown(true);
+    return schema.validate(data);
+};
+
+const validateFournisseur = (data) => {
+    // entreprise can be derived from nom if missing (frontend only sends nom)
+    const normalized = { ...data };
+    if (!normalized.entreprise && normalized.nom) {
+        normalized.entreprise = normalized.nom;
+    }
+    const schema = Joi.object({
+        entreprise: Joi.string().required(),
+        nom: Joi.string().required(),
+        email: Joi.string().email().allow('', null),
+        telephone: Joi.string().allow('', null),
+        adresse: Joi.string().allow('', null),
+        categorie: Joi.string().allow('', null)
+    }).unknown(true);
+    return schema.validate(normalized);
+};
+
+const validateDepense = (data) => {
+    const schema = Joi.object({
+        titre: Joi.string().required(),
+        montant: Joi.number().positive().required(),
+        categorie: Joi.string().default('Autres'),
+        date: Joi.date().optional(),
+        description: Joi.string().allow('', null),
+        devise: Joi.string().valid('USD', 'CDF').optional()
+    }).unknown(true);
+    return schema.validate(data);
+};
+
+const validateSale = (data) => {
+    const schema = Joi.object({
+        items: Joi.array().items(Joi.object({
+            id: Joi.number().required(),
+            nom: Joi.string().required(),
+            prix: Joi.number().required(),
+            quantite: Joi.number().integer().positive().required()
+        })).min(1).required(),
+        montantTotal: Joi.number().min(0).required(),
+        methodePaiement: Joi.string().required(),
+        devise: Joi.string().valid('USD', 'CDF').required(),
+        tauxChange: Joi.number().positive().required()
+    }).unknown(true);
+    return schema.validate(data);
+};
+
+const validatePurchase = (data) => {
+    const schema = Joi.object({
+        numeroFacture: Joi.string().required(),
+        montantTotal: Joi.number().min(0).required(),
+        articles: Joi.array().min(1).required(),
+        fournisseurId: Joi.number().allow(null, '').optional(),
+        devise: Joi.string().valid('USD', 'CDF').optional()
+    }).unknown(true);
     return schema.validate(data);
 };
 
 module.exports = {
     validateRegister,
     validateLogin,
-    validateProduct
+    validateProduct,
+    validateClient,
+    validateFournisseur,
+    validateDepense,
+    validateSale,
+    validatePurchase
 };

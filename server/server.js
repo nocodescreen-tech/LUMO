@@ -1,14 +1,77 @@
 const express = require('express');
+const Sentry = require("@sentry/node");
 const compression = require('compression');
+const helmet = require('helmet');
 const { connectDB, sequelize } = require('./config/database');
 const config = require('./config');
 const securityMiddleware = require('./middleware/security');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const setupSwagger = require('./swagger/swagger');
+const http = require('http');
+const { Server } = require('socket.io');
+const { initBackupCron } = require('./cron/backupCron');
+const { createAdapter } = require("@socket.io/redis-adapter");
+const Redis = require("ioredis");
 
 // Initialisation de l'application
 const app = express();
+
+// Sentry Initialization (Must be first)
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+  app.use(Sentry.Handlers.requestHandler());
+}
+
+const server = http.createServer(app);
+
+// Socket.io with Redis Adapter (for PM2 Cluster stability)
+const io = new Server(server, { 
+    cors: { origin: "*" },
+    transports: ['websocket', 'polling']
+});
+
+// Setup Redis Adapter if possible
+const redisOptions = {
+    host: config.redis.host,
+    port: config.redis.port,
+    password: config.redis.password,
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times) => {
+        if (times > 3) {
+            return null; // Arrêter d'essayer après 3 tentatives
+        }
+        return Math.min(times * 100, 3000);
+    }
+};
+
+const pubClient = new Redis(redisOptions);
+const subClient = pubClient.duplicate();
+
+let redisAdapterFailed = false;
+
+// Error handling for Redis clients (Silenced during startup to avoid log spam)
+pubClient.on('error', () => {});
+subClient.on('error', () => {});
+
+// Use adapter with safety
+pubClient.connect().then(() => {
+    logger.info('✅ Socket.io Redis Adapter active');
+    io.adapter(createAdapter(pubClient, subClient));
+}).catch((err) => {
+    redisAdapterFailed = true;
+    logger.warn('⚠️ Socket.io Redis Adapter failed. Falling back to memory (Cluster sync disabled).');
+});
+
+global.io = io;
+
+io.on("connection", (socket) => {
+    socket.on("join", (userId) => {
+        socket.join(`user_${userId}`);
+    });
+});
+
 setupSwagger(app);
 
 // Middlewares de base
@@ -20,32 +83,95 @@ app.use('/public', express.static('public'));
 // Sécurité Professionnelle
 securityMiddleware(app);
 
+// Logging des requêtes (Optimisation Performance & Debug)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
+  });
+  next();
+});
+
 // Connexion à la base de données
 connectDB();
 
-// Synchronisation des modèles
+// IMPORTANT: sync({ alter: true }) was causing passwords to be re-hashed on every restart
+// because Sequelize would trigger column-level hooks. Use alter: false in all environments.
+// Run migrations manually when schema changes are needed.
 if (config.env === 'development') {
-  sequelize.sync({ alter: true })
-    .then(() => logger.info('✅ Tables synchronisées avec succès'))
-    .catch(err => logger.error('❌ Erreur de synchronisation des tables:', err));
+  sequelize.sync({ alter: false })
+    .then(() => logger.info('✅ Tables vérifiées avec succès (alter: false - pas de modification auto)'))
+    .catch(err => logger.error('❌ Erreur de vérification des tables:', err));
 }
 
 // Routes
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 app.get('/', (req, res) => {
-  res.send('🚀 API HubCommerce Pro (PostgreSQL) opérationnelle !');
+  res.send('🚀 API LUMO Pro (PostgreSQL) opérationnelle !');
 });
 
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/sales', require('./routes/SaleRoutes'));
-app.use('/api/stats', require('./routes/statsRoutes'));
-app.use('/api/clients', require('./routes/clientRoutes'));
-app.use('/api/fournisseurs', require('./routes/fournisseurRoutes'));
-app.use('/api/depenses', require('./routes/depenseRoutes'));
-app.use('/api/purchases', require('./routes/purchaseRoutes'));
-app.use('/api/ai', require('./routes/aiRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-app.use('/api/superadmin', require('./routes/superadminRoutes'));
+// Versioning API
+const v1Routes = express.Router();
+
+// Redirection pour compatibilité (supporte /api/auth et /api/v1/auth)
+app.use('/api', v1Routes);
+app.use('/api/v1', v1Routes);
+
+v1Routes.use('/auth', require('./routes/authRoutes'));
+v1Routes.use('/products', require('./routes/productRoutes'));
+v1Routes.use('/sales', require('./routes/SaleRoutes'));
+v1Routes.use('/clients', require('./routes/clientRoutes'));
+v1Routes.use('/suppliers', require('./routes/fournisseurRoutes'));
+v1Routes.use('/fournisseurs', require('./routes/fournisseurRoutes'));
+v1Routes.use('/expenses', require('./routes/depenseRoutes'));
+v1Routes.use('/depenses', require('./routes/depenseRoutes'));
+v1Routes.use('/purchases', require('./routes/purchaseRoutes'));
+v1Routes.use('/achats', require('./routes/purchaseRoutes'));
+v1Routes.use('/stats', require('./routes/statsRoutes'));
+v1Routes.use('/activities', require('./routes/activiteRoutes'));
+v1Routes.use('/activites', require('./routes/activiteRoutes'));
+v1Routes.use('/ai', require('./routes/aiRoutes'));
+v1Routes.use('/superadmin', require('./routes/superadminRoutes'));
+v1Routes.use('/notifications', require('./routes/notificationRoutes'));
+v1Routes.use('/cash-sessions', require('./routes/cashRoutes'));
+v1Routes.use('/cash', require('./routes/cashRoutes'));
+v1Routes.use('/backup', require('./routes/backupRoutes'));
+v1Routes.use('/ux', require('./routes/uxRoutes'));
+v1Routes.use('/subusers', require('./routes/subUserRoutes'));
+v1Routes.use('/newsletter', require('./routes/newsletterRoutes'));
+v1Routes.use('/contact', require('./routes/contactRoutes'));
+
+app.get('/health', async (req, res) => {
+    try {
+        await sequelize.authenticate();
+        res.status(200).json({ 
+            status: 'UP', 
+            database: 'CONNECTED',
+            timestamp: new Date(),
+            env: config.env
+        });
+    } catch (err) {
+        res.status(503).json({ 
+            status: 'DOWN', 
+            database: 'DISCONNECTED',
+            error: err.message 
+        });
+    }
+});
+
+// Catch 404 and forward to error handler
+app.use((req, res, next) => {
+  const error = new Error(`Non trouvé - ${req.originalUrl}`);
+  error.statusCode = 404;
+  next(error);
+});
+
+// The error handler must be before any other error middleware and after all controllers
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 // Gestion centralisée des erreurs
 app.use(errorHandler);
@@ -53,12 +179,16 @@ app.use(errorHandler);
 const PORT = config.port;
 
 if (require.main === module) {
-  const server = app.listen(PORT, () => {
+  server.listen(PORT, () => {
     logger.info(`
       🚀 Serveur lancé en mode ${config.env}
       📡 Port: ${PORT}
       🏠 URL: http://localhost:${PORT}
+      ⚡ WebSockets activés
     `);
+    
+    // Initialisation des tâches planifiées (Cron)
+    initBackupCron();
   });
 
   server.on('error', (err) => {
@@ -76,5 +206,29 @@ if (require.main === module) {
     server.close(() => process.exit(1));
   });
 }
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  logger.error(`${err.name}: ${err.message}\n${err.stack}`);
+
+  const status = err.status || 500;
+  const message = err.message || 'Une erreur interne est survenue.';
+  
+  // Sanitize errors for production
+  const errorResponse = {
+    success: false,
+    message: config.env === 'production' ? (status === 500 ? 'Erreur serveur interne' : message) : message,
+  };
+  if (config.env !== 'production') {
+    errorResponse.stack = err.stack;
+  }
+
+  // Handle Sequelize specific errors
+  if (err.name === 'SequelizeUniqueConstraintError') {
+    return res.status(400).json({ success: false, message: 'Cette ressource existe déjà.' });
+  }
+
+  res.status(status).json(errorResponse);
+});
 
 module.exports = app;

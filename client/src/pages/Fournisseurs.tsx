@@ -21,12 +21,20 @@ import {
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';
+import { useAuthStore } from '../store/useAuthStore';
 
 const Fournisseurs = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const user = useAuthStore(state => state.user);
+  const canDo = (permission: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
+    return (user.permissions || []).includes(permission);
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -43,8 +51,28 @@ const Fournisseurs = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const { data } = await api.get('/fournisseurs');
-      setSuppliers(data);
+      const response = await api.get(`/fournisseurs?_t=${Date.now()}`);
+      const resData = response.data;
+      
+      let suppliersList = [];
+      
+      // Structure standard: { success, data: { data: [] } }
+      if (resData.success && resData.data) {
+        if (Array.isArray(resData.data.data)) {
+          suppliersList = resData.data.data;
+        } else if (Array.isArray(resData.data)) {
+          suppliersList = resData.data;
+        }
+      }
+      // Fallback
+      else {
+        const data = resData;
+        if (Array.isArray(data)) suppliersList = data;
+        else if (data && Array.isArray(data.data)) suppliersList = data.data;
+        else if (data && Array.isArray(data.fournisseurs)) suppliersList = data.fournisseurs;
+      }
+      
+      setSuppliers(suppliersList);
     } catch (error) {
       toast.error("Impossible de charger les fournisseurs");
     } finally {
@@ -97,9 +125,11 @@ const Fournisseurs = () => {
           >
             <Download size={22} /> Rapport
           </button>
-          <button className="btn-premium primary" onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Nouveau Fournisseur
-          </button>
+          {canDo('suppliers.add') && (
+            <button className="btn-premium primary" onClick={() => setShowAddModal(true)}>
+              <Plus size={18} /> Nouveau Fournisseur
+            </button>
+          )}
         </div>
       </div>
 
@@ -168,7 +198,9 @@ const Fournisseurs = () => {
 
                  <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px' }}>
                     <button className="btn-premium secondary" style={{ flex: 2, padding: '10px', borderRadius: '12px', fontSize: '0.85rem' }}>Approvisionner</button>
-                    <button className="btn-premium secondary" style={{ flex: 1, padding: '10px', borderRadius: '12px', color: 'var(--danger)' }}><Trash2 size={16} /></button>
+                    {canDo('suppliers.delete') && (
+                      <button className="btn-premium secondary" style={{ flex: 1, padding: '10px', borderRadius: '12px', color: 'var(--danger)' }}><Trash2 size={16} /></button>
+                    )}
                  </div>
               </motion.div>
             ))}

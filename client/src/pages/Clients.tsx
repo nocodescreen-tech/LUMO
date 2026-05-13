@@ -29,21 +29,44 @@ import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
+import { useAuthStore } from '../store/useAuthStore';
 
 const Clients = () => {
-  const [clients, setClients] = useState([]);
-  const [allClients, setAllClients] = useState([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [allClients, setAllClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 8;
+  const { user, currency, exchangeRate } = useAuthStore(state => ({ user: state.user, currency: state.currency, exchangeRate: state.exchangeRate }));
+  const displayCurrency = currency || user?.entreprise?.devise || 'CDF';
+
+  // Normalize any amount to the user's display currency
+  const toDisplayCurrency = (amount: number, saleCurrency: string): number => {
+    const normalized = (saleCurrency === 'FC' ? 'CDF' : saleCurrency) || displayCurrency;
+    if (normalized === displayCurrency) return amount;
+    // Sale is in CDF, display is USD => divide
+    if (normalized === 'CDF' && displayCurrency === 'USD') return amount / (exchangeRate || 2250);
+    // Sale is in USD, display is CDF => multiply
+    if (normalized === 'USD' && displayCurrency === 'CDF') return amount * (exchangeRate || 2250);
+    return amount;
+  };
+
+  const canDo = (permission: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
+    return (user.permissions || []).includes(permission);
+  };
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
-  
+
   const [clientHistory, setClientHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
   const [newClient, setNewClient] = useState({
     nom: '',
@@ -53,13 +76,35 @@ const Clients = () => {
   });
 
   const fetchClients = async () => {
-    setLoading(true);
     try {
-      const { data } = await api.get('/clients');
-      setAllClients(data || []);
-      setClients(data || []);
+      setLoading(true);
+      const response = await api.get(`/clients?page=${currentPage}&limit=${itemsPerPage}&_t=${Date.now()}`);
+      const resData = response.data;
+
+      let clientsList = [];
+      let pages = 1;
+
+      // Structure standard: { success, data: { data: [], pagination: { pages } } }
+      if (resData.success && resData.data) {
+        if (Array.isArray(resData.data.data)) {
+          clientsList = resData.data.data;
+          pages = resData.data.pagination?.pages || 1;
+        } else if (Array.isArray(resData.data)) {
+          clientsList = resData.data;
+        }
+      }
+      // Fallback
+      else {
+        if (Array.isArray(resData)) clientsList = resData;
+        else if (resData && Array.isArray(resData.data)) clientsList = resData.data;
+        else if (resData && Array.isArray(resData.clients)) clientsList = resData.clients;
+      }
+
+      setClients(clientsList);
+      setAllClients(clientsList);
+      setTotalPages(pages);
     } catch (error) {
-      toast.error("Échec du chargement des clients");
+      toast.error("Erreur de chargement des clients");
     } finally {
       setLoading(false);
     }
@@ -67,17 +112,30 @@ const Clients = () => {
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [currentPage]);
 
-  // Search logic
+  // Search logic — filter locally from allClients
   useEffect(() => {
+    if (!searchTerm.trim()) {
+      // When search cleared, restore full list from allClients
+      setClients(allClients);
+      setCurrentPage(1);
+      return;
+    }
     const filtered = allClients.filter((c: any) =>
-      c.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.telephone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setClients(filtered);
+    setCurrentPage(1);
   }, [searchTerm, allClients]);
+
+
+  // Pagination Logic
+  const currentItems = clients;
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,35 +164,35 @@ const Clients = () => {
 
   const handleDeleteClient = async (id: number, name: string) => {
     setConfirmModal({
-        isOpen: true,
-        title: "Supprimer Client",
-        message: `Supprimer définitivement le client ${name} ? Tous ses historiques et dettes seront effacés.`,
-        onConfirm: async () => {
-            try {
-                await api.delete(`/clients/${id}`);
-                toast.success("Client retiré de la base.");
-                fetchClients();
-            } catch (error) {
-                toast.error("Échec de la suppression");
-            }
+      isOpen: true,
+      title: "Supprimer Client",
+      message: `Supprimer définitivement le client ${name} ? Tous ses historiques et dettes seront effacés.`,
+      onConfirm: async () => {
+        try {
+          await api.delete(`/clients/${id}`);
+          toast.success("Client retiré de la base.");
+          fetchClients();
+        } catch (error) {
+          toast.error("Échec de la suppression");
         }
+      }
     });
   };
 
   const handleAllDelete = async () => {
     setConfirmModal({
-        isOpen: true,
-        title: "SUPPRESSION MASSIVE",
-        message: "ATTENTION : Voulez-vous vraiment supprimer TOUS les clients de votre base CRM ? Tous les historiques et dettes associés seront supprimés définitivement.",
-        onConfirm: async () => {
-            try {
-                await api.delete('/clients/all');
-                toast.success("Répertoire client entièrement vidé.");
-                fetchClients();
-            } catch (error) {
-                toast.error("Erreur lors de la suppression massive");
-            }
+      isOpen: true,
+      title: "SUPPRESSION MASSIVE",
+      message: "ATTENTION : Voulez-vous vraiment supprimer TOUS les clients de votre base CRM ? Tous les historiques et dettes associés seront supprimés définitivement.",
+      onConfirm: async () => {
+        try {
+          await api.delete('/clients/all');
+          toast.success("Répertoire client entièrement vidé.");
+          fetchClients();
+        } catch (error) {
+          toast.error("Erreur lors de la suppression massive");
         }
+      }
     });
   };
 
@@ -174,46 +232,48 @@ const Clients = () => {
           >
             <Download size={22} /> Rapport
           </button>
-          {clients.length > 0 && (
+          {clients.length > 0 && canDo('clients.delete') && (
             <button
-               onClick={handleAllDelete}
-               className="btn-hover"
-               style={{
-                 padding: '16px 24px',
-                 borderRadius: '20px',
-                 backgroundColor: 'var(--bg-main)',
-                 color: '#ef4444',
-                 border: '1px solid rgba(239, 68, 68, 0.2)',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '12px',
-                 fontWeight: '900',
-                 cursor: 'pointer',
-                 fontSize: '1rem'
-               }}
+              onClick={handleAllDelete}
+              className="btn-hover"
+              style={{
+                padding: '16px 24px',
+                borderRadius: '20px',
+                backgroundColor: 'var(--bg-main)',
+                color: '#ef4444',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '900',
+                cursor: 'pointer',
+                fontSize: '1rem'
+              }}
             >
-               <Trash2 size={22} /> Tout Supprimer
+              <Trash2 size={22} /> Tout Supprimer
             </button>
           )}
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
-              padding: '16px 32px',
-              borderRadius: '20px',
-              backgroundColor: 'var(--primary)',
-              color: 'white',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontWeight: '950',
-              cursor: 'pointer',
-              boxShadow: '0 20px 40px -10px var(--primary-glow)',
-              fontSize: '1rem'
-            }}
-          >
-            <UserPlus size={22} /> Nouveau Client
-          </button>
+          {canDo('clients.add') && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                padding: '16px 32px',
+                borderRadius: '20px',
+                backgroundColor: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                fontWeight: '950',
+                cursor: 'pointer',
+                boxShadow: '0 20px 40px -10px var(--primary-glow)',
+                fontSize: '1rem'
+              }}
+            >
+              <UserPlus size={22} /> Nouveau Client
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,20 +283,10 @@ const Clients = () => {
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Rechercher par nom, téléphone ou email..."
+            placeholder="Rechercher un client (nom, email, tel)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '16px 16px 16px 60px',
-              borderRadius: '18px',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              fontWeight: '700',
-              outline: 'none',
-              fontSize: '1rem'
-            }}
+            style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }}
           />
         </div>
         <button onClick={fetchClients} className="glass btn-hover" style={{ width: '56px', height: '56px', borderRadius: '18px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
@@ -255,7 +305,7 @@ const Clients = () => {
             <h2 style={{ fontSize: '1.8rem', fontWeight: '950' }}>Base de données vide</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Commencez par ajouter votre premier client pour le suivi.</p>
           </div>
-        ) : clients.map((c: any) => (
+        ) : currentItems.map((c: any) => (
           <motion.div
             key={c.id}
             layout
@@ -276,14 +326,20 @@ const Clients = () => {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => { setSelectedClient(c); setShowEditModal(true); }} className="btn-hover" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Edit size={18} />
-                </button>
-                <button onClick={() => handleDeleteClient(c.id, c.nom)} className="btn-hover" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <Trash2 size={18} />
-                </button>
+                {canDo('clients.edit') && (
+                  <button onClick={() => { setSelectedClient(c); setShowEditModal(true); }} className="btn-hover" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <Edit size={18} />
+                  </button>
+                )}
+                {canDo('clients.delete') && (
+                  <button onClick={() => handleDeleteClient(c.id, c.nom)} className="btn-hover" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
             </div>
+
+
 
             <div className="glass" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px', padding: '24px', borderRadius: '24px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '700' }}>
@@ -306,7 +362,7 @@ const Clients = () => {
               <div>
                 <span style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Dette Actuelle</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: '950', color: c.detteTotale > 0 ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {c.detteTotale?.toLocaleString() || 0} <span style={{ fontSize: '0.85rem', opacity: 0.6 }}>CDF</span>
+                  {c.detteTotale?.toLocaleString() || 0} <span style={{ fontSize: '0.85rem', opacity: 0.6 }}>{currency}</span>
                   {c.detteTotale > 0 && <AlertCircle size={18} />}
                 </div>
               </div>
@@ -318,14 +374,59 @@ const Clients = () => {
                   setSelectedClient(c);
                   setShowDetailsModal(true);
                   setHistoryLoading(true);
-                  api.get(`/clients/${c.id}/sales`).then(res => setClientHistory(res.data)).catch(err => console.error(err)).finally(() => setHistoryLoading(false));
-                }} className="glass btn-hover" style={{ height: '48px', padding: '0 20px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                  api.get(`/clients/${c.id}/sales?_t=${Date.now()}`).then(res => {
+                    const data = res.data;
+                    const list = Array.isArray(data) ? data : (data.data?.data || data.data || []);
+                    setClientHistory(list);
+                  }).catch(err => console.error(err)).finally(() => setHistoryLoading(false));
+                }} className="glass btn-hover" style={{ height: '48px', padding: '0 2px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '950', cursor: 'pointer', color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                   Fiche Complète <ChevronRight size={18} />
                 </button>
               </div>
             </div>
           </motion.div>
         ))}
+      </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
+          <button
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
+          >
+            Précédent
+          </button>
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              style={{
+                width: '48px', height: '48px',
+                borderRadius: '14px',
+                background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)',
+                color: currentPage === i + 1 ? 'white' : 'var(--text-main)',
+                fontWeight: 800,
+                cursor: 'pointer',
+                border: currentPage === i + 1 ? 'none' : '1px solid var(--border)'
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
+          >
+            Suivant
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+        Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, clients.length)} sur {clients.length} clients
       </div>
 
       {/* Modal Ajout */}
@@ -395,7 +496,7 @@ const Clients = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', display: 'block', marginLeft: '4px' }}>Nom complet</label>
               <div style={{ position: 'relative' }}>
                 <Users style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                <input required type="text" value={selectedClient.nom} onChange={(e) => setSelectedClient({ ...selectedClient, nom: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1.1rem', outline: 'none' }} />
+                <input required type="text" value={selectedClient.nom || ''} onChange={(e) => setSelectedClient({ ...selectedClient, nom: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1.1rem', outline: 'none' }} />
               </div>
             </div>
 
@@ -404,14 +505,14 @@ const Clients = () => {
                 <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', display: 'block', marginLeft: '4px' }}>Téléphone</label>
                 <div style={{ position: 'relative' }}>
                   <Phone style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                  <input type="text" value={selectedClient.telephone} onChange={(e) => setSelectedClient({ ...selectedClient, telephone: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }} />
+                  <input type="text" value={selectedClient.telephone || ''} onChange={(e) => setSelectedClient({ ...selectedClient, telephone: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }} />
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', display: 'block', marginLeft: '4px' }}>Email</label>
                 <div style={{ position: 'relative' }}>
                   <Mail style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                  <input type="email" value={selectedClient.email} onChange={(e) => setSelectedClient({ ...selectedClient, email: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }} />
+                  <input type="email" value={selectedClient.email || ''} onChange={(e) => setSelectedClient({ ...selectedClient, email: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }} />
                 </div>
               </div>
             </div>
@@ -420,7 +521,7 @@ const Clients = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', display: 'block', marginLeft: '4px' }}>Adresse</label>
               <div style={{ position: 'relative' }}>
                 <MapPin style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                <input type="text" value={selectedClient.adresse} onChange={(e) => setSelectedClient({ ...selectedClient, adresse: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1.1rem', outline: 'none' }} />
+                <input type="text" value={selectedClient.adresse || ''} onChange={(e) => setSelectedClient({ ...selectedClient, adresse: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1.1rem', outline: 'none' }} />
               </div>
             </div>
 
@@ -435,9 +536,9 @@ const Clients = () => {
       </Modal>
 
       {/* Modal Fiche Complète */}
-      <Modal 
-        isOpen={showDetailsModal} 
-        onClose={() => { setShowDetailsModal(false); setClientHistory([]); }} 
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => { setShowDetailsModal(false); setClientHistory([]); }}
         title={`Dossier Client : ${selectedClient?.nom || ''}`}
       >
         {selectedClient && (
@@ -446,20 +547,25 @@ const Clients = () => {
               <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>TOTAL ACHATS</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--primary)', marginTop: '4px' }}>
-                  {clientHistory.reduce((acc, curr) => acc + (parseFloat(curr.montantTotal) || 0), 0).toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>CDF</span>
+                  {(Array.isArray(clientHistory) ? clientHistory : [])
+                    .reduce((acc, curr) => acc + toDisplayCurrency(parseFloat(curr.montantTotal) || 0, curr.devise || displayCurrency), 0)
+                    .toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {' '}<span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{displayCurrency}</span>
                 </div>
               </div>
               <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>DETTE RESTANTE</span>
-                 <div style={{ fontSize: '1.4rem', fontWeight: 950, color: selectedClient.detteTotale > 0 ? '#ef4444' : '#10b981', marginTop: '4px' }}>
-                   {selectedClient.detteTotale?.toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>CDF</span>
-                 </div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>DETTE RESTANTE</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: 950, color: selectedClient.detteTotale > 0 ? '#ef4444' : '#10b981', marginTop: '4px' }}>
+                  {toDisplayCurrency(selectedClient.detteTotale || 0, displayCurrency)
+                    .toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {' '}<span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{displayCurrency}</span>
+                </div>
               </div>
               <div className="glass" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>NB. DE VISITES</span>
-                 <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--text-main)', marginTop: '4px' }}>
-                   {clientHistory.length} visite{clientHistory.length > 1 ? 's' : ''}
-                 </div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 800 }}>NB. DE VISITES</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: 950, color: 'var(--text-main)', marginTop: '4px' }}>
+                  {clientHistory.length} visite{clientHistory.length > 1 ? 's' : ''}
+                </div>
               </div>
             </div>
 
@@ -468,40 +574,45 @@ const Clients = () => {
                 <History size={18} color="var(--primary)" /> Historique des Achats
               </h4>
               {historyLoading ? (
-                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Chargement de l'historique...</div>
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Chargement de l'historique...</div>
               ) : clientHistory.length === 0 ? (
-                 <div className="glass" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
-                    Ce client n'a pas encore effectué d'achats ou les données sont introuvables.
-                 </div>
+                <div className="glass" style={{ padding: '40px', textAlign: 'center', borderRadius: '24px', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+                  Ce client n'a pas encore effectué d'achats ou les données sont introuvables.
+                </div>
               ) : (
                 <div className="custom-scrollbar" style={{ maxHeight: '350px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '10px' }}>
                   {clientHistory.map(sale => (
                     <div key={sale.id} className="glass" style={{ padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--bg-main)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>
-                              <Clock size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleString()}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                          <Clock size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleString()}
+                        </div>
+                        <span style={{ background: sale.methodePaiement === 'Dette' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: sale.methodePaiement === 'Dette' ? '#ef4444' : '#10b981', padding: '4px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 900 }}>
+                          {sale.methodePaiement}
+                        </span>
+                      </div>
+
+                      {/* Liste des articles */}
+                      {sale.articles && sale.articles.length > 0 && (
+                        <div style={{ background: 'var(--bg-body)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                          {sale.articles.map((art: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: i !== sale.articles.length - 1 ? '8px' : '0', color: 'var(--text-main)', borderBottom: i !== sale.articles.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: i !== sale.articles.length - 1 ? '8px' : '0' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <ArrowDownCircle size={14} opacity={0.5} /> <span style={{ fontWeight: 700 }}>{art.nom}</span> <span style={{ color: 'var(--text-muted)' }}>x{art.quantite}</span>
+                              </div>
+                              <span style={{ fontWeight: 800 }}>
+                                {toDisplayCurrency(art.prixUnitaire * art.quantite, sale.devise || displayCurrency)
+                                  .toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                {' '}{displayCurrency}
+                              </span>
                             </div>
-                            <span style={{ background: sale.methodePaiement === 'Dette' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: sale.methodePaiement === 'Dette' ? '#ef4444' : '#10b981', padding: '4px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 900 }}>
-                              {sale.methodePaiement}
-                            </span>
+                          ))}
                         </div>
-                        
-                        {/* Liste des articles */}
-                        {sale.articles && sale.articles.length > 0 && (
-                          <div style={{ background: 'var(--bg-body)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                            {sale.articles.map((art: any, i: number) => (
-                               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: i !== sale.articles.length - 1 ? '8px' : '0', color: 'var(--text-main)', borderBottom: i !== sale.articles.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: i !== sale.articles.length - 1 ? '8px' : '0' }}>
-                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                   <ArrowDownCircle size={14} opacity={0.5} /> <span style={{ fontWeight: 700 }}>{art.nom}</span> <span style={{ color: 'var(--text-muted)' }}>x{art.quantite}</span>
-                                 </div>
-                                 <span style={{ fontWeight: 800 }}>{(art.prixUnitaire * art.quantite).toLocaleString()}</span>
-                               </div>
-                            ))}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', fontWeight: 900, fontSize: '1.1rem', color: 'var(--primary)', borderTop: '1px solid var(--border)' }}>
-                           Total : {parseFloat(sale.montantTotal).toLocaleString()} CDF
-                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', fontWeight: 900, fontSize: '1.1rem', color: 'var(--primary)', borderTop: '1px solid var(--border)' }}>
+                        Total : {toDisplayCurrency(parseFloat(sale.montantTotal) || 0, sale.devise || displayCurrency)
+                          .toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {displayCurrency}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -511,12 +622,50 @@ const Clients = () => {
         )}
       </Modal>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '32px' }}>
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-hover"
+            style={{ padding: '12px 20px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
+          >
+            Précédent
+          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                style={{
+                  width: '44px', height: '44px', borderRadius: '14px',
+                  background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)',
+                  color: currentPage === i + 1 ? 'white' : 'var(--text-main)',
+                  fontWeight: 800, cursor: 'pointer', border: currentPage === i + 1 ? 'none' : '1px solid var(--border)'
+                }}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-hover"
+            style={{ padding: '12px 20px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
+          >
+            Suivant
+          </button>
+        </div>
+      )}
+
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); borderRadius: 10px; }
       `}</style>
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         onConfirm={confirmModal.onConfirm}

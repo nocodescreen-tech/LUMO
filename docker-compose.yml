@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    container_name: lumo-backend
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./server/.env
+    environment:
+      # If your DB is on the host Windows machine, use this to reach it from Docker
+      - DB_HOST=host.docker.internal
+      - NODE_ENV=production
+    volumes:
+      - ./server/logs:/app/logs
+      - ./server/backups:/app/backups
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  client:
+    build: ./client
+    container_name: lumo-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - server

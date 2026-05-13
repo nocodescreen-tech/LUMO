@@ -22,12 +22,17 @@ import {
     Wallet,
     Activity,
     CreditCard,
-    ShieldCheck
+    ShieldCheck,
+    History
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import NotificationDropdown from './NotificationDropdown';
 import Logo from './Logo';
 import api from '../../api/axios';
+import { socketService } from '../../utils/socket';
+import { toast } from 'sonner';
+import SessionTimeoutModal from './SessionTimeoutModal';
+import Modal from '../common/Modal';
 
 
 import { translations } from '../../translations';
@@ -47,7 +52,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearchResults, setShowSearchResults] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const t = (translations as any)[language] || translations.fr;
@@ -55,7 +64,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const fetchUnreadCount = async () => {
         try {
             const { data } = await api.get('/notifications');
-            const count = data.filter((n: any) => !n.lu).length;
+            const notifications = Array.isArray(data) ? data : [];
+            const count = notifications.filter((n: any) => !n.lu).length;
             setUnreadCount(count);
         } catch (error) {
             console.error('Error fetching unread count:', error);
@@ -64,9 +74,33 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 30000); // 30s poll
+        const interval = setInterval(fetchUnreadCount, 60000); // 1m poll backup
+        
+        // Socket.io integration
+        if (user?.id) {
+            const socket = socketService.connect(user.id);
+            
+            socket.on('notification', (notif: any) => {
+                setUnreadCount(prev => prev + 1);
+                toast.info(notif.titre || 'Nouvelle notification', {
+                    description: notif.contenu || notif.message,
+                    duration: 5000,
+                    action: {
+                        label: 'Voir',
+                        onClick: () => setShowNotifications(true)
+                    }
+                });
+            });
+
+            return () => {
+                socket.off('notification');
+                socketService.disconnect();
+                clearInterval(interval);
+            };
+        }
+        
         return () => clearInterval(interval);
-    }, []);
+    }, [user?.id]);
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
@@ -76,8 +110,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             setIsMobile(mobile);
             if (mobile && isSidebarOpen) setIsSidebarOpen(false);
         };
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
     }, []);
 
     const navItems = [
@@ -94,7 +138,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
         { name: t.purchases, icon: ShoppingBag, path: '/purchases', group: 'STORE' },
+        { name: 'Historique Stock', icon: History, path: '/stock-history', group: 'STORE' },
         { name: t.stats, icon: BarChart3, path: '/stats', group: 'STORE' },
+        ...(enabledModules.includes('cash') ? [{ name: 'Trésorerie', icon: Wallet, path: '/cash', group: 'STORE' }] : []),
         ...(enabledModules.includes('suppliers') ? [{ name: t.suppliers, icon: Truck, path: '/fournisseurs', group: 'STORE' }] : []),
         ...(enabledModules.includes('debts') ? [{ name: t.debts, icon: CreditCard, path: '/dettes', group: 'STORE' }] : []),
         ...(user?.role !== 'superadmin' ? [{ name: t.activities, icon: Activity, path: '/activities', group: 'STORE' }] : []),
@@ -112,6 +158,62 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
+            {/* Session Timeout Warning Modal */}
+            <SessionTimeoutModal />
+
+            {/* Logout Confirmation Modal */}
+            <Modal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                title="Déconnexion"
+                subtitle="Êtes-vous sûr de vouloir vous déconnecter ? Vous devrez vous reconnecter pour accéder à vos données."
+                icon={LogOut}
+                maxWidth="450px"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+                    <button
+                        onClick={() => {
+                            setShowLogoutConfirm(false);
+                            logout();
+                        }}
+                        style={{
+                            width: '100%',
+                            padding: '16px',
+                            borderRadius: '16px',
+                            border: 'none',
+                            background: 'var(--danger)',
+                            color: 'white',
+                            fontWeight: '800',
+                            fontSize: '1rem',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 20px -6px rgba(239, 68, 68, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px'
+                        }}
+                    >
+                        <LogOut size={18} /> Oui, se déconnecter
+                    </button>
+                    <button
+                        onClick={() => setShowLogoutConfirm(false)}
+                        style={{
+                            width: '100%',
+                            padding: '16px',
+                            borderRadius: '16px',
+                            border: '1.5px solid var(--border)',
+                            background: 'transparent',
+                            color: 'var(--text-main)',
+                            fontWeight: '700',
+                            fontSize: '1rem',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Annuler
+                    </button>
+                </div>
+            </Modal>
+
             {/* Mobile overlay */}
             {isMobile && isSidebarOpen && (
                 <div
@@ -120,22 +222,28 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 />
             )}
 
+
             {/* Sidebar */}
             <motion.aside
-                animate={{ width: isSidebarOpen ? 300 : 120 }}
+                animate={{ 
+                    width: isSidebarOpen ? (isMobile ? 280 : 300) : (isMobile ? 0 : 120),
+                    x: isMobile && !isSidebarOpen ? -280 : 0
+                }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 style={{
-                    position: isMobile ? 'fixed' : 'fixed',
-                    left: isMobile ? (isSidebarOpen ? 0 : -120) : 0,
+                    position: 'fixed',
+                    left: 0,
                     top: 0,
                     bottom: 0,
-                    zIndex: 50,
+                    zIndex: 1000,
                     flexShrink: 0,
-                    backgroundColor: 'var(--sidebar-bg)',
+                    backgroundColor: isMobile ? 'var(--bg-card)' : 'var(--bg-sidebar)',
+                    backdropFilter: isMobile ? 'none' : 'none',
                     borderRight: '1px solid var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
+                    boxShadow: isMobile && isSidebarOpen ? 'var(--shadow-premium)' : 'none'
                 }}
             >
                 {/* Logo area */}
@@ -145,22 +253,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     alignItems: 'center',
                     justifyContent: isSidebarOpen ? 'space-between' : 'center',
                     borderBottom: '1px solid var(--border)',
-                    gap: '12px'
+                    gap: '12px',
+                    height: '90px'
                 }}>
-                    {isSidebarOpen && (
+                    {(isSidebarOpen || !isMobile) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-                            <Logo size={36} showText={true} />
+                            <Logo size={36} showText={isSidebarOpen} />
                         </div>
                     )}
-                    {!isSidebarOpen && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={() => navigate('/')}>
-                            <Logo size={36} showText={false} />
-                        </div>
-                    )}
-                    {isSidebarOpen && (
+                    {isSidebarOpen && isMobile && (
                         <button
                             onClick={() => setIsSidebarOpen(false)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: '6px', borderRadius: '8px' }}
+                            style={{ 
+                                background: 'var(--sidebar-active)', 
+                                cursor: 'pointer', 
+                                color: 'var(--text-main)', 
+                                display: 'flex', 
+                                padding: '10px', 
+                                borderRadius: '12px',
+                                border: '1px solid var(--border)'
+                            }}
                         >
                             <ChevronLeft size={20} />
                         </button>
@@ -183,6 +295,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                         key={item.path}
                                         to={item.path}
                                         end={item.path === '/'}
+                                        onClick={() => isMobile && setIsSidebarOpen(false)}
                                         className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                                         style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center', padding: isSidebarOpen ? '12px 20px' : '14px' }}
                                     >
@@ -203,7 +316,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
                 <div style={{ padding: isSidebarOpen ? '24px 16px' : '24px 12px', borderTop: '1px solid var(--border)' }}>
                     <button
-                        onClick={logout}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="nav-link"
                         style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', marginBottom: '16px' }}
                     >
@@ -242,7 +355,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     padding: isMobile ? '0 16px 24px 16px' : '0 40px 40px 40px',
                     height: '100vh',
                     overflowY: 'auto',
-                    overflowX: 'hidden'
+                    overflowX: 'hidden',
+                    width: '100%'
                 }}
             >
                 {/* Navbar */}
@@ -250,16 +364,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     position: 'sticky',
                     top: 0,
                     margin: isMobile ? '0 -16px' : '0 -40px',
-                    padding: isMobile ? '16px' : '24px 40px',
+                    padding: isMobile ? '16px' : '20px 40px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     zIndex: 50,
                     background: 'var(--bg-main)',
                     backdropFilter: 'blur(10px)',
-                    borderBottom: '1px solid var(--border)'
+                    borderBottom: '1px solid var(--border)',
+                    boxShadow: !isOnline ? '0 4px 12px rgba(239, 68, 68, 0.2)' : 'none'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    {!isOnline && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'var(--danger)' }} />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="flex-center"
@@ -268,24 +386,153 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             <Menu size={20} />
                         </button>
                         <div style={{ position: 'relative' }}>
-                            <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
                             <input
                                 type="text"
-                                placeholder={t.search}
-                                className=""
+                                placeholder="Naviguer vers..."
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(e.target.value.length > 0); }}
+                                onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
+                                onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const matches = navItems.filter(item =>
+                                            item.name.toLowerCase().includes(searchQuery.toLowerCase())
+                                        );
+                                        if (matches.length > 0) {
+                                            navigate(matches[0].path);
+                                            setSearchQuery('');
+                                            setShowSearchResults(false);
+                                        }
+                                    }
+                                    if (e.key === 'Escape') {
+                                        setSearchQuery('');
+                                        setShowSearchResults(false);
+                                    }
+                                }}
                                 style={{
                                     padding: '12px 12px 12px 48px',
                                     borderRadius: '14px',
                                     border: '1px solid var(--border)',
                                     backgroundColor: 'var(--bg-card)',
                                     color: 'var(--text-main)',
-                                    width: isMobile ? '120px' : '320px',
+                                    width: isMobile ? '140px' : '280px',
                                     outline: 'none',
                                     fontSize: '0.95rem',
                                     fontWeight: '500',
                                     fontFamily: 'inherit'
                                 }}
                             />
+                            {showSearchResults && (() => {
+                                // ── Catalogue complet de tous les éléments navigables ──
+                                const searchItems = [
+                                    // Modules principaux
+                                    ...navItems.map(item => ({ ...item, category: 'Module' })),
+                                    // Sous-sections des Paramètres
+                                    { name: 'Profil & Entreprise', icon: Settings, path: '/settings#profil', category: 'Paramètres' },
+                                    { name: 'Équipe & Utilisateurs', icon: Users, path: '/settings#equipe', category: 'Paramètres' },
+                                    { name: 'Notifications', icon: Bell, path: '/settings#notifications', category: 'Paramètres' },
+                                    { name: 'Sécurité & Mot de passe', icon: ShieldCheck, path: '/settings#securite', category: 'Paramètres' },
+                                    { name: 'Thème & Apparence', icon: Moon, path: '/settings#theme', category: 'Paramètres' },
+                                    { name: 'Devise & Taux de change', icon: DollarSign, path: '/settings#devise', category: 'Paramètres' },
+                                    { name: 'Modules & Intégrations', icon: Package, path: '/settings#modules', category: 'Paramètres' },
+                                    { name: 'Sauvegarde des données', icon: Settings, path: '/settings#backup', category: 'Paramètres' },
+                                    { name: 'Permissions & Rôles', icon: ShieldCheck, path: '/settings#permissions', category: 'Paramètres' },
+                                    { name: 'Réinitialisation / Danger Zone', icon: Settings, path: '/settings#danger', category: 'Paramètres' },
+                                    // Raccourcis actions
+                                    { name: 'Nouvelle Vente (POS)', icon: ShoppingCart, path: '/pos', category: 'Action rapide' },
+                                    { name: 'Ajouter un Produit', icon: Package, path: '/products', category: 'Action rapide' },
+                                    { name: 'Ajouter un Client', icon: Users, path: '/clients', category: 'Action rapide' },
+                                    { name: 'Rapport Analytique', icon: BarChart3, path: '/stats', category: 'Action rapide' },
+                                    { name: 'Historique des Stocks', icon: History, path: '/stock-history', category: 'Action rapide' },
+                                    { name: 'Trésorerie / Caisse', icon: Wallet, path: '/cash', category: 'Action rapide' },
+                                ];
+
+                                const q = searchQuery.toLowerCase();
+                                const matches = searchItems.filter(item =>
+                                    item.name.toLowerCase().includes(q) ||
+                                    item.category.toLowerCase().includes(q)
+                                );
+                                // Déduplique par path (modules principaux peuvent apparaître deux fois)
+                                const seen = new Set<string>();
+                                const unique = matches.filter(m => {
+                                    if (seen.has(m.name + m.path)) return false;
+                                    seen.add(m.name + m.path);
+                                    return true;
+                                });
+
+                                return unique.length > 0 ? (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 8px)',
+                                        left: 0,
+                                        minWidth: '320px',
+                                        backgroundColor: 'var(--bg-card)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '16px',
+                                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.25)',
+                                        zIndex: 9999,
+                                        overflow: 'hidden',
+                                        padding: '6px',
+                                        maxHeight: '380px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        {unique.slice(0, 10).map((item, i) => (
+                                            <div
+                                                key={i}
+                                                onMouseDown={() => {
+                                                    // Gestion des ancres (#)
+                                                    const [basePath, hash] = item.path.split('#');
+                                                    navigate(basePath);
+                                                    if (hash) setTimeout(() => {
+                                                        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' });
+                                                    }, 300);
+                                                    setSearchQuery('');
+                                                    setShowSearchResults(false);
+                                                }}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '12px',
+                                                    padding: '10px 14px',
+                                                    borderRadius: '10px',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--text-main)',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.9rem',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-glow)')}
+                                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                            >
+                                                <item.icon size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{item.category}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 'calc(100% + 8px)',
+                                        left: 0,
+                                        minWidth: '280px',
+                                        backgroundColor: 'var(--bg-card)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '16px',
+                                        padding: '14px',
+                                        textAlign: 'center',
+                                        color: 'var(--text-muted)',
+                                        fontWeight: 700,
+                                        fontSize: '0.85rem',
+                                        zIndex: 9999
+                                    }}>
+                                        Aucun résultat pour « {searchQuery} »
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -304,6 +551,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         >
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                         </button>
+
+                        {!isOnline && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 900, background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 1s infinite' }} />
+                                HORS-LIGNE
+                            </div>
+                        )}
 
                         <div style={{ position: 'relative' }}>
                             <button

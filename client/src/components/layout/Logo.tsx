@@ -19,7 +19,7 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
           justifyContent: 'center',
           filter: 'drop-shadow(0 6px 14px rgba(99, 102, 241, 0.35))'
         }}
-        title="Lumo - Intelligence Commerce"
+        title="LUMO - Intelligence Commerce"
       >
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', transform: 'scale(1.15)' }}>
           <defs>
@@ -63,7 +63,7 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
           fontFamily: "'Inter', 'Outfit', sans-serif",
           whiteSpace: 'nowrap'
         }}>
-          Lumo
+          LUMO
         </span>
       )}
     </div>

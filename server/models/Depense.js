@@ -26,10 +26,20 @@ const Depense = sequelize.define('Depense', {
   description: {
     type: DataTypes.TEXT
   },
+  devise: {
+    type: DataTypes.STRING,
+    defaultValue: 'CDF'
+  },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false
   }
+}, {
+  indexes: [
+    { fields: ['userId'] },
+    { fields: ['date'] },
+    { fields: ['categorie'] }
+  ]
 });
 
 module.exports = Depense;

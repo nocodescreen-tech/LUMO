@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  User as UserIcon, 
-  Store, 
-  Palette, 
+import {
+  User as UserIcon,
+  Store,
+  Palette,
   ShieldCheck,
   Save,
   Camera,
@@ -11,6 +11,7 @@ import {
   Cpu,
   LogOut,
   ChevronRight,
+  ChevronDown,
   Phone,
   Mail,
   MapPin,
@@ -24,100 +25,569 @@ import {
   Package,
   CreditCard,
   BarChart2,
-  RefreshCcw
+  RefreshCcw,
+  Download,
+  Upload,
+  FileJson,
+  AlertTriangle,
+  History,
+  Clock,
+  Users,
+  Trash2,
+  Zap,
+  ShoppingCart,
+  DollarSign,
+  TrendingUp,
+  Activity,
+  Settings as SettingsIcon,
+  Check,
+  Truck,
+  Wallet
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
+import { africanCountries } from '../constants/countries';
+import ConfirmModal from '../components/common/ConfirmModal';
+import Modal from '../components/common/Modal';
 
-const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, readOnly = false }: any) => (
+const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, readOnly = false, required = false }: any) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>{label}</label>
+    <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
+    </label>
     <div style={{ position: 'relative' }}>
-      {Icon && <Icon size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />}
+      {Icon && <Icon size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.8, zIndex: 2 }} />}
       <input
         type={type}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         readOnly={readOnly}
+        required={required}
         style={{
           width: '100%',
-          padding: Icon ? '14px 16px 14px 48px' : '14px 16px',
+          padding: Icon ? '15px 16px 15px 48px' : '15px 16px',
           borderRadius: '16px',
-          border: '1.5px solid var(--border)',
-          backgroundColor: readOnly ? 'rgba(0,0,0,0.02)' : 'var(--bg-main)',
+          border: '2px solid var(--border-strong)',
+          backgroundColor: readOnly ? 'var(--sidebar-active)' : 'var(--bg-card)',
           color: 'var(--text-main)',
           fontSize: '0.95rem',
           outline: 'none',
           fontWeight: '700',
-          opacity: readOnly ? 0.7 : 1,
+          opacity: readOnly ? 0.8 : 1,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           cursor: readOnly ? 'default' : 'text',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
         }}
-        onFocus={e => { if (!readOnly) e.target.style.borderColor = 'var(--primary)'; }}
-        onBlur={e => e.target.style.borderColor = 'var(--border)'}
+        onFocus={e => { if (!readOnly) { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 4px var(--primary-glow)'; } }}
+        onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)'; }}
       />
     </div>
   </div>
 );
 
+const TwoFASection = () => {
+  const { user, updateUser } = useAuthStore();
+  const [loading2FA, setLoading2FA] = React.useState(false);
+  const is2FAEnabled = !!(user as any)?.twoFactorEnabled;
+
+  const toggle2FA = async () => {
+    setLoading2FA(true);
+    try {
+      const endpoint = is2FAEnabled ? '/auth/2fa/disable' : '/auth/2fa/enable';
+      const { data } = await api.post(endpoint);
+      updateUser({ ...(user as any), twoFactorEnabled: data.twoFactorEnabled });
+      toast.success(data.message);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de la modification 2FA');
+    } finally {
+      setLoading2FA(false);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: '24px',
+      borderRadius: '24px',
+      border: `2px solid ${is2FAEnabled ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
+      background: is2FAEnabled ? 'rgba(99,102,241,0.05)' : 'var(--bg-main)',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      transition: 'all 0.3s'
+    }}>
+      <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+        <div style={{ width: '54px', height: '54px', borderRadius: '16px', backgroundColor: is2FAEnabled ? 'rgba(99,102,241,0.15)' : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: is2FAEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+          <ShieldCheck size={26} />
+        </div>
+        <div>
+          <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
+            {is2FAEnabled
+              ? '✅ Activé — Code OTP requis à chaque connexion'
+              : 'Désactivé — Activez pour protéger votre compte par email OTP'}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={toggle2FA}
+        disabled={loading2FA}
+        style={{
+          padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
+          fontWeight: 800, fontSize: '0.9rem', transition: 'all 0.3s',
+          background: is2FAEnabled ? 'rgba(239,68,68,0.1)' : 'var(--primary)',
+          color: is2FAEnabled ? '#ef4444' : 'white',
+          opacity: loading2FA ? 0.6 : 1
+        }}
+      >
+        {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
+      </button>
+    </div>
+  );
+};
+
+const TeamSection = () => {
+  const [subUsers, setSubUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({
+    nom: '',
+    email: '',
+    motDePasse: '',
+    role: 'vendeur',
+    telephone: '',
+    permissions: [
+      'cash', 'cash.open', 'cash.close',
+      'pos', 'pos.credit_sale', 'pos.print',
+      'products', 'products.view_purchase_price', 'products.add', 'products.edit', 'products.delete', 'products.import', 'products.export',
+      'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder'
+    ]
+  });
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: number | null; name: string }>({ isOpen: false, id: null, name: '' });
+
+  const moduleDefinitions = [
+    {
+      id: 'cash', label: 'Caisse de session', icon: Zap, actions: [
+        { id: 'cash.open', label: 'Ouvrir une session de caisse' },
+        { id: 'cash.close', label: 'Fermer une session de caisse' },
+      ]
+    },
+    {
+      id: 'pos', label: 'Point de Vente (POS)', icon: ShoppingCart, actions: [
+        { id: 'pos.credit_sale', label: 'Vente à crédit (client)' },
+        { id: 'pos.print', label: 'Imprimer ticket / facture' },
+      ]
+    },
+    {
+      id: 'products', label: 'Stocks & Produits', icon: Package, actions: [
+        { id: 'products.view_purchase_price', label: 'Voir prix d\'achat' },
+        { id: 'products.add', label: 'Ajouter des produits' },
+        { id: 'products.edit', label: 'Modifier des produits' },
+        { id: 'products.delete', label: 'Supprimer des produits' },
+        { id: 'products.import', label: 'Importer via Excel / texte' },
+        { id: 'products.export', label: 'Exporter le catalogue' },
+      ]
+    },
+    {
+      id: 'sales', label: 'Historique Ventes', icon: TrendingUp, actions: [
+        { id: 'sales.edit', label: 'Modifier une vente' },
+        { id: 'sales.refund', label: 'Rembourser une vente' },
+        { id: 'sales.delete', label: 'Supprimer une vente' },
+        { id: 'sales.export', label: 'Exporter les ventes' },
+      ]
+    },
+    {
+      id: 'clients', label: 'Clients & CRM', icon: Users, actions: [
+        { id: 'clients.add', label: 'Ajouter un client' },
+        { id: 'clients.edit', label: 'Modifier un client' },
+        { id: 'clients.delete', label: 'Supprimer un client' },
+        { id: 'clients.settle_debt', label: 'Régler une dette client' },
+        { id: 'clients.send_reminder', label: 'Envoyer un rappel de paiement' },
+      ]
+    },
+    {
+      id: 'suppliers', label: 'Fournisseurs (Partenaires)', icon: Truck, actions: [
+        { id: 'suppliers.add', label: 'Ajouter un fournisseur' },
+        { id: 'suppliers.edit', label: 'Modifier un fournisseur' },
+        { id: 'suppliers.delete', label: 'Supprimer un fournisseur' },
+      ]
+    },
+    {
+      id: 'purchases', label: 'Achats (Bons de commande)', icon: Download, actions: [
+        { id: 'purchases.add', label: 'Créer un bon d\'achat' },
+        { id: 'purchases.edit', label: 'Modifier un achat' },
+        { id: 'purchases.delete', label: 'Supprimer un achat' },
+      ]
+    },
+    {
+      id: 'expenses', label: 'Dépenses', icon: DollarSign, actions: [
+        { id: 'expenses.add', label: 'Ajouter une dépense' },
+        { id: 'expenses.edit', label: 'Modifier une dépense' },
+        { id: 'expenses.delete', label: 'Supprimer une dépense' },
+      ]
+    },
+    {
+      id: 'debts', label: 'Gestion Dettes', icon: CreditCard, actions: [
+        { id: 'debts.settle', label: 'Enregistrer un règlement' },
+        { id: 'debts.send_reminder', label: 'Envoyer rappel de paiement' },
+      ]
+    },
+    { id: 'stats', label: 'Statistiques', icon: BarChart2, actions: [] },
+    { id: 'activities', label: 'Journal d\'Activités', icon: Activity, actions: [] },
+    {
+      id: 'settings', label: 'Paramètres (limités)', icon: SettingsIcon, actions: [
+        { id: 'settings.profile', label: 'Modifier son profil' },
+        { id: 'settings.appearance', label: 'Changer l\'apparence (thème/langue)' },
+        { id: 'settings.exchange_rate', label: 'Modifier le taux de change' },
+      ]
+    },
+  ];
+
+  // Toggle a top-level module and ALL its sub-actions
+  const toggleModule = (moduleId: string) => {
+    const mod = moduleDefinitions.find(m => m.id === moduleId);
+    if (!mod) return;
+    const allIds = [moduleId, ...mod.actions.map(a => a.id)];
+    const isEnabled = newUser.permissions.includes(moduleId);
+    setNewUser(prev => ({
+      ...prev,
+      permissions: isEnabled
+        ? prev.permissions.filter(id => !allIds.includes(id))
+        : [...prev.permissions, ...allIds.filter(id => !prev.permissions.includes(id))]
+    }));
+  };
+
+  // Toggle a single sub-action permission
+  const togglePermission = (permId: string) => {
+    setNewUser(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permId)
+        ? prev.permissions.filter(id => id !== permId)
+        : [...prev.permissions, permId]
+    }));
+  };
+
+  const fetchSubUsers = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/subusers?_t=${Date.now()}`);
+      // Backend wraps response in { success, data: [...], meta }
+      const members = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+      setSubUsers(members);
+    } catch (err) {
+      toast.error('Erreur lors de la récupération de l\'équipe');
+      setSubUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSubUsers();
+  }, []);
+
+  const handleAddSubUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation mot de passe
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
+    if (!passwordRegex.test(newUser.motDePasse)) {
+      return toast.error("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+    }
+
+    try {
+      await api.post('/subusers', newUser);
+      toast.success(`Membre ${newUser.nom} ajouté !`);
+      setShowAddModal(false);
+      setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: ['pos', 'products', 'clients'] });
+      fetchSubUsers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de l’ajout');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete.id) return;
+    try {
+      await api.delete(`/subusers/${confirmDelete.id}`);
+      toast.success('Membre supprimé');
+      setConfirmDelete({ isOpen: false, id: null, name: '' });
+      fetchSubUsers();
+    } catch (err) {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Gestion de l’Équipe</h2>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Créez et gérez les accès pour vos vendeurs et gestionnaires.</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="btn-premium primary"
+          style={{ padding: '12px 24px' }}
+        >
+          + Ajouter un membre
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+        {loading ? (
+          <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center' }}>
+            <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: 'var(--primary)' }} />
+          </div>
+        ) : subUsers.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '24px' }}>
+            <Users size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Aucun membre dans votre équipe pour le moment.</p>
+          </div>
+        ) : subUsers.map(u => (
+          <motion.div
+            key={u.id}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="premium-card"
+            style={{ padding: '20px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-main)', position: 'relative' }}
+          >
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <div style={{ width: '50px', height: '50px', borderRadius: '16px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: '1.2rem' }}>
+                {u.nom.charAt(0)}
+              </div>
+              <div>
+                <p style={{ margin: 0, fontWeight: 900 }}>{u.nom}</p>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '100px', backgroundColor: u.role === 'manager' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', color: u.role === 'manager' ? 'var(--primary)' : '#10b981' }}>
+                    {u.role}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmDelete({ isOpen: true, id: u.id, name: u.nom })}
+                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.5 }}
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Mail size={14} /> {u.email}
+              </div>
+              {u.telephone && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Phone size={14} /> {u.telephone}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Nouveau Collaborateur"
+        subtitle="Créez un compte sécurisé avec des accès personnalisés."
+        maxWidth="600px"
+        icon={Users}
+      >
+        <form onSubmit={handleAddSubUser} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <InputField label="Nom Complet" value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder="Ex: Jules Kamba" required />
+            <InputField label="Téléphone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
+          </div>
+
+          <InputField label="Email / Identifiant" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} placeholder="jules@example.com" required icon={Mail} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <InputField label="Mot de passe initial" type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caractères + symboles" required icon={Key} />
+            {newUser.motDePasse && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                {[
+                  { label: '8+ Car.', met: newUser.motDePasse.length >= 8 },
+                  { label: 'Maj.', met: /[A-Z]/.test(newUser.motDePasse) },
+                  { label: 'Min.', met: /[a-z]/.test(newUser.motDePasse) },
+                  { label: 'Chiffre', met: /\d/.test(newUser.motDePasse) },
+                  { label: 'Symbole', met: /[@$!%*?&#]/.test(newUser.motDePasse) },
+                ].map((req, idx) => (
+                  <span key={idx} style={{
+                    fontSize: '0.65rem', padding: '2px 6px', borderRadius: '6px',
+                    background: req.met ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0,0,0,0.03)',
+                    color: req.met ? '#10b981' : 'var(--text-muted)',
+                    border: `1px solid ${req.met ? '#10b981' : 'transparent'}`,
+                    fontWeight: '700'
+                  }}>{req.label}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>
+              Accès & Permissions — Sélection Manuelle
+            </label>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              padding: '16px',
+              background: 'rgba(0,0,0,0.02)',
+              borderRadius: '20px',
+              border: '1px solid var(--border)',
+              maxHeight: '340px',
+              overflowY: 'auto'
+            }}>
+              {moduleDefinitions.map(m => {
+                const isModuleOn = newUser.permissions.includes(m.id);
+                return (
+                  <div key={m.id}>
+                    {/* Module row */}
+                    <label style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                      borderRadius: '12px', cursor: 'pointer',
+                      background: isModuleOn ? 'var(--primary-glow)' : 'transparent',
+                      border: `1.5px solid ${isModuleOn ? 'var(--primary)' : 'transparent'}`,
+                      transition: 'all 0.2s'
+                    }}>
+                      <input type="checkbox" checked={isModuleOn} onChange={() => toggleModule(m.id)} style={{ display: 'none' }} />
+                      <div style={{
+                        width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0,
+                        border: '2px solid var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: isModuleOn ? 'var(--primary)' : 'transparent'
+                      }}>
+                        {isModuleOn && <Check size={14} color="white" />}
+                      </div>
+                      <m.icon size={15} style={{ color: isModuleOn ? 'var(--primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.9rem', fontWeight: '800', color: isModuleOn ? 'var(--primary)' : 'var(--text-main)', flex: 1 }}>{m.label}</span>
+                      {m.actions.length > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700 }}>{newUser.permissions.filter(p => m.actions.some(a => a.id === p)).length}/{m.actions.length} actions</span>}
+                    </label>
+                    {/* Sub-actions (shown only when module is enabled) */}
+                    {isModuleOn && m.actions.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', padding: '6px 6px 6px 32px' }}>
+                        {m.actions.map(action => {
+                          const isActionOn = newUser.permissions.includes(action.id);
+                          return (
+                            <label key={action.id} style={{
+                              display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px',
+                              borderRadius: '10px', cursor: 'pointer',
+                              background: isActionOn ? 'rgba(99,102,241,0.06)' : 'transparent',
+                              border: `1px solid ${isActionOn ? 'rgba(99,102,241,0.2)' : 'transparent'}`,
+                              transition: 'all 0.15s'
+                            }}>
+                              <input type="checkbox" checked={isActionOn} onChange={() => togglePermission(action.id)} style={{ display: 'none' }} />
+                              <div style={{
+                                width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                                border: `2px solid ${isActionOn ? 'var(--primary)' : 'var(--border-strong)'}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: isActionOn ? 'var(--primary)' : 'transparent'
+                              }}>
+                                {isActionOn && <Check size={11} color="white" />}
+                              </div>
+                              <span style={{ fontSize: '0.78rem', fontWeight: '700', color: isActionOn ? 'var(--text-main)' : 'var(--text-muted)' }}>{action.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <button type="submit" className="btn-premium primary" style={{ width: '100%', marginTop: '10px', padding: '18px', fontSize: '1rem' }}>
+            Finaliser l'enregistrement
+          </button>
+        </form>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete({ isOpen: false, id: null, name: '' })}
+        onConfirm={handleDelete}
+        title="Supprimer un membre"
+        message={`Voulez-vous vraiment supprimer l'accès pour ${confirmDelete.name} ?`}
+      />
+    </div>
+  );
+};
+
 const Settings = () => {
   const { t } = useTranslation();
-  const { 
-    user, 
-    updateUser, 
-    logout, 
-    theme, 
-    setTheme, 
-    language, 
-    setLanguage, 
-    enabledModules, 
+  const {
+    user,
+    updateUser,
+    logout,
+    theme,
+    setTheme,
+    language,
+    setLanguage,
+    enabledModules,
     toggleModule,
     currency,
     setCurrency,
     exchangeRate,
-    setExchangeRate
+    setExchangeRate,
+    checkAuth
   } = useAuthStore();
-  
+
+  const isSavingRef = React.useRef(false);
+
   const [activeTab, setActiveTab] = useState('profile');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(user?.preferences?.autoBackupEnabled || false);
+  const [backupTime, setBackupTime] = useState(user?.preferences?.backupTime || '00:00');
+
   const [profileData, setProfileData] = useState({
     nom: user?.nom || '',
     email: user?.email || '',
-    telephone: user?.telephone || '',
+    telephone: '',
+    countryCode: '+243',
     typeActivite: user?.typeActivite || 'Boutique',
     entreprise: {
       nom: user?.entreprise?.nom || '',
-      devise: user?.entreprise?.devise || 'FC',
+      devise: (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF',
       adresse: user?.entreprise?.adresse || '',
       logo: user?.entreprise?.logo || '',
     },
     motDePasse: ''
   });
 
-  // Keep state in sync with user if store updates
+  // Keep state in sync with user if store updates (but NOT during an active save)
   useEffect(() => {
-    if (user) {
-        setProfileData(prev => ({
-            ...prev,
-            nom: user.nom || prev.nom,
-            email: user.email || prev.email,
-            telephone: user.telephone || prev.telephone,
-            typeActivite: user.typeActivite || prev.typeActivite,
-            entreprise: {
-                ...prev.entreprise,
-                ...user.entreprise
-            }
-        }));
+    if (user && !isSavingRef.current) {
+      let phone = user.telephone || '';
+      let code = '+243';
+      const found = africanCountries.find(c => phone.startsWith(c.code));
+      if (found) {
+        code = found.code;
+        phone = phone.replace(code, '');
+      }
+      setProfileData(prev => ({
+        ...prev,
+        nom: user.nom || prev.nom,
+        email: user.email || prev.email,
+        telephone: phone,
+        countryCode: code,
+        typeActivite: user.typeActivite || prev.typeActivite,
+        entreprise: {
+          ...prev.entreprise,
+          ...user.entreprise
+        }
+      }));
+      setAutoBackupEnabled(user.preferences?.autoBackupEnabled || false);
+      setBackupTime(user.preferences?.backupTime || '00:00');
     }
   }, [user]);
 
@@ -130,12 +600,14 @@ const Settings = () => {
     const formData = new FormData();
     formData.append('avatar', file);
     setUploading(true);
-    
+
     try {
       const response = await api.post('/auth/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      const updated = response.data;
+      const resData = response.data;
+      const updated = resData.success && resData.data ? resData.data : resData;
+
       updateUser(updated);
       toast.success('Photo de profil mise à jour avec succès !');
     } catch (error: any) {
@@ -146,28 +618,66 @@ const Settings = () => {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) return toast.error("L'image est trop lourde (max 5MB)");
+
+    const formData = new FormData();
+    formData.append('logo', file);
+    setUploadingLogo(true);
+
+    try {
+      const response = await api.post('/auth/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const resData = response.data;
+      const updated = resData.success && resData.data ? resData.data : resData;
+
+      updateUser(updated);
+      toast.success("Logo de l'entreprise mis à jour avec succès !");
+    } catch (error: any) {
+      console.error("Upload Error:", error);
+      toast.error(error.response?.data?.message || "Échec de l'upload du logo.");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (profileData.motDePasse) {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
+      if (!passwordRegex.test(profileData.motDePasse)) {
+        return toast.error("Le nouveau mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+      }
+    }
+
     setSaving(true);
+    isSavingRef.current = true;
     try {
       const payload = {
         nom: profileData.nom,
-        telephone: profileData.telephone,
+        telephone: profileData.countryCode + profileData.telephone,
         typeActivite: profileData.typeActivite,
         entreprise: profileData.entreprise,
         preferences: {
-            theme,
-            language,
-            enabledModules,
-            currency,
-            exchangeRate
+          theme,
+          language,
+          enabledModules,
+          currency,
+          exchangeRate,
+          autoBackupEnabled,
+          backupTime
         },
         ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse } : {})
       };
-      
-      const response = await api.put('/auth/profile', payload);
-      const updatedUser = response.data;
-      updateUser(updatedUser);
-      
+
+      await api.put('/auth/profile', payload);
+
+      // Force-reload from server to guarantee UI reflects DB state
+      await checkAuth(false);
+
       setProfileData(prev => ({ ...prev, motDePasse: '' }));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -176,22 +686,101 @@ const Settings = () => {
       toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
       setSaving(false);
+      isSavingRef.current = false;
     }
   };
 
-  const tabs = [
+  const [backupLoading, setBackupLoading] = React.useState(false);
+  const [emailBackupLoading, setEmailBackupLoading] = React.useState(false);
+
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    toast('⏳ Génération de la sauvegarde en cours...');
+    try {
+      const response = await api.get(`/backup/export?_t=${Date.now()}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `lumo_sauvegarde_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('✅ Sauvegarde téléchargée avec succès !');
+    } catch (error) {
+      toast.error('❌ Erreur lors de la génération de la sauvegarde.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleEmailBackup = async () => {
+    setEmailBackupLoading(true);
+    toast('📧 Envoi de la sauvegarde par e-mail...');
+    try {
+      await api.get(`/backup/email?_t=${Date.now()}`);
+    } finally {
+      setEmailBackupLoading(false);
+    }
+  };
+
+  const [restoreLoading, setRestoreLoading] = React.useState(false);
+  const [restorePreview, setRestorePreview] = React.useState<any>(null);
+  const fileInputRest = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = JSON.parse(event.target?.result as string);
+        const response = await api.post('/backup/preview', content);
+        setRestorePreview({ ...response.data, rawData: content });
+      } catch (error) {
+        toast.error('❌ Fichier invalide. Veuillez sélectionner une sauvegarde Lumo valide.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const confirmRestore = async () => {
+    if (!restorePreview?.rawData) return;
+
+    setRestoreLoading(true);
+    toast('⚡ Restauration des données en cours...');
+    try {
+      const response = await api.post('/backup/import', restorePreview.rawData);
+      toast.success(`✅ Restauration réussie ! (${response.data.restored.products} produits, ${response.data.restored.clients} clients restorés)`);
+      setRestorePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      toast.error('❌ Erreur lors de la restauration des données.');
+    } finally {
+      setRestoreLoading(false);
+    }
+  };
+
+  const allTabs = [
     { id: 'profile', label: 'Mon Profil', icon: UserIcon, color: 'var(--primary)' },
     { id: 'business', label: 'Mon Enseigne', icon: Store, color: 'var(--secondary)' },
     { id: 'appearance', label: 'Interface', icon: Palette, color: '#f59e0b' },
-    { id: 'modules', label: 'Modules & IA', icon: Cpu, color: '#ef4444' },
-    { id: 'security', label: 'Sécurité', icon: ShieldCheck, color: '#6366f1' },
+    { id: 'modules', label: 'Modules & IA', icon: Cpu, color: '#ef4444', adminOnly: true },
+    { id: 'team', label: 'Mon Équipe', icon: Users, color: '#10b981', adminOnly: true },
+    { id: 'security', label: 'Sécurité', icon: ShieldCheck, color: '#6366f1', adminOnly: true },
   ];
 
+  const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
+
   const activityTypes = ['Pharmacie', 'Boutique', 'Restaurant', 'Services', 'Épicerie', 'Quincaillerie', 'Autre'];
-  const devises = ['FC', 'USD', 'EUR', 'XAF', 'NGN', 'KES'];
+  const devises = [
+    { value: 'USD', label: 'USD (Dollar)' },
+    { value: 'CDF', label: 'CDF (Franc Congolais)' }
+  ];
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1200px', margin: '0 auto', padding: '10px 0 80px 0' }}
@@ -199,10 +788,10 @@ const Settings = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>Paramètres <span style={{ color: 'var(--primary)', opacity: 0.5 }}>Système</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Contrôlez chaque aspect de votre plateforme HubCommerce.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Contrôlez chaque aspect de votre plateforme LUMO.</p>
         </div>
-        <button 
-          onClick={logout}
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
           className="btn-premium"
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}
         >
@@ -245,7 +834,7 @@ const Settings = () => {
             </motion.div>
           ))}
         </div>
-        
+
         {/* Main Content */}
         <div className="premium-card" style={{ padding: '48px', borderRadius: '32px', boxShadow: 'var(--shadow-lg)' }}>
           <AnimatePresence mode="wait">
@@ -254,7 +843,7 @@ const Settings = () => {
             {activeTab === 'profile' && (
               <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>Identité Numérique</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>Identité Personnelles</h2>
                   <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Gérez votre avatar et vos informations de contact professionnelles.</p>
                 </div>
 
@@ -262,9 +851,9 @@ const Settings = () => {
                   <div style={{ position: 'relative' }}>
                     <div style={{ width: '110px', height: '110px', borderRadius: '32px', overflow: 'hidden', border: '4px solid var(--primary)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.8rem', fontWeight: '900', color: 'var(--primary)', boxShadow: '0 10px 25px rgba(99, 102, 241, 0.2)' }}>
                       {uploading ? (
-                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                             <RefreshCcw size={32} />
-                          </motion.div>
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
+                          <RefreshCcw size={32} />
+                        </motion.div>
                       ) : user?.avatar && user.avatar !== 'default_avatar.png' ? (
                         <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
@@ -292,7 +881,47 @@ const Settings = () => {
                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   <InputField label="Nom Complet" icon={UserIcon} value={profileData.nom} onChange={(e: any) => setProfileData({ ...profileData, nom: e.target.value })} placeholder="Ex: Jean Dupont" />
                   <InputField label="Email (Lecture seule)" icon={Mail} value={profileData.email} readOnly placeholder="email@example.com" />
-                  <InputField label="Numéro de Téléphone" icon={Phone} value={profileData.telephone} onChange={(e: any) => setProfileData({ ...profileData, telephone: e.target.value })} placeholder="+243 xxx xxx xxx" />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Numéro de Téléphone</label>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ width: '130px', position: 'relative' }}>
+                        <select
+                          value={profileData.countryCode}
+                          onChange={(e) => setProfileData({ ...profileData, countryCode: e.target.value })}
+                          style={{
+                            width: '100%',
+                            padding: '14px 12px 14px 42px',
+                            borderRadius: '16px',
+                            border: '1.5px solid var(--border)',
+                            backgroundColor: 'var(--bg-main)',
+                            color: 'var(--text-main)',
+                            fontSize: '0.95rem',
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer',
+                            fontWeight: '700'
+                          }}
+                        >
+                          {africanCountries.map(c => (
+                            <option key={c.code} value={c.code} style={{ background: 'var(--bg-main)' }}>
+                              {c.flag} {c.code}
+                            </option>
+                          ))}
+                        </select>
+                        <Globe size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
+                      </div>
+                      <div style={{ flex: 1, position: 'relative' }}>
+                        <Phone size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
+                        <input
+                          type="tel"
+                          placeholder="000 000 000"
+                          value={profileData.telephone}
+                          onChange={(e) => setProfileData({ ...profileData, telephone: e.target.value })}
+                          style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Expertise / Secteur</label>
                     <div style={{ position: 'relative' }}>
@@ -318,14 +947,28 @@ const Settings = () => {
                   <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Ces informations apparaîtront sur vos factures et rapports d'activité.</p>
                 </div>
 
-                <div style={{ padding: '24px', borderRadius: '24px', background: 'var(--secondary-glow)', border: '1.5px solid var(--secondary)', display: 'flex', alignItems: 'center', gap: '18px' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <Store size={32} />
+                <div style={{ padding: '24px', borderRadius: '24px', background: 'var(--secondary-glow)', border: '1.5px solid var(--secondary)', display: 'flex', alignItems: 'center', gap: '18px', position: 'relative' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {uploadingLogo ? (
+                      <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : user?.entreprise?.logo ? (
+                      <img src={user.entreprise.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <Store size={32} />
+                    )}
                   </div>
                   <div>
                     <p style={{ margin: 0, fontWeight: '900', fontSize: '1.1rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{profileData.typeActivite} · Système de gestion {currency}</p>
                   </div>
+                  <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
+                  <button
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    style={{ position: 'absolute', right: '24px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem' }}
+                  >
+                    <Camera size={16} /> Changer Logo
+                  </button>
                 </div>
 
                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
@@ -337,13 +980,13 @@ const Settings = () => {
                       <select
                         value={profileData.entreprise.devise}
                         onChange={(e) => {
-                            const newCur = e.target.value as any;
-                            setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, devise: newCur } });
-                            setCurrency(newCur);
+                          const newCur = e.target.value as any;
+                          setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, devise: newCur } });
+                          setCurrency(newCur);
                         }}
                         style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700', outline: 'none', boxSizing: 'border-box' }}
                       >
-                        {devises.map(d => <option key={d} value={d}>{d}</option>)}
+                        {devises.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                       </select>
                     </div>
                   </div>
@@ -374,7 +1017,7 @@ const Settings = () => {
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Expérience Visuelle</h2>
                   <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Personnalisez l'apparence du système selon vos préférences de travail.</p>
                 </div>
-                
+
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
                     <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -424,10 +1067,12 @@ const Settings = () => {
                 </div>
 
                 {[
-                  { id: 'ai', label: 'Intelligence Artificielle', desc: 'Analyses Gemini 2.0 et prévisions de vente.', icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
+                  { id: 'ai', label: 'Intelligence Artificielle', desc: 'Analyses DeepSeek AI et prévisions de vente.', icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
                   { id: 'suppliers', label: 'Gestion Fournisseurs', desc: 'Stocks et créances fournisseurs.', icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
                   { id: 'debts', label: 'Crédit Client', desc: 'Suivi des impayés et relances.', icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
                   { id: 'analytics', label: 'Dashboard Avancé', desc: 'Rapports graphiques et KPI exports.', icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
+                  { id: 'cash', label: 'Gestion de Caisse', desc: 'Sessions de caisse et rapports de clôture.', icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
+                  { id: 'barcode', label: 'Scanner Code-barres', desc: 'Support caméra mobile et scanners USB.', icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
                     key={mod.id}
@@ -450,10 +1095,10 @@ const Settings = () => {
                       </div>
                     </div>
                     <div
-                        onClick={() => toggleModule(mod.id)}
-                        style={{ width: '56px', height: '30px', backgroundColor: mod.active ? mod.color : 'var(--border-strong)', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'all 0.4s' }}
+                      onClick={() => toggleModule(mod.id)}
+                      style={{ width: '56px', height: '30px', backgroundColor: mod.active ? mod.color : 'var(--border-strong)', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'all 0.4s' }}
                     >
-                        <motion.div animate={{ x: mod.active ? 28 : 2 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} style={{ width: '24px', height: '24px', backgroundColor: 'white', borderRadius: '50%', position: 'absolute', top: '3px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }} />
+                      <motion.div animate={{ x: mod.active ? 28 : 2 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} style={{ width: '24px', height: '24px', backgroundColor: 'white', borderRadius: '50%', position: 'absolute', top: '3px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }} />
                     </div>
                   </div>
                 ))}
@@ -467,6 +1112,10 @@ const Settings = () => {
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Coffre-Fort & Accès</h2>
                   <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Renforcez la sécurité de votre compte administrateur.</p>
                 </div>
+
+                {/* 2FA Toggle */}
+                <TwoFASection />
+
                 <div style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Modifier Mot de Passe</label>
@@ -476,6 +1125,7 @@ const Settings = () => {
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Nouveau mot de passe (8+ car.)"
                         value={profileData.motDePasse}
+                        maxLength={100}
                         onChange={(e) => setProfileData({ ...profileData, motDePasse: e.target.value })}
                         style={{ width: '100%', padding: '16px 56px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', fontWeight: '700' }}
                       />
@@ -484,16 +1134,275 @@ const Settings = () => {
                       </button>
                     </div>
                     {profileData.motDePasse && (
-                      <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} style={{ fontSize: '0.85rem', color: profileData.motDePasse.length >= 8 ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px', fontWeight: 800 }}>
-                        {profileData.motDePasse.length >= 8 ? <CheckCircle size={14} /> : null}
-                        {profileData.motDePasse.length >= 8 ? 'Robustesse validée' : `${8 - profileData.motDePasse.length} car. restant`}
-                      </motion.div>
+                      <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {[
+                          { label: '8+ Caract.', met: profileData.motDePasse.length >= 8 },
+                          { label: 'Maj.', met: /[A-Z]/.test(profileData.motDePasse) },
+                          { label: 'Min.', met: /[a-z]/.test(profileData.motDePasse) },
+                          { label: 'Chiffre', met: /\d/.test(profileData.motDePasse) },
+                          { label: 'Symbole', met: /[@$!%*?&#]/.test(profileData.motDePasse) },
+                        ].map((req, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '0.7rem',
+                            padding: '4px 8px',
+                            borderRadius: '8px',
+                            backgroundColor: req.met ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                            color: req.met ? '#10b981' : 'var(--text-muted)',
+                            border: `1px solid ${req.met ? '#10b981' : 'transparent'}`,
+                            fontWeight: '700',
+                            transition: 'all 0.3s'
+                          }}>
+                            {req.label}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: '1.5' }}>
                     ⚠️ Les modifications de mot de passe sont irréversibles. Assurez-vous d'avoir noté votre nouvelle clé d'accès.
                   </div>
+
+                  <div style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1.5px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Save size={20} color="var(--primary)" /> Gestion des Données
+                    </h3>
+
+                    <div style={{
+                      padding: '24px', borderRadius: '24px',
+                      background: 'rgba(99,102,241,0.03)', border: '2px solid rgba(99,102,241,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <div style={{
+                          width: '48px', height: '48px', borderRadius: '14px',
+                          background: autoBackupEnabled ? 'rgba(16,185,129,0.1)' : 'rgba(0,0,0,0.05)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: autoBackupEnabled ? 'var(--success)' : 'var(--text-muted)'
+                        }}>
+                          <Clock size={24} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 900, fontSize: '1rem' }}>Sauvegarde Automatique (Cron)</p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {autoBackupEnabled
+                              ? 'Activée — Sauvegarde quotidienne à minuit.'
+                              : 'Désactivée — Les données ne sont pas sauvegardées.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        onClick={() => {
+                          const newVal = !autoBackupEnabled;
+                          setAutoBackupEnabled(newVal);
+                          if (user) {
+                            useAuthStore.getState().syncPreferencesToServer({ 
+                              autoBackupEnabled: newVal,
+                              backupTime: backupTime 
+                            });
+                          }
+                        }}
+                        style={{
+                          width: '54px', height: '28px', borderRadius: '50px',
+                          background: autoBackupEnabled ? 'var(--success)' : 'var(--text-muted)',
+                          padding: '3px', cursor: 'pointer', position: 'relative', transition: 'all 0.3s'
+                        }}
+                      >
+                        <motion.div
+                          animate={{ x: autoBackupEnabled ? 26 : 0 }}
+                          style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                        />
+                      </div>
+                    </div>
+
+                    {autoBackupEnabled && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                          padding: '20px', borderRadius: '20px',
+                          background: 'rgba(99,102,241,0.02)', border: '1.5px dashed rgba(99,102,241,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          marginTop: '-8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <Clock size={18} style={{ color: 'var(--primary)' }} />
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Heure de la sauvegarde quotidienne</span>
+                        </div>
+                        <input 
+                          type="time" 
+                          value={backupTime}
+                          onChange={(e) => {
+                            const newTime = e.target.value;
+                            setBackupTime(newTime);
+                            useAuthStore.getState().syncPreferencesToServer({ backupTime: newTime });
+                          }}
+                          style={{
+                            padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)',
+                            background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800,
+                            outline: 'none', cursor: 'pointer'
+                          }}
+                        />
+                      </motion.div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      <motion.button
+                        whileHover={!backupLoading ? { scale: 1.05, y: -2 } : {}}
+                        whileTap={!backupLoading ? { scale: 0.95 } : {}}
+                        onClick={handleBackup}
+                        disabled={backupLoading}
+                        style={{
+                          flex: 1, padding: '14px 24px', borderRadius: '14px',
+                          background: 'var(--bg-main)', border: '1.5px solid var(--border)',
+                          color: 'var(--text-main)', fontWeight: 800, cursor: backupLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'all 0.3s'
+                        }}
+                      >
+                        {backupLoading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                        Télécharger (JSON)
+                      </motion.button>
+
+                      <motion.button
+                        whileHover={!emailBackupLoading ? { scale: 1.05, y: -2 } : {}}
+                        whileTap={!emailBackupLoading ? { scale: 0.95 } : {}}
+                        onClick={handleEmailBackup}
+                        disabled={emailBackupLoading}
+                        style={{
+                          flex: 1, padding: '14px 24px', borderRadius: '14px',
+                          background: 'var(--bg-main)', border: '1.5px solid var(--border)',
+                          color: 'var(--text-main)', fontWeight: 800, cursor: emailBackupLoading ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'all 0.3s'
+                        }}
+                      >
+                        {emailBackupLoading ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
+                        Envoyer par e-mail
+                      </motion.button>
+                    </div>
+
+                    {/* Section Restauration */}
+                    <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1.5px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <RefreshCcw size={20} color="var(--secondary)" /> Restauration des données
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
+                        Importez un fichier de sauvegarde JSON pour restaurer vos listes de produits, clients et ventes.
+                        Note: Les doublons seront ignorés.
+                      </p>
+
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept=".json"
+                          style={{ display: 'none' }}
+                        />
+                        <motion.button
+                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(99,102,241,0.08)' }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            width: '100%', padding: '20px', borderRadius: '18px',
+                            border: '2px dashed var(--border)', background: 'transparent',
+                            color: 'var(--text-main)', cursor: 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'
+                          }}
+                        >
+                          <Upload size={32} color="var(--text-muted)" />
+                          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>Cliquez pour choisir un fichier JSON</span>
+                        </motion.button>
+                      </div>
+
+                      {/* Modal/Preview de Restauration */}
+                      <AnimatePresence>
+                        {restorePreview && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            style={{
+                              padding: '24px', borderRadius: '24px', background: 'var(--bg-main)',
+                              border: '2px solid var(--secondary)', boxShadow: 'var(--shadow-xl)',
+                              display: 'flex', flexDirection: 'column', gap: '20px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <FileJson size={24} color="#10b981" />
+                              </div>
+                              <div>
+                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aperçu de la sauvegarde</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Exportée le : {new Date(restorePreview.exportedAt).toLocaleString()}</p>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                              {[
+                                { label: 'Produits', count: restorePreview.counts.products, icon: Package, color: '#6366f1' },
+                                { label: 'Ventes', count: restorePreview.counts.sales, icon: CreditCard, color: '#10b981' },
+                                { label: 'Clients', count: restorePreview.counts.clients, icon: UserIcon, color: '#f59e0b' }
+                              ].map((item, idx) => (
+                                <div key={idx} style={{ padding: '16px', borderRadius: '16px', background: 'rgba(0,0,0,0.03)', textAlign: 'center' }}>
+                                  <item.icon size={20} color={item.color} style={{ marginBottom: '8px' }} />
+                                  <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>{item.count}</div>
+                                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                              <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, lineHeight: 1.4 }}>
+                                Cette action va fusionner ces données avec vos données actuelles. Les ventes déjà existantes ne seront pas dupliquées.
+                              </p>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={confirmRestore}
+                                disabled={restoreLoading}
+                                style={{
+                                  flex: 2, padding: '16px', borderRadius: '14px',
+                                  background: 'var(--secondary)', color: '#fff', border: 'none',
+                                  fontWeight: 900, fontSize: '1rem', cursor: restoreLoading ? 'not-allowed' : 'pointer',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                                }}
+                              >
+                                {restoreLoading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : <History size={20} />}
+                                {restoreLoading ? 'Restauration...' : 'Confirmer la restauration'}
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => setRestorePreview(null)}
+                                style={{
+                                  flex: 1, padding: '16px', borderRadius: '14px',
+                                  background: 'rgba(0,0,0,0.05)', color: 'var(--text-main)', border: 'none',
+                                  fontWeight: 800, cursor: 'pointer'
+                                }}
+                              >
+                                Annuler
+                              </motion.button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                  </div>
                 </div>
+              </motion.div>
+            )}
+
+            {/* TEAM */}
+            {activeTab === 'team' && (
+              <motion.div key="team" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                <TeamSection />
               </motion.div>
             )}
 
@@ -522,6 +1431,41 @@ const Settings = () => {
           </div>
         </div>
       </div>
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Se déconnecter ?"
+        subtitle="Confirmez-vous vouloir mettre fin à votre session actuelle ?"
+        icon={LogOut}
+        maxWidth="450px"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+          <button
+            onClick={() => {
+              setShowLogoutConfirm(false);
+              logout();
+            }}
+            style={{
+              width: '100%', padding: '16px', borderRadius: '16px', border: 'none',
+              background: 'var(--danger)', color: 'white', fontWeight: '800',
+              fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 20px -6px rgba(239, 68, 68, 0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+            }}
+          >
+            <LogOut size={18} /> Oui, me déconnecter
+          </button>
+          <button
+            onClick={() => setShowLogoutConfirm(false)}
+            style={{
+              width: '100%', padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)',
+              background: 'transparent', color: 'var(--text-main)', fontWeight: '700', fontSize: '1rem', cursor: 'pointer'
+            }}
+          >
+            Annuler
+          </button>
+        </div>
+      </Modal>
     </motion.div>
   );
 };

@@ -28,15 +28,23 @@ const Purchases = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [allProducts, setAllProducts] = useState<any[]>([]);
+    const [items, setItems] = useState<any[]>([]);
+    const [productSearch, setProductSearch] = useState('');
+    const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+    const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
 
     const [formData, setFormData] = useState({
-        fournisseurId: '',
-        fournisseurNom: '', // Added to store the typed/selected name
+        fournisseurId: null,
+        fournisseurNom: '',
         numeroFacture: '',
         description: '',
         montantTotal: '',
-        statut: 'En attente'
+        statut: 'En attente',
+        devise: 'USD'
     });
+    const [exchangeRate, setExchangeRate] = useState<number>(2800); // 1 USD = 2800 CDF
     const [showFournisseurSuggestions, setShowFournisseurSuggestions] = useState(false);
 
 
@@ -46,12 +54,34 @@ const Purchases = () => {
 
     const fetchData = async () => {
         try {
-            const [purRes, fourRes] = await Promise.all([
-                api.get('/purchases'),
-                api.get('/fournisseurs').catch(() => ({ data: [] }))
+            const [purRes, fourRes, prodRes] = await Promise.all([
+                api.get(`/purchases?_t=${Date.now()}`),
+                api.get(`/fournisseurs?_t=${Date.now()}`).catch(() => ({ data: { data: [] } })),
+                api.get(`/products?_t=${Date.now()}`).catch(() => ({ data: { data: [] } }))
             ]);
-            setPurchases(purRes.data || []);
-            setFournisseurs(fourRes.data || []);
+            
+            const processData = (res: any) => {
+                const resData = res.data;
+                
+                // Structure standard: { success, data: { data: [] } }
+                if (resData.success && resData.data) {
+                    if (Array.isArray(resData.data.data)) return resData.data.data;
+                    if (Array.isArray(resData.data)) return resData.data;
+                }
+
+                // Fallback for older/direct structures
+                const data = resData;
+                if (Array.isArray(data)) return data;
+                if (data && Array.isArray(data.data)) return data.data;
+                if (data && Array.isArray(data.purchases)) return data.purchases;
+                if (data && Array.isArray(data.fournisseurs)) return data.fournisseurs;
+                if (data && Array.isArray(data.products)) return data.products;
+                return [];
+            };
+
+            setPurchases(processData(purRes));
+            setFournisseurs(processData(fourRes));
+            setAllProducts(processData(prodRes));
         } catch (error) {
             toast.error("Erreur lors de la récupération des données");
         } finally {
@@ -61,6 +91,14 @@ const Purchases = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // BUG3 Fix: Validate that at least one article is added before submitting
+        if (items.length === 0) {
+            toast.error("Veuillez ajouter au moins un article avant d'enregistrer l'achat.");
+            setSubmitting(false);
+            return;
+        }
+        
         setSubmitting(true);
         try {
             let finalFournisseurId = formData.fournisseurId;
@@ -78,26 +116,34 @@ const Purchases = () => {
                         entreprise: formData.fournisseurNom, // default same
                         categorie: 'Importé via Achat'
                     });
-                    finalFournisseurId = newFour.data.id;
+                    finalFournisseurId = newFour.data.data.id;
                 }
             }
 
             await api.post('/purchases', {
                 ...formData,
                 fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
-                montantTotal: Number(formData.montantTotal)
+                montantTotal: Number(formData.montantTotal),
+                articles: items.map(item => ({
+                    id: item.id,
+                    nom: item.nom,
+                    quantite: item.quantite,
+                    prixAchat: item.prixAchat
+                }))
             });
             toast.success("Achat enregistré avec succès !");
             setShowModal(false);
             fetchData();
             setFormData({
-                fournisseurId: '',
+                fournisseurId: null,
                 fournisseurNom: '',
                 numeroFacture: '',
                 description: '',
                 montantTotal: '',
-                statut: 'En attente'
+                statut: 'En attente',
+                devise: 'USD'
             });
+            setItems([]);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement de l'achat");
         } finally {
@@ -116,6 +162,14 @@ const Purchases = () => {
         if (s.includes('attente') || s.includes('cours')) return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
         return { bg: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-muted)' };
     };
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
 
     if (loading) return (
         <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -166,7 +220,10 @@ const Purchases = () => {
                           type="text" 
                           placeholder="Rechercher par facture, description..." 
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onChange={(e) => {
+                              setSearchTerm(e.target.value);
+                              setCurrentPage(1);
+                          }}
                           style={{ width: '100%', padding: '14px 14px 14px 48px', borderRadius: '16px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600 }} 
                         />
                     </div>
@@ -179,18 +236,19 @@ const Purchases = () => {
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>FACTURE / FOURNISSEUR</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>DESCRIPTION</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>DATE</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ARTICLES</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>STATUT</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'right' }}>MONTANT TOTAL</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredPurchases.length === 0 ? (
+                            {currentItems.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                                         Aucun achat trouvé.
                                     </td>
                                 </tr>
-                            ) : filteredPurchases.map((purchase) => {
+                            ) : currentItems.map((purchase) => {
                                 const fourName = fournisseurs.find(f => f.id === purchase.fournisseurId)?.nom || 'Fournisseur Inconnu';
                                 const st = getStatusStyle(purchase.statut);
                                 return (
@@ -198,7 +256,13 @@ const Purchases = () => {
                                         key={purchase.id} 
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
+                                        onClick={() => {
+                                            setSelectedPurchase(purchase);
+                                            setShowDetailModal(true);
+                                        }}
                                         style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s', cursor: 'pointer' }}
+                                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                     >
                                         <td style={{ padding: '16px' }}>
                                             <div style={{ fontWeight: 800 }}>{purchase.numeroFacture || `Achat #${purchase.id}`}</div>
@@ -207,127 +271,390 @@ const Purchases = () => {
                                         <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{purchase.description || '-'}</td>
                                         <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 600 }}>{new Date(purchase.createdAt).toLocaleDateString('fr-FR')}</td>
                                         <td style={{ padding: '16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}>
+                                                <Package size={14} color="var(--primary)" /> {purchase.articles?.length || 0}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '16px' }}>
                                             <span style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: st.bg, color: st.color }}>
                                                 {purchase.statut || 'Inconnu'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{purchase.montantTotal?.toLocaleString() || 0} {currency}</td>
+                                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{purchase.montantTotal?.toLocaleString() || 0} {purchase.devise || currency}</td>
                                     </motion.tr>
                                 );
                             })}
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
+                        Affichage de <span style={{ color: 'var(--text-main)' }}>{indexOfFirstItem + 1}</span> à <span style={{ color: 'var(--text-main)' }}>{Math.min(indexOfLastItem, filteredPurchases.length)}</span> sur <span style={{ color: 'var(--text-main)' }}>{filteredPurchases.length}</span> achats
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
+                        >
+                            Précédent
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => {
+                            const pageNum = i + 1;
+                            if (totalPages > 5 && Math.abs(pageNum - currentPage) > 1 && pageNum !== 1 && pageNum !== totalPages) {
+                                if (pageNum === 2 || pageNum === totalPages - 1) return <span key={pageNum} style={{ color: 'var(--text-muted)' }}>...</span>;
+                                return null;
+                            }
+                            return (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    style={{ 
+                                        width: '40px', height: '40px', borderRadius: '12px', 
+                                        background: currentPage === pageNum ? 'var(--primary)' : 'var(--bg-card)', 
+                                        color: currentPage === pageNum ? 'white' : 'var(--text-main)', 
+                                        fontWeight: 800, cursor: 'pointer', border: currentPage === pageNum ? 'none' : '1px solid var(--border)' 
+                                    }}
+                                >
+                                    {pageNum}
+                                </button>
+                            );
+                        })}
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
+                        >
+                            Suivant
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Modal de création d'achat */}
             <AnimatePresence>
                 {showModal && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '500px', background: 'var(--bg-card)', padding: '32px', borderRadius: '24px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <Package size={24} color="var(--primary)" /> Enregistrer un Achat
+                    <div
+                        onClick={() => setShowModal(false)}
+                        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}
+                    >
+                        <motion.div
+                            onClick={e => e.stopPropagation()}
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="premium-card"
+                            style={{
+                                width: '100%', maxWidth: '560px',
+                                background: 'var(--bg-card)',
+                                borderRadius: '24px',
+                                display: 'flex', flexDirection: 'column',
+                                maxHeight: '90vh', overflow: 'hidden'
+                            }}
+                        >
+                            {/* ── Sticky Header ── */}
+                            <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                                <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Package size={22} color="var(--primary)" /> Enregistrer un Achat
                                 </h2>
-                                <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+                                <button onClick={() => setShowModal(false)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
                             </div>
 
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
-                                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Maison / Fournisseur (Sélection et écriture)</label>
+                            {/* ── Scrollable Body ── */}
+                            <div style={{ overflowY: 'auto', flex: 1, padding: '20px 28px' }}>
+                            <form id="purchase-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                                {/* Fournisseur */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fournisseur / Maison</label>
                                     <div style={{ position: 'relative' }}>
-                                        <Truck size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                                        <input 
-                                            type="text" 
-                                            value={formData.fournisseurNom} 
-                                            autoComplete="off"
+                                        <Truck size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input
+                                            type="text" value={formData.fournisseurNom} autoComplete="off"
                                             onFocus={() => setShowFournisseurSuggestions(true)}
                                             onBlur={() => setTimeout(() => setShowFournisseurSuggestions(false), 200)}
                                             onChange={e => {
                                                 const val = e.target.value;
                                                 const match = fournisseurs.find(f => f.nom === val);
-                                                setFormData({
-                                                    ...formData, 
-                                                    fournisseurNom: val, 
-                                                    fournisseurId: match ? match.id : ''
-                                                });
+                                                setFormData({ ...formData, fournisseurNom: val, fournisseurId: match ? match.id : null });
                                             }}
-                                            placeholder="Tapez ou sélectionnez un fournisseur..." 
-                                            style={{ width: '100%', padding: '14px 14px 14px 44px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, boxSizing: 'border-box' }}
+                                            placeholder="Tapez ou sélectionnez..."
+                                            style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
                                         />
                                     </div>
-                                    
                                     {showFournisseurSuggestions && (
-                                        <div style={{ 
-                                            position: 'absolute', top: '100%', left: 0, right: 0, 
-                                            background: 'var(--bg-card)', border: '1px solid var(--border)', 
-                                            borderRadius: '12px', marginTop: '8px', maxHeight: '200px', 
-                                            overflowY: 'auto', zIndex: 10, boxShadow: 'var(--shadow-lg)' 
-                                        }}>
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', maxHeight: '180px', overflowY: 'auto', zIndex: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
                                             {fournisseurs.filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase())).length === 0 ? (
-                                                <div style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                                                    " {formData.fournisseurNom} " (Nouveau fournisseur)
-                                                </div>
-                                            ) : fournisseurs
-                                                .filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase()))
-                                                .map(f => (
-                                                    <div 
-                                                        key={f.id} 
-                                                        onClick={() => {
-                                                            setFormData({...formData, fournisseurNom: f.nom, fournisseurId: f.id});
-                                                            setShowFournisseurSuggestions(false);
-                                                        }}
-                                                        style={{ padding: '12px 16px', cursor: 'pointer', transition: '0.2s', borderBottom: '1px solid var(--border)', fontWeight: 600 }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-main)'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                                    >
-                                                        {f.nom}
-                                                    </div>
-                                                ))
-                                            }
+                                                <div style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>"{ formData.fournisseurNom }" — nouveau fournisseur</div>
+                                            ) : fournisseurs.filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase())).map(f => (
+                                                <div key={f.id} onClick={() => { setFormData({ ...formData, fournisseurNom: f.nom, fournisseurId: f.id }); setShowFournisseurSuggestions(false); }}
+                                                    style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontWeight: 600 }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >{f.nom}</div>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>N° Facture/Reçu</label>
+                                {/* Facture + Statut */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>N° Facture</label>
                                         <div style={{ position: 'relative' }}>
-                                            <FileText size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                                            <input required type="text" value={formData.numeroFacture} onChange={e => setFormData({...formData, numeroFacture: e.target.value})} placeholder="Fac-XX" style={{ width: '100%', padding: '14px 14px 14px 38px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, boxSizing: 'border-box' }} />
+                                            <FileText size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                            <input required type="text" value={formData.numeroFacture} onChange={e => setFormData({ ...formData, numeroFacture: e.target.value })} placeholder="FAC-001" style={{ width: '100%', padding: '12px 12px 12px 36px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }} />
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Montant Total ({currency})</label>
-                                        <input required type="number" min="0" value={formData.montantTotal} onChange={e => setFormData({...formData, montantTotal: e.target.value})} placeholder="Ex: 50000" style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, boxSizing: 'border-box' }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Statut</label>
+                                        <select value={formData.statut} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
+                                            <option value="En attente">En attente</option>
+                                            <option value="Expédié">En livraison</option>
+                                            <option value="Reçu">Reçu en stock</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Description de l'achat</label>
-                                    <input required type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Ex: Achat de 50 cartons de lait..." style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, boxSizing: 'border-box' }} />
+                                {/* Devise + Taux de change */}
+                                <div style={{ background: 'var(--primary-glow)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', alignItems: 'end' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Devise de la facture</label>
+                                            <select value={formData.devise} onChange={e => setFormData({ ...formData, devise: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700, appearance: 'none' }}>
+                                                <option value="USD">🇺🇸 USD — Dollar</option>
+                                                <option value="CDF">🇨🇩 CDF — Franc Congolais</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Taux : 1 USD =</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input
+                                                    type="number" min={1} value={exchangeRate}
+                                                    onChange={e => setExchangeRate(Number(e.target.value) || 1)}
+                                                    style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700 }}
+                                                />
+                                                <span style={{ fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>CDF</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)' }}>Statut de l'achat</label>
-                                    <select 
-                                        value={formData.statut} 
-                                        onChange={e => setFormData({...formData, statut: e.target.value})}
-                                        style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontWeight: 600, appearance: 'none' }}
-                                    >
-                                        <option value="En attente">En attente d'expédition</option>
-                                        <option value="Expédié">En cours de livraison</option>
-                                        <option value="Reçu">Reçu dans le stock</option>
-                                    </select>
+                                {/* Recherche produit */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ajouter des articles</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input
+                                            type="text" value={productSearch}
+                                            onFocus={() => setShowProductSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                                            onChange={e => setProductSearch(e.target.value)}
+                                            placeholder="Rechercher un produit..."
+                                            style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
+                                        />
+                                    </div>
+                                    {showProductSuggestions && productSearch && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 21, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                                            {allProducts.filter(p => p.nom.toLowerCase().includes(productSearch.toLowerCase())).map(p => {
+                                                // Show price converted to selected invoice currency
+                                                const displayPrice = formData.devise === 'USD'
+                                                    ? (p.prixAchat || 0)
+                                                    : Math.round((p.prixAchat || 0) * exchangeRate);
+                                                return (
+                                                    <div key={p.id}
+                                                        onClick={() => {
+                                                            const existing = items.find((i: any) => i.id === p.id);
+                                                            // Store price in invoice currency
+                                                            const convertedPrice = formData.devise === 'USD'
+                                                                ? (p.prixAchat || 0)
+                                                                : Math.round((p.prixAchat || 0) * exchangeRate);
+                                                            if (existing) {
+                                                                setItems(items.map((i: any) => i.id === p.id ? { ...i, quantite: i.quantite + 1 } : i));
+                                                            } else {
+                                                                setItems([...items, { id: p.id, nom: p.nom, quantite: 1, prixAchat: convertedPrice }]);
+                                                            }
+                                                            setProductSearch('');
+                                                            setShowProductSuggestions(false);
+                                                        }}
+                                                        style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        <span>{p.nom}</span>
+                                                        <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{displayPrice.toLocaleString()} {formData.devise}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                                    <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>Annuler</button>
-                                    <button type="submit" disabled={submitting} className="btn-premium primary" style={{ padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Enregistrer
-                                    </button>
+                                {/* Liste des articles */}
+                                {items.length > 0 && (
+                                    <div style={{ background: 'var(--bg-main)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 70px 130px 32px', gap: '8px' }}>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Article</span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Qté</span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>Sous-total</span>
+                                            <span></span>
+                                        </div>
+                                        {items.map((item: any, idx: number) => (
+                                            <div key={idx} style={{ padding: '10px 14px', display: 'grid', gridTemplateColumns: '1fr 70px 130px 32px', gap: '8px', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+                                                <span style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nom}</span>
+                                                <input
+                                                    type="number" min={1} value={item.quantite}
+                                                    onChange={e => setItems(items.map((it: any, i: number) => i === idx ? { ...it, quantite: parseInt(e.target.value) || 1 } : it))}
+                                                    style={{ padding: '6px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', textAlign: 'center', fontWeight: 700, width: '100%' }}
+                                                />
+                                                <div style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9rem' }}>
+                                                    {(item.quantite * item.prixAchat).toLocaleString()}
+                                                    <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: '3px' }}>{formData.devise}</span>
+                                                </div>
+                                                <button type="button" onClick={() => setItems(items.filter((_: any, i: number) => i !== idx))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><X size={15} /></button>
+                                            </div>
+                                        ))}
+                                        {/* Totals row */}
+                                        {(() => {
+                                            const totalBase = items.reduce((acc: number, i: any) => acc + (i.quantite * i.prixAchat), 0);
+                                            const totalConverted = formData.devise === 'USD'
+                                                ? Math.round(totalBase * exchangeRate)
+                                                : Math.round(totalBase / exchangeRate * 100) / 100;
+                                            const otherDevise = formData.devise === 'USD' ? 'CDF' : 'USD';
+                                            return (
+                                                <div style={{ padding: '12px 14px', background: 'var(--primary-glow)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>
+                                                        <span>TOTAL AUTO :</span>
+                                                        <span>{totalBase.toLocaleString()} {formData.devise}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                                        <span>≈ Équivalent {otherDevise} :</span>
+                                                        <span>{totalConverted.toLocaleString()} {otherDevise}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+
+                                {/* Montant final */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Montant Final ({formData.devise})</label>
+                                    <input
+                                        required type="number" value={formData.montantTotal}
+                                        onChange={e => setFormData({ ...formData, montantTotal: e.target.value })}
+                                        placeholder="Montant total à payer..."
+                                        style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1.2rem', fontWeight: 800, boxSizing: 'border-box' }}
+                                    />
+                                    {items.length > 0 && (
+                                        <button type="button"
+                                            onClick={() => setFormData({ ...formData, montantTotal: items.reduce((acc: number, i: any) => acc + (i.quantite * i.prixAchat), 0).toString() })}
+                                            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                                        >↑ Utiliser le total calculé</button>
+                                    )}
                                 </div>
+
+                                {/* Description */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description / Note</label>
+                                    <input required type="text" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Achat mensuel..." style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }} />
+                                </div>
+
                             </form>
+                            </div>
+
+                            {/* ── Sticky Footer ── */}
+                            <div style={{ padding: '16px 28px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0, background: 'var(--bg-card)' }}>
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>Annuler</button>
+                                <button form="purchase-form" type="submit" disabled={submitting} className="btn-premium primary" style={{ padding: '12px 28px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Enregistrer l'achat
+                                </button>
+                            </div>
+
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal de détails d'achat */}
+            <AnimatePresence>
+                {showDetailModal && selectedPurchase && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '32px', borderRadius: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <FileText size={24} color="var(--primary)" /> Détails de l'Achat
+                                </h2>
+                                <button onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Facture</label>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Fournisseur</label>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || 'Fournisseur Inconnu'}</div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Date</label>
+                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>{new Date(selectedPurchase.createdAt).toLocaleString('fr-FR', { hour12: false })}</div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Statut</label>
+                                    <div>
+                                        <span style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, backgroundColor: getStatusStyle(selectedPurchase.statut).bg, color: getStatusStyle(selectedPurchase.statut).color }}>
+                                            {selectedPurchase.statut}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '24px' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Package size={18} /> Articles Commandés
+                                </h3>
+                                <div style={{ background: 'var(--bg-main)', borderRadius: '16px', overflow: 'hidden' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>ARTICLE</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>QTÉ</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>P.U.</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>TOTAL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedPurchase.articles && selectedPurchase.articles.length > 0 ? (
+                                                selectedPurchase.articles.map((art: any, idx: number) => (
+                                                    <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                        <td style={{ padding: '12px', fontWeight: 700, fontSize: '0.9rem' }}>{art.nom}</td>
+                                                        <td style={{ padding: '12px', textAlign: 'center', fontWeight: 600 }}>{art.quantite}</td>
+                                                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>{art.prixAchat?.toLocaleString()}</td>
+                                                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 800 }}>{(art.quantite * (art.prixAchat || 0)).toLocaleString()}</td>
+                                                    </tr>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>Aucun article détaillé.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>MONTANT TOTAL</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{selectedPurchase.montantTotal?.toLocaleString()} {currency}</div>
+                            </div>
+
+                            <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>Fermer</button>
+                            </div>
                         </motion.div>
                     </div>
                 )}

@@ -38,6 +38,7 @@ LUMO est une plateforme ERP/POS (Entreprise Resource Planning / Point of Sale) m
 *   **Validation KYC** : Système de "Noyau Actif" où les comptes doivent être validés par le SuperAdmin.
 *   **Vérification OTP** : Validation obligatoire de l'email par code à 6 chiffres lors de l'inscription.
 *   **RBAC (Role-Based Access Control)** : Distinction entre Admin (gérant de boutique) et SuperAdmin (gestionnaire de la plateforme).
+*   **Sécurité Durcie** : Protection CSRF, validation TLS pour les emails, et blacklist JWT pour la révocation des sessions.
 
 ### 🧠 Intelligence Artificielle
 *   **Moteur DeepSeek** : Intégration via l'API OpenAI pour générer des insights basés sur les données réelles de la boutique (Ventes, Stocks, Pertes).

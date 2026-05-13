@@ -9,20 +9,48 @@ const {
   suspendUser,
   validateUser,
   deleteUser,
-  verifyUserEmail
+  verifyUserEmail,
+  getNewsletterSubscribers,
+  getGlobalSettings,
+  updateGlobalSetting,
+  impersonateUser
 } = require('../controllers/superAdminController');
 
 // Toutes les routes superadmin sont protégées et réservées au rôle superadmin
 router.use(protect, authorize('superadmin'));
 
+/**
+ * @swagger
+ * tags:
+ *   name: SuperAdmin
+ *   description: Administration globale de la plateforme (Réservé SuperAdmin)
+ */
+
+/**
+ * @swagger
+ * /api/superadmin/users:
+ *   get:
+ *     summary: Liste de tous les utilisateurs/instances
+ *     tags: [SuperAdmin]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Liste récupérée
+ */
 router.get('/users', getSuperadminUsers);
+
 router.put('/users/:id/suspend', suspendUser);
 router.put('/users/:id/validate', validateUser);
 router.put('/users/:id/verify', verifyUserEmail);
+router.post('/users/:id/impersonate', impersonateUser);
 router.delete('/users/:id', deleteUser);
 
 router.get('/logs', getSuperadminLogs);
 router.get('/stats', getSuperadminStats);
+router.get('/newsletter', getNewsletterSubscribers);
 router.post('/notify', broadcastNotification);
+
+router.get('/settings', getGlobalSettings);
+router.post('/settings', updateGlobalSetting);
 
 module.exports = router;

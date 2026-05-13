@@ -41,25 +41,6 @@ import { exportToExcel } from '../utils/exportUtils';
 import { Download } from 'lucide-react';
 
 // ──────────────────────────────────────────────
-// Global App Search Config
-// ──────────────────────────────────────────────
-const APP_ROUTES = [
-  { label: 'Tableau de Bord', icon: LayoutDashboard, path: '/dashboard', desc: 'Vue générale de votre commerce', tags: ['accueil', 'dashboard', 'tableau'] },
-  { label: 'Caisse (POS)', icon: ShoppingCart, path: '/pos', desc: 'Terminal de vente rapide', tags: ['pos', 'caisse', 'vente', 'paiement'] },
-  { label: 'Produits & Stocks', icon: Package, path: '/products', desc: 'Gestion des produits et inventaire', tags: ['produits', 'stock', 'inventaire', 'articles'] },
-  { label: 'Clients', icon: Users, path: '/clients', desc: 'Gestion de votre clientèle', tags: ['clients', 'acheteurs', 'contact'] },
-  { label: 'Ventes', icon: Wallet, path: '/sales', desc: 'Historique des transactions', tags: ['ventes', 'transactions', 'historique'] },
-  { label: 'Achats', icon: TrendingUp, path: '/purchases', desc: 'Factures et achats fournisseurs', tags: ['achats', 'factures', 'fournisseurs'] },
-  { label: 'Dettes & Crédits', icon: CreditCard, path: '/dettes', desc: 'Suivi des dettes clients et fournisseurs', tags: ['dettes', 'crédit', 'remboursement'] },
-  { label: 'Fournisseurs', icon: Truck, path: '/fournisseurs', desc: 'Gestion des fournisseurs', tags: ['fournisseurs', 'approvisionnement', 'livraison'] },
-  { label: 'Statistiques', icon: BarChart3, path: '/stats', desc: 'Analyses et rapports', tags: ['stats', 'statistiques', 'rapports', 'analyses'] },
-  { label: 'Activités', icon: Activity, path: '/activities', desc: 'Journal des activités', tags: ['activités', 'journal', 'logs'] },
-  { label: 'Paramètres', icon: Settings, path: '/settings', desc: 'Configuration du compte et des modules', tags: ['paramètres', 'settings', 'configuration', 'profil'] },
-  { label: 'Notifications', icon: Bell, path: '/settings', desc: 'Gérer les notifications', tags: ['notifications', 'alertes', 'messages'] },
-  { label: 'SuperAdmin', icon: ShieldCheck, path: '/superadmin', desc: 'Panneau d\'administration global', tags: ['admin', 'superadmin', 'administration'] },
-];
-
-// ──────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────
 interface ClientDebt {
@@ -82,17 +63,20 @@ interface ActionMenuState {
 // Component
 // ──────────────────────────────────────────────
 const Dettes = () => {
-  const { currency, enabledModules } = useAuthStore();
+  const { currency, enabledModules, exchangeRate } = useAuthStore();
   const navigate = useNavigate();
+
+  // Helper for currency conversion
+  const convertAmount = useCallback((amount: number) => {
+    if (!exchangeRate || exchangeRate === 0) return amount;
+    // Assuming DB values are in CDF
+    if (currency === 'USD') return Math.round((amount / exchangeRate) * 100) / 100;
+    return amount;
+  }, [currency, exchangeRate]);
 
   // Data
   const [clients, setClients] = useState<ClientDebt[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Global search
-  const [globalSearch, setGlobalSearch] = useState('');
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
 
   // Debt list search & filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,12 +92,31 @@ const Dettes = () => {
   const [settleAmount, setSettleAmount] = useState('');
   const [settleLoading, setSettleLoading] = useState(false);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   // ── Fetch clients ──────────────────────────
   const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/clients');
-      const withDebt = (data as any[])
+      const response = await api.get(`/clients?limit=1000&_t=${Date.now()}`);
+      const resData = response.data;
+
+      let clientsList = [];
+      if (resData.success && resData.data) {
+        if (Array.isArray(resData.data.data)) {
+          clientsList = resData.data.data;
+        } else if (Array.isArray(resData.data)) {
+          clientsList = resData.data;
+        }
+      } else {
+        if (Array.isArray(resData)) clientsList = resData;
+        else if (resData && Array.isArray(resData.data)) clientsList = resData.data;
+        else if (resData && Array.isArray(resData.clients)) clientsList = resData.clients;
+      }
+
+      const withDebt = clientsList
         .filter((c: any) => parseFloat(c.detteTotale) > 0)
         .map((c: any) => ({
           id: c.id,
@@ -124,7 +127,8 @@ const Dettes = () => {
           type: 'client' as const,
         }));
       setClients(withDebt);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error('Impossible de charger les dettes');
     } finally {
       setLoading(false);
@@ -139,41 +143,44 @@ const Dettes = () => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setActionMenu(prev => ({ ...prev, open: false }));
       }
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowSearchResults(false);
-      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // ── Global search results ─────────────────
-  const searchResults = globalSearch.trim().length > 0
-    ? APP_ROUTES.filter(r => {
-        const q = globalSearch.toLowerCase();
-        return r.label.toLowerCase().includes(q) ||
-          r.desc.toLowerCase().includes(q) ||
-          r.tags.some(t => t.includes(q));
-      }).slice(0, 6)
-    : [];
-
   // ── Debt stats ────────────────────────────
   const totalDebt = clients.reduce((s, c) => s + c.detteTotale, 0);
-  const urgentCount = clients.filter(c => c.detteTotale > 100000).length;
-  const normalCount = clients.filter(c => c.detteTotale > 0 && c.detteTotale <= 100000).length;
+  const totalDebtConverted = convertAmount(totalDebt);
+  const urgentLimit = currency === 'USD' ? 50 : 100000;
+  const urgentCount = clients.filter(c => convertAmount(c.detteTotale) > urgentLimit).length;
+  const normalCount = clients.filter(c => {
+    const amt = convertAmount(c.detteTotale);
+    return amt > 0 && amt <= urgentLimit;
+  }).length;
 
   // ── Filter & search list ──────────────────
   const filtered = clients.filter(c => {
     const matchSearch = c.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.telephone || '').includes(searchTerm) ||
       (c.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const amt = convertAmount(c.detteTotale);
     const matchFilter =
       filterStatus === 'all' ? true :
-      filterStatus === 'urgent' ? c.detteTotale > 100000 :
-      filterStatus === 'normal' ? c.detteTotale <= 100000 :
-      c.detteTotale === 0;
+        filterStatus === 'urgent' ? amt > urgentLimit :
+          filterStatus === 'normal' ? amt <= urgentLimit :
+            amt === 0;
     return matchSearch && matchFilter;
   });
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   // ── Action menu open ──────────────────────
   const openActionMenu = (e: React.MouseEvent, id: number) => {
@@ -188,13 +195,18 @@ const Dettes = () => {
   const handleSettle = async () => {
     if (!settleModal.client) return;
     const amount = parseFloat(settleAmount);
-    if (!amount || amount <= 0 || amount > settleModal.client.detteTotale) {
+    const maxAllowed = convertAmount(settleModal.client.detteTotale);
+
+    if (!amount || amount <= 0 || amount > maxAllowed + 0.01) {
       toast.error('Montant invalide');
       return;
     }
     setSettleLoading(true);
     try {
-      await api.post(`/clients/${settleModal.client.id}/regler`, { montant: amount });
+      // Convert back to base currency (CDF) for backend
+      const baseAmount = currency === 'USD' ? Math.round(amount * (exchangeRate || 2250)) : amount;
+
+      await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
       toast.success(`${amount.toLocaleString()} ${currency} réglés pour ${settleModal.client.nom} ✅`);
       setSettleModal({ open: false, client: null });
       setSettleAmount('');
@@ -218,14 +230,16 @@ const Dettes = () => {
   };
 
   const getStatusColor = (amount: number) => {
-    if (amount > 100000) return 'var(--danger)';
-    if (amount > 30000) return 'var(--warning)';
+    const amt = convertAmount(amount);
+    if (amt > urgentLimit) return 'var(--danger)';
+    if (amt > (urgentLimit * 0.3)) return 'var(--warning)';
     return 'var(--info)';
   };
 
   const getStatusLabel = (amount: number) => {
-    if (amount > 100000) return 'Urgent';
-    if (amount > 30000) return 'Modéré';
+    const amt = convertAmount(amount);
+    if (amt > urgentLimit) return 'Urgent';
+    if (amt > (urgentLimit * 0.3)) return 'Modéré';
     return 'Normal';
   };
 
@@ -245,104 +259,17 @@ const Dettes = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {/* Global App Search */}
-          <div ref={searchRef} style={{ position: 'relative' }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={16} style={{ position: 'absolute', left: '14px', color: 'var(--text-muted)' }} />
-              <input
-                id="global-app-search"
-                type="text"
-                value={globalSearch}
-                onChange={e => { setGlobalSearch(e.target.value); setShowSearchResults(true); }}
-                onFocus={() => setShowSearchResults(true)}
-                placeholder="Rechercher une fonctionnalité..."
-                style={{
-                  padding: '10px 14px 10px 40px',
-                  borderRadius: '14px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  outline: 'none',
-                  fontSize: '0.9rem',
-                  width: '260px',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.2s'
-                }}
-              />
-              {globalSearch && (
-                <button onClick={() => { setGlobalSearch(''); setShowSearchResults(false); }} style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            <AnimatePresence>
-              {showSearchResults && searchResults.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                  className="premium-card"
-                  style={{
-                    position: 'absolute',
-                    top: '52px',
-                    left: 0,
-                    right: 0,
-                    borderRadius: '20px',
-                    padding: '8px',
-                    zIndex: 2000,
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-                    border: '1px solid var(--border)',
-                    minWidth: '280px'
-                  }}
-                >
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', padding: '6px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Fonctionnalités
-                  </div>
-                  {searchResults.map((r, i) => (
-                    <div
-                      key={i}
-                      onClick={() => { navigate(r.path); setGlobalSearch(''); setShowSearchResults(false); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-glow)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <r.icon size={18} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{r.label}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.desc}</div>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-              {showSearchResults && globalSearch.trim().length > 0 && searchResults.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="premium-card"
-                  style={{ position: 'absolute', top: '52px', left: 0, right: 0, padding: '20px', textAlign: 'center', borderRadius: '16px', border: '1px solid var(--border)' }}
-                >
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>Aucun résultat pour « {globalSearch} »</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           <button className="btn-premium secondary" onClick={fetchClients} title="Actualiser">
             <RefreshCw size={16} />
           </button>
           <button className="btn-premium secondary" onClick={() => {
-              const rows = filtered.map(c => ({
-                  "Client": c.nom,
-                  "Email": c.email || 'N/A',
-                  "Téléphone": c.telephone || 'N/A',
-                  "Dette Restante": c.detteTotale
-              }));
-              exportToExcel(rows, 'Dettes_Report');
+            const rows = filtered.map(c => ({
+              "Client": c.nom,
+              "Email": c.email || 'N/A',
+              "Téléphone": c.telephone || 'N/A',
+              "Dette Restante": c.detteTotale
+            }));
+            exportToExcel(rows, 'Dettes_Report');
           }}>
             <Download size={16} /> Rapport
           </button>
@@ -355,7 +282,7 @@ const Dettes = () => {
       {/* ── Stats Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         {[
-          { label: 'Total des Dettes', value: totalDebt, icon: AlertCircle, color: 'var(--danger)' },
+          { label: 'Total des Dettes', value: totalDebtConverted, icon: AlertCircle, color: 'var(--danger)' },
           { label: 'Débiteurs Urgents', value: urgentCount, icon: Clock, color: 'var(--warning)', unit: ' clients', noFormat: true },
           { label: 'Créances Normales', value: normalCount, icon: CheckCircle2, color: 'var(--success)', unit: ' clients', noFormat: true },
         ].map((s, i) => (
@@ -425,8 +352,8 @@ const Dettes = () => {
                 >
                   {[
                     { id: 'all', label: 'Tous les clients' },
-                    { id: 'urgent', label: '🔴 Urgent (> 100k)' },
-                    { id: 'normal', label: '🟡 Normal (≤ 100k)' },
+                    { id: 'urgent', label: `🔴 Urgent (> ${urgentLimit.toLocaleString()} ${currency})` },
+                    { id: 'normal', label: `🟡 Normal (≤ ${urgentLimit.toLocaleString()} ${currency})` },
                   ].map(f => (
                     <div
                       key={f.id}
@@ -458,7 +385,7 @@ const Dettes = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {filtered.map((debt, idx) => {
+            {currentItems.map((debt, idx) => {
               const statusColor = getStatusColor(debt.detteTotale);
               const statusLabel = getStatusLabel(debt.detteTotale);
               return (
@@ -499,7 +426,7 @@ const Dettes = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '32px', flexShrink: 0 }}>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontWeight: 950, fontSize: '1.2rem', color: statusColor }}>
-                        {debt.detteTotale.toLocaleString()} {currency}
+                        {convertAmount(debt.detteTotale).toLocaleString()} {currency}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
                         {statusLabel}
@@ -541,10 +468,47 @@ const Dettes = () => {
           </div>
         )}
 
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
+            >
+              Précédent
+            </button>
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                style={{
+                  width: '40px', height: '40px',
+                  borderRadius: '12px',
+                  border: currentPage === i + 1 ? 'none' : '1px solid var(--border)',
+                  background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)',
+                  color: currentPage === i + 1 ? 'white' : 'var(--text-main)',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
+            >
+              Suivant
+            </button>
+          </div>
+        )}
+
         {/* Count label */}
         {!loading && filtered.length > 0 && (
           <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-            {filtered.length}/{clients.length} débiteur{clients.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
+            {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filtered.length)} sur {filtered.length} débiteur{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
           </div>
         )}
       </div>
@@ -576,7 +540,7 @@ const Dettes = () => {
               <div style={{ padding: '8px 14px 6px', borderBottom: '1px solid var(--border)', marginBottom: '6px' }}>
                 <div style={{ fontWeight: 900, fontSize: '0.85rem', color: 'var(--text-main)' }}>{activeClient.nom}</div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  {activeClient.detteTotale.toLocaleString()} {currency}
+                  {convertAmount(activeClient.detteTotale).toLocaleString()} {currency}
                 </div>
               </div>
 
@@ -632,14 +596,13 @@ const Dettes = () => {
             />
             {/* Modal */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              initial={{ opacity: 0, scale: 0.9, y: '-40%', x: '-50%' }}
+              animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }}
+              exit={{ opacity: 0, scale: 0.9, y: '-40%', x: '-50%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               className="premium-card"
               style={{
                 position: 'fixed', top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)',
                 width: '460px', maxWidth: '95vw',
                 borderRadius: '28px', padding: '36px',
                 zIndex: 3001, border: '1px solid var(--border)',
@@ -664,7 +627,7 @@ const Dettes = () => {
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px', fontWeight: 500 }}>
                 Client : <strong style={{ color: 'var(--text-main)' }}>{settleModal.client.nom}</strong><br />
-                Solde restant : <strong style={{ color: 'var(--danger)' }}>{settleModal.client.detteTotale.toLocaleString()} {currency}</strong>
+                Solde restant : <strong style={{ color: 'var(--danger)' }}>{convertAmount(settleModal.client.detteTotale).toLocaleString()} {currency}</strong>
               </p>
 
               {/* Amount input */}
@@ -700,10 +663,10 @@ const Dettes = () => {
               {/* Quick amounts */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Tout', val: settleModal.client.detteTotale },
-                  { label: '75%', val: Math.round(settleModal.client.detteTotale * 0.75) },
-                  { label: '50%', val: Math.round(settleModal.client.detteTotale * 0.5) },
-                  { label: '25%', val: Math.round(settleModal.client.detteTotale * 0.25) },
+                  { label: 'Tout', val: convertAmount(settleModal.client.detteTotale) },
+                  { label: '75%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.75 * 100) / 100 },
+                  { label: '50%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.5 * 100) / 100 },
+                  { label: '25%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.25 * 100) / 100 },
                 ].map(q => (
                   <button
                     key={q.label}

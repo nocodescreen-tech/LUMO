@@ -23,6 +23,10 @@ const Purchase = sequelize.define('Purchase', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    articles: {
+        type: DataTypes.JSONB,
+        defaultValue: []
+    },
     montantTotal: {
         type: DataTypes.FLOAT,
         allowNull: false,
@@ -31,9 +35,19 @@ const Purchase = sequelize.define('Purchase', {
     statut: {
         type: DataTypes.STRING,
         defaultValue: 'Payé'
+    },
+    devise: {
+        type: DataTypes.STRING,
+        defaultValue: 'USD'
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    indexes: [
+        { fields: ['userId'] },
+        { fields: ['fournisseurId'] },
+        { fields: ['createdAt'] },
+        { fields: ['statut'] }
+    ]
 });
 
 module.exports = Purchase;

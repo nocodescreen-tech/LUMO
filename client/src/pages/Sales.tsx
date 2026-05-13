@@ -12,6 +12,7 @@ import {
   Clock,
   Printer,
   ChevronRight,
+  ChevronDown,
   Loader2,
   Package,
   Zap,
@@ -21,12 +22,14 @@ import {
   DollarSign,
   PieChart,
   MoreVertical,
-  Trash2
+  Trash2,
+  RotateCcw,
+  RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { generateInvoice } from '../utils/printHelpers';
+import { generateInvoice, generateTicket } from '../utils/printHelpers';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
@@ -43,13 +46,19 @@ interface Sale {
         nom: string;
         email: string;
     };
+    vendeur?: {
+        nom: string;
+    };
+    devise?: string;
+    tauxChange?: number;
     createdAt: string;
     updatedAt: string;
+    statut?: string;
 }
 
 const Sales = () => {
     const navigate = useNavigate();
-    const { currency, user } = useAuthStore();
+    const { currency, user, exchangeRate } = useAuthStore();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -62,14 +71,51 @@ const Sales = () => {
     const [actionMenuId, setActionMenuId] = useState<number | null>(null);
     const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+
     useEffect(() => {
         fetchSales();
     }, []);
 
+    const getNormalizedAmount = (sale: any) => {
+        const amt = sale.montantTotal || 0;
+        const saleDevise = sale.devise || 'CDF';
+        const rate = sale.tauxChange || exchangeRate || 2500;
+        
+        if (saleDevise === currency) return amt;
+        
+        if (saleDevise === 'USD' && currency === 'CDF') return Math.round(amt * rate);
+        if (saleDevise === 'CDF' && currency === 'USD') return Math.round((amt / rate) * 100) / 100;
+        
+        return amt;
+    };
+
     const fetchSales = async () => {
         try {
-            const { data } = await api.get('/sales');
-            setSales(data);
+            const response = await api.get(`/sales?limit=200&_t=${Date.now()}`);
+            const resData = response.data;
+            
+            let salesList = [];
+            
+            // Structure standard: { success, data: { data: [] } }
+            if (resData.success && resData.data) {
+                if (Array.isArray(resData.data.data)) {
+                    salesList = resData.data.data;
+                } else if (Array.isArray(resData.data)) {
+                    salesList = resData.data;
+                }
+            }
+            // Fallback
+            else {
+                const data = resData;
+                if (Array.isArray(data)) salesList = data;
+                else if (data && Array.isArray(data.data)) salesList = data.data;
+                else if (data && Array.isArray(data.sales)) salesList = data.sales;
+            }
+            
+            setSales(salesList);
         } catch (error) {
             toast.error("Impossible de charger l'historique");
         } finally {
@@ -77,9 +123,15 @@ const Sales = () => {
         }
     };
 
+
     const handlePrint = (sale: any) => {
         toast("Génération de la facture...");
         generateInvoice(sale, user);
+    };
+
+    const handlePrintTicket = (sale: any) => {
+        toast("Génération du ticket...");
+        generateTicket(sale, user);
     };
 
     const deleteSale = async (id: number) => {
@@ -102,15 +154,36 @@ const Sales = () => {
     const handleAllDelete = async () => {
         setConfirmModal({
             isOpen: true,
-            title: "RAZ HISTORIQUE",
-            message: "ATTENTION : Voulez-vous vraiment effacer TOUT l'historique de vos ventes ? Cette action est irréversible et supprimera toutes les données de rapports.",
+            title: "SUPPRESSION TOTALE",
+            message: "ATTENTION : Voulez-vous vraiment supprimer TOUT l'historique des ventes ? Cette action est irréversible et les stocks seront restitués.",
             onConfirm: async () => {
                 try {
+                    setLoading(true);
                     await api.delete('/sales/all');
-                    toast.success("Historique des ventes vidé.");
+                    toast.success("Historique des ventes vidé avec succès !");
                     fetchSales();
-                } catch (error) {
-                    toast.error("Erreur lors de la remise à zéro");
+                } catch (error: any) {
+                    toast.error(error.response?.data?.message || "Échec de la suppression massive");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+    };
+    const handleRefund = async (sale: any) => {
+        if (sale.statut === 'Remboursée') return;
+
+        setConfirmModal({
+            isOpen: true,
+            title: "Rembourser Vente",
+            message: `Confirmez-vous le remboursement de la vente #${sale.id} ? Le stock sera réintégré et le montant marqué comme remboursé.`,
+            onConfirm: async () => {
+                try {
+                    await api.post(`/sales/${sale.id}/refund`);
+                    toast.success("Vente remboursée avec succès !");
+                    fetchSales();
+                } catch (error: any) {
+                    toast.error(error.response?.data?.message || "Échec du remboursement");
                 }
             }
         });
@@ -125,11 +198,13 @@ const Sales = () => {
             "Date": new Date(s.createdAt).toLocaleDateString(),
             "Méthode Paiement": s.methodePaiement,
             "Nb Articles": s.articles?.length || 0,
-            "Montant Total": s.montantTotal,
-            "Remise": s.remise || 0
+            "Montant (Original)": `${s.montantTotal} ${s.devise}`,
+            "Montant (Normalisé)": `${getNormalizedAmount(s)} ${currency}`,
+            "Remise": s.remise || 0,
+            "Taux": s.tauxChange || exchangeRate
         }));
 
-        exportToExcel(rows, 'Ventes_Report');
+        exportToExcel(rows, `Rapport_Ventes_${currency}`);
         toast.success("Exportation Excel réussie");
     };
 
@@ -142,13 +217,24 @@ const Sales = () => {
         return matchesSearch && matchesDate && matchesMethod;
     });
 
+    // Pagination Logic
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterDate, filterMethod]);
+
     // Report Calculations
     const reportStats = {
-        totalRevenue: filteredSales.reduce((acc, s) => acc + s.montantTotal, 0),
+        totalRevenue: filteredSales.reduce((acc, s) => acc + getNormalizedAmount(s), 0),
         count: filteredSales.length,
-        averageValue: filteredSales.length > 0 ? filteredSales.reduce((acc, s) => acc + s.montantTotal, 0) / filteredSales.length : 0,
+        averageValue: filteredSales.length > 0 ? filteredSales.reduce((acc, s) => acc + getNormalizedAmount(s), 0) / filteredSales.length : 0,
         methodSplit: filteredSales.reduce((acc: any, s) => {
-            acc[s.methodePaiement] = (acc[s.methodePaiement] || 0) + s.montantTotal;
+            const normalizedAmt = getNormalizedAmount(s);
+            acc[s.methodePaiement] = (acc[s.methodePaiement] || 0) + normalizedAmt;
             return acc;
         }, {})
     };
@@ -170,14 +256,54 @@ const Sales = () => {
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Suivi analytique de toutes vos transactions commerciales.</p>
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
-                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> Rapports Financiers</button>
-                    <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> Rapport</button>
-                    {sales.length > 0 && (
-                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                            <Trash2 size={18} /> Purger Historique
-                        </button>
+                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> Rapports</button>
+                    <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> Excel</button>
+                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> Vider</button>
                     )}
                     <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> Nouvelle Vente</button>
+                </div>
+            </div>
+
+            {/* Stats Cards Section */}
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(99,102,241,0.2)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'var(--primary-glow)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
+                            <TrendingUp size={28} />
+                        </div>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>CHIFFRE D'AFFAIRES</span>
+                    </div>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 900 }}>{currency}</span>
+                    </div>
+                </div>
+
+                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.05) 100%)', border: '1px solid rgba(16,185,129,0.2)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(16,185,129,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
+                            <DollarSign size={28} />
+                        </div>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>PANIER MOYEN</span>
+                    </div>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {Math.round(reportStats.averageValue).toLocaleString()} <span style={{ fontSize: '1rem', color: '#10b981', fontWeight: 900 }}>{currency}</span>
+                    </div>
+                </div>
+
+                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(217,119,6,0.05) 100%)', border: '1px solid rgba(245,158,11,0.2)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(245,158,11,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
+                            <PieChart size={28} />
+                        </div>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>TRANSACTIONS</span>
+                    </div>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {reportStats.count} <span style={{ fontSize: '1rem', color: '#f59e0b', fontWeight: 900 }}>Factures</span>
+                    </div>
                 </div>
             </div>
 
@@ -193,7 +319,7 @@ const Sales = () => {
                           style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }} 
                         />
                     </div>
-                     <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
                         <button 
                             onClick={() => setShowFilters(!showFilters)}
                             style={{ 
@@ -210,9 +336,9 @@ const Sales = () => {
                                 transition: 'all 0.3s'
                             }}
                         >
-                           <Filter size={18} /> {showFilters ? 'Masquer Filtres' : 'Filtre Avancé'}
+                           <Filter size={18} /> {showFilters ? 'Masquer Filtres' : 'Filtres'}
                         </button>
-                     </div>
+                    </div>
                 </div>
 
                 <AnimatePresence>
@@ -225,7 +351,7 @@ const Sales = () => {
                             style={{ overflow: 'hidden', paddingBottom: '32px', display: 'flex', gap: '20px', borderBottom: '1.5px solid var(--border)', marginBottom: '32px' }}
                         >
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>DATE DE TRANSACTION</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>DATE</label>
                                 <input 
                                     type="date" 
                                     value={filterDate}
@@ -234,16 +360,15 @@ const Sales = () => {
                                 />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>MÉTHODE DE PAIEMENT</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>MÉTHODE</label>
                                 <select 
                                     value={filterMethod}
                                     onChange={(e) => setFilterMethod(e.target.value)}
                                     style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
                                 >
-                                    <option value="">Toutes les méthodes</option>
+                                    <option value="">Toutes</option>
                                     <option value="Espèces">Espèces</option>
-                                    <option value="Carte">Carte</option>
-                                    <option value="Mobile Money">Mobile Money</option>
+                                    <option value="Crédit">Crédit</option>
                                 </select>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -251,7 +376,7 @@ const Sales = () => {
                                     onClick={() => { setFilterDate(''); setFilterMethod(''); }}
                                     style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', fontWeight: 800, cursor: 'pointer' }}
                                 >
-                                    Réinitialiser
+                                    RAZ
                                 </button>
                             </div>
                         </motion.div>
@@ -261,65 +386,69 @@ const Sales = () => {
                 <div className="table-responsive">
                     <table style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
-                            <tr style={{ textAlign: 'left' }}>
-                                <th style={{ padding: '0 24px', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Référence / Client</th>
-                                <th style={{ padding: '0 24px', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Date & Méthode</th>
-                                <th style={{ padding: '0 24px', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Statut</th>
-                                <th style={{ padding: '0 24px', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, textAlign: 'right' }}>Montant Total</th>
-                                <th style={{ padding: '0 24px' }}></th>
+                            <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Référence / Client</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Date & Méthode</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Vendeur</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>Montant Total</th>
+                                <th style={{ padding: '16px 24px' }}></th>
                             </tr>
                         </thead>
                         <tbody>
                             <AnimatePresence>
-                                {filteredSales.map((sale, i) => (
+                                {currentItems.map((sale, i) => {
+                                    const normalizedAmt = getNormalizedAmount(sale);
+                                    const isConverted = sale.devise !== currency;
+
+                                    return (
                                     <motion.tr 
                                         key={sale.id}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: i * 0.05 }}
-                                        whileHover={{ backgroundColor: 'var(--sidebar-active)', scale: 1.002 }}
-                                        style={{ border: '1px solid var(--border)', cursor: 'default' }}
+                                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)', scale: 1.002 }}
+                                        style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}
                                     >
-                                        <td style={{ padding: '24px', borderRadius: '24px 0 0 24px' }}>
-                                            <div style={{ fontWeight: 950, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <td style={{ padding: '24px' }}>
+                                            <div style={{ fontWeight: 950, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
                                                 #{sale.id?.toString().slice(-6).toUpperCase()}
                                                 <ArrowUpRight size={14} style={{ opacity: 0.4 }} />
                                             </div>
-                                            <div style={{ fontSize: '0.95rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || 'Client de passage'}</div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || 'Client de passage'}</div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                                <Clock size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleDateString()} · {new Date(sale.createdAt).toLocaleTimeString()}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                                <Calendar size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleDateString()}
                                             </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement}</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement}</div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
-                                            <span style={{ 
-                                                padding: '8px 16px', 
-                                                borderRadius: '12px', 
-                                                fontSize: '0.75rem', 
-                                                fontWeight: 900, 
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                                                color: '#10b981',
-                                                border: '1px solid rgba(16, 185, 129, 0.2)'
-                                            }}>
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></div>
-                                                VALIDÉE
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 900, boxShadow: '0 4px 12px var(--primary-glow)' }}>
+                                                    {sale.vendeur?.nom?.charAt(0) || 'A'}
+                                                </div>
+                                                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{sale.vendeur?.nom || 'Admin'}</span>
+                                            </div>
                                         </td>
                                         <td style={{ padding: '24px', textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 950, fontSize: '1.3rem', color: 'var(--text-main)' }}>{(sale.montantTotal || sale.articles?.reduce((acc: number, art: any) => acc + ((art.quantite || 1) * (art.prixUnitaire || 0)), 0))?.toLocaleString()} {currency}</div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '2px' }}>{sale.articles?.length || 0} articles</div>
+                                            <div style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                                                {sale.montantTotal?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 900 }}>{sale.devise}</span>
+                                            </div>
+                                            {isConverted && (
+                                                <div style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: 950, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                                    <RefreshCcw size={14} /> {normalizedAmt.toLocaleString()} {currency}
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
+                                                {sale.articles?.length || 0} articles · <span style={{ color: sale.statut === 'Remboursée' ? '#ef4444' : '#10b981' }}>{sale.statut || 'Payé'}</span>
+                                            </div>
                                         </td>
-                                        <td style={{ padding: '24px', borderRadius: '0 24px 24px 0' }}>
+                                        <td style={{ padding: '24px' }}>
                                             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', position: 'relative' }}>
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === sale.id ? null : sale.id); }}
-                                                    className="glass"
-                                                    style={{ width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', cursor: 'pointer', border: '1px solid var(--border)' }}
+                                                    className="btn-hover"
+                                                    style={{ width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg-main)' }}
                                                 >
                                                     <MoreVertical size={20} />
                                                 </button>
@@ -348,6 +477,24 @@ const Sales = () => {
                                                             >
                                                                 <Printer size={16} color="var(--primary)" /> Imprimer Facture
                                                             </button>
+                                                            <button 
+                                                                onClick={() => { handlePrintTicket(sale); setActionMenuId(null); }}
+                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
+                                                                onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                            >
+                                                                <Zap size={16} color="#f59e0b" /> Ticket de Caisse
+                                                            </button>
+                                                            {sale.statut !== 'Remboursée' && (
+                                                                <button 
+                                                                    onClick={() => { handleRefund(sale); setActionMenuId(null); }}
+                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--secondary)', fontWeight: 700, borderRadius: '10px' }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = 'var(--secondary-glow)'}
+                                                                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                                >
+                                                                    <RotateCcw size={16} /> Rembourser
+                                                                </button>
+                                                            )}
                                                             <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
                                                             <button 
                                                                 onClick={() => { deleteSale(sale.id); setActionMenuId(null); }}
@@ -363,7 +510,8 @@ const Sales = () => {
                                             </div>
                                         </td>
                                     </motion.tr>
-                                ))}
+                                    );
+                                })}
                             </AnimatePresence>
                         </tbody>
                     </table>
@@ -374,6 +522,47 @@ const Sales = () => {
                             <p style={{ fontWeight: 600 }}>Ajustez vos filtres ou lancez une recherche différente.</p>
                         </div>
                     )}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
+                        <button 
+                            onClick={() => setCurrentPage(currentPage - 1)} 
+                            disabled={currentPage === 1}
+                            style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
+                        >
+                            Précédent
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => (
+                            <button 
+                                key={i} 
+                                onClick={() => setCurrentPage(i + 1)}
+                                style={{ 
+                                    width: '48px', height: '48px',
+                                    borderRadius: '14px', 
+                                    background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)', 
+                                    color: currentPage === i + 1 ? 'white' : 'var(--text-main)',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    border: currentPage === i + 1 ? 'none' : '1px solid var(--border)'
+                                }}
+                            >
+                                {i + 1}
+                            </button>
+                        ))}
+                        <button 
+                            onClick={() => setCurrentPage(currentPage + 1)} 
+                            disabled={currentPage === totalPages}
+                            style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
+                        >
+                            Suivant
+                        </button>
+                    </div>
+                )}
+
+                <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                    Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filteredSales.length)} sur {filteredSales.length} transactions
                 </div>
             </div>
 
@@ -399,7 +588,7 @@ const Sales = () => {
                             </div>
                             <div>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Date</p>
-                                <p style={{ fontWeight: 800 }}>{new Date(selectedSale.createdAt).toLocaleString()}</p>
+                                <p style={{ fontWeight: 800 }}>{new Date(selectedSale.createdAt).toLocaleString('fr-FR', { hour12: false })}</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</p>

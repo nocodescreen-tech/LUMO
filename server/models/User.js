@@ -8,6 +8,12 @@ const User = sequelize.define('User', {
     primaryKey: true,
     autoIncrement: true,
   },
+  tenantId: {
+    type: DataTypes.VIRTUAL,
+    get() {
+      return this.parentId || this.id;
+    }
+  },
   nom: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -26,8 +32,10 @@ const User = sequelize.define('User', {
   },
   motDePasse: {
     type: DataTypes.STRING,
-    // Autorisé à NULL pour supporter d'anciens enregistrements sans mot de passe
-    allowNull: true,
+    allowNull: false,
+    // NOTE: Password strength validation is done at the controller/validator level,
+    // NOT here in the model, because this hook also runs on already-hashed bcrypt values
+    // which would fail a regex check and corrupt the stored hash.
   },
   // Rôle stocké en texte simple pour éviter les problèmes de migration ENUM
   role: {
@@ -70,13 +78,31 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  // 2FA fields
+  twoFactorEnabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  twoFactorCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  twoFactorExpire: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+  },
+  twoFactorSecret: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   entreprise: {
     type: DataTypes.JSONB,
     defaultValue: {
       nom: '',
       logo: '',
-      devise: 'FC',
+      devise: 'CDF',
       adresse: '',
+      exchangeRate: 2800,
     },
   },
   preferences: {
@@ -85,19 +111,46 @@ const User = sequelize.define('User', {
       theme: 'light',
       language: 'fr',
       enabledModules: [],
+      autoBackupEnabled: false,
     },
   },
   lastActivity: {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  chatHistory: {
+    type: DataTypes.JSONB,
+    defaultValue: []
+  },
+  parentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  activeSessions: {
+    type: DataTypes.JSONB,
+    defaultValue: [], // Array of session objects
+  },
+  permissions: {
+    type: DataTypes.JSONB,
+    defaultValue: [], // Array of module IDs
+  },
 }, {
   timestamps: true,
+  indexes: [
+    { unique: true, fields: ['email'] },
+    { fields: ['parentId'] },
+    { fields: ['role'] }
+  ],
   hooks: {
     beforeSave: async (user) => {
-      if (user.changed('motDePasse')) {
-        const salt = await bcrypt.genSalt(10);
-        user.motDePasse = await bcrypt.hash(user.motDePasse, salt);
+      // Guard: only hash if motDePasse changed AND it's not already a bcrypt hash
+      // Bcrypt hashes always start with '$2a$' or '$2b$' — re-hashing them would break login
+      if (user.changed('motDePasse') && user.motDePasse) {
+        const alreadyHashed = user.motDePasse.startsWith('$2a$') || user.motDePasse.startsWith('$2b$');
+        if (!alreadyHashed) {
+          const salt = await bcrypt.genSalt(10);
+          user.motDePasse = await bcrypt.hash(user.motDePasse, salt);
+        }
       }
     },
   },

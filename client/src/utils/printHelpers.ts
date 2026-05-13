@@ -10,6 +10,7 @@ export interface InvoiceData {
     adresse?: string;
     telephone?: string;
     email?: string;
+    logo?: string;
   };
   methodePaiement?: string;
   clientInfo?: {
@@ -21,11 +22,21 @@ export interface InvoiceData {
   montantTotal?: number;
 }
 
+const formatCustomDate = (dateValue: any) => {
+  const d = new Date(dateValue || Date.now());
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year}, ${hours}:${minutes}`;
+};
+
 export const generateInvoice = (data: any, user: any = null) => {
   const invoiceData: InvoiceData = {
     ...data,
     items: data.items || data.articles || [],
-    currency: data.currency || (user?.preferences?.currency) || 'FC',
+    currency: data.currency || (user?.preferences?.currency) || 'CDF',
     entreprise: data.entreprise || user?.entreprise
   };
   
@@ -62,8 +73,9 @@ export const generateInvoice = (data: any, user: any = null) => {
         <div class="invoice-box">
           <div class="header">
             <div>
-               <div class="logo">${invoiceData.entreprise?.nom || 'LumoCommerce'}</div>
-               <p style="color: #64748b; margin-top: 8px;">${invoiceData.entreprise?.adresse || 'Adresse de l\'entreprise'}</p>
+               ${invoiceData.entreprise?.logo ? `<img src="${invoiceData.entreprise.logo}" alt="Logo" style="height: 60px; object-fit: contain; margin-bottom: 12px; display: block;">` : `<div class="logo">${invoiceData.entreprise?.nom || 'LumoCommerce'}</div>`}
+               <div style="font-weight: 800; font-size: 16px;">${invoiceData.entreprise?.nom || ''}</div>
+               <p style="color: #64748b; margin-top: 4px;">${invoiceData.entreprise?.adresse || 'Adresse de l\'entreprise'}</p>
                <p style="color: #64748b;">${invoiceData.entreprise?.telephone || 'Téléphone non défini'}</p>
             </div>
             <div style="text-align: right;">
@@ -81,7 +93,7 @@ export const generateInvoice = (data: any, user: any = null) => {
             <div class="info-block" style="text-align: right; background: #f8fafc; padding: 20px; border-radius: 12px;">
               <h4>Détails de facturation</h4>
               <p style="font-weight: 600; color: #0f172a; margin-top: 4px;">N° Facture: <span style="color: #6366f1;">#${invoiceData.id?.toString().toUpperCase()}</span></p>
-              <p style="font-weight: 600; color: #0f172a;">Date: ${new Date(invoiceData.date || invoiceData.createdAt || Date.now()).toLocaleDateString()}</p>
+              <p style="font-weight: 600; color: #0f172a;">Date: ${formatCustomDate(invoiceData.date || invoiceData.createdAt || Date.now())}</p>
             </div>
           </div>
  
@@ -133,6 +145,310 @@ export const generateInvoice = (data: any, user: any = null) => {
             window.print();
             // window.close();
           };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+export const generateTicket = (data: any, user: any = null) => {
+  const ticketData = {
+    ...data,
+    items: data.items || data.articles || [],
+    currency: data.currency || (user?.preferences?.currency) || 'CDF',
+    entreprise: data.entreprise || user?.entreprise
+  };
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  const html = `
+    <html>
+      <head>
+        <title>Ticket #${ticketData.id}</title>
+        <style>
+          @page { margin: 0; }
+          body { 
+            font-family: 'Courier New', Courier, monospace; 
+            width: 80mm; 
+            margin: 0; 
+            padding: 5mm;
+            font-size: 12px;
+            color: #000;
+          }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .bold { font-weight: bold; }
+          .header { margin-bottom: 5mm; border-bottom: 1px dashed #000; padding-bottom: 2mm; }
+          .logo { font-size: 16px; font-weight: bold; }
+          .item-row { display: flex; justify-content: space-between; margin-bottom: 1mm; }
+          .separator { border-top: 1px dashed #000; margin: 2mm 0; }
+          .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
+          .footer { margin-top: 5mm; font-size: 10px; border-top: 1px dashed #000; padding-top: 2mm; }
+          @media print {
+            body { width: 80mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header text-center">
+          ${ticketData.entreprise?.logo ? `<img src="${ticketData.entreprise.logo}" alt="Logo" style="height: 40px; object-fit: contain; margin-bottom: 4mm;">` : `<div class="logo">${ticketData.entreprise?.nom || 'LumoCommerce'}</div>`}
+          <div style="font-weight: bold; font-size: 14px;">${ticketData.entreprise?.nom || ''}</div>
+          <div>${ticketData.entreprise?.adresse || ''}</div>
+          <div>Tel: ${ticketData.entreprise?.telephone || ''}</div>
+          <div class="separator"></div>
+          <div class="bold">TICKET #${ticketData.id?.toString().toUpperCase()}</div>
+          <div>Date: ${formatCustomDate(ticketData.date || ticketData.createdAt || Date.now())}</div>
+        </div>
+
+        <div class="items">
+          ${(ticketData.items || []).map((item: any) => `
+            <div class="item-row">
+              <div style="flex: 2;">${item.nom}</div>
+              <div style="flex: 1; text-align: center;">x${item.quantite || item.quantity || 1}</div>
+              <div style="flex: 1.5; text-align: right;">${(item.prixUnitaire || item.prix || 0).toLocaleString()}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="separator"></div>
+        
+        <div class="total-row">
+          <span>TOTAL</span>
+          <span>${(ticketData.montantTotal || ticketData.total || 0).toLocaleString()} ${ticketData.currency}</span>
+        </div>
+
+        <div class="footer text-center">
+          <p>Merci de votre visite !</p>
+          <p>A bientôt</p>
+          <div style="margin-top: 5mm;">Logiciel LumoCommerce</div>
+        </div>
+
+        <script>
+          window.onload = () => {
+            window.print();
+            window.close();
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+export const generateMonthlyReport = (data: any, user: any, periodLabel: string) => {
+  const currency = user?.preferences?.currency || 'USD';
+  const logo = user?.entreprise?.logo;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  const html = `
+    <html>
+      <head>
+        <title>Bilan Mensuel - HubCommerce</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+          body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; background: #fff; }
+          .report-box { max-width: 900px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 20px; }
+          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+          .title { font-size: 28px; font-weight: 800; color: #1e293b; }
+          .period { background: #f1f5f9; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 14px; color: #6366f1; }
+          .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+          .stat-card { padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9; background: #f8fafc; }
+          .stat-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+          .stat-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 12px; }
+          td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 600; }
+          .section-title { font-size: 18px; font-weight: 800; margin-top: 40px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+          .section-title::before { content: ""; width: 4px; height: 18px; background: #6366f1; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="report-box">
+          <div class="header">
+            <div style="display: flex; align-items: center; gap: 20px;">
+              ${logo ? `<img src="${logo}" alt="Logo" style="height: 60px; object-fit: contain;">` : ''}
+              <div>
+                <div class="title">Bilan Financier</div>
+                <div style="color: #64748b; font-weight: 600; margin-top: 4px;">${user?.entreprise?.nom || 'HubCommerce Pro'}</div>
+              </div>
+            </div>
+            <div class="period">${periodLabel}</div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Revenus Totaux</div>
+              <div class="stat-value" style="color: #10b981;">${Number(data?.totals?.revenue || 0).toLocaleString()} ${currency}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Dépenses Totales</div>
+              <div class="stat-value" style="color: #ef4444;">${Number(data?.totals?.expenses || 0).toLocaleString()} ${currency}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Bénéfice Net</div>
+              <div class="stat-value" style="color: #6366f1;">${Number((data?.totals?.revenue || 0) - (data?.totals?.expenses || 0)).toLocaleString()} ${currency}</div>
+            </div>
+          </div>
+
+          <div class="section-title">Performance Quotidienne</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Revenus</th>
+                <th>Dépenses</th>
+                <th>Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(data?.periodData || []).map((d: any) => `
+                <tr>
+                  <td>${new Date(d.date).toLocaleDateString()}</td>
+                  <td>${Number(d.revenue).toLocaleString()}</td>
+                  <td>${Number(d.expenses).toLocaleString()}</td>
+                  <td style="color: ${d.revenue - d.expenses >= 0 ? '#10b981' : '#ef4444'}">${Number(d.revenue - d.expenses).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="section-title">Top Produits (Ventes)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Revenu</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(data?.topProducts || []).map((p: any) => `
+                <tr>
+                  <td>${p.nom}</td>
+                  <td>${p.quantite}</td>
+                  <td>${Number(p.revenu).toLocaleString()} ${currency}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
+            Document généré automatiquement par HubCommerce ERP - ${new Date().toLocaleString('fr-FR', { hour12: false })}
+          </div>
+        </div>
+        <script>
+          window.onload = () => { window.print(); };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+export const generateCashSessionReport = (session: any, user: any) => {
+  const currency = user?.preferences?.currency || 'USD';
+  const logo = user?.entreprise?.logo;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  const diff = Number(session.closingBalance) - Number(session.expectedBalance);
+
+  const html = `
+    <html>
+      <head>
+        <title>Rapport de Caisse - Session #${session.id}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+          body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; }
+          .report-box { max-width: 800px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 24px; }
+          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+          .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+          .stat-card { background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #f1f5f9; }
+          .stat-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
+          .stat-value { font-size: 20px; font-weight: 800; color: #0f172a; }
+          .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: 600; }
+          .total-box { margin-top: 30px; background: #1e293b; color: white; padding: 24px; border-radius: 16px; }
+          .diff-box { margin-top: 20px; padding: 16px; border-radius: 12px; text-align: center; font-weight: 800; }
+        </style>
+      </head>
+      <body>
+        <div class="report-box">
+          <div class="header">
+            ${logo ? `<img src="${logo}" alt="Logo" style="height: 50px; object-fit: contain; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto;">` : ''}
+            <h1 style="margin: 0; font-size: 24px; font-weight: 900;">RAPPORT DE CLÔTURE DE CAISSE</h1>
+            <p style="color: #64748b; font-weight: 600; margin-top: 8px;">${user?.entreprise?.nom || 'HubCommerce Pro'}</p>
+          </div>
+
+          <div style="margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+            <div>
+              <p style="color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase;">Informations Session</p>
+              <p><b>ID Session:</b> #${session.id}</p>
+              <p><b>Ouverture:</b> ${new Date(session.openingTime).toLocaleString('fr-FR', { hour12: false })}</p>
+              <p><b>Clôture:</b> ${session.closingTime ? new Date(session.closingTime).toLocaleString('fr-FR', { hour12: false }) : 'En cours'}</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="color: #64748b; font-size: 12px; font-weight: 800; text-transform: uppercase;">Caissier</p>
+              <p><b>Nom:</b> ${session.user?.nom || user?.nom || 'Admin'}</p>
+            </div>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">Fond Initial</div>
+              <div class="stat-value">${Number(session.openingBalance).toLocaleString()} ${currency}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Ventes (+)</div>
+              <div class="stat-value" style="color: #10b981;">${Number(session.totalSales).toLocaleString()} ${currency}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Dépenses (-)</div>
+              <div class="stat-value" style="color: #ef4444;">${Number(session.totalExpenses).toLocaleString()} ${currency}</div>
+            </div>
+          </div>
+
+          <div class="detail-row">
+            <span>Solde Théorique (Attendu)</span>
+            <span>${Number(session.expectedBalance).toLocaleString()} ${currency}</span>
+          </div>
+          <div class="detail-row">
+            <span>Solde Réel (Compté)</span>
+            <span>${Number(session.closingBalance || 0).toLocaleString()} ${currency}</span>
+          </div>
+
+          <div class="diff-box" style="background: ${diff === 0 ? '#f0fdf4' : diff > 0 ? '#f0f9ff' : '#fef2f2'}; color: ${diff === 0 ? '#166534' : diff > 0 ? '#0369a1' : '#991b1b'};">
+            ÉCART DE CAISSE: ${diff > 0 ? '+' : ''}${diff.toLocaleString()} ${currency}
+            <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">
+              ${diff === 0 ? 'Caisse parfaitement équilibrée' : diff > 0 ? 'Excédent de caisse' : 'Déficit de caisse'}
+            </div>
+          </div>
+
+          ${session.note ? `
+            <div style="margin-top: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;">
+              <p style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Notes de session</p>
+              <p style="margin: 0; font-size: 14px; color: #475569;">${session.note}</p>
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 100px; text-align: center;">
+            <div>
+              <div style="border-top: 1px solid #000; padding-top: 10px; font-weight: 800; font-size: 12px;">SIGNATURE CAISSIER</div>
+            </div>
+            <div>
+              <div style="border-top: 1px solid #000; padding-top: 10px; font-weight: 800; font-size: 12px;">SIGNATURE RESPONSABLE</div>
+            </div>
+          </div>
+        </div>
+        <script>
+          window.onload = () => { window.print(); };
         </script>
       </body>
     </html>

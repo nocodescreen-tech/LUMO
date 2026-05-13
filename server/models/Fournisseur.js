@@ -31,6 +31,12 @@ const Fournisseur = sequelize.define('Fournisseur', {
     type: DataTypes.INTEGER,
     allowNull: false
   }
+}, {
+  indexes: [
+    { fields: ['userId'] },
+    { fields: ['entreprise'] },
+    { fields: ['nom'] }
+  ]
 });
 
 module.exports = Fournisseur;

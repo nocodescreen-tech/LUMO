@@ -28,7 +28,24 @@ const Notification = sequelize.define('Notification', {
         defaultValue: false
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    hooks: {
+        afterCreate: (notification) => {
+            try {
+                if (global.io) {
+                    const data = notification.get({ plain: true });
+                    global.io.to(`user_${notification.userId}`).emit('notification', data);
+                }
+            } catch (err) {
+                console.error('Socket.io notification error:', err);
+            }
+        }
+    },
+    indexes: [
+        { fields: ['userId'] },
+        { fields: ['lu'] },
+        { fields: ['createdAt'] }
+    ]
 });
 
 module.exports = Notification;

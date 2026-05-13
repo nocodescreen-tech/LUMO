@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bell, Check, Trash2, X, RefreshCw } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'sonner';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
   onClose: () => void;
@@ -12,13 +13,14 @@ interface Props {
 const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/notifications');
-      setNotifications(data);
+      setNotifications(Array.isArray(data) ? data : (data?.notifications || []));
     } catch (error) {
       console.error('Failed to fetch notifications', error);
     } finally {
@@ -51,6 +53,17 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
     }
   };
 
+  const deleteAll = async () => {
+    try {
+      await api.delete('/notifications/all');
+      setNotifications([]);
+      onRefresh?.();
+      toast.success('Historique des notifications vidé');
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
   const markOneRead = async (id: number) => {
     try {
       await api.put(`/notifications/${id}/read`);
@@ -61,7 +74,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.lu).length;
+  const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(n => !n.lu).length;
 
   const getNotifColor = (type: string) => {
     switch (type) {
@@ -135,6 +148,15 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
           >
             <RefreshCw size={14} />
           </button>
+          {Array.isArray(notifications) && notifications.length > 0 && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex' }}
+              title="Tout supprimer"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
           <button
             onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px', display: 'flex', borderRadius: '8px' }}
@@ -152,7 +174,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
               <div key={i} style={{ height: '72px', borderRadius: '16px', background: 'var(--bg-main)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
-        ) : notifications.length === 0 ? (
+        ) : !Array.isArray(notifications) || notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px' }}>
             <Bell size={40} style={{ opacity: 0.15, marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
             <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.9rem' }}>Aucune notification</p>
@@ -185,12 +207,22 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
                     {new Date(n.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, paddingRight: n.lu ? 0 : '20px' }}>{n.message}</p>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, paddingRight: n.lu ? 0 : '20px' }}>{n.contenu || n.message}</p>
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={deleteAll}
+        title="Vider les notifications"
+        message="Êtes-vous sûr de vouloir supprimer TOUTES vos notifications ? Cette action est irréversible."
+        confirmText="Supprimer tout"
+        type="danger"
+      />
     </motion.div>
   );
 };

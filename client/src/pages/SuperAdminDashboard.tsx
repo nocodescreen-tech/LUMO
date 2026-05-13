@@ -8,21 +8,23 @@ import {
     Eye, Power, Terminal, Settings as SettingsIcon, Calendar,
     Bell, Send, Landmark, ShoppingBag, Wallet, Boxes, AlertCircle,
     Info, Check, AlertTriangle as Warning, XCircle, Loader2, RefreshCw, BarChart3,
-    ShieldAlert, Settings, HardDrive, List, Globe, Database
+    ShieldAlert, Settings, HardDrive, List, Globe, Database, Save
 } from 'lucide-react';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, encodeData, decodeData } from '../store/useAuthStore';
+import Logo from '../components/layout/Logo';
 
 const SuperAdminDashboard = () => {
-    const { currency } = useAuthStore();
+    const { currency, exchangeRate } = useAuthStore();
     const [users, setUsers] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
     const [platformStats, setPlatformStats] = useState<any>(null);
+    const [subscribers, setSubscribers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterOnline, setFilterOnline] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'logs' | 'notifications' | 'settings'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'logs' | 'notifications' | 'newsletter' | 'settings'>('overview');
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [showUserModal, setShowUserModal] = useState(false);
     const [actionMenuOpenId, setActionMenuOpenId] = useState<number | null>(null);
@@ -34,18 +36,42 @@ const SuperAdminDashboard = () => {
     const [notifMessage, setNotifMessage] = useState('');
     const [notifType, setNotifType] = useState('info');
     const [sendingNotif, setSendingNotif] = useState(false);
+    
+    // Newsletter Personalization
+    const [newsTitle, setNewsTitle] = useState('');
+    const [newsBody, setNewsBody] = useState('');
+    const [newsLogo, setNewsLogo] = useState('');
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    // Global Settings Toggles
+    const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+    const [isRegistrationEnabled, setIsRegistrationEnabled] = useState(true);
 
     const fetchData = async () => {
         try {
-            const [usersRes, logsRes, statsRes] = await Promise.all([
-                api.get('/superadmin/users'),
-                api.get('/superadmin/logs'),
-                api.get('/superadmin/stats')
+            const [usersRes, logsRes, statsRes, settingsRes] = await Promise.all([
+                api.get(`/superadmin/users?_t=${Date.now()}`),
+                api.get(`/superadmin/logs?_t=${Date.now()}`),
+                api.get(`/superadmin/stats?_t=${Date.now()}`),
+                api.get(`/superadmin/settings?_t=${Date.now()}`)
             ]);
 
-            setUsers(usersRes.data);
-            setLogs(logsRes.data);
-            setPlatformStats(statsRes.data);
+            const uData = usersRes.data;
+            setUsers(uData.success && uData.data ? uData.data : (uData.data || uData || []));
+            
+            const lData = logsRes.data;
+            setLogs(lData.success && lData.data ? lData.data : (lData.data || lData || []));
+            
+            const sData = statsRes.data;
+            setPlatformStats(sData.success && sData.data ? sData.data : (sData.data || sData || null));
+
+            const stData = settingsRes.data;
+            const settings = stData.success && stData.data ? stData.data : (stData.data || stData || []);
+            
+            const maint = settings.find((s: any) => s.key === 'maintenance_mode');
+            const portal = settings.find((s: any) => s.key === 'registration_enabled');
+            if (maint) setIsMaintenanceMode(maint.value === 'true');
+            if (portal) setIsRegistrationEnabled(portal.value === 'true');
 
         } catch (error) {
             toast.error("Échec de la récupération des données plateforme");
@@ -54,9 +80,79 @@ const SuperAdminDashboard = () => {
         }
     };
 
+    const toggleMaintenanceMode = async () => {
+        const newValue = !isMaintenanceMode;
+        try {
+            await api.post('/superadmin/settings', { key: 'maintenance_mode', value: String(newValue) });
+            setIsMaintenanceMode(newValue);
+            toast.success(newValue ? "Mode maintenance activé" : "Mode maintenance désactivé");
+        } catch (error) {
+            toast.error("Erreur lors du basculement");
+        }
+    };
+
+    const toggleRegistration = async () => {
+        const newValue = !isRegistrationEnabled;
+        try {
+            await api.post('/superadmin/settings', { key: 'registration_enabled', value: String(newValue) });
+            setIsRegistrationEnabled(newValue);
+            toast.success(newValue ? "Inscriptions autorisées" : "Inscriptions fermées");
+        } catch (error) {
+            toast.error("Erreur lors du basculement");
+        }
+    };
+
+    const fetchSubscribers = async () => {
+        try {
+            const [subRes, settingsRes] = await Promise.all([
+                api.get(`/superadmin/newsletter?_t=${Date.now()}`),
+                api.get(`/superadmin/settings?_t=${Date.now()}`)
+            ]);
+            
+            const sData = subRes.data;
+            setSubscribers(sData.success && sData.data ? sData.data : (sData.data || sData || []));
+            
+            const stData = settingsRes.data;
+            const settings = stData.success && stData.data ? stData.data : (stData.data || stData || []);
+            
+            // Populate settings
+            const title = settings.find((s: any) => s.key === 'newsletter_title');
+            const body = settings.find((s: any) => s.key === 'newsletter_body');
+            const logo = settings.find((s: any) => s.key === 'newsletter_logo');
+            if (title) setNewsTitle(title.value);
+            if (body) setNewsBody(body.value);
+            if (logo) setNewsLogo(logo.value);
+        } catch (error) {
+            toast.error("Échec de la récupération des données newsletter");
+        }
+    };
+
+    const handleSaveNewsletterSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await Promise.all([
+                api.post('/superadmin/settings', { key: 'newsletter_title', value: newsTitle }),
+                api.post('/superadmin/settings', { key: 'newsletter_body', value: newsBody }),
+                api.post('/superadmin/settings', { key: 'newsletter_logo', value: newsLogo })
+            ]);
+            toast.success("Personnalisation enregistrée !");
+        } catch (error) {
+            toast.error("Échec de l'enregistrement");
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
     useEffect(() => {
         fetchData();
+        const interval = setInterval(fetchData, 30000); // Rafraîchissement toutes les 30s
+        fetchSubscribers();
+        return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        setSearchTerm('');
+    }, [activeTab]);
 
     const validateUser = async (id: number) => {
         try {
@@ -85,6 +181,27 @@ const SuperAdminDashboard = () => {
             fetchData();
         } catch (error) {
             toast.error("Erreur lors de la suspension");
+        }
+    };
+
+    const handleImpersonate = async (id: number) => {
+        try {
+            const { data } = await api.post(`/superadmin/users/${id}/impersonate`);
+            toast.success(data.message);
+            
+            // Backup the superadmin token to allow easy return
+            const currentAuth = localStorage.getItem('hub-auth');
+            if (currentAuth) {
+                localStorage.setItem('hub-auth-superadmin', currentAuth);
+            }
+
+            useAuthStore.getState().setAuth(data.user, data.token);
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1000);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Erreur d'usurpation");
         }
     };
 
@@ -126,10 +243,11 @@ const SuperAdminDashboard = () => {
         }
     };
 
-    const filteredUsers = users.filter(u => {
-        const matchesSearch = u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            u.entreprise?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredUsers = React.useMemo(() => users.filter(u => {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch = u.nom.toLowerCase().includes(search) ||
+            u.email.toLowerCase().includes(search) ||
+            u.entreprise?.nom?.toLowerCase().includes(search);
 
         if (!filterOnline) return matchesSearch;
 
@@ -140,7 +258,7 @@ const SuperAdminDashboard = () => {
         const isOnline = (now - lastSeen) < (5 * 60 * 1000);
 
         return matchesSearch && isOnline;
-    });
+    }), [users, searchTerm, filterOnline]);
 
     const StatCard = ({ title, value, subtext, icon: Icon, color, trend }: any) => (
         <motion.div
@@ -289,6 +407,7 @@ const SuperAdminDashboard = () => {
                 <TabButton id="users" icon={Users} label="Utilisateurs" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
                 <TabButton id="logs" icon={Activity} label="Audit Log Central" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
                 <TabButton id="notifications" icon={Bell} label="Broadcast Système" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
+                <TabButton id="newsletter" icon={Mail} label="Newsletter" active={activeTab === 'newsletter'} onClick={() => setActiveTab('newsletter')} />
                 <TabButton id="settings" icon={Database} label="Noyau Système" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
             </div>
 
@@ -306,23 +425,32 @@ const SuperAdminDashboard = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
                             <StatCard
                                 title="REVENU GLOBAL PLATEFORME"
-                                value={`${(platformStats?.revenue?.total || 0).toLocaleString()} ${currency}`}
-                                subtext={`Flux consolidé de toutes les instances`}
+                                value={currency === 'USD' 
+                                    ? `${(platformStats?.revenue?.total || 0).toLocaleString()} USD` 
+                                    : `${((platformStats?.revenue?.total || 0) * exchangeRate).toLocaleString()} CDF`
+                                }
+                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.revenue?.total || 0).toLocaleString()} USD` : "Flux consolidé de toutes les instances"}
                                 icon={Landmark}
                                 color="#6366f1"
-                                trend={12.4}
+                                trend={platformStats?.revenueTrend}
                             />
                             <StatCard
                                 title="VOLUME D'ACHATS BRUT"
-                                value={`${(platformStats?.purchases?.total || 0).toLocaleString()} ${currency}`}
-                                subtext={`Approvisionnements cumulés`}
+                                value={currency === 'USD' 
+                                    ? `${(platformStats?.purchases?.total || 0).toLocaleString()} USD` 
+                                    : `${((platformStats?.purchases?.total || 0) * exchangeRate).toLocaleString()} CDF`
+                                }
+                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.purchases?.total || 0).toLocaleString()} USD` : "Approvisionnements cumulés"}
                                 icon={ShoppingBag}
                                 color="#ec4899"
                             />
                             <StatCard
                                 title="FONDS ROULEMENTS"
-                                value={`${(platformStats?.expenses?.total || 0).toLocaleString()} ${currency}`}
-                                subtext={`Dépenses consolidées`}
+                                value={currency === 'USD' 
+                                    ? `${(platformStats?.expenses?.total || 0).toLocaleString()} USD` 
+                                    : `${((platformStats?.expenses?.total || 0) * exchangeRate).toLocaleString()} CDF`
+                                }
+                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.expenses?.total || 0).toLocaleString()} USD` : "Dépenses consolidées"}
                                 icon={Wallet}
                                 color="#f59e0b"
                             />
@@ -332,7 +460,39 @@ const SuperAdminDashboard = () => {
                                 subtext="Catalogue total Lumos"
                                 icon={Boxes}
                                 color="#10b981"
-                                trend={5.2}
+                                trend={platformStats?.productsTrend}
+                            />
+                        </div>
+
+                        {/* SYSTEM & AI HEALTH */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+                            <StatCard
+                                title="CONSOMMATION IA"
+                                value={`${(platformStats?.aiUsage || 0).toLocaleString()} MSGS`}
+                                subtext={`Coût API est. : ${platformStats?.apiCosts || 0} USD`}
+                                icon={Zap}
+                                color="#a855f7"
+                            />
+                            <StatCard
+                                title="UPTIME SERVEUR"
+                                value={platformStats?.uptime || "—"}
+                                subtext={`Latence API : ${platformStats?.latency || "0ms"}`}
+                                icon={Clock}
+                                color="#22d3ee"
+                            />
+                            <StatCard
+                                title="CHARGE SYSTÈME"
+                                value={`${platformStats?.system?.memPercent || 0}% RAM`}
+                                subtext={`CPU Load: ${platformStats?.system?.cpuLoad || 0} | ${platformStats?.system?.platform || "Linux"}`}
+                                icon={HardDrive}
+                                color={parseFloat(platformStats?.system?.memPercent || 0) > 80 ? "#ef4444" : "#64748b"}
+                            />
+                            <StatCard
+                                title="VERSION NOYAU"
+                                value={platformStats?.system?.nodeVersion || "Node.js"}
+                                subtext="Moteur d'exécution backend"
+                                icon={Terminal}
+                                color="#10b981"
                             />
                         </div>
 
@@ -590,6 +750,7 @@ const SuperAdminDashboard = () => {
                                                                     initial={{ opacity: 0, y: 15, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 15, scale: 0.9 }}
                                                                     style={{ position: 'absolute', right: '80px', top: '50px', backgroundColor: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '24px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 100, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.6)', width: '240px', backdropFilter: 'blur(20px)' }}
                                                                 >
+                                                                    <ActionBtn icon={Eye} label="Se connecter en tant que" color="#3b82f6" onClick={() => { handleImpersonate(user.id); setActionMenuOpenId(null); }} />
                                                                     <ActionBtn icon={Eye} label="Inspecter l'instance" color="var(--primary)" onClick={() => { setSelectedUser(user); setShowUserModal(true); setActionMenuOpenId(null); }} />
                                                                     <ActionBtn icon={Mail} label="Contacter l'administrateur" color="var(--text-main)" onClick={() => { window.location.href = `mailto:${user.email}`; setActionMenuOpenId(null); }} />
                                                                     {user.role !== 'superadmin' && (
@@ -625,35 +786,70 @@ const SuperAdminDashboard = () => {
                         className="glass"
                         style={{ padding: '48px', borderRadius: '44px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.3)' }}
                     >
-                        <h3 style={{ fontSize: '1.8rem', fontWeight: '950', marginBottom: '48px', letterSpacing: '-0.02em' }}>Historique d'activités</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {logs.map((log, i) => (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
+                            <h3 style={{ fontSize: '1.8rem', fontWeight: '950', letterSpacing: '-0.02em', margin: 0 }}>Journal d'Audit de Sécurité</h3>
+                            <div style={{ position: 'relative', width: '400px' }}>
+                                <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Rechercher une action, un utilisateur ou une description..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={{ width: '100%', padding: '18px 20px 18px 56px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', outline: 'none' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {logs.filter(log => 
+                                log.action.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                String(log.userId).includes(searchTerm)
+                            ).map((log, i) => (
                                 <motion.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
+                                    transition={{ delay: i * 0.02 }}
                                     key={log.id}
-                                    style={{ padding: '28px', borderRadius: '28px', backgroundColor: 'rgba(255,255,255,0.01)', border: '1.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                    style={{ 
+                                        padding: '24px 32px', 
+                                        borderRadius: '24px', 
+                                        backgroundColor: log.action.includes('SUPPRESSION') || log.action.includes('DELETE') ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255,255,255,0.01)', 
+                                        border: `1.5px solid ${log.action.includes('SUPPRESSION') || log.action.includes('DELETE') ? 'rgba(239, 68, 68, 0.2)' : 'var(--border)'}`, 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center' 
+                                    }}
                                 >
                                     <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                                        <div style={{ padding: '18px', borderRadius: '20px', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-                                            <Terminal size={28} />
+                                        <div style={{ 
+                                            padding: '16px', 
+                                            borderRadius: '16px', 
+                                            backgroundColor: log.action.includes('AUTH') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)', 
+                                            color: log.action.includes('AUTH') ? '#10b981' : '#6366f1',
+                                            border: '1px solid currentColor'
+                                        }}>
+                                            {log.action.includes('AUTH') ? <ShieldCheck size={24} /> : <Terminal size={24} />}
                                         </div>
                                         <div>
-                                            <div style={{ fontWeight: '950', color: 'white', fontSize: '1.2rem', marginBottom: '6px' }}>{log.action}</div>
-                                            <div style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: '600' }}>{log.description}</div>
-                                            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '900', backgroundColor: 'var(--primary-glow)', padding: '4px 12px', borderRadius: '8px', border: '1px solid var(--primary-glow)' }}>USER_ID: {log.userId}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '900', backgroundColor: 'rgba(255,255,255,0.05)', padding: '4px 12px', borderRadius: '8px' }}>ENTRY_ID: {log.id}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                                                <div style={{ fontWeight: '950', color: 'var(--text-main)', fontSize: '1.1rem' }}>{log.action}</div>
+                                                <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#6366f1', background: 'rgba(99, 102, 241, 0.1)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>ID #{log.userId}</div>
                                             </div>
+                                            <div style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: '600' }}>{log.description}</div>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', minWidth: '180px' }}>
-                                        <div style={{ fontWeight: '950', fontSize: '1rem', color: 'white' }}>{new Date(log.createdAt).toLocaleDateString()}</div>
-                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: '700', marginTop: '4px' }}>{new Date(log.createdAt).toLocaleTimeString()}</div>
+                                    <div style={{ textAlign: 'right', minWidth: '150px' }}>
+                                        <div style={{ fontWeight: '900', fontSize: '0.95rem', color: 'var(--text-main)' }}>{new Date(log.createdAt).toLocaleDateString()}</div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700', marginTop: '2px' }}>{new Date(log.createdAt).toLocaleTimeString()}</div>
                                     </div>
                                 </motion.div>
                             ))}
+                            {logs.length === 0 && (
+                                <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '700' }}>
+                                    Aucune activité enregistrée dans le journal.
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -736,6 +932,129 @@ const SuperAdminDashboard = () => {
                     </motion.div>
                 )}
 
+                {activeTab === 'newsletter' && (
+                    <motion.div
+                        key="newsletter"
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass"
+                        style={{ padding: '48px', borderRadius: '44px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+                            <div>
+                                <h3 style={{ fontSize: '1.8rem', fontWeight: '950', display: 'flex', alignItems: 'center', gap: '16px', letterSpacing: '-0.03em', margin: 0 }}>
+                                    <Mail size={32} color="var(--primary)" /> Gestion de la Newsletter
+                                </h3>
+                                <p style={{ color: 'var(--text-muted)', fontWeight: '600', marginTop: '4px' }}>Liste des personnes abonnées via la Landing Page</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <div style={{ textAlign: 'right', background: 'rgba(99, 102, 241, 0.05)', padding: '12px 24px', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                    <div style={{ fontSize: '1.4rem', fontWeight: '950', color: 'var(--primary)' }}>{subscribers.length}</div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Abonnés Totaux</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
+                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                                <thead>
+                                    <tr style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: '900', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        <th style={{ padding: '0 24px' }}>E-mail de l'abonné</th>
+                                        <th style={{ padding: '0 24px' }}>Date d'inscription</th>
+                                        <th style={{ padding: '0 24px', textAlign: 'right' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {subscribers.map((sub) => (
+                                        <motion.tr key={sub.id} style={{ backgroundColor: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)' }}>
+                                            <td style={{ padding: '16px 24px', borderRadius: '16px 0 0 16px', border: '1px solid var(--border)', borderRight: 'none', fontWeight: '700', color: 'var(--text-main)' }}>
+                                                {sub.email}
+                                            </td>
+                                            <td style={{ padding: '16px 24px', border: '1px solid var(--border)', borderLeft: 'none', borderRight: 'none', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                {new Date(sub.createdAt).toLocaleDateString()} à {new Date(sub.createdAt).toLocaleTimeString()}
+                                            </td>
+                                            <td style={{ padding: '16px 24px', borderRadius: '0 16px 16px 0', border: '1px solid var(--border)', borderLeft: 'none', textAlign: 'right' }}>
+                                                <button 
+                                                    onClick={() => toast("Option de suppression bientôt disponible")}
+                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                    {subscribers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                                                Aucun abonné pour le moment.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* SECTION PERSONNALISATION */}
+                        <div style={{ marginTop: '60px', paddingTop: '40px', borderTop: '2px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+                                <div style={{ padding: '12px', borderRadius: '14px', background: 'var(--primary-glow)', color: 'var(--primary)' }}>
+                                    <Settings size={28} />
+                                </div>
+                                <h3 style={{ fontSize: '1.6rem', fontWeight: '950', margin: 0 }}>Personnaliser l'E-mail</h3>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '40px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>URL du Logo</label>
+                                        <input 
+                                            type="text" 
+                                            value={newsLogo}
+                                            onChange={e => setNewsLogo(e.target.value)}
+                                            placeholder="https://votre-logo.com/logo.png"
+                                            style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }}
+                                        />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={newsTitle}
+                                        onChange={e => setNewsTitle(e.target.value)}
+                                        placeholder="Titre de l'Email"
+                                        style={{ width: '100%', padding: '20px', borderRadius: '18px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '800' }}
+                                    />
+                                    <textarea 
+                                        rows={6}
+                                        value={newsBody}
+                                        onChange={e => setNewsBody(e.target.value)}
+                                        placeholder="Corps du Message..."
+                                        style={{ width: '100%', padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', resize: 'none' }}
+                                    />
+                                    <button 
+                                        onClick={handleSaveNewsletterSettings}
+                                        disabled={savingSettings}
+                                        style={{ padding: '20px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', cursor: 'pointer' }}
+                                    >
+                                        {savingSettings ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />} Enregistrer
+                                    </button>
+                                </div>
+                                <div style={{ background: 'white', padding: '40px', borderRadius: '32px', border: '1px solid #e2e8f0', color: '#1e293b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                    {newsLogo ? (
+                                        <img src={newsLogo} alt="Logo" style={{ height: '44px', marginBottom: '20px', borderRadius: '8px' }} />
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                                            <Logo size={40} />
+                                            <span style={{ fontWeight: '950', fontSize: '24px', letterSpacing: '-0.05em', color: '#0f172a' }}>Lumo</span>
+                                        </div>
+                                    )}
+                                    <h1 style={{ fontSize: '20px', fontWeight: '900', margin: '0 0 16px 0', color: '#000' }}>{newsTitle || 'Titre de l\'email...'}</h1>
+                                    <p style={{ fontSize: '15px', color: '#475569', lineHeight: 1.6, margin: 0 }}>{newsBody || 'Votre message de bienvenue s\'affichera ici.'}</p>
+                                    <div style={{ marginTop: '24px', padding: '14px', background: '#6366f1', color: 'white', textAlign: 'center', borderRadius: '12px', fontWeight: '900', fontSize: '14px' }}>ACCÉDER À MON ESPACE</div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
                 {activeTab === 'settings' && (
                     <motion.div
                         key="settings"
@@ -743,9 +1062,13 @@ const SuperAdminDashboard = () => {
                         animate={{ opacity: 1, x: 0 }}
                         style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}
                     >
-                        <div className="glass" style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-lg)' }}>
+                        <div 
+                            className="glass" 
+                            onClick={toggleRegistration}
+                            style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-lg)', cursor: 'pointer' }}
+                        >
                             <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-                                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #10b98130' }}>
+                                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: isRegistrationEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)', color: isRegistrationEnabled ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isRegistrationEnabled ? '#10b98130' : 'var(--border)'}` }}>
                                     <Globe size={36} />
                                 </div>
                                 <div>
@@ -753,14 +1076,18 @@ const SuperAdminDashboard = () => {
                                     <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: '600' }}>Autoriser la création libre de nouvelles instances de commerce.</p>
                                 </div>
                             </div>
-                            <div style={{ width: '84px', height: '42px', borderRadius: '30px', backgroundColor: '#6366f1', position: 'relative', cursor: 'pointer', boxShadow: '0 0 20px rgba(99, 102, 241, 0.3)', border: '2px solid transparent' }}>
-                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '3px', right: '3px', boxShadow: '0 5px 15px rgba(0,0,0,0.3)' }} />
+                            <div style={{ width: '84px', height: '42px', borderRadius: '30px', backgroundColor: isRegistrationEnabled ? '#6366f1' : 'var(--border)', position: 'relative', transition: 'all 0.3s' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '3px', right: isRegistrationEnabled ? '3px' : 'auto', left: isRegistrationEnabled ? 'auto' : '3px', transition: 'all 0.3s', boxShadow: '0 5px 15px rgba(0,0,0,0.3)' }} />
                             </div>
                         </div>
 
-                        <div className="glass" style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-lg)' }}>
+                        <div 
+                            className="glass" 
+                            onClick={toggleMaintenanceMode}
+                            style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-lg)', cursor: 'pointer' }}
+                        >
                             <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-                                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ef444430' }}>
+                                <div style={{ width: '72px', height: '72px', borderRadius: '24px', background: isMaintenanceMode ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148, 163, 184, 0.1)', color: isMaintenanceMode ? '#ef4444' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isMaintenanceMode ? '#ef444430' : 'var(--border)'}` }}>
                                     <ShieldAlert size={36} />
                                 </div>
                                 <div>
@@ -768,8 +1095,8 @@ const SuperAdminDashboard = () => {
                                     <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: '600' }}>Suspendre tous les accès clients pour opérations techniques critiques.</p>
                                 </div>
                             </div>
-                            <div style={{ width: '84px', height: '42px', borderRadius: '30px', backgroundColor: 'var(--border)', position: 'relative', cursor: 'pointer', border: '2px solid var(--border)' }}>
-                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '3px', left: '3px' }} />
+                            <div style={{ width: '84px', height: '42px', borderRadius: '30px', backgroundColor: isMaintenanceMode ? '#ef4444' : 'var(--border)', position: 'relative', transition: 'all 0.3s' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '3px', right: isMaintenanceMode ? '3px' : 'auto', left: isMaintenanceMode ? 'auto' : '3px', transition: 'all 0.3s', boxShadow: '0 5px 15px rgba(0,0,0,0.3)' }} />
                             </div>
                         </div>
                     </motion.div>

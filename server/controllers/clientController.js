@@ -1,35 +1,60 @@
 const Client = require('../models/Client');
+const { validateClient } = require('../middleware/validators');
+const { sendEmail, getDebtReminderTemplate } = require('../utils/emailService');
+const { logActivite } = require('./activiteController');
+const { getPagination, getPagingData } = require('../utils/pagination');
 
 exports.getClients = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const clients = await Client.findAll({ 
+    const userId = req.user.tenantId;
+    const { page, limit } = req.query;
+    const { limit: l, offset } = getPagination(page, limit);
+
+    const data = await Client.findAndCountAll({
       where: { userId },
-      order: [['nom', 'ASC']] 
+      order: [['nom', 'ASC']],
+      limit: l,
+      offset
     });
-    res.status(200).json(clients);
+
+    const response = getPagingData(data, page, l);
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }
 };
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 exports.createClient = async (req, res, next) => {
+  const { error } = validateClient(req.body);
+  if (error) return res.status(400).json({ message: error.details[0].message });
+
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
+    
     const client = await Client.create({ ...req.body, userId });
-    res.status(201).json(client);
+    await logActivite(req.user.id, 'CLIENT', `Nouveau client: ${client.nom}`, 'System', userId);
+    const { sendResponse } = require('../utils/response');
+    sendResponse(res, 201, client, 'Client créé avec succès');
   } catch (error) {
     next(error);
   }
 };
 
 exports.updateClient = async (req, res, next) => {
+  const { error } = validateClient(req.body);
+  if (error) return res.status(400).json({ message: error.details[0].message });
+
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
+    
     const client = await Client.findOne({ where: { id: req.params.id, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
     await client.update(req.body);
-    res.status(200).json(client);
+    await logActivite(req.user.id, 'CLIENT', `Mise à jour client: ${client.nom}`, 'System', userId);
+    const { sendResponse } = require('../utils/response');
+    sendResponse(res, 200, client, 'Client mis à jour');
   } catch (error) {
     next(error);
   }
@@ -37,11 +62,14 @@ exports.updateClient = async (req, res, next) => {
 
 exports.deleteClient = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
     const client = await Client.findOne({ where: { id: req.params.id, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
+    const nomClient = client.nom;
     await client.destroy();
-    res.status(200).json({ message: 'Client supprimé' });
+    await logActivite(req.user.id, 'CLIENT', `Suppression client: ${nomClient}`, 'System', userId);
+    const { sendResponse } = require('../utils/response');
+    sendResponse(res, 200, null, 'Client supprimé');
   } catch (error) {
     next(error);
   }
@@ -49,36 +77,75 @@ exports.deleteClient = async (req, res, next) => {
 
 exports.settleDebt = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
     const { montant } = req.body;
+    if (!montant || isNaN(parseFloat(montant)) || parseFloat(montant) <= 0) {
+      return res.status(400).json({ message: 'Montant de règlement invalide.' });
+    }
     const client = await Client.findOne({ where: { id: req.params.id, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
-    client.detteTotale -= parseFloat(montant);
+    // B6 Fix: prevent negative debt
+    client.detteTotale = Math.max(0, Number(client.detteTotale) - parseFloat(montant));
     await client.save();
-    res.status(200).json(client);
+    await logActivite(req.user.id, 'CLIENT', `Règlement dette client ${client.nom}: ${montant}`, 'System', userId);
+    const { sendResponse } = require('../utils/response');
+    sendResponse(res, 200, client, 'Dette réglée');
   } catch (error) {
     next(error);
   }
 };
 
 exports.sendReminder = async (req, res, next) => {
-    res.status(200).json({ success: true, message: 'Rappel envoyé' });
+  try {
+    const userId = req.user.tenantId;
+    const clientId = req.params.id;
+    const client = await Client.findOne({ where: { id: clientId, userId } });
+
+    if (!client) {
+      return res.status(404).json({ message: 'Client non trouvé' });
+    }
+    if (!client.email) {
+      return res.status(400).json({ message: 'Ce client n\'a pas d\'adresse email enregistrée.' });
+    }
+    if (client.detteTotale <= 0) {
+      return res.status(400).json({ message: 'Ce client n\'a aucune dette.' });
+    }
+
+    const html = getDebtReminderTemplate(client.nom, client.detteTotale, 'CDF'); // ou utiliser la devise configurée
+    
+    await sendEmail({
+      email: client.email,
+      subject: 'Rappel de paiement - Lumo',
+      html
+    });
+
+    res.status(200).json({ success: true, message: `Rappel envoyé avec succès à ${client.email}` });
+  } catch (error) {
+    next(error);
+  }
 };
 
 const { Sale } = require('../models');
 
 exports.getClientSales = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
     const clientId = req.params.id;
+    const { page, limit } = req.query;
+    const { limit: l, offset } = getPagination(page, limit);
+
     const client = await Client.findOne({ where: { id: clientId, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
 
-    const sales = await Sale.findAll({
+    const data = await Sale.findAndCountAll({
       where: { clientId, userId },
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      limit: l,
+      offset
     });
-    res.status(200).json(sales);
+
+    const response = getPagingData(data, page, l);
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }
@@ -86,7 +153,7 @@ exports.getClientSales = async (req, res, next) => {
 
 exports.deleteAllClients = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.tenantId;
     await Client.destroy({ where: { userId } });
     res.status(200).json({ message: 'Tous vos clients ont été supprimés' });
   } catch (error) {

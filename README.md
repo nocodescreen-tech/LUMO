@@ -1,4 +1,4 @@
-# HubCommerce Pro - E-commerce Management Platform
+# LUMO Pro - E-commerce Management Platform
 
 A high-density, strategic business management platform built with React (Vite) and Node.js (Express).
 

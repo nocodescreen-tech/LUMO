@@ -18,26 +18,92 @@ const AIChat = () => {
         }
     }, [messages]);
 
+    useEffect(() => {
+        const loadHistory = async () => {
+            try {
+                const { data } = await api.get('/ai/chat/history');
+                if (data && data.length > 0) {
+                    setMessages(data);
+                }
+            } catch (err) {
+                console.error("Failed to load chat history", err);
+            }
+        };
+        loadHistory();
+    }, []);
+
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || loading) return;
 
         const userMsg = { role: 'user' as const, content: input };
-        setMessages(prev => [...prev, userMsg]);
+        setMessages(prev => [...prev, userMsg, { role: 'ai', content: '' }]);
         setInput('');
         setLoading(true);
 
         try {
-            const { data } = await api.post('/ai/chat', { 
-                message: input,
-                history: messages
+            const auth = localStorage.getItem('hub-auth');
+            let token = '';
+            if (auth) {
+               token = JSON.parse(auth).token;
+            }
+
+            const response = await fetch(`${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/ai/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ message: input })
             });
-            setMessages(prev => [...prev, { role: 'ai', content: data.response }]);
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || 'Erreur réseau');
+            }
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let aiText = '';
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') {
+                                break;
+                            }
+                            try {
+                                const parsed = JSON.parse(dataStr);
+                                if (parsed.error) {
+                                    aiText += " " + parsed.error;
+                                } else if (parsed.text) {
+                                    aiText += parsed.text;
+                                }
+                                setMessages(prev => {
+                                    const newMsgs = [...prev];
+                                    newMsgs[newMsgs.length - 1] = { role: 'ai', content: aiText };
+                                    return newMsgs;
+                                });
+                            } catch(e) {}
+                        }
+                    }
+                }
+            }
         } catch (error: any) {
-            const msg = error.response?.status === 503
-                ? "⚙️ L'IA n'est pas configurée. Ajoutez DEEPSEEK_API_KEY dans votre fichier .env du serveur."
+            const msg = error.message?.includes('Clé') 
+                ? "⚙️ L'IA n'est pas configurée. Ajoutez DEEPSEEK_API_KEY dans votre fichier .env."
                 : "Désolé, je rencontre une petite difficulté technique. Réessayez.";
-            setMessages(prev => [...prev, { role: 'ai', content: msg }]);
+            setMessages(prev => {
+                const newMsgs = [...prev];
+                newMsgs[newMsgs.length - 1] = { role: 'ai', content: msg };
+                return newMsgs;
+            });
         } finally {
             setLoading(false);
         }
@@ -110,7 +176,7 @@ const AIChat = () => {
                                     {m.content}
                                 </div>
                             ))}
-                            {loading && (
+                            {loading && messages[messages.length - 1]?.role === 'user' && (
                                 <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.04)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px' }}>
                                     <Loader2 size={16} className="animate-spin" />
                                     <span style={{ fontSize: '0.8rem' }}>Analyse en cours...</span>

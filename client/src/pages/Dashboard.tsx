@@ -26,8 +26,9 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
+import { getDisplayAmount } from '../utils/currencyHelpers';
 
-const KpiCard = ({ title, value, icon: Icon, trend, color, delay }: any) => (
+const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -81,50 +82,77 @@ const KpiCard = ({ title, value, icon: Icon, trend, color, delay }: any) => (
     <div>
       <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginBottom: '6px', fontWeight: '600' }}>{title}</p>
       <h3 style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-main)' }}>{value}</h3>
+      {subValue && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '4px' }}>≙ {subValue}</p>}
     </div>
   </motion.div>
 );
 
 const Dashboard = () => {
   const { t, language } = useTranslation();
-  const { user, currency, enabledModules } = useAuthStore();
+  const { user, currency, exchangeRate, enabledModules } = useAuthStore();
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('7d');
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data } = await api.get('/stats/dashboard');
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
+  const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
+
+  const getDisplayValues = (rawAmount: number) => {
+    if (!rawAmount) return { main: `0 ${currency}`, sub: `0 ${altCurrency}` };
+
+    // Since the backend now sends all summary stats normalized to CDF
+    const result = getDisplayAmount(rawAmount, 'CDF', currency, exchangeRate || 2800);
+    return result;
+  };
 
   useEffect(() => {
-    const fetchChart = async () => {
+    let isMounted = true;
+    
+    const fetchDashboardData = async () => {
       try {
-        const chartRes = await api.get(`/stats/sales-chart?period=${chartPeriod}`);
-        setChartData(chartRes.data);
+        const [statsRes, chartRes] = await Promise.all([
+          api.get(`/stats/dashboard?_t=${Date.now()}`),
+          api.get(`/stats/sales-chart?period=${chartPeriod}&_t=${Date.now()}`)
+        ]);
+        if (isMounted) {
+          // Standardize access: { success: true, data: { ... } }
+          const sData = statsRes.data;
+          setStats(sData.success && sData.data ? sData.data : sData);
+          
+          const cData = chartRes.data;
+          let chartList = [];
+          
+          if (cData.success && cData.data) {
+            chartList = Array.isArray(cData.data.data) ? cData.data.data : (Array.isArray(cData.data) ? cData.data : []);
+          } else {
+            if (Array.isArray(cData)) chartList = cData;
+            else if (cData && Array.isArray(cData.data)) chartList = cData.data;
+          }
+          
+          setChartData(chartList);
+        }
       } catch (error) {
-        console.error("Failed to fetch chart data", error);
+        console.error("Failed to fetch real-time dashboard data", error);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
-    fetchChart();
+
+    fetchDashboardData();
+    const intervalId = setInterval(fetchDashboardData, 30000); // Actualisation toutes les 30s
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, [chartPeriod]);
 
   const allActions = [
-    { id: 'pos', label: 'Vente Rapide', icon: Zap, path: '/pos', color: 'var(--primary)', desc: 'Terminal de vente' },
-    { id: 'products', label: 'Produits', icon: Package, path: '/products', color: 'var(--success)', desc: 'Gestion du stock' },
-    { id: 'suppliers', label: 'Fournisseurs', icon: Download, path: '/fournisseurs', color: 'var(--warning)', desc: 'Gestion fournisseurs' },
-    { id: 'debts', label: 'Dettes & Crédits', icon: Users, path: '/dettes', color: 'var(--info)', desc: 'Suivi des paiements' }
+    { id: 'pos', label: t('quickSale'), icon: Zap, path: '/pos', color: 'var(--primary)', desc: t('quickSaleDesc') },
+    { id: 'products', label: t('products'), icon: Package, path: '/products', color: 'var(--success)', desc: t('productsDesc') },
+    { id: 'suppliers', label: t('suppliers'), icon: Download, path: '/fournisseurs', color: 'var(--warning)', desc: t('suppliersDesc') },
+    { id: 'debts', label: t('debts'), icon: Users, path: '/dettes', color: 'var(--info)', desc: t('debtsDesc') }
   ];
 
   const quickActions = allActions.filter(action => {
@@ -142,8 +170,8 @@ const Dashboard = () => {
         <Zap size={40} color="white" />
       </motion.div>
       <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px', fontSize: '1.5rem' }}>Synchronisation de Lumo</h2>
-        <p style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Préparation de votre console de contrôle...</p>
+        <h2 style={{ fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px', fontSize: '1.5rem' }}>{t('syncing')}</h2>
+        <p style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{t('preparingConsole')}</p>
       </div>
     </div>
   );
@@ -160,16 +188,16 @@ const Dashboard = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
              <span className="badge badge-success" style={{ padding: '8px 16px', borderRadius: '12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }}></div>
-               Système Actif
+               {t('systemActive')}
              </span>
-             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>Actualisé à {new Date().toLocaleTimeString()}</span>
+             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>{t('updatedAt')} {new Date().toLocaleTimeString()}</span>
           </div>
           <h1 className="title-xl" style={{ fontSize: '3.6rem', marginBottom: '16px', letterSpacing: '-0.06em' }}>
-            Tableau de <span className="text-gradient">Bord Haute Performance</span>
+            {language === 'fr' ? 'Tableau de ' : ''}<span className="text-gradient">{t('highPerfDashboard')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
-            Propulsé par <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>Lumo Intelligence</strong>. 
-            Bienvenue, {user?.nom}. Prêt pour la croissance aujourd'hui ?
+            {t('poweredBy')} <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>LUMO Intelligence</strong>. 
+            {language === 'fr' ? 'Bienvenue' : 'Welcome'}, {user?.nom}. {t('readyForGrowth')}
           </p>
         </motion.div>
         
@@ -191,10 +219,10 @@ const Dashboard = () => {
             className="btn-premium secondary" 
             style={{ padding: '16px 28px', borderRadius: '18px' }}
           >
-            <Download size={20} /> Rapport
+            <Download size={20} /> {t('report')}
           </motion.button>
           <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.4)' }}>
-            <Plus size={22} /> Nouvelle Vente
+            <Plus size={22} /> {t('newSale')}
           </motion.button>
         </div>
       </div>
@@ -202,23 +230,27 @@ const Dashboard = () => {
       {/* KPI Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         <KpiCard 
-          title="CA de la Période" 
-          value={`${stats?.summary?.revenue?.toLocaleString() || 0} ${currency}`} 
+          title={t('revenuePeriod')} 
+          value={getDisplayValues(stats?.summary?.revenue || 0).main} 
+          subValue={getDisplayValues(stats?.summary?.revenue || 0).sub}
           icon={TrendingUp} 
           trend={stats?.summary?.revenueTrend || 12} 
           color="var(--primary)"
           delay={0.1}
         />
+        {(user?.role === 'superadmin' || user?.role === 'admin') && (
+          <KpiCard 
+            title={t('netMargin')} 
+            value={getDisplayValues(stats?.summary?.profitNetEstimation || 0).main} 
+            subValue={getDisplayValues(stats?.summary?.profitNetEstimation || 0).sub}
+            icon={DollarSign} 
+            trend={stats?.summary?.profitTrend || 8} 
+            color="var(--success)"
+            delay={0.2}
+          />
+        )}
         <KpiCard 
-          title="Marge Nette" 
-          value={`${stats?.summary?.profitNetEstimation?.toLocaleString() || 0} ${currency}`} 
-          icon={DollarSign} 
-          trend={stats?.summary?.profitTrend || 8} 
-          color="var(--success)"
-          delay={0.2}
-        />
-        <KpiCard 
-          title="Fidélité Clients" 
+          title={t('clientLoyalty')} 
           value={stats?.summary?.totalClients || 0} 
           icon={Users} 
           trend={stats?.summary?.clientsTrend || 5} 
@@ -226,7 +258,7 @@ const Dashboard = () => {
           delay={0.3}
         />
         <KpiCard 
-          title="Niveau de Stock" 
+          title={t('stockLevel')} 
           value={stats?.summary?.lowStockCount || 0} 
           icon={AlertTriangle} 
           color="var(--warning)"
@@ -238,25 +270,26 @@ const Dashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="premium-card" style={{ padding: '24px', borderRadius: '24px', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-             <div>
-               <h3 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.04em' }}>Trajectoire Financière</h3>
-               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '4px' }}>
-                 Évolution de vos revenus sur {chartPeriod === 'today' ? "aujourd'hui" : chartPeriod === '7d' ? 'les 7 derniers jours' : chartPeriod === '30d' ? 'les 30 derniers jours' : 'la période'}.
-               </p>
-             </div>
-             <div style={{ display: 'flex', gap: '10px' }}>
-               <select 
-                  value={chartPeriod} 
-                  onChange={(e) => setChartPeriod(e.target.value)}
-                  className="glass" 
-                  style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
-               >
-                  <option value="today">Aujourd'hui</option>
-                  <option value="7d">7 derniers jours</option>
-                  <option value="30d">30 derniers jours</option>
-               </select>
-               <div className="glass" style={{ padding: '10px 20px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--primary)', border: '1px solid var(--primary-glow)' }}>Temps Réel</div>
-             </div>
+            <div>
+              <h3 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.04em' }}>{t('financialTrajectory')}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '4px' }}>
+                {t('financialDesc')}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <select 
+                value={chartPeriod} 
+                onChange={(e) => setChartPeriod(e.target.value)}
+                className="glass" 
+                style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="today">Aujourd'hui</option>
+                <option value="7d">7 derniers jours</option>
+                <option value="30d">30 derniers jours</option>
+              </select>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 2s infinite' }}></div>
+              {t('realTime')}
+            </div>
           </div>
           <div style={{ height: '280px', width: '100%' }}>
             <DashboardCharts salesData={chartData} period={chartPeriod} />
@@ -318,10 +351,10 @@ const Dashboard = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="premium-card" style={{ padding: '40px', borderRadius: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <h3 style={{ fontSize: '1.6rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '14px', letterSpacing: '-0.03em' }}>
-              <Activity size={28} color="var(--primary)" /> Flux d'Activité
+              <Activity size={28} color="var(--primary)" /> {t('activityFlow')}
             </h3>
             <button onClick={() => navigate('/sales')} style={{ background: 'var(--primary-glow)', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', padding: '10px 20px', borderRadius: '12px', fontSize: '0.9rem' }}>
-              Historique complet
+              {t('fullHistory')}
             </button>
           </div>
           
@@ -337,19 +370,29 @@ const Dashboard = () => {
                     <ShoppingCart size={24} />
                   </div>
                   <div>
-                    <p style={{ fontWeight: 900, color: 'var(--text-main)', margin: '0 0 4px 0', fontSize: '1.05rem' }}>Vente #{(sale.id?.toString() || '').slice(-4)}</p>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '700', margin: 0 }}>{new Date(sale.createdAt).toLocaleTimeString()} · {sale.methodePaiement}</p>
+                    <p style={{ fontWeight: 1000, color: '#0f172a', margin: '0 0 4px 0', fontSize: '1.2rem' }}>{t('saleNumber')}{(sale.id?.toString() || '').slice(-4)}</p>
+                    <p style={{ fontSize: '0.95rem', color: '#475569', fontWeight: '900', margin: 0 }}>{new Date(sale.createdAt).toLocaleTimeString()} · {sale.methodePaiement}</p>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontWeight: 900, color: 'var(--success)', fontSize: '1.3rem', margin: 0 }}>+{sale.montantTotal?.toLocaleString()} {currency}</p>
+                  {(() => {
+                    // statsController.js sends montantCDF which is ALWAYS the value in CDF
+                    const saleAmount = sale.montantCDF || sale.montantTotal;
+                    const result = getDisplayAmount(saleAmount, 'CDF', currency, exchangeRate || 2800);
+                    return (
+                      <>
+                        <p style={{ fontWeight: 1000, color: '#10b981', fontSize: '1.4rem', margin: 0 }}>+{result.main}</p>
+                        <p style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 950, margin: 0 }}>≙ {result.sub}</p>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
             {!stats?.recentSales?.length && (
               <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                 <Package size={40} style={{ opacity: 0.2, marginBottom: '12px' }} />
-                <p style={{ fontWeight: 700 }}>Aucune vente détectée pour le moment.</p>
+                <p style={{ fontWeight: 700 }}>{t('noSales')}</p>
               </div>
             )}
           </div>
@@ -357,6 +400,7 @@ const Dashboard = () => {
 
         <DashboardAlerts 
           lowStockCount={stats?.summary?.lowStockCount} 
+          lowStockProducts={stats?.summary?.lowStockProducts}
           debtsTotal={stats?.summary?.debtToCollect} 
         />
       </div>

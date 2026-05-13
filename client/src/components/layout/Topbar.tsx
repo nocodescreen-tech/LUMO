@@ -1,39 +1,47 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Search, UserCircle, Sun, Moon, LogOut, Settings, User, Check, Trash2, Sparkles, X, LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Wallet, CreditCard, Truck, Activity } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore';
+import { Bell, Search, UserCircle, Sun, Moon, LogOut, Settings, User, Check, Trash2, Sparkles, X, LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Wallet, CreditCard, Truck, Activity, UserX } from 'lucide-react';
+import { useAuthStore, encodeData, decodeData } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../../hooks/useTranslation';
+import ConfirmModal from '../common/ConfirmModal';
 import api from '../../api/axios';
+import { io } from 'socket.io-client';
+import { toast } from 'sonner';
 
-const APP_NAVIGATION = [
-  { label: 'Tableau de Bord', icon: LayoutDashboard, path: '/dashboard', tags: ['accueil', 'dashboard', 'tableau'] },
-  { label: 'Caisse (POS)', icon: ShoppingCart, path: '/pos', tags: ['pos', 'caisse', 'vente'] },
-  { label: 'Produits & Stocks', icon: Package, path: '/products', tags: ['produits', 'stock', 'inventaire'] },
-  { label: 'Clients', icon: Users, path: '/clients', tags: ['clients', 'contact'] },
-  { label: 'Ventes', icon: Wallet, path: '/sales', tags: ['ventes', 'historique', 'transactions'] },
-  { label: 'Dettes & Crédits', icon: CreditCard, path: '/dettes', tags: ['dettes', 'crédit', 'remboursement'] },
-  { label: 'Fournisseurs', icon: Truck, path: '/fournisseurs', tags: ['fournisseurs', 'achats'] },
-  { label: 'Statistiques', icon: BarChart3, path: '/stats', tags: ['stats', 'rapports', 'analyses'] },
-  { label: 'Activités', icon: Activity, path: '/activities', tags: ['activités', 'journal', 'logs'] },
-  { label: 'Paramètres', icon: Settings, path: '/settings', tags: ['paramètres', 'config', 'profil', 'modules'] },
-];
+// ─── Search removed per request ───────────────────────────────────────────────
 
 const Topbar = () => {
-    const { t } = useTranslation();
-    const { user, theme, setTheme, logout, currency, setCurrency } = useAuthStore();
+    const { t, language } = useTranslation();
+    const { user, theme, setTheme, logout, currency, setCurrency, setAuth } = useAuthStore();
     const navigate = useNavigate();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
 
+    const isImpersonating = !!localStorage.getItem('hub-auth-superadmin');
+
+    const handleStopImpersonation = () => {
+        const superadminAuth = localStorage.getItem('hub-auth-superadmin');
+        if (superadminAuth) {
+            localStorage.removeItem('hub-auth-superadmin');
+            const data = decodeData(superadminAuth);
+            if (data && data.user && data.token) {
+                setAuth(data.user, data.token);
+                window.location.href = '/superadmin';
+            }
+        }
+    };
+
     const fetchNotifications = async () => {
         try {
             const { data } = await api.get('/notifications');
-            setNotifications(data);
+            // API now returns array directly; guard against old object format
+            const list = Array.isArray(data) ? data : (data?.data || data?.notifications || []);
+            setNotifications(list);
         } catch (error) {
             console.error("Failed to fetch notifications", error);
         }
@@ -42,9 +50,30 @@ const Topbar = () => {
     useEffect(() => {
         if (user) {
             fetchNotifications();
-            // Refresh notifications every minute
             const interval = setInterval(fetchNotifications, 60000);
-            return () => clearInterval(interval);
+
+            // Connexion WebSocket pour notifications temps réel
+            const socketUrl = (import.meta as any).env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5001';
+            const socket = io(socketUrl);
+
+            // IMPORTANT: join with tenantId, not user.id
+            // Notifications are emitted to room `user_${tenantId}` (the shop owner's ID)
+            const roomId = (user as any).tenantId || user.id;
+            socket.emit('join', roomId);
+
+            socket.on('notification', (newNotif: any) => {
+                setNotifications(prev => [newNotif, ...prev]);
+                // Déclenchement du Toast visuel
+                toast.info(newNotif.titre, {
+                    description: newNotif.contenu || newNotif.message,
+                    duration: 5000,
+                });
+            });
+
+            return () => {
+                clearInterval(interval);
+                socket.disconnect();
+            };
         }
     }, [user]);
 
@@ -56,10 +85,6 @@ const Topbar = () => {
             if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
                 setShowNotifications(false);
             }
-            // Close search dropdown if clicking outside the search area
-            if (searchInputRef.current && !searchInputRef.current.parentElement?.contains(event.target as Node)) {
-                setShowSearchDrop(false);
-            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -67,33 +92,6 @@ const Topbar = () => {
 
     const toggleTheme = () => {
         setTheme(theme === 'light' ? 'dark' : 'light');
-    };
-
-    const [showSearchDrop, setShowSearchDrop] = useState(false);
-    const searchInputRef = useRef<HTMLInputElement>(null);
-
-    const appRouteMatches = searchQuery.trim().length > 0
-        ? APP_NAVIGATION.filter(r => {
-            const q = searchQuery.toLowerCase();
-            return r.label.toLowerCase().includes(q) || r.tags.some(t => t.includes(q));
-          }).slice(0, 5)
-        : [];
-
-    const handleSearch = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && searchQuery.trim()) {
-            // If there's a route match, navigate there first
-            if (appRouteMatches.length > 0) {
-                navigate(appRouteMatches[0].path);
-                setSearchQuery('');
-                setShowSearchDrop(false);
-            } else {
-                navigate(`/products?search=${encodeURIComponent(searchQuery)}`);
-            }
-        }
-        if (e.key === 'Escape') {
-            setShowSearchDrop(false);
-            setSearchQuery('');
-        }
     };
 
     const markAllRead = async () => {
@@ -122,81 +120,36 @@ const Topbar = () => {
             zIndex: 999,
             border: '1px solid var(--border)',
         }}>
-            {/* SEARCH BAR */}
-            <div style={{ position: 'relative', width: '380px' }}>
-                <Search 
-                    size={18} 
-                    style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} 
-                />
-                <input 
-                    ref={searchInputRef}
-                    type="text" 
-                    placeholder="Rechercher une page, fonctionnalité..." 
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setShowSearchDrop(true); }}
-                    onFocus={() => setShowSearchDrop(true)}
-                    onKeyDown={handleSearch}
-                    style={{
-                        width: '100%',
-                        padding: '12px 20px 12px 48px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: 'var(--bg-main)',
-                        color: 'var(--text-main)',
-                        outline: 'none',
-                        fontSize: '0.95rem',
-                        fontWeight: '500',
-                        transition: 'all 0.3s',
-                        fontFamily: 'inherit'
-                    }}
-                />
-                {searchQuery && (
-                    <X 
-                        size={14} 
-                        onClick={() => { setSearchQuery(''); setShowSearchDrop(false); }}
-                        style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', cursor: 'pointer' }} 
-                    />
-                )}
-
-                {/* App navigation dropdown */}
-                <AnimatePresence>
-                    {showSearchDrop && appRouteMatches.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                            className="glass"
-                            style={{
-                                position: 'absolute', top: '52px', left: 0, right: 0,
-                                borderRadius: '18px', padding: '8px',
-                                border: '1px solid var(--border)',
-                                boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-                                zIndex: 1200
-                            }}
-                        >
-                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', padding: '4px 12px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                Navigation rapide
-                            </div>
-                            {appRouteMatches.map((r, i) => (
-                                <div
-                                    key={i}
-                                    onClick={() => { navigate(r.path); setSearchQuery(''); setShowSearchDrop(false); }}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 12px', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.15s' }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-glow)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <r.icon size={16} />
-                                    </div>
-                                    <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-main)' }}>{r.label}</span>
-                                </div>
-                            ))}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+            <div style={{ flex: 1 }}></div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                {isImpersonating && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        whileHover={{ scale: 1.05, backgroundColor: '#ef4444' }}
+                        onClick={handleStopImpersonation}
+                        style={{
+                            padding: '10px 20px',
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: '900',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            cursor: 'pointer',
+                            boxShadow: '0 10px 20px -5px rgba(220, 38, 38, 0.4)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                        }}
+                    >
+                        <UserX size={18} /> Quitter le support
+                    </motion.button>
+                )}
+
                 {/* THEME TOGGLE */}
                 <div 
                     onClick={toggleTheme}
@@ -259,14 +212,23 @@ const Topbar = () => {
                         {unreadCount > 0 && (
                             <div style={{
                                 position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                                width: '10px',
-                                height: '10px',
+                                top: '-4px',
+                                right: '-4px',
+                                width: '20px',
+                                height: '20px',
                                 backgroundColor: '#ef4444',
                                 borderRadius: '50%',
-                                border: '2px solid var(--bg-card)'
-                            }}></div>
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: '0.65rem',
+                                fontWeight: '900',
+                                border: '2px solid var(--bg-card)',
+                                boxShadow: '0 2px 4px rgba(239,68,68,0.4)'
+                            }}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </div>
                         )}
                     </div>
 
@@ -292,7 +254,7 @@ const Topbar = () => {
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
-                                    <h4 style={{ margin: 0, fontWeight: '800' }}>{t('notifications')}</h4>
+                                    <h4 style={{ margin: 0, fontWeight: '800' }}>{t.notifications}</h4>
                                     {unreadCount > 0 && (
                                         <span 
                                             onClick={markAllRead}
@@ -321,7 +283,7 @@ const Topbar = () => {
                                                         {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 </div>
-                                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>{n.message}</p>
+                                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>{n.message || n.contenu}</p>
                                             </div>
                                         ))
                                     ) : (
@@ -413,20 +375,34 @@ const Topbar = () => {
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <Settings size={18} />
-                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t('settings')}</span>
+                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.settings}</span>
                                 </div>
                                 <div 
-                                    onClick={() => { logout(); navigate('/login'); }}
+                                    onClick={() => setShowLogoutModal(true)}
                                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '12px', cursor: 'pointer', color: '#ef4444' }}
                                     onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.05)'}
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <LogOut size={18} />
-                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t('logout')}</span>
+                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.logout}</span>
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    <ConfirmModal 
+                        isOpen={showLogoutModal}
+                        onClose={() => setShowLogoutModal(false)}
+                        onConfirm={() => {
+                            logout();
+                            navigate('/login');
+                        }}
+                        title="Confirmation de déconnexion"
+                        message="Êtes-vous sûr de vouloir vous déconnecter de votre session Lumo ?"
+                        confirmText="Se déconnecter"
+                        cancelText="Rester"
+                        type="danger"
+                    />
                 </div>
             </div>
         </div>

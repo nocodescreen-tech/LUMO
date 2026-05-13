@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom';
 
 interface DashboardAlertsProps {
   lowStockCount?: number;
+  lowStockProducts?: any[];
   debtsTotal?: number;
 }
 
-const DashboardAlerts = ({ lowStockCount = 0, debtsTotal = 0 }: DashboardAlertsProps) => {
+const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal = 0 }: DashboardAlertsProps) => {
   const navigate = useNavigate();
 
   if (lowStockCount === 0 && debtsTotal === 0) return null;
@@ -36,10 +37,14 @@ const DashboardAlerts = ({ lowStockCount = 0, debtsTotal = 0 }: DashboardAlertsP
             <AlertTriangle size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#f59e0b' }}>Stock Critique ({lowStockCount})</h4>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)' }}>Certains articles sont presque épuisés.</p>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>Stock Critique ({lowStockCount})</h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
+              {lowStockProducts.length > 0 
+                ? `Articles : ${lowStockProducts.map(p => p.nom).join(', ')}...`
+                : 'Certains articles sont presque épuisés.'}
+            </p>
           </div>
-          <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
+          <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
         </motion.div>
       )}
 
@@ -65,10 +70,10 @@ const DashboardAlerts = ({ lowStockCount = 0, debtsTotal = 0 }: DashboardAlertsP
             <CreditCard size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#6366f1' }}>Dettes à Recouvrer</h4>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)' }}>Total: {debtsTotal.toLocaleString()} FC à encaisser.</p>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#6366f1', fontSize: '1.1rem' }}>Dettes à Recouvrer</h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>Total: {debtsTotal.toLocaleString()} CDF à encaisser.</p>
           </div>
-          <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
+          <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
         </motion.div>
       )}
     </div>
