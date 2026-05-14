@@ -40,7 +40,6 @@ const securityMiddleware = (app) => {
     app.use(cookieParser());
     
     // Protection anti-CSRF professionnelle via csurf
-    // Le secret de validation est stocké dans un cookie httpOnly sécurisé (_csrf)
     const csrfProtection = csrf({ 
         cookie: { 
             httpOnly: true,

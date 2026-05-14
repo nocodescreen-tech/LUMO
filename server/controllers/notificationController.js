@@ -26,7 +26,7 @@ exports.getNotifications = async (req, res, next) => {
 exports.markAsRead = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.tenantId || req.user.id;
 
         if (!id) return res.status(400).json({ message: 'ID de notification requis' });
 
@@ -42,7 +42,7 @@ exports.markAsRead = async (req, res, next) => {
 
 exports.markAllAsRead = async (req, res, next) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.tenantId || req.user.id;
         await Notification.update(
             { lu: true },
             { where: { userId, lu: false } }
@@ -56,7 +56,7 @@ exports.markAllAsRead = async (req, res, next) => {
 exports.deleteNotification = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = req.user.tenantId || req.user.id;
 
         if (!id) return res.status(400).json({ message: 'ID de notification requis' });
 
@@ -71,7 +71,7 @@ exports.deleteNotification = async (req, res, next) => {
 
 exports.deleteAllNotifications = async (req, res, next) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.tenantId || req.user.id;
         await Notification.destroy({
             where: { userId }
         });
