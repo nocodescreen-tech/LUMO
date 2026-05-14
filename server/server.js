@@ -125,8 +125,6 @@ v1Routes.use('/sales', require('./routes/SaleRoutes'));
 v1Routes.use('/clients', require('./routes/clientRoutes'));
 v1Routes.use('/suppliers', require('./routes/fournisseurRoutes'));
 v1Routes.use('/fournisseurs', require('./routes/fournisseurRoutes'));
-v1Routes.use('/expenses', require('./routes/depenseRoutes'));
-v1Routes.use('/depenses', require('./routes/depenseRoutes'));
 v1Routes.use('/purchases', require('./routes/purchaseRoutes'));
 v1Routes.use('/achats', require('./routes/purchaseRoutes'));
 v1Routes.use('/stats', require('./routes/statsRoutes'));
@@ -140,6 +138,7 @@ v1Routes.use('/cash', require('./routes/cashRoutes'));
 v1Routes.use('/backup', require('./routes/backupRoutes'));
 v1Routes.use('/ux', require('./routes/uxRoutes'));
 v1Routes.use('/subusers', require('./routes/subUserRoutes'));
+v1Routes.use('/staff-payments', require('./routes/staffPaymentRoutes'));
 v1Routes.use('/newsletter', require('./routes/newsletterRoutes'));
 v1Routes.use('/contact', require('./routes/contactRoutes'));
 

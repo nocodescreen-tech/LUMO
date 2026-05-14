@@ -81,8 +81,8 @@ const Stats = () => {
                         onClick={() => {
                        if (!data) return;
                        const exportData = [
-                         { Section: 'Ventes & Dépenses' },
-                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: s.revenue, Depenses: s.expenses })),
+                         { Section: 'Ventes' },
+                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: s.revenue })),
                          { Section: '' },
                          { Section: 'Stock Par Catégorie' },
                          ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
@@ -139,9 +139,7 @@ const Stats = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                             <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div> Revenus
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--danger)' }}></div> Dépenses
-                                        </div>
+
                                     </div>
                                 </div>
                                 <Activity size={20} color="var(--primary)" />

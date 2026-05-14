@@ -8,7 +8,7 @@ LUMO est une plateforme ERP/POS (Entreprise Resource Planning / Point of Sale) m
 ## 💻 Fonctionnalités Côté Client (Frontend)
 
 ### 📊 Tableaux de Bord & Pilotage
-*   **Dashboard Intelligent** : Aperçu global du chiffre d'affaires, des dépenses et de la santé du stock.
+*   **Dashboard Intelligent** : Aperçu global du chiffre d'affaires et de la santé du stock.
 *   **LUMO Assistant (AI)** : Chat interactif assisté par DeepSeek pour poser des questions sur les données et recevoir des suggestions stratégiques (réapprovisionnement, bundles, prix).
 *   **Stats & Analytics** : Graphiques financiers (Rechards) détaillant les performances par période.
 
@@ -16,7 +16,7 @@ LUMO est une plateforme ERP/POS (Entreprise Resource Planning / Point of Sale) m
 *   **POS (Point de Vente)** : Interface optimisée pour la vente rapide avec recherche de produits et gestion du panier.
 *   **Gestion des Stocks** : Catalogue de produits complet avec alertes de stock critique et gestion des catégories.
 *   **Ventes & Factures** : Historique complet des transactions avec possibilité de suppression/modification.
-*   **Achats & Dépenses** : Suivi des flux sortants (approvisionnement et frais de fonctionnement).
+*   **Achats** : Suivi des flux sortants (approvisionnement et commandes fournisseurs).
 
 ### 🤝 Relationnel (CRM/SRM)
 *   **Clients** : Base de données clients avec historique d'achats.
@@ -65,7 +65,7 @@ LUMO est une plateforme ERP/POS (Entreprise Resource Planning / Point of Sale) m
 2.  **Product** : Nom, Prix, Stock, Seuil d'alerte.
 3.  **Sale** : Produits vendus, Montant total, Date.
 4.  **Client/Fournisseur** : Coordonnées, Solde des dettes.
-5.  **Depense** : Motif, Montant, Catégorie.
+5.  **Activity** : Journal des actions critiques (audit logs).
 6.  **Notification** : Titre, Message, Type (Info, Succès, Alerte).
 
 ---

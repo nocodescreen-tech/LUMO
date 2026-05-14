@@ -65,6 +65,12 @@ exports.createSale = async (req, res, next) => {
 
     transaction = await sequelize.transaction();
 
+    // Récupérer le propriétaire pour la devise et le taux de change
+    const owner = await require('../models/User').findByPk(userId);
+    const shopCurrency = owner?.entreprise?.devise || 'CDF';
+    const saleCurrency = devise || 'USD';
+    const finalRate = Number(tauxChange || owner?.preferences?.exchangeRate || 2800);
+
     // Mise à jour de la session de caisse active
     const { CashSession } = require('../models');
     const activeSession = await CashSession.findOne({ 
@@ -72,8 +78,17 @@ exports.createSale = async (req, res, next) => {
     });
 
     if (activeSession) {
-      activeSession.totalSales = Number(activeSession.totalSales || 0) + Number(montantTotal);
-      activeSession.expectedBalance = Number(activeSession.expectedBalance || 0) + Number(montantTotal);
+      // Normaliser le montant de la vente dans la devise de la caisse avant de l'accumuler
+      let saleAmountInShopCurrency = Number(montantTotal);
+      if (saleCurrency !== shopCurrency) {
+        if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+          saleAmountInShopCurrency = Math.round(saleAmountInShopCurrency * finalRate);
+        } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+          saleAmountInShopCurrency = Math.round((saleAmountInShopCurrency / finalRate) * 100) / 100;
+        }
+      }
+      activeSession.totalSales = Number(activeSession.totalSales || 0) + saleAmountInShopCurrency;
+      activeSession.expectedBalance = Number(activeSession.expectedBalance || 0) + saleAmountInShopCurrency;
       await activeSession.save({ transaction });
     }
 
@@ -171,8 +186,7 @@ exports.createSale = async (req, res, next) => {
       }
     }
 
-    const owner = await require('../models/User').findByPk(userId);
-    const finalRate = Number(tauxChange || owner?.preferences?.exchangeRate || 2800);
+    // owner et finalRate déjà définis plus haut
 
     const sale = await Sale.create({
       userId,
@@ -183,7 +197,7 @@ exports.createSale = async (req, res, next) => {
       profitNet,
       methodePaiement: methodePaiement || 'Espèces',
       clientInfo: clientInfo || { nom: 'Client de passage', email: '' },
-      devise: devise || 'USD',
+      devise: devise || shopCurrency || 'USD',
       tauxChange: finalRate,
       devisePaiement: devisePaiement || devise || 'USD',
       montantRecu: montantRecu || montantTotal,

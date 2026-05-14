@@ -1,4 +1,4 @@
-const { User, Sale, Depense, Product, Notification, Purchase, Newsletter, GlobalSetting, Activite } = require('../models');
+const { User, Sale, Product, Notification, Purchase, Newsletter, GlobalSetting, Activite } = require('../models');
 const Joi = require('joi');
 
 // Liste des utilisateurs / instances
@@ -38,9 +38,8 @@ const getSuperadminLogs = async (req, res, next) => {
 const getSuperadminStats = async (req, res, next) => {
   try {
     const startTs = Date.now();
-    const [revenueRows, expensesRows, purchaseRows, counts, usersForAi] = await Promise.all([
+    const [revenueRows, purchaseRows, counts, usersForAi] = await Promise.all([
       Sale.findAll(),
-      Depense.findAll(),
       Purchase.findAll(),
       Promise.all([
         User.count(),
@@ -54,12 +53,6 @@ const getSuperadminStats = async (req, res, next) => {
       const amount = s.montantTotal || 0;
       const rate = s.tauxChange || 2800;
       return acc + (s.devise === 'CDF' ? amount / rate : amount);
-    }, 0);
-
-    const totalExpenses = expensesRows.reduce((acc, e) => {
-      const amount = e.montant || 0;
-      const rate = e.tauxChange || 2800;
-      return acc + (e.devise === 'CDF' ? amount / rate : amount);
     }, 0);
 
     const totalPurchases = purchaseRows.reduce((acc, p) => {
@@ -77,9 +70,7 @@ const getSuperadminStats = async (req, res, next) => {
     });
 
     // Dynamically calculate API costs from expenses categorized as 'API' or 'Maintenance'
-    let apiCosts = expensesRows
-      .filter(e => e.categorie?.toLowerCase() === 'api' || e.categorie?.toLowerCase() === 'maintenance')
-      .reduce((acc, e) => acc + (e.montant || 0), 0);
+    let apiCosts = 0;
       
     // Si pas de dépense API déclarée, on estime via le nombre de requêtes IA (ex: 0.0015$ par message)
     if (apiCosts === 0 && totalAiMessages > 0) {
@@ -106,7 +97,6 @@ const getSuperadminStats = async (req, res, next) => {
     res.json({
       revenue: { total: totalRevenue },
       purchases: { total: totalPurchases },
-      expenses: { total: totalExpenses },
       aiUsage: totalAiMessages,
       apiCosts: apiCosts,
       uptime: uptimeStr,

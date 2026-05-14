@@ -182,7 +182,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       const curr = normalizeCurrency((prefs.currency as any) || (user.entreprise?.devise as any));
       const theme = prefs.theme || localStorage.getItem('theme') || 'dark';
       const lang = prefs.language || localStorage.getItem('language') || 'fr';
-      const modules = prefs.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]');
+      // Fix: if server returns empty [], prefer localStorage to avoid erasing toggled modules
+      const serverModules = prefs.enabledModules;
+      const localModules = JSON.parse(localStorage.getItem('enabledModules') || '[]');
+      const modules = (Array.isArray(serverModules) && serverModules.length > 0)
+        ? serverModules
+        : (localModules.length > 0 ? localModules : (serverModules || []));
       const rate = prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '2250');
 
       // Update localStorage with latest server data (including nom changes)

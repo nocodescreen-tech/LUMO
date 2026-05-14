@@ -11,14 +11,13 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
     const daysArr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
     
     if (period === '7d') {
-      const weekData = daysArr.map(name => ({ day: name, sales: 0, expenses: 0 }));
+      const weekData = daysArr.map(name => ({ day: name, sales: 0 }));
       
       salesData.forEach(d => {
         const dateObj = new Date(d.date);
         const dayIdx = (dateObj.getDay() + 6) % 7;
         if (dayIdx >= 0 && dayIdx < 7) {
           weekData[dayIdx].sales += parseFloat(d.revenue || d.total) || 0;
-          weekData[dayIdx].expenses += parseFloat(d.expenses) || 0;
         }
       });
       return weekData;
@@ -40,8 +39,7 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
         
         return {
           day: dayFormat,
-          sales: parseFloat(d.revenue || d.total) || 0,
-          expenses: parseFloat(d.expenses) || 0
+          sales: parseFloat(d.revenue || d.total) || 0
         };
       });
     }
@@ -49,11 +47,11 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
     // Default fallback if no data
     if (period === 'today') {
        return [
-         { day: '00h', sales: 0, expenses: 0 }, { day: '04h', sales: 0, expenses: 0 }, { day: '08h', sales: 0, expenses: 0 },
-         { day: '12h', sales: 0, expenses: 0 }, { day: '16h', sales: 0, expenses: 0 }, { day: '20h', sales: 0, expenses: 0 }
+         { day: '00h', sales: 0 }, { day: '04h', sales: 0 }, { day: '08h', sales: 0 },
+         { day: '12h', sales: 0 }, { day: '16h', sales: 0 }, { day: '20h', sales: 0 }
        ];
     }
-    return daysArr.map(name => ({ day: name, sales: 0, expenses: 0 }));
+    return daysArr.map(name => ({ day: name, sales: 0 }));
   };
 
   const data = parseData();
@@ -94,7 +92,6 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
             const barWidth = groupWidth / 2 - 2;
             const xPos = (width / data.length) * i + (width / data.length) / 2 - groupWidth / 2;
             const salesHeight = Math.max((d.sales / maxSales) * height, 4);
-            const expHeight = Math.max((d.expenses / maxSales) * height, 4);
             
             // Only show labels for some data points if there's too many
             const showLabel = data.length > 10 ? i % Math.ceil(data.length / 7) === 0 || i === data.length - 1 : true;
@@ -127,29 +124,6 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
                       r="3"
                       fill="var(--bg-main)"
                       stroke="var(--primary)"
-                      strokeWidth="2"
-                  />
-
-                  {/* Expenses Bar */}
-                  <motion.rect
-                      initial={{ height: 0, y: height }}
-                      animate={{ height: expHeight, y: height - expHeight }}
-                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
-                      x={xPos + barWidth + 4}
-                      width={barWidth}
-                      rx={4}
-                      fill="var(--danger)"
-                      opacity="0.8"
-                      style={{ cursor: 'pointer' }}
-                  />
-                  <motion.circle
-                      initial={{ opacity: 0, cy: height }}
-                      animate={{ opacity: 1, cy: height - expHeight }}
-                      transition={{ duration: 1, delay: i * 0.05, ease: "easeOut" }}
-                      cx={xPos + barWidth + 4 + barWidth / 2}
-                      r="3"
-                      fill="var(--bg-main)"
-                      stroke="var(--danger)"
                       strokeWidth="2"
                   />
 

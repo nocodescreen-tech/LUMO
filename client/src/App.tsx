@@ -14,7 +14,6 @@ const Products = lazy(() => import('./pages/Products'));
 const Clients = lazy(() => import('./pages/Clients'));
 const UsersPage = lazy(() => import('./pages/Users'));
 const Fournisseurs = lazy(() => import('./pages/Fournisseurs'));
-const Expenses = lazy(() => import('./pages/Expenses'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Purchases = lazy(() => import('./pages/Purchases'));
 const Dettes = lazy(() => import('./pages/Dettes'));
@@ -100,7 +99,6 @@ const App = () => {
               <Route path="/clients" element={<Clients />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/fournisseurs" element={<Fournisseurs />} />
-              <Route path="/expenses" element={<Expenses />} />
               <Route path="/sales" element={<Sales />} />
               <Route path="/purchases" element={<Purchases />} />
               <Route path="/stock-history" element={<StockHistory />} />

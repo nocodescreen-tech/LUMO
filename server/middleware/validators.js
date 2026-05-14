@@ -102,17 +102,7 @@ const validateFournisseur = (data) => {
     return schema.validate(normalized);
 };
 
-const validateDepense = (data) => {
-    const schema = Joi.object({
-        titre: Joi.string().required(),
-        montant: Joi.number().positive().required(),
-        categorie: Joi.string().default('Autres'),
-        date: Joi.date().optional(),
-        description: Joi.string().allow('', null),
-        devise: Joi.string().valid('USD', 'CDF').optional()
-    }).unknown(true);
-    return schema.validate(data);
-};
+
 
 const validateSale = (data) => {
     const schema = Joi.object({
@@ -147,7 +137,6 @@ module.exports = {
     validateProduct,
     validateClient,
     validateFournisseur,
-    validateDepense,
     validateSale,
     validatePurchase
 };

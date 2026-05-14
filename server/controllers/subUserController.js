@@ -19,7 +19,7 @@ exports.createSubUser = async (req, res) => {
     let finalPermissions = permissions;
     if (!finalPermissions || finalPermissions.length === 0) {
       if (role === 'manager') {
-        finalPermissions = ['products', 'sales', 'clients', 'expenses', 'stats', 'pos', 'cash'];
+        finalPermissions = ['products', 'sales', 'clients', 'stats', 'pos', 'cash'];
       } else if (role === 'caissier' || role === 'vendeur') {
         finalPermissions = ['pos', 'sales.add', 'products', 'clients'];
       } else {
@@ -99,7 +99,7 @@ exports.updateSubUser = async (req, res) => {
     // Update permissions based on role if role changed and no custom permissions provided
     if (role && role !== subUser.role && (!permissions || permissions.length === 0)) {
         if (role === 'manager') {
-            updateData.permissions = ['products', 'sales', 'clients', 'expenses', 'stats', 'pos', 'cash'];
+            updateData.permissions = ['products', 'sales', 'clients', 'stats', 'pos', 'cash'];
         } else if (role === 'caissier' || role === 'vendeur') {
             updateData.permissions = ['pos', 'sales.add', 'products', 'clients'];
         }

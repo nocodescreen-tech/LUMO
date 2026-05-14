@@ -444,16 +444,7 @@ const SuperAdminDashboard = () => {
                                 icon={ShoppingBag}
                                 color="#ec4899"
                             />
-                            <StatCard
-                                title="FONDS ROULEMENTS"
-                                value={currency === 'USD' 
-                                    ? `${(platformStats?.expenses?.total || 0).toLocaleString()} USD` 
-                                    : `${((platformStats?.expenses?.total || 0) * exchangeRate).toLocaleString()} CDF`
-                                }
-                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.expenses?.total || 0).toLocaleString()} USD` : "Dépenses consolidées"}
-                                icon={Wallet}
-                                color="#f59e0b"
-                            />
+
                             <StatCard
                                 title="ARTICLES RÉFÉRENCÉS"
                                 value={`${(platformStats?.counts?.products || 0).toLocaleString()} UNITÉS`}

@@ -42,7 +42,8 @@ import {
   Settings as SettingsIcon,
   Check,
   Truck,
-  Wallet
+  Wallet,
+  TrendingDown
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
@@ -165,6 +166,17 @@ const TeamSection = () => {
       'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder'
     ]
   });
+  
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    type: 'SALAIRE',
+    note: '',
+    date: new Date().toISOString().split('T')[0]
+  });
+  const [staffPayments, setStaffPayments] = useState<any[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: number | null; name: string }>({ isOpen: false, id: null, name: '' });
 
   const moduleDefinitions = [
@@ -221,13 +233,7 @@ const TeamSection = () => {
         { id: 'purchases.delete', label: 'Supprimer un achat' },
       ]
     },
-    {
-      id: 'expenses', label: 'Dépenses', icon: DollarSign, actions: [
-        { id: 'expenses.add', label: 'Ajouter une dépense' },
-        { id: 'expenses.edit', label: 'Modifier une dépense' },
-        { id: 'expenses.delete', label: 'Supprimer une dépense' },
-      ]
-    },
+
     {
       id: 'debts', label: 'Gestion Dettes', icon: CreditCard, actions: [
         { id: 'debts.settle', label: 'Enregistrer un règlement' },
@@ -320,6 +326,36 @@ const TeamSection = () => {
     }
   };
 
+  const openPaymentModal = async (staff: any) => {
+    setSelectedStaff(staff);
+    setShowPaymentModal(true);
+    setLoadingPayments(true);
+    try {
+      const { data } = await api.get(`/staff-payments?staffId=${staff.id}`);
+      setStaffPayments(Array.isArray(data.data) ? data.data : []);
+    } catch (err) {
+      toast.error('Erreur lors de la récupération des paiements');
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaff) return;
+    try {
+      await api.post('/staff-payments', {
+        staffId: selectedStaff.id,
+        ...paymentData
+      });
+      toast.success('Paiement enregistré');
+      setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
+      openPaymentModal(selectedStaff); // Refresh list
+    } catch (err) {
+      toast.error('Erreur lors de l’enregistrement');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -358,7 +394,7 @@ const TeamSection = () => {
               <div style={{ width: '50px', height: '50px', borderRadius: '16px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: '1.2rem' }}>
                 {u.nom.charAt(0)}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontWeight: 900 }}>{u.nom}</p>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '100px', backgroundColor: u.role === 'manager' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', color: u.role === 'manager' ? 'var(--primary)' : '#10b981' }}>
@@ -366,12 +402,21 @@ const TeamSection = () => {
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => setConfirmDelete({ isOpen: true, id: u.id, name: u.nom })}
-                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.5 }}
-              >
-                <Trash2 size={18} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => openPaymentModal(u)}
+                  style={{ background: 'var(--primary-glow)', border: 'none', color: 'var(--primary)', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
+                  title="Gérer les paiements"
+                >
+                  <Wallet size={18} />
+                </button>
+                <button
+                  onClick={() => setConfirmDelete({ isOpen: true, id: u.id, name: u.nom })}
+                  style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
             <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -511,6 +556,77 @@ const TeamSection = () => {
         title="Supprimer un membre"
         message={`Voulez-vous vraiment supprimer l'accès pour ${confirmDelete.name} ?`}
       />
+
+      <Modal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        title={`Paiements : ${selectedStaff?.nom}`}
+        subtitle="Historique des salaires, primes et transport."
+        maxWidth="800px"
+        icon={Wallet}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <form onSubmit={handleAddPayment} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', padding: '20px', background: 'rgba(0,0,0,0.02)', borderRadius: '20px', border: '1px solid var(--border)' }}>
+            <InputField label="Montant" type="number" value={paymentData.amount} onChange={(e: any) => setPaymentData({ ...paymentData, amount: e.target.value })} placeholder="Ex: 500" required icon={DollarSign} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 800 }}>Type</label>
+              <select 
+                value={paymentData.type} 
+                onChange={(e) => setPaymentData({ ...paymentData, type: e.target.value })}
+                style={{ padding: '12px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
+              >
+                <option value="SALAIRE">Salaire</option>
+                <option value="TRANSPORT">Transport</option>
+                <option value="PRIME">Prime</option>
+                <option value="AUTRE">Autre</option>
+              </select>
+            </div>
+            <InputField label="Date" type="date" value={paymentData.date} onChange={(e: any) => setPaymentData({ ...paymentData, date: e.target.value })} required />
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <InputField label="Note / Commentaire" value={paymentData.note} onChange={(e: any) => setPaymentData({ ...paymentData, note: e.target.value })} placeholder="Ex: Prime de vente" />
+              </div>
+              <button type="submit" className="btn-premium primary" style={{ padding: '14px 24px', height: 'fit-content' }}>Enregistrer</button>
+            </div>
+          </form>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h4 style={{ margin: 0, fontWeight: 900 }}>Historique Récent</h4>
+            {loadingPayments ? (
+              <Loader2 size={24} className="animate-spin" style={{ margin: '20px auto' }} />
+            ) : staffPayments.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontWeight: 600 }}>Aucun historique trouvé.</p>
+            ) : (
+              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {staffPayments.map((p: any) => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ padding: '6px', borderRadius: '8px', background: p.type === 'SALAIRE' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', color: p.type === 'SALAIRE' ? 'var(--primary)' : '#10b981' }}>
+                        <DollarSign size={16} />
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 800, fontSize: '0.9rem' }}>{p.type} - {Number(p.amount).toLocaleString()} {p.devise}</p>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(p.date).toLocaleDateString()} {p.note && `· ${p.note}`}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        if (confirm('Supprimer ce paiement ?')) {
+                          await api.delete(`/staff-payments/${p.id}`);
+                          openPaymentModal(selectedStaff);
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer' }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
@@ -675,6 +791,10 @@ const Settings = () => {
 
       await api.put('/auth/profile', payload);
 
+      // Force update enabledModules in localStorage + store BEFORE checkAuth
+      // to ensure the sidebar re-renders immediately with the correct modules
+      localStorage.setItem('enabledModules', JSON.stringify(enabledModules));
+
       // Force-reload from server to guarantee UI reflects DB state
       await checkAuth(false);
 
@@ -689,6 +809,7 @@ const Settings = () => {
       isSavingRef.current = false;
     }
   };
+
 
   const [backupLoading, setBackupLoading] = React.useState(false);
   const [emailBackupLoading, setEmailBackupLoading] = React.useState(false);
@@ -1072,6 +1193,7 @@ const Settings = () => {
                   { id: 'debts', label: 'Crédit Client', desc: 'Suivi des impayés et relances.', icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
                   { id: 'analytics', label: 'Dashboard Avancé', desc: 'Rapports graphiques et KPI exports.', icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
                   { id: 'cash', label: 'Gestion de Caisse', desc: 'Sessions de caisse et rapports de clôture.', icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
+
                   { id: 'barcode', label: 'Scanner Code-barres', desc: 'Support caméra mobile et scanners USB.', icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div

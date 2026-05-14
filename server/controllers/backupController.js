@@ -1,5 +1,5 @@
 const {
-    Product, Sale, Client, Fournisseur, Depense, Purchase,
+    Product, Sale, Client, Fournisseur, Purchase,
     StockMovement, CashSession, Activite, Notification, User, Feedback
 } = require('../models');
 const { sendEmail } = require('../utils/emailService');
@@ -15,14 +15,13 @@ exports.exportBackup = async (req, res, next) => {
         const userId = req.user.id;
 
         const [
-            products, sales, clients, fournisseurs, depenses, purchases,
+            products, sales, clients, fournisseurs, purchases,
             movements, sessions, activities, notifications, subUsers, feedbacks
         ] = await Promise.all([
             Product.findAll({ where: { userId } }),
             Sale.findAll({ where: { userId } }),
             Client.findAll({ where: { userId } }),
             Fournisseur.findAll({ where: { userId } }),
-            Depense.findAll({ where: { userId } }),
             Purchase.findAll({ where: { userId } }),
             StockMovement.findAll({ where: { userId } }),
             CashSession.findAll({ where: { userId } }),
@@ -41,7 +40,6 @@ exports.exportBackup = async (req, res, next) => {
                 sales: sales.map(s => s.get({ plain: true })),
                 clients: clients.map(c => c.get({ plain: true })),
                 fournisseurs: fournisseurs.map(f => f.get({ plain: true })),
-                depenses: depenses.map(d => d.get({ plain: true })),
                 purchases: purchases.map(p => p.get({ plain: true })),
                 movements: movements.map(m => m.get({ plain: true })),
                 sessions: sessions.map(s => s.get({ plain: true })),
@@ -74,14 +72,13 @@ exports.exportEmailBackup = async (req, res, next) => {
         const userId = req.user.id;
 
         const [
-            products, sales, clients, fournisseurs, depenses, purchases,
+            products, sales, clients, fournisseurs, purchases,
             movements, sessions, activities, notifications, subUsers, feedbacks
         ] = await Promise.all([
             Product.findAll({ where: { userId } }),
             Sale.findAll({ where: { userId } }),
             Client.findAll({ where: { userId } }),
             Fournisseur.findAll({ where: { userId } }),
-            Depense.findAll({ where: { userId } }),
             Purchase.findAll({ where: { userId } }),
             StockMovement.findAll({ where: { userId } }),
             CashSession.findAll({ where: { userId } }),
@@ -100,7 +97,6 @@ exports.exportEmailBackup = async (req, res, next) => {
                 sales: sales.map(s => s.get({ plain: true })),
                 clients: clients.map(c => c.get({ plain: true })),
                 fournisseurs: fournisseurs.map(f => f.get({ plain: true })),
-                depenses: depenses.map(d => d.get({ plain: true })),
                 purchases: purchases.map(p => p.get({ plain: true })),
                 movements: movements.map(m => m.get({ plain: true })),
                 sessions: sessions.map(s => s.get({ plain: true })),
@@ -166,7 +162,7 @@ exports.importBackup = async (req, res, next) => {
 
         const {
             products = [], clients = [], sales = [], fournisseurs = [],
-            depenses = [], purchases = [], movements = [], sessions = [],
+            purchases = [], movements = [], sessions = [],
             activities = [], notifications = [], subUsers = [], feedbacks = []
         } = backup.data;
 
@@ -174,7 +170,6 @@ exports.importBackup = async (req, res, next) => {
         let restoredClients = 0;
         let restoredSales = 0;
         let restoredFournisseurs = 0;
-        let restoredDepenses = 0;
         let restoredPurchases = 0;
         let restoredMovements = 0;
         let restoredSessions = 0;
@@ -221,19 +216,6 @@ exports.importBackup = async (req, res, next) => {
                 await Fournisseur.create({ ...fournisseurData, userId }, { transaction: t });
             }
             restoredFournisseurs++;
-        }
-
-        // --- Restaurer les Dépenses ---
-        for (const d of depenses) {
-            const { id, createdAt, updatedAt, userId: _uid, ...depenseData } = d;
-            const existing = await Depense.findOne({
-                where: { userId, montant: depenseData.montant, createdAt: depenseData.createdAt || null },
-                transaction: t
-            });
-            if (!existing) {
-                await Depense.create({ ...depenseData, userId }, { transaction: t });
-                restoredDepenses++;
-            }
         }
 
         // --- Restaurer les Achats ---
@@ -320,7 +302,6 @@ exports.importBackup = async (req, res, next) => {
                 clients: restoredClients,
                 sales: restoredSales,
                 fournisseurs: restoredFournisseurs,
-                depenses: restoredDepenses,
                 purchases: restoredPurchases,
                 movements: restoredMovements,
                 sessions: restoredSessions,
@@ -358,7 +339,6 @@ exports.previewBackup = async (req, res, next) => {
                 clients: (backup.data.clients || []).length,
                 sales: (backup.data.sales || []).length,
                 fournisseurs: (backup.data.fournisseurs || []).length,
-                depenses: (backup.data.depenses || []).length,
                 purchases: (backup.data.purchases || []).length,
                 movements: (backup.data.movements || []).length,
                 sessions: (backup.data.sessions || []).length,

@@ -281,6 +281,10 @@ const POS = () => {
     const [lastSale, setLastSale] = useState<any>(null);
     const [saleCurrency, setSaleCurrency] = useState(currency || 'USD');
 
+    useEffect(() => {
+        if (currency) setSaleCurrency(currency);
+    }, [currency]);
+
     const handleOpenSession = async () => {
         if (openingCash) return;
         setOpeningCash(true);

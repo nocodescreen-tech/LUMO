@@ -41,10 +41,11 @@ exports.createDepense = async (req, res, next) => {
     });
 
     if (activeSession) {
-      // Récupérer le taux de change de l'entreprise
+      // Récupérer le taux de change de l'entreprise (donneur d'ordre)
       const owner = await User.findByPk(userId);
-      const rate = owner.entreprise?.exchangeRate || 2800;
-      const sessionDevise = owner.entreprise?.devise || 'CDF';
+      const sessionDevise = owner?.entreprise?.devise || 'CDF';
+      // Priorité au taux défini dans les préférences, sinon celui de l'entreprise, sinon 2800
+      const rate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate || 2800);
 
       // Convertir le montant de la dépense dans la devise de la session
       const montantConverti = convertCurrency(
@@ -54,6 +55,8 @@ exports.createDepense = async (req, res, next) => {
         rate
       );
 
+      // Mise à jour des compteurs de la session
+      activeSession.totalExpenses = Number(activeSession.totalExpenses || 0) + Number(montantConverti);
       activeSession.expectedBalance = Number(activeSession.expectedBalance || 0) - Number(montantConverti);
       await activeSession.save();
     }

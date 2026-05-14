@@ -17,7 +17,8 @@ import {
   ChevronRight,
   ChevronUp,
   User,
-  ChevronsUpDown
+  ChevronsUpDown,
+  TrendingDown
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -55,7 +56,6 @@ const Sidebar = () => {
     { id: 'clients', icon: Users, label: t('clients'), path: '/clients' },
     { id: 'staff', icon: ShieldCheck, label: t('team'), path: '/users' },
     { id: 'suppliers', icon: Building2, label: t('suppliers'), path: '/fournisseurs' },
-    { id: 'expenses', icon: Wallet, label: t('expenses'), path: '/expenses' },
     { id: 'debts', icon: ArrowUpDown, label: t('debts'), path: '/dettes' },
     { id: 'stats', icon: BarChart3, label: t('stats'), path: '/stats' },
     { id: 'activities', icon: Activity, label: t('activities'), path: '/activities', superOnly: true },
@@ -65,20 +65,23 @@ const Sidebar = () => {
     // SuperAdmin restricted items
     if (item.superOnly && user?.role !== 'superadmin') return false;
 
-    // 1. If it's a sub-user (has parentId or role != admin/superadmin), check their specific permissions
+    // 1. Sub-user: check their specific granted permissions
     if (user?.role !== 'admin' && user?.role !== 'superadmin' && user?.permissions) {
-      if (item.id === 'dashboard') return true; // Always allow dashboard
+      if (item.id === 'dashboard') return true;
       return user.permissions.includes(item.id);
     }
 
-    // 2. If it's the main admin, check enabledModules and special cases
+    // 2. Main admin: check enabledModules + hardcoded always-visible items
     if (user?.role === 'admin') {
-      if (item.id === 'staff') return true;
-      if (item.id === 'dashboard' || item.id === 'cash') return true;
+      // Always visible for admin regardless of modules
+      if (['dashboard', 'cash', 'staff'].includes(item.id)) return true;
+      // Suppliers visible if purchases OR suppliers module is enabled
       if (item.id === 'suppliers') return enabledModules.includes('purchases') || enabledModules.includes('suppliers');
-      return enabledModules.includes(item.id);
+      // All other items depend on enabledModules
+      return Array.isArray(enabledModules) && enabledModules.includes(item.id);
     }
 
+    // 3. SuperAdmin: sees everything
     return true;
   });
 

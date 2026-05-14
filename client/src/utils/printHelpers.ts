@@ -257,7 +257,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
           .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
           .title { font-size: 28px; font-weight: 800; color: #1e293b; }
           .period { background: #f1f5f9; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 14px; color: #6366f1; }
-          .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+          .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
           .stat-card { padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9; background: #f8fafc; }
           .stat-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
           .stat-value { font-size: 24px; font-weight: 800; color: #0f172a; }
@@ -287,12 +287,8 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
               <div class="stat-value" style="color: #10b981;">${Number(data?.totals?.revenue || 0).toLocaleString()} ${currency}</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Dépenses Totales</div>
-              <div class="stat-value" style="color: #ef4444;">${Number(data?.totals?.expenses || 0).toLocaleString()} ${currency}</div>
-            </div>
-            <div class="stat-card">
               <div class="stat-label">Bénéfice Net</div>
-              <div class="stat-value" style="color: #6366f1;">${Number((data?.totals?.revenue || 0) - (data?.totals?.expenses || 0)).toLocaleString()} ${currency}</div>
+              <div class="stat-value" style="color: #6366f1;">${Number((data?.totals?.revenue || 0)).toLocaleString()} ${currency}</div>
             </div>
           </div>
 
@@ -302,7 +298,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
               <tr>
                 <th>Date</th>
                 <th>Revenus</th>
-                <th>Dépenses</th>
+
                 <th>Profit</th>
               </tr>
             </thead>
@@ -311,8 +307,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
                 <tr>
                   <td>${new Date(d.date).toLocaleDateString()}</td>
                   <td>${Number(d.revenue).toLocaleString()}</td>
-                  <td>${Number(d.expenses).toLocaleString()}</td>
-                  <td style="color: ${d.revenue - d.expenses >= 0 ? '#10b981' : '#ef4444'}">${Number(d.revenue - d.expenses).toLocaleString()}</td>
+                  <td style="color: ${d.revenue >= 0 ? '#10b981' : '#ef4444'}">${Number(d.revenue).toLocaleString()}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -370,7 +365,7 @@ export const generateCashSessionReport = (session: any, user: any) => {
           body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; }
           .report-box { max-width: 800px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 24px; }
           .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
-          .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+          .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
           .stat-card { background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #f1f5f9; }
           .stat-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 5px; }
           .stat-value { font-size: 20px; font-weight: 800; color: #0f172a; }
@@ -409,10 +404,7 @@ export const generateCashSessionReport = (session: any, user: any) => {
               <div class="stat-label">Ventes (+)</div>
               <div class="stat-value" style="color: #10b981;">${Number(session.totalSales).toLocaleString()} ${currency}</div>
             </div>
-            <div class="stat-card">
-              <div class="stat-label">Dépenses (-)</div>
-              <div class="stat-value" style="color: #ef4444;">${Number(session.totalExpenses).toLocaleString()} ${currency}</div>
-            </div>
+
           </div>
 
           <div class="detail-row">

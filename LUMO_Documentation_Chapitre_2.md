@@ -1,168 +1,156 @@
 # CHAPITRE DEUXIÈME : APPROCHE SOLUTIONNELLE
 
-## 2.1. Planification du projet
-
-### 1. Informations Générales du Projet
-*   **Nom de l'application :** LUMO
-*   **Type d'application :** Système ERP (Enterprise Resource Planning) & POS (Point of Sale) basé sur le Cloud (SaaS).
-*   **Description courte :** LUMO est une plateforme unifiée et intelligente de gestion d'entreprise. Elle intègre de manière transparente les ventes (POS), la gestion complète des stocks, la facturation, le CRM (gestion de la relation client), et la trésorerie multi-devises, le tout propulsé par une Intelligence Artificielle intégrée pour automatiser les analyses et optimiser la prise de décision.
-*   **Période de réalisation :** Janvier 2026 à Mai 2026.
-*   **Équipe de réalisation :**
-    *   *Chef de Projet & Développeur Full-Stack Lead :* René Nzaku
-    *   *Analyste Système, Base de données & DevOps :* René Nzaku
-    *   *Intégration IA & Ingénierie Qualité :* Équipe technique de support
-*   **Budget estimatif (Fonctionnement & Infrastructure) :** ~150 $ USD (Hors valorisation du temps-homme).
+## INTRODUCTION
+Ce chapitre expose la démarche méthodologique et technique adoptée pour la concrétisation du projet LUMO. Il détaille la planification rigoureuse à travers le cadre logique et le chronogramme, justifie les choix technologiques et méthodologiques, et présente l'architecture globale ainsi que les outils de développement mis en œuvre pour garantir une solution ERP/POS robuste, sécurisée et intelligente.
 
 ---
 
-### 2.1.1. Cadre logique (Tableau 2-1)
+## 2.1. PLANIFICATION DU PROJET
 
-*(Note : La colonne "Valorisation" représente la valeur estimée du "Temps-Homme" pour chaque phase, illustrant le coût immatériel du développement logiciel).*
+### 2.1.1. Cadre Logique (Matrice du Projet)
 
-| Objectifs Spécifiques (OI) | Résultats attendus | Activités principales | Indicateurs objectivement vérifiables | Responsable | Valorisation (Temps-Homme) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **OI-1 : Analyse et Modélisation du système** | Cahier des charges et diagrammes UML validés | - Recueil des besoins métiers<br>- Création des diagrammes UML<br>- Maquettage UI/UX (Figma) | Documents de spécifications produits finalisés, Maquettes validées | Chef de Projet | 500 $ |
-| **OI-2 : Conception de la Base de Données (PostgreSQL)** | Base de données relationnelle optimisée, robuste et sécurisée | - Schématisation entité-association<br>- Scripts de migration Sequelize<br>- Implémentation de l'intégrité référentielle | BDD déployée en local et schéma validé (plus de 12 tables créées) | Dev Backend | 600 $ |
-| **OI-3 : Développement de l'API Backend RESTful** | Core API opérationnelle, modulaire et sécurisée | - Dev des routes & contrôleurs (Auth, Stock, Ventes)<br>- Sécurisation (JWT, RBAC) | API testée avec Postman (100% de routes répondant correctement) | Dev Backend | 1 200 $ |
-| **OI-4 : Développement de l'Interface Frontend (React)** | Application web réactive, multi-thème, ergonomique et intuitive | - Intégration React/TypeScript<br>- Consommation de l'API<br>- Module POS & Dashboards interactifs | Interface fluide (Light/Dark mode) connectée aux données réelles en direct | Dev Frontend | 1 500 $ |
-| **OI-5 : Intégration IA (DeepSeek) et Déploiement** | Assistant IA fonctionnel et plateforme accessible en production | - Intégration API DeepSeek<br>- Hébergement Cloud (Railway, Vercel)<br>- Tests d'acceptation utilisateur (UAT) | Assistant IA pertinent aux requêtes métiers, Application en ligne et stable | Lead Dev | 700 $ |
+**Objectif Global :** Développer et déployer une plateforme ERP/POS Cloud unifiée et intelligente (LUMO) pour optimiser la gestion commerciale, financière et opérationnelle des entreprises de type boutique ou négoce.
 
----
+**Tableau 2-1 : Matrice du Cadre Logique**
 
-### 2.1.2. Chronogramme (Tableau 2-2)
+| Hiérarchie des Objectifs | Indicateurs de Performance (KPI) | Sources de Vérification | Hypothèses et Risques |
+| :--- | :--- | :--- | :--- |
+| **Objectifs Spécifiques (OI)** | | | |
+| OI-1 : Analyse & Modélisation UML | 100% des cas d'utilisation modélisés | Dossier de conception | Disponibilité des acteurs métiers |
+| OI-2 : Conception Base de Données | Schéma relationnel (ERD) validé | Script SQL / Modèles Sequelize | Cohérence des données |
+| OI-3 : Développement API Backend | Temps de réponse < 200ms | Logs serveur / Postman | Stabilité de l'environnement Node.js |
+| OI-4 : Développement Frontend React | Interface 100% responsive | Tests navigateurs / Mobile | Compatibilité cross-browser |
+| OI-5 : Intégration IA DeepSeek | Précision des analyses > 90% | Tests de prompts (LUMO AI) | Latence de l'API externe |
+| **Résultats Attendus (RA)** | | | |
+| RA-1 : Système d'authentification JWT | Zéro faille de sécurité détectée | Audit de sécurité | Fiabilité du cryptage Bcrypt |
+| RA-2 : Module POS opérationnel | Moins de 3s pour valider une vente | Tests de charge | Stabilité du matériel (scanner) |
+| RA-3 : Gestion multi-devises fluide | Précision au centime près | Rapports financiers | Variation brutale du taux de change |
 
-| Activités / Tâches du projet | Janvier 2026 | Février 2026 | Mars 2026 | Avril 2026 | Mai 2026 |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| 1. Analyse des besoins et rédaction des spécifications | XX | | | | |
-| 2. Modélisation UML, UI/UX et Architecture logicielle | XX | X | | | |
-| 3. Configuration et paramétrage de la BDD PostgreSQL | | XX | | | |
-| 4. Développement de l'API Backend (Node.js/Express) | | XX | XX | | |
-| 5. Développement Frontend (React/TS) et du module POS | | | XX | XX | |
-| 6. Intégration du moteur d'IA (DeepSeek) | | | | XX | X |
-| 7. Tests d'intégration, assurance qualité et débuggage | | | | X | XX |
-| 8. Déploiement Cloud (CI/CD) et Mise en production | | | | | XX |
-
-*(Note : Dans ce tableau, chaque "X" représente environ deux semaines d'effort de travail continu)*
+**Figure 2-1 : Matrice visuelle du Cadre Logique**
+*(Légende : Diagramme illustrant l'alignement entre les objectifs stratégiques et les résultats opérationnels du projet LUMO).*
 
 ---
 
-### 2.1.3. Budget estimatif et Services Tiers (Infrastructure)
+### 2.1.2. Composition de l'Équipe de Projet
 
-Pour la réalisation physique, les tests et le déploiement en production de l'application LUMO, un budget d'infrastructure a été strictement établi. Il se concentre exclusivement sur les dépenses opérationnelles directes et les services cloud (SaaS/PaaS) utilisés, distinct de la main d'œuvre.
-
-**Tableau 2-3 : Coût des services et de l'infrastructure Cloud**
-*(Taux de change moyen appliqué : 1$ USD = 2 250 CDF)*
-
-| Rubrique / Service Cloud | Rôle dans l'architecture du projet | Coût estimé |
+| Membre | Rôle | Responsabilités Détaillées |
 | :--- | :--- | :--- |
-| **Railway (Cloud Platform)** | Plateforme PaaS pour l'hébergement continu du serveur Backend (Node.js) et le provisionnement de la base de données PostgreSQL en production. | ~ 20 $ USD |
-| **DeepSeek API** | Modèle de langage (LLM) propulsant l'assistant IA intégré de LUMO, responsable de l'analyse métier et du traitement du langage naturel (NLP). | ~ 20 $ USD |
-| **Connexion Internet (Data)** | Forfait mobile pour les phases de recherche, développement, et tests. (Consommation : 4 GB = 3 000 FC, renouvelé 3 à 4 fois par semaine). | ~ 107 $ USD *(soit ~240 000 CDF sur 5 mois)* |
-| **Cloudinary** | CDN (Content Delivery Network) optimisé pour le stockage, le redimensionnement à la volée et la distribution des images (produits, avatars). | **Gratuit** (Free Tier) |
-| **Firebase (Google)** | Utilisé pour la gestion des services tiers annexes et les communications temps-réel si applicable. | **Gratuit** (Free Tier) |
-| **Vercel / Netlify** | Hébergement statique avec Edge Network, optimisé pour la distribution ultra-rapide de l'application Frontend React (Single Page Application). | **Gratuit** (Free Tier) |
-| **GitHub** | Dépôt central pour l'hébergement du code source, la gestion des versions (Git) et l'intégration continue (CI/CD). | **Gratuit** (Free Tier) |
-| **Total Estimé** | Dépenses opérationnelles directes (hors main d'œuvre) pour toute la durée de réalisation. | **~ 147 $ USD** |
+| **René Nzaku** | Chef de Projet | Coordination, définition des objectifs, gestion du planning et du budget. |
+| **René Nzaku** | Lead Developer | Architecture logicielle, développement Full-stack (Node/React), DevOps. |
+| **Équipe Support** | Analystes & Testeurs | Recueil des besoins, assurance qualité (QA), tests d'intrusion. |
 
 ---
 
-## 2.2. Méthodologie de recherche
+### 2.1.3. Hypothèses et Risques
 
-### 2.2.1. Méthodes
-
-**a) Méthode de développement : Agile (Incrémentale et Itérative)**
-Afin d'assurer une livraison continue de valeur et de s'adapter rapidement aux éventuels changements de cahier des charges, la méthode Agile a été choisie. Le développement a été organisé en **5 Sprints** principaux :
-*   **Sprint 1 (Fondations & Sécurité) :** Paramétrage de l'environnement, conception de la BDD PostgreSQL, mise en place de l'API Node.js, authentification sécurisée (JWT) et hiérarchie des rôles.
-*   **Sprint 2 (Noyau Métier - Core) :** Réalisation du module central de Point de Vente (POS), de la gestion complète du catalogue (Produits, Catégories, Variantes) et du moteur d'inventaire.
-*   **Sprint 3 (Finance & CRM) :** Développement du module de Trésorerie multi-devises (sessions de caisse, entrées/sorties), annuaire des clients (CRM), et suivi rigoureux des créances et dettes.
-*   **Sprint 4 (Intelligence Artificielle & UI) :** Intégration de l'IA (API DeepSeek) pour les recommandations métiers et le Dashboard analytique. Finalisation du design system UI/UX.
-*   **Sprint 5 (Assurance Qualité & Lancement) :** Campagne de tests exhaustifs, correction des anomalies (bug tracking), optimisation des performances, et déploiement cloud final.
-
-**b) Méthode de modélisation : UML (Unified Modeling Language)**
-L'UML a servi de langage standard pour schématiser l'architecture logicielle avant toute écriture de code.
-*   **Rôles définis (Acteurs système) :** SuperAdmin (supervision globale SaaS), Admin/Tenant (propriétaire de l'entreprise), Manager (superviseur des opérations), Caissier/Vendeur (opérateur point de vente).
-*   **Cas d'utilisation :** Le système couvre environ 25 cas d'utilisation majeurs.
-*   **Diagrammes exploités :**
-    *   *Diagramme de Cas d'utilisation :* Identification des droits d'accès et des interactions entre les différents acteurs et les modules du système LUMO.
-    *   *Diagramme de Classes :* Structuration statique des objets du domaine (User, Product, Sale, CashSession) et modélisation de leurs associations.
-    *   *Diagramme de Séquence :* Illustration de la dynamique temporelle (ex: processus d'authentification ou flux de validation d'une vente POS avec ajustement de stock).
-    *   *Diagramme d'Activités :* Modélisation de la logique métier complexe, telle que le processus strict d'ouverture et de clôture d'une session de caisse avec vérification des écarts.
-
-**c) Méthode de conception de base de données**
-L'approche choisie est strictement relationnelle, garantissant la fiabilité absolue des données financières et d'inventaire.
-*   **Pourquoi PostgreSQL ?** Ce SGBD a été privilégié pour sa conformité totale aux propriétés ACID (Atomicité, Cohérence, Isolation, Durabilité), essentielle pour les transactions financières. De plus, son support natif supérieur du type de données `JSONB` permet de stocker les préférences utilisateur, les configurations d'entreprise (taux de change, devises) et les métadonnées de l'IA sans complexifier le schéma relationnel avec d'innombrables tables de configuration.
-
-#### Les Modèles de données (Sequelize - 12 entités majeures)
-1.  **User :** Entité centrale gérant l'identité, l'authentification et l'autorisation. Elle englobe les Admins (propriétaires) et leurs sous-utilisateurs (équipe). Contient un champ JSONB pour les permissions modulaires.
-2.  **Product :** Gère le référentiel des articles, incluant le code-barres, les prix d'achat/vente, les seuils d'alerte pour le stock minimum et les liens CDN Cloudinary.
-3.  **Category :** Classification hiérarchique des produits pour une ergonomie optimale lors de la navigation dans le POS.
-4.  **Sale :** Entité transactionnelle enregistrant chaque vente validée, horodatée, avec son total calculé, le statut du paiement, et la devise utilisée au moment de la transaction.
-5.  **SaleItem (Entité de liaison N:N) :** Relie de manière immuable une Vente (Sale) à ses Produits, figeant la quantité vendue, la remise appliquée et le prix unitaire pour garantir la pérennité de l'historique comptable.
-6.  **Client :** Module CRM enregistrant les données de contact des acheteurs et permettant le traçage de leurs habitudes de consommation.
-7.  **Fournisseur :** Module SRM consignant les partenaires commerciaux assurant le réapprovisionnement de la boutique.
-8.  **Purchase (Achat/Approvisionnement) :** Enregistre les réceptions de marchandises, mettant à jour le stock et créant potentiellement une dette fournisseur.
-9.  **CashSession :** Modèle vital de Trésorerie qui encadre le travail d'un caissier. Il enregistre le fond de caisse initial, trace toutes les ventes du shift, et calcule l'écart lors de la clôture physique.
-10. **Depense :** Suivi des flux sortants opérationnels (loyers, factures électricité, salaires journaliers) rattachés à une session de caisse spécifique.
-11. **Dette :** Entité gérant le crédit. Elle suit les montants restant à percevoir des clients ou à payer aux fournisseurs, avec un historique d'amortissement.
-12. **Activity :** Journal d'audit (Logs de traçabilité) enregistrant chaque manipulation critique effectuée dans LUMO pour garantir la transparence totale envers l'Admin.
-
-*(Relations systémiques clés : 1 Admin possède N Produits (1:N) ; 1 Vente contient N SaleItems (1:N) ; 1 Produit apparaît dans N SaleItems (1:N) ; 1 Admin supervise N Utilisateurs de l'équipe (1:N).)*
+| Risque Identifié | Probabilité | Impact | Stratégie de Mitigation |
+| :--- | :--- | :--- | :--- |
+| Instabilité de la connexion internet | Élevée | Majeur | Implémentation d'un mode dégradé et cache local. |
+| Fuite de données sensibles | Faible | Critique | Chiffrement AES, SSL, et protection JWT stricte. |
+| Dépassement des délais | Moyenne | Moyen | Suivi hebdomadaire via la méthode Agile (Sprints). |
 
 ---
 
-### 2.2.2. Techniques et Outils
+### 2.1.4. Chronogramme et Jalons Clés (Milestones)
 
-#### Stack Technologique (Architecture MERN / PERN Moderne)
+**Tableau 2-2 : Planning de réalisation (Janvier - Mai 2026)**
 
-**Backend & Serveur de Base de données :**
-*   **Node.js (v20+) :** Environnement d'exécution JavaScript côté serveur. Choisi pour son architecture événementielle non bloquante, idéale pour concevoir des API REST hautement performantes capables de gérer de multiples transactions simultanées.
-*   **Express.js (v4.x) :** Framework de routage minimaliste et flexible, utilisé pour orchestrer les endpoints de l'API, appliquer les middlewares de sécurité (CORS, Helmet) et gérer les requêtes HTTP.
-*   **PostgreSQL (v15+) :** SGBD relationnel open-source le plus avancé, garantissant l'intégrité absolue des données financières de LUMO.
-*   **Sequelize (v6.x) :** ORM (Object-Relational Mapping) agissant comme pont entre Node.js et PostgreSQL. Il simplifie les requêtes complexes, gère automatiquement les migrations de schéma et protège contre les failles d'injection SQL.
+| Activités / Mois | Janvier | Février | Mars | Avril | Mai |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Analyse & Conception UML | XX | X | | | |
+| Mise en place BDD & API | | XX | X | | |
+| Développement Frontend & POS | | | XX | XX | |
+| Intégration IA & Trésorerie | | | | XX | X |
+| Tests, QA & Déploiement | | | | | XX |
 
-**Frontend & Interface Utilisateur :**
-*   **React (v18) couplé à TypeScript :** Bibliothèque JavaScript de pointe pour le rendu UI. L'utilisation stricte de TypeScript a permis de réduire drastiquement les bugs en phase de développement grâce à un typage fort de toutes les données (ex: modèles de produits, réponses d'API).
-*   **Vite.js :** Outil de build nouvelle génération remplaçant Webpack, offrant un démarrage du serveur de développement quasi-instantané et un rechargement à chaud ultra-rapide (HMR).
+**Figure 2-2 : Diagramme de Gantt du projet LUMO**
+*(Légende : Visualisation temporelle des phases de développement et d'intégration).*
 
-**Principales Dépendances & Écosystème (NPM) :**
-*   *Sécurité & Cryptographie :* `jsonwebtoken` (Création de jetons d'accès), `bcryptjs` (Hachage asymétrique des mots de passe).
-*   *Interface & Expérience Utilisateur (UI/UX) :* `framer-motion` (Orchestration des micro-animations de l'interface), `lucide-react` (Bibliothèque d'icônes vectorielles légères et modernes), `sonner` (Composant toast de notification non intrusif).
-*   *Communication & État :* `axios` (Client HTTP typé avec intercepteurs pour l'injection du token), `zustand` (Gestionnaire d'état global minimaliste pour le stockage de la session et des préférences utilisateur).
-
----
-
-### 2.3. Architecture Technique et Sécurité de LUMO
-
-**1. Architecture Globale :**
-*   **REST API Découplée :** La plateforme adopte une architecture où le Frontend (Client React) et le Backend (Serveur Node) sont deux applications physiquement séparées. Ils ne communiquent qu'au travers de requêtes réseau (HTTP/JSON), ce qui permet une scalabilité indépendante.
-*   **Pattern MVC-like (Modèle-Route-Contrôleur) :** Côté serveur, la logique est rigoureusement segmentée. Les `Routes` interceptent la requête, le `Controller` applique les règles métier complexes, et le `Model` valide et persiste la donnée en BDD.
-
-**2. Couches de Sécurité Implémentées :**
-*   **Authentification Stateless (JWT) :** Après vérification des identifiants, un jeton crypté (JWT) est délivré au client. Ce jeton est exigé pour chaque requête API sécurisée via l'en-tête `Authorization: Bearer <token>`.
-*   **Bcrypt :** Le stockage des mots de passe est sécurisé par un algorithme de hachage unidirectionnel `bcrypt` couplé à un "salt" généré aléatoirement.
-*   **RBAC (Role-Based Access Control) :** Une gestion des droits stricte est en place via le middleware `authorize(...)`. Un Caissier ne peut pas interroger les endpoints analytiques ou modifier les privilèges, action réservée exclusivement à l'Admin.
-*   **Protection API :** Mise en œuvre de `CORS` (Cross-Origin Resource Sharing) pour que l'API ne réponde qu'au domaine officiel du frontend, empêchant l'exploitation par des scripts tiers.
-
-**3. Infrastructure Avancée et Standardisation :**
-*   **Moteur Multi-Devises Dynamique :** LUMO gère nativement la coexistence du Franc Congolais (CDF) et du Dollar Américain (USD). Le taux de change, configurable par l'Admin, est utilisé en temps réel dans les interfaces de caisse et les rapports statistiques.
-*   **Configuration centralisée via JSONB :** Les éléments volatiles (thème visuel, paramètres linguistiques, métadonnées spécifiques à la boutique) sont stockés sans rigidité structurelle grâce à PostgreSQL JSONB.
-
-**4. Rôle de l'Intelligence Artificielle (DeepSeek) :**
-LUMO n'est pas qu'un outil de saisie ; il intègre une surcouche algorithmique. Connecté à l'API de DeepSeek, l'assistant IA offre :
-*   Des analyses sémantiques de la performance de vente.
-*   L'identification de tendances (produits stars, ralentissements).
-*   Une assistance contextuelle directe à l'utilisateur sous forme de chat conversationnel intégré à l'ERP.
+**Jalons Clés (Milestones) :**
+*   **M1 (15 Jan) :** Validation de l'architecture logicielle et UML.
+*   **M2 (28 Fév) :** Fin du développement du noyau Backend (API v1).
+*   **M3 (30 Avr) :** Version Bêta fonctionnelle avec IA et POS.
+*   **M4 (20 Mai) :** Déploiement final en production sur Railway.
 
 ---
 
-### 2.4. Modules et Fonctionnalités Clés de LUMO
+### 2.1.5. Budget Estimatif et Répartition
 
-1.  **Point de Vente Connecté (POS) :** Interface de vente au comptoir ultra-réactive. Intègre la lecture de codes-barres, le calcul automatique de la monnaie à rendre multi-devises, la gestion des remises panier, et la génération de tickets de caisse numériques ou imprimables.
-2.  **Gestion Intelligente du Catalogue :** Référencement des produits par catégories, gestion des variantes de prix, téléchargement d'images sur Cloudinary, et génération automatique de SKU.
-3.  **Contrôle des Stocks (Inventaire) :** Suivi en temps réel de l'état des entrepôts. Génération d'alertes visuelles lorsque le seuil critique (Stock Minimum) est atteint.
-4.  **Module de Trésorerie (Caisse) :** Suivi strict des sessions (Shifts). Chaque employé ouvre sa caisse avec un fond initial, enregistre ses opérations, et clôture en justifiant le solde physique, calculant instantanément le déficit ou l'excédent.
-5.  **Dettes, Créances & Dépenses :** Système comptable annexe permettant d'accorder du crédit aux clients fidèles, de planifier le paiement des fournisseurs, et de déduire les frais opérationnels (transport, loyer) du chiffre d'affaires journalier.
-6.  **CRM & SRM :** Centralisation des profils clients (Customer Relationship Management) et fournisseurs (Supplier Relationship Management) avec historique financier complet rattaché à chaque profil.
-7.  **Dashboards Analytiques :** Tableaux de bord riches en graphiques interactifs affichant la santé financière (Chiffre d'Affaires brut, bénéfices nets, volumétrie des ventes).
-8.  **Gestion d'Équipe Centralisée :** Interface de création de profils collaborateurs (Superviseurs, Caissiers) incluant une matrice d'affectation des permissions (ex: blocage/autorisation d'accès au module Trésorerie).
-9.  **Journal d'Audit (Logs) :** Traçabilité indélébile de toutes les suppressions, modifications ou connexions effectuées sur la plateforme pour une sécurité maximale.
+**A. Ressources Humaines (Valorisation marchande)**
+| Rôle | Durée | Taux Journalier | Total Estimé |
+| :--- | :--- | :--- | :--- |
+| Chef de Projet / Analyste | 5 mois | 30 $ | 4 500 $ |
+| Développeur Full-stack | 5 mois | 40 $ | 6 000 $ |
+
+**B. Services Cloud & Logiciels (Coût Réel)**
+| Service | Usage | Modèle tarifaire | Coût (5 mois) |
+| :--- | :--- | :--- | :--- |
+| **Railway.app** | Hébergement Backend & DB | Pay-as-you-go | 100 $ |
+| **DeepSeek API** | Intelligence Artificielle | Forfait Mensuel | 100 $ |
+| **Internet (Data)** | Développement & Déploiement | 3000 FC/4GB (3-4x/sem) | 107 $ |
+| **Cloudinary** | Gestion des images | Gratuit | 0 $ |
+
+**C. Budget Total Récapitulatif**
+| Catégorie | Coût Réel (Cash) | Valorisation Marchande |
+| :--- | :--- | :--- |
+| Ressources Humaines | 0 $ (Autoproduction) | 10 500 $ |
+| Infrastructure Cloud | ~ 307 $ | 600 $ |
+| **TOTAL GÉNÉRAL** | **~ 307 $** | **11 100 $** |
+
+---
+
+## 2.2. MÉTHODOLOGIE DE RECHERCHE
+
+### 2.2.1. Méthodes Appliquées
+
+**a) Méthode de Développement : Agile Incrémentale**
+LUMO a été développé selon une approche Agile. Cette méthode permet de livrer des incréments fonctionnels (modules) toutes les 2 à 3 semaines.
+*   **Justification :** Réduit les risques de tunnel, permet des ajustements rapides basés sur les tests utilisateurs et garantit une qualité logicielle constante.
+
+**Figure 2-3 : Cycle de vie Agile / Sprints de LUMO**
+
+**b) Méthode de Modélisation : UML 2.0**
+L'Unified Modeling Language a été utilisé pour la conception formelle.
+*   **Diagrammes :** Cas d'utilisation (Besoins), Classes (Statique), Séquence (Dynamique).
+*   **Justification :** Fournit une vue d'ensemble claire pour l'équipe technique et facilite la maintenance future.
+
+**c) Méthode Analytique et Comparative**
+Nous avons décomposé le problème global (gestion d'entreprise) en sous-problèmes atomiques : Ventes, Stocks, Finances, IA.
+*   **Comparaison technologique :** PostgreSQL a été choisi face à MongoDB pour son intégrité relationnelle supérieure dans les transactions financières.
+
+---
+
+### 2.2.2. Techniques et Outils de Développement
+
+**a) Techniques de Collecte et Modélisation**
+*   **Collecte :** Observation directe en boutique et étude documentaire des rapports comptables manuels.
+*   **Modélisation BDD :** Utilisation de l'approche entité-association pour générer un schéma relationnel normalisé (3NF).
+
+**Figure 2-4 : Modèle Conceptuel de Données (MCD/ERD)**
+
+**b) Architecture Logicielle : MVC (Modèle-Vue-Contrôleur)**
+*   **Modèle :** Sequelize (PostgreSQL) - Logique de données.
+*   **Vue :** React (Frontend) - Interface utilisateur.
+*   **Contrôleur :** Express.js (Backend) - Logique métier et routage.
+
+**c) Sécurisation de la Plateforme (Défense en Profondeur)**
+| Couche | Technique | Outil / Package |
+| :--- | :--- | :--- |
+| Transport | Chiffrement des données | SSL / HTTPS |
+| Accès | Token sans état | JWT (JSON Web Token) |
+| Données | Hachage asymétrique | Bcrypt (Salt 10) |
+| Serveur | Protection En-têtes | Helmet.js / CORS |
+
+**d) Techniques Avancées**
+*   **Temps Réel :** Intégration de **Socket.IO** pour les notifications push instantanées (alertes stock, validations de vente).
+*   **Sauvegarde (Backup) :** Automatisation via **Node-Cron** pour des exports journaliers de la base de données PostgreSQL.
+*   **Intégration IA :** Utilisation du **Streaming API** pour une réponse fluide de l'assistant LUMO et gestion de la dégradation élégante en cas de hors-ligne.
+
+**e) Outils de Développement utilisés**
+*   **Environnement :** Antigravity (Éditeur), GitHub (Versionnage), Postman (Tests API).
+*   **Gestionnaires :** NPM (Packages), Vite (Build), Railway (PaaS).
+
+---
+
+## CONCLUSION DU CHAPITRE
+L'approche solutionnelle présentée ici démontre que le projet LUMO ne repose pas seulement sur du code, mais sur une architecture pensée pour la performance et la sécurité. L'utilisation combinée des méthodes Agiles et de la stack PERN (PostgreSQL, Express, React, Node) positionne LUMO comme une solution moderne et évolutive pour les défis de gestion d'entreprise actuels.

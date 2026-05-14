@@ -118,7 +118,7 @@ hubcommerce-project/
 ## ✨ Fonctionnalités Existantes
 
 ### 📊 Tableaux de Bord & Analytics
-- **Dashboard Intelligent**: Aperçu global du chiffre d'affaires, dépenses et santé du stock
+- **Dashboard Intelligent**: Aperçu global du chiffre d'affaires et santé du stock
 - **LUMO Assistant AI**: Chat interactif avec DeepSeek pour analyse des données et suggestions stratégiques
 - **Graphiques Financiers**: Visualisation des performances avec MUI X-Charts
 - **Notifications**: Système de notifications en temps réel
@@ -140,11 +140,10 @@ hubcommerce-project/
   - Historique complet des transactions
   - Modification/suppression des ventes
   - Export des données
-- **Achats & Dépenses**:
+- **Achats**:
   - Enregistrement des achats
   - Gestion des fournisseurs
   - Suivi des dettes fournisseurs
-  - Analyse des coûts
 
 ### 🤝 CRM & SRM
 - **Gestion Clients**:
@@ -255,7 +254,6 @@ User (1) ↔ (N) Sale
 User (1) ↔ (N) Client
 User (1) ↔ (N) Purchase
 User (1) ↔ (N) Fournisseur
-User (1) ↔ (N) Depense
 User (1) ↔ (N) CashSession
 User (1) ↔ (N) Activite
 User (1) ↔ (N) Notification
@@ -278,7 +276,6 @@ Purchase (1) ↔ (1) Fournisseur
 - `/api/sales/*`: Gestion des ventes
 - `/api/clients/*`: Gestion des clients
 - `/api/fournisseurs/*`: Gestion des fournisseurs
-- `/api/depenses/*`: Gestion des dépenses
 - `/api/purchases/*`: Gestion des achats
 - `/api/ai/*`: Intelligence artificielle
 - `/api/stats/*`: Statistiques
@@ -376,7 +373,7 @@ Purchase (1) ↔ (1) Fournisseur
 
 4. **Validation des Entrées Insuffisante**
    - Seuls 3 contrôleurs ont une validation (auth, product)
-   - Manque pour: sales, clients, expenses, purchases, fournisseurs, stats
+   - Manque pour: sales, clients, purchases, fournisseurs, stats
    - **Solution**: Ajouter la validation Joi pour tous les contrôleurs
 
 5. **Pas de Pagination**

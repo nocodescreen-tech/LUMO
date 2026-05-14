@@ -2,7 +2,6 @@ const User = require('./User');
 const Product = require('./Product');
 const Client = require('./Client');
 const Fournisseur = require('./Fournisseur');
-const Depense = require('./Depense');
 const Sale = require('./sale.model');
 const Purchase = require('./purchase.model');
 const Notification = require('./notification.model');
@@ -12,6 +11,7 @@ const GlobalSetting = require('./GlobalSetting');
 const StockMovement = require('./StockMovement');
 const CashSession = require('./CashSession');
 const Feedback = require('./Feedback');
+const StaffPayment = require('./StaffPayment');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -41,12 +41,14 @@ User.hasMany(CashSession, { foreignKey: 'userId' });
 Feedback.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(Feedback, { foreignKey: 'userId' });
 
+StaffPayment.belongsTo(User, { foreignKey: 'staffId', as: 'member' });
+User.hasMany(StaffPayment, { foreignKey: 'staffId', as: 'payments' });
+
 module.exports = {
   User,
   Product,
   Client,
   Fournisseur,
-  Depense,
   Sale,
   Purchase,
   Notification,
@@ -55,5 +57,6 @@ module.exports = {
   GlobalSetting,
   StockMovement,
   CashSession,
-  Feedback
+  Feedback,
+  StaffPayment
 };

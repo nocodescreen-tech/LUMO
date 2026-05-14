@@ -1,5 +1,13 @@
 node_modules
 .env*
+client/.env
+server/.env
+server/.env.production
+
+# Firebase/Google Service Account Keys
+server/config/*firebase*.json
+server/config/*service*.json
+
 dist
 build
 .DS_Store

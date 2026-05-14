@@ -270,7 +270,7 @@ Le panneau de configuration offre à l'administrateur le contrôle total du comp
 | **Bilinguisme (Fr/En)** | Change la langue de l'interface en temps réel. | Traduction instantanée sans rechargement (`useTranslation`). |
 | **Sauvegarde JSON** | Permet le téléchargement local d'un snapshot crypté de la base. | Plan de reprise d'activité (Disaster Recovery). |
 | **Sécurité 2FA** | Active la double authentification. | Demande un code OTP envoyé par mail avant accès administrateur. |
-| **Feature Flags** | Activation/Désactivation des modules (IA, Dépenses). | Allège le système pour les structures très basiques. |
+| **Feature Flags** | Activation/Désactivation des modules (IA, Stocks). | Allège le système pour les structures très basiques. |
 
 ---
 

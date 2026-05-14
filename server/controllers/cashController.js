@@ -1,4 +1,4 @@
-const { CashSession, Sale, Depense } = require('../models');
+const { CashSession, Sale } = require('../models');
 const { Op } = require('sequelize');
 
 exports.getCurrentSession = async (req, res, next) => {
@@ -7,7 +7,43 @@ exports.getCurrentSession = async (req, res, next) => {
         const session = await CashSession.findOne({
             where: { userId, status: 'OPEN' }
         });
-        res.status(200).json(session);
+
+        if (!session) {
+            return res.status(200).json(null);
+        }
+
+        // Recalculer dynamiquement les totaux avec conversion de devise correcte
+        const owner = await require('../models/User').findByPk(userId);
+        const shopCurrency = owner?.entreprise?.devise || 'CDF';
+        const defaultRate = Number(owner?.preferences?.exchangeRate || 2800);
+
+        const sales = await Sale.findAll({
+            where: { userId, createdAt: { [Op.gte]: session.openingTime } }
+        });
+
+        const totalSales = sales.reduce((acc, s) => {
+            let amount = Number(s.montantTotal);
+            const saleCurrency = s.devise || 'USD';
+            if (saleCurrency !== shopCurrency) {
+                const rate = Number(s.tauxChange || defaultRate);
+                if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+                    amount = Math.round(amount * rate);
+                } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+                    amount = Math.round((amount / rate) * 100) / 100;
+                }
+            }
+            return acc + amount;
+        }, 0);
+
+        const totalExpenses = 0;
+
+        // Mettre à jour la session avec les valeurs recalculées (sans sauvegarder en DB)
+        const sessionData = session.toJSON();
+        sessionData.totalSales = totalSales;
+        sessionData.totalExpenses = totalExpenses;
+        sessionData.expectedBalance = Number(session.openingBalance) + totalSales - totalExpenses;
+
+        res.status(200).json(sessionData);
     } catch (error) {
         next(error);
     }
@@ -57,7 +93,7 @@ exports.closeSession = async (req, res, next) => {
             return res.status(404).json({ message: "Aucune session ouverte trouvée." });
         }
 
-        // Calculer les ventes et dépenses depuis l'ouverture
+        // Calculer les ventes depuis l'ouverture
         const sales = await Sale.findAll({
             where: {
                 userId,
@@ -65,15 +101,26 @@ exports.closeSession = async (req, res, next) => {
             }
         });
 
-        const expenses = await Depense.findAll({
-            where: {
-                userId,
-                createdAt: { [Op.gte]: session.openingTime }
-            }
-        });
+        // Récupérer la devise de la boutique pour normaliser
+        const owner = await require('../models/User').findByPk(userId);
+        const shopCurrency = owner?.entreprise?.devise || 'CDF';
+        const defaultRate = Number(owner?.preferences?.exchangeRate || 2800);
 
-        const totalSales = sales.reduce((acc, s) => acc + Number(s.montantTotal), 0);
-        const totalExpenses = expenses.reduce((acc, e) => acc + Number(e.montant), 0);
+        const totalSales = sales.reduce((acc, s) => {
+            let amount = Number(s.montantTotal);
+            const saleCurrency = s.devise || 'USD';
+            if (saleCurrency !== shopCurrency) {
+                const rate = Number(s.tauxChange || defaultRate);
+                if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+                    amount = Math.round(amount * rate);
+                } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+                    amount = Math.round((amount / rate) * 100) / 100;
+                }
+            }
+            return acc + amount;
+        }, 0);
+
+        const totalExpenses = 0;
         
         const expectedBalance = Number(session.openingBalance) + totalSales - totalExpenses;
 

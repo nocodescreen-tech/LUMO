@@ -1,5 +1,5 @@
 const OpenAI = require("openai");
-const { Sale, Product, Depense, User, Client, Fournisseur, Purchase, GlobalSetting } = require("../models");
+const { Sale, Product, User, Client, Fournisseur, Purchase, GlobalSetting } = require("../models");
 
 const redis = require("../utils/redis");
 
@@ -33,7 +33,6 @@ const buildLumoKnowledge = async (userId, user) => {
     const [products, sales, expenses, clients, fournisseurs, purchases, globalSettings] = await Promise.all([
         Product.findAll({ where: { userId } }),
         Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']] }),
-        Depense.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']] }),
         Client.findAll({ where: { userId }, order: [['nom', 'ASC']] }),
         Fournisseur.findAll({ where: { userId }, order: [['entreprise', 'ASC']] }),
         Purchase.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']] }),
@@ -44,7 +43,6 @@ const buildLumoKnowledge = async (userId, user) => {
     const totalStock = products.reduce((acc, p) => acc + (p.stock || 0), 0);
     const lowStockProducts = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
     const totalRevenueSales = sales.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
-    const totalExpenses = expenses.reduce((acc, e) => acc + (e.montant || 0), 0);
     const totalDebtClients = clients.reduce((acc, c) => acc + parseFloat(c.detteTotale || 0), 0);
 
     // Top 5 produits par valeur de stock
@@ -76,11 +74,7 @@ const buildLumoKnowledge = async (userId, user) => {
         return `  - ${date}: ${(s.montantTotal || 0).toLocaleString()} FC${s.modePaiement ? ` (${s.modePaiement})` : ''}`;
     }).join('\n');
 
-    // Dépenses récentes
-    const recentExpensesList = expenses.slice(0, 10).map(e => {
-        const date = new Date(e.createdAt).toLocaleDateString('fr-FR');
-        return `  - ${date}: ${e.description || 'Dépense'} — ${(e.montant || 0).toLocaleString()} FC${e.categorie ? ` [${e.categorie}]` : ''}`;
-    }).join('\n');
+
 
     // Paramètres globaux
     const settingsMap = {};
@@ -112,15 +106,12 @@ ${fournisseursList || '  Aucun fournisseur enregistré.'}
 
 ━━━━━━━━━━ 💰 FINANCES RÉCENTES ━━━━━━━━━━
 CA (${sales.length} dernières ventes) : ${totalRevenueSales.toLocaleString()} FC
-Dépenses récentes (${expenses.length}) : ${totalExpenses.toLocaleString()} FC
-Bénéfice estimé (période) : ${(totalRevenueSales - totalExpenses).toLocaleString()} FC
 Taux de change : 1 USD = ${exchangeRate} CDF
 
 Détail des dernières ventes :
 ${recentSalesList || '  Aucune vente récente.'}
 
-Détail des dernières dépenses :
-${recentExpensesList || '  Aucune dépense récente.'}
+
 
 ━━━━━━━━━━ 🛠️ DOCUMENTATION COMPLÈTE DES MODULES ━━━━━━━━━━
 
@@ -195,14 +186,6 @@ Fonctionnalités disponibles :
 - Suivi des dettes envers les fournisseurs
 - Recherche et filtrage
 
-=== MODULE 8 : 💸 DÉPENSES ===
-Rôle : Suivi et catégorisation de toutes les charges du commerce.
-Fonctionnalités disponibles :
-- Enregistrer une dépense (description, montant, catégorie, date)
-- Catégories : Loyer, Salaires, Transport, Fournitures, API, Maintenance, Autre
-- Rapport des dépenses par catégorie
-- Calcul du bénéfice net (CA - Dépenses)
-
 === MODULE 9 : 🤖 LUMO IA ===
 Rôle : Assistant stratégique intelligent (c'est moi).
 Fonctionnalités disponibles :
@@ -267,7 +250,6 @@ Permissions :
 - Gérer les produits (créer, modifier, supprimer)
 - Gérer les ventes et l'historique
 - Gérer les clients et fournisseurs
-- Gérer les dépenses et achats
 - Accès aux statistiques complètes
 - Gérer l'équipe (ajouter/supprimer des membres)
 - Configurer les paramètres de la boutique
@@ -298,7 +280,7 @@ Je peux GUIDER l'utilisateur pour effectuer ces actions dans l'application :
 - AJOUTER un produit → Je donne les champs requis et le chemin exact
 - CHERCHER un produit → Je cherche dans les données et donne l'info
 - CRÉER une vente → Je guide vers le POS et explique comment
-- ENREGISTRER une dépense → Je guide vers le module Dépenses
+
 - AJOUTER un client → Je guide vers le module Clients
 - CONSULTER les dettes → Je liste les clients débiteurs depuis mes données
 - ANALYSER le stock → Je fournis une analyse avec les vrais chiffres
@@ -313,7 +295,7 @@ Je peux GUIDER l'utilisateur pour effectuer ces actions dans l'application :
 - Réponds en français, de façon concise et professionnelle.
 - Si l'info n'est pas disponible dans le contexte, dis-le clairement.`;
 
-    return { systemInstruction, products, sales, expenses, clients, fournisseurs };
+    return { systemInstruction, products, sales, clients, fournisseurs };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -332,10 +314,9 @@ const getAIInsights = async (req, res, next) => {
         }
 
         const user = await User.findByPk(userId);
-        const { systemInstruction, products, sales, expenses } = await buildLumoKnowledge(userId, user);
+        const { systemInstruction, products, sales } = await buildLumoKnowledge(userId, user);
 
         const totalRevenue = sales.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
-        const totalExpenses = expenses.reduce((acc, e) => acc + (e.montant || 0), 0);
         const lowStock = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
         
         const productStats = {};
@@ -352,7 +333,7 @@ const getAIInsights = async (req, res, next) => {
 
 RÉSUMÉ :
 - ${products.length} produits, ${lowStock.length} en stock critique.
-- CA: ${totalRevenue.toLocaleString()} FC, Dépenses: ${totalExpenses.toLocaleString()} FC, Bénéfice: ${(totalRevenue - totalExpenses).toLocaleString()} FC.
+- CA: ${totalRevenue.toLocaleString()} FC.
 - Top produits: ${topProducts.join(', ') || 'Données insuffisantes'}.
 
 Génère exactement ce JSON (sans markdown) :
@@ -518,7 +499,7 @@ const publicChatAI = async (req, res, next) => {
 
         const systemInstruction = `Tu es LUMO, l'assistant commercial intelligent de la plateforme LUMO Pro.
 Ton but est de renseigner les PROSPECTS sur les fonctionnalités du logiciel.
-LUMO est une plateforme ERP moderne pour les boutiques en Afrique, gérant les ventes, le stock, les dépenses, les clients et le multi-devises (USD/CDF).
+LUMO est une plateforme ERP moderne pour les boutiques en Afrique, gérant les ventes, le stock, les achats, les clients et le multi-devises (USD/CDF).
 Sois convaincant, professionnel et aide-les à comprendre pourquoi LUMO est le meilleur choix pour leur boutique.
 Ne mentionne aucune donnée utilisateur spécifique car tu es en mode démonstration publique.`;
 

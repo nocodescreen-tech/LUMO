@@ -1,4 +1,4 @@
-const { Sale, Product, Depense, Client, User } = require('../models');
+const { Sale, Product, Client, User } = require('../models');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 
@@ -15,17 +15,17 @@ const getDashboardStats = async (req, res, next) => {
         const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
         // Normalization literals to CDF
-        const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
-        const normProf = `SUM(CASE WHEN "devise" = 'USD' THEN "profitNet" * "tauxChange" ELSE "profitNet" END)`;
-        
+        const normRev = `SUM(CASE WHEN "devise" = 'USD' AND "montantTotal" < 10000 THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
+        const normProf = `SUM(CASE WHEN "devise" = 'USD' AND "profitNet" < 10000 THEN "profitNet" * "tauxChange" ELSE "profitNet" END)`;
+
         const user = await User.findByPk(userId);
-        const productRate = user?.preferences?.exchangeRate || 2800; 
-        
+        const productRate = user?.preferences?.exchangeRate || 2800;
+
         const normProdVal = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prix" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prix" AS NUMERIC) * "stock" END)`;
         const normProdCost = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prixAchat" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prixAchat" AS NUMERIC) * "stock" END)`;
 
         // 1. Chiffre d'Affaires & Bénéfices via agrégations SQL
-        const [currentStats, previousStats, allTimeStats, totalExpenses, stockStats, clientStats, previousClientStats, lowStockProducts] = await Promise.all([
+        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts] = await Promise.all([
             // Stats période actuelle
             Sale.findOne({
                 where: { userId, createdAt: { [Op.gte]: thirtyDaysAgo } },
@@ -53,8 +53,7 @@ const getDashboardStats = async (req, res, next) => {
                 ],
                 raw: true
             }),
-            // Dépenses
-            Depense.sum('montant', { where: { userId } }),
+
             // Stock (Normalized)
             Product.findOne({
                 where: { userId },
@@ -71,9 +70,9 @@ const getDashboardStats = async (req, res, next) => {
             Client.count({ where: { userId, createdAt: { [Op.lt]: thirtyDaysAgo } } }),
             // Produits en stock critique
             Product.findAll({
-                where: { 
-                    userId, 
-                    stock: { [Op.lte]: sequelize.col('stockAlerte') } 
+                where: {
+                    userId,
+                    stock: { [Op.lte]: sequelize.col('stockAlerte') }
                 },
                 attributes: ['nom', 'stock'],
                 limit: 3,
@@ -83,7 +82,7 @@ const getDashboardStats = async (req, res, next) => {
 
         const revAll = parseFloat(allTimeStats?.rev || 0);
         const profAll = parseFloat(allTimeStats?.prof || 0);
-        const expAll = parseFloat(totalExpenses || 0);
+        const expAll = 0;
 
         // Sanity check: if profAll is vastly larger than revAll, something is wrong with data
         // We'll cap profit at revenue if it's clearly corrupted to avoid "billions" display
@@ -118,7 +117,7 @@ const getDashboardStats = async (req, res, next) => {
             summary: {
                 revenue: revAll,
                 profitNetEstimation: validatedProfAll - expAll,
-                totalExpenses: expAll,
+                totalExpenses: 0,
                 stockValue: parseFloat(stockStats?.totalValue || 0),
                 stockCost: parseFloat(stockStats?.totalCost || 0),
                 lowStockCount: parseInt(stockStats?.lowStock || 0),
@@ -195,11 +194,10 @@ const getAnalytics = async (req, res, next) => {
 
         const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
 
-        // -- 1. Ventes et Dépenses selon la période choisie --
         const periodSales = await Sale.findAll({
-            where: { 
-                userId, 
-                createdAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '${interval}'`) } 
+            where: {
+                userId,
+                createdAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '${interval}'`) }
             },
             attributes: [
                 [dateExpr, 'date'],
@@ -209,28 +207,9 @@ const getAnalytics = async (req, res, next) => {
             order: [[dateExpr, 'ASC']]
         });
 
-        const periodExpenses = await Depense.findAll({
-            where: { 
-                userId, 
-                createdAt: { [Op.gte]: sequelize.literal(`NOW() - INTERVAL '${interval}'`) } 
-            },
-            attributes: [
-                [dateExpr, 'date'],
-                [sequelize.fn('SUM', sequelize.col('montant')), 'total']
-            ],
-            group: [dateExpr],
-            order: [[dateExpr, 'ASC']]
-        });
-
         const dateMap = {};
         periodSales.forEach(s => {
             dateMap[s.dataValues.date] = { date: s.dataValues.date, revenue: parseFloat(s.dataValues.total) || 0, expenses: 0 };
-        });
-        periodExpenses.forEach(e => {
-            if (!dateMap[e.dataValues.date]) {
-                dateMap[e.dataValues.date] = { date: e.dataValues.date, revenue: 0, expenses: 0 };
-            }
-            dateMap[e.dataValues.date].expenses = parseFloat(e.dataValues.total) || 0;
         });
         const periodData = Object.values(dateMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -249,9 +228,9 @@ const getAnalytics = async (req, res, next) => {
         // -- 3. Revenu par mois (6 derniers mois) --
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
         const monthlyRevenueRaw = await Sale.findAll({
-            where: { 
-                userId, 
-                createdAt: { [Op.gte]: sixMonthsAgo } 
+            where: {
+                userId,
+                createdAt: { [Op.gte]: sixMonthsAgo }
             },
             attributes: [
                 [sequelize.literal("DATE_TRUNC('month', \"createdAt\")"), 'month'],
@@ -264,12 +243,12 @@ const getAnalytics = async (req, res, next) => {
 
         const monthlyLabels = [];
         const monthlyValues = [];
-        
+
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
             monthlyLabels.push(key);
-            
+
             const match = monthlyRevenueRaw.find(m => {
                 const mDate = new Date(m.month);
                 return mDate.getMonth() === d.getMonth() && mDate.getFullYear() === d.getFullYear();
@@ -277,40 +256,52 @@ const getAnalytics = async (req, res, next) => {
             monthlyValues.push(match ? parseFloat(match.total) : 0);
         }
 
-        // -- 4. Produits les plus vendus (BUG5 Fix: isolate raw query with try-catch) --
+        // -- 4. Produits les plus vendus (In-memory calculation for cross-DB compatibility and safety) --
         let topProducts = [];
         try {
-            const salesTableName = Sale.tableName || 'Sales';
-            const topProductsRaw = await sequelize.query(`
-                SELECT 
-                    item->>'nom' as nom,
-                    SUM((item->>'quantite')::numeric) as quantite,
-                    SUM(
-                        CASE 
-                            WHEN s.devise = 'USD' THEN (item->>'prixUnitaire')::numeric * (item->>'quantite')::numeric * s."tauxChange"
-                            ELSE (item->>'prixUnitaire')::numeric * (item->>'quantite')::numeric
-                        END
-                    ) as revenu
-                FROM "${salesTableName}" s, jsonb_array_elements(s.articles) with ordinality as item
-                WHERE s."userId" = :userId 
-                  AND s."createdAt" >= NOW() - INTERVAL '6 months'
-                  AND (s."deletedAt" IS NULL OR s."deletedAt" > NOW())
-                GROUP BY item->>'nom'
-                ORDER BY quantite DESC
-                LIMIT 5
-            `, { 
-                replacements: { userId },
-                type: sequelize.QueryTypes.SELECT 
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            
+            const recentSales = await Sale.findAll({
+                where: {
+                    userId,
+                    createdAt: { [Op.gte]: oneMonthAgo }
+                },
+                attributes: ['articles', 'devise', 'tauxChange']
             });
 
-            topProducts = topProductsRaw.map(p => ({
-                nom: p.nom,
-                quantite: parseFloat(p.quantite) || 0,
-                revenu: parseFloat(p.revenu) || 0
-            }));
-        } catch (rawQueryError) {
-            // If raw query fails (schema mismatch, missing deletedAt), return empty topProducts
-            console.warn('[LUMO_STATS] topProducts raw query failed, returning empty:', rawQueryError.message);
+            const productStats = {};
+
+            recentSales.forEach(sale => {
+                const articles = sale.articles || [];
+                const devise = sale.devise || 'USD';
+                const taux = sale.tauxChange || 1;
+
+                articles.forEach(item => {
+                    const nom = item.nom || 'Inconnu';
+                    const quantite = Number(item.quantite) || 0;
+                    const prixUnitaire = Number(item.prixUnitaire) || 0;
+                    
+                    let revenu = prixUnitaire * quantite;
+                    // Sanity check: if price is > 1000 and currency is USD, it's likely already CDF or corrupted
+                    if (devise === 'USD' && prixUnitaire < 1000) {
+                        revenu *= taux;
+                    }
+
+                    if (!productStats[nom]) {
+                        productStats[nom] = { nom, quantite: 0, revenu: 0 };
+                    }
+                    productStats[nom].quantite += quantite;
+                    productStats[nom].revenu += revenu;
+                });
+            });
+
+            topProducts = Object.values(productStats)
+                .sort((a, b) => b.quantite - a.quantite)
+                .slice(0, 5);
+
+        } catch (error) {
+            console.warn('[LUMO_STATS] topProducts calculation failed, returning empty:', error.message);
             topProducts = [];
         }
 

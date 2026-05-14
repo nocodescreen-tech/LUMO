@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const { 
-    Product, Sale, Client, Fournisseur, Depense, Purchase, 
+    Product, Sale, Client, Fournisseur, Purchase, 
     StockMovement, CashSession, Activite, Notification, User, Feedback 
 } = require('../models');
 const { uploadBackup } = require('../services/firebaseService');
@@ -73,14 +73,13 @@ const executeDailyBackup = async (forcedHour = null) => {
             const userId = owner.id;
             
             const [
-                products, sales, clients, fournisseurs, depenses, purchases,
+                products, sales, clients, fournisseurs, purchases,
                 movements, sessions, activities, notifications, subUsers, feedbacks
             ] = await Promise.all([
                 Product.findAll({ where: { userId } }),
                 Sale.findAll({ where: { userId } }),
                 Client.findAll({ where: { userId } }),
                 Fournisseur.findAll({ where: { userId } }),
-                Depense.findAll({ where: { userId } }),
                 Purchase.findAll({ where: { userId } }),
                 StockMovement.findAll({ where: { userId } }),
                 CashSession.findAll({ where: { userId } }),
@@ -102,7 +101,6 @@ const executeDailyBackup = async (forcedHour = null) => {
                         sales: sales.map(s => s.get({ plain: true })),
                         clients: clients.map(c => c.get({ plain: true })),
                         fournisseurs: fournisseurs.map(f => f.get({ plain: true })),
-                        depenses: depenses.map(d => d.get({ plain: true })),
                         purchases: purchases.map(p => p.get({ plain: true })),
                         movements: movements.map(m => m.get({ plain: true })),
                         sessions: sessions.map(s => s.get({ plain: true })),
