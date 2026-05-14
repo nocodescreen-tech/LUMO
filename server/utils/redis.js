@@ -40,12 +40,11 @@ const memoryFallback = {
     }
 };
 
-// Tentative de connexion Redis si configuré (et non par défaut sur localhost si non souhaité)
-// On vérifie si REDIS_HOST a été explicitement défini dans le .env
-const hasExplicitRedis = process.env.REDIS_HOST !== undefined;
+// Tentative de connexion Redis si configuré (ou via REDIS_URL sur Railway)
+const hasExplicitRedis = process.env.REDIS_HOST !== undefined || process.env.REDIS_URL !== undefined;
 
 if (hasExplicitRedis || config.env === 'production') {
-    const redisClient = new Redis({
+    const redisOptions = config.redis.url ? config.redis.url : {
         host: config.redis.host,
         port: config.redis.port,
         password: config.redis.password,
@@ -54,11 +53,13 @@ if (hasExplicitRedis || config.env === 'production') {
         retryStrategy: (times) => {
             if (times > 3) {
                 logger.warn('⚠️ Redis injoignable après 3 tentatives. Passage définitif en mode mémoire.');
-                return null; // Stop retrying
+                return null;
             }
             return Math.min(times * 100, 2000);
         }
-    });
+    };
+
+    const redisClient = new Redis(redisOptions);
 
     redisClient.on('connect', () => {
         isRedisAvailable = true;

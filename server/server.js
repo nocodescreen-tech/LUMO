@@ -31,8 +31,8 @@ const io = new Server(server, {
     transports: ['websocket', 'polling']
 });
 
-// Setup Redis Adapter if possible
-const redisOptions = {
+// Setup Redis Adapter (supports REDIS_URL for Railway or individual env vars)
+const redisOptions = config.redis.url ? config.redis.url : {
     host: config.redis.host,
     port: config.redis.port,
     password: config.redis.password,

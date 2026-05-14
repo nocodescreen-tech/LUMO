@@ -1,11 +1,16 @@
 const { Sequelize } = require('sequelize');
 const config = require('./index');
 
+const isRailway = !!config.databaseUrl;
+
 const sequelize = new Sequelize(config.db.name, config.db.user, config.db.pass, {
   host: config.db.host,
   port: config.db.port,
   dialect: 'postgres',
-  logging: false, // On désactive pour plus de clarté
+  dialectOptions: isRailway ? {
+    ssl: { require: true, rejectUnauthorized: false }
+  } : {},
+  logging: false,
   pool: {
     max: 5,
     min: 0,
