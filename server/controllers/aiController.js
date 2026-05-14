@@ -1,5 +1,5 @@
 const OpenAI = require("openai");
-const { Sale, Product, User, Client, Fournisseur, Purchase, GlobalSetting } = require("../models");
+const { Sale, Product, User, Client, Fournisseur, Purchase, GlobalSetting, StaffPayment } = require("../models");
 
 const redis = require("../utils/redis");
 
@@ -30,9 +30,10 @@ const MODEL = process.env.AI_MODEL || (process.env.AI_PROVIDER === "ollama" ? "l
 // ─────────────────────────────────────────────────────────────────────────────
 const buildLumoKnowledge = async (userId, user) => {
     // 1. Récupérer toutes les données en parallèle pour la performance
-    const [products, sales, expenses, clients, fournisseurs, purchases, globalSettings] = await Promise.all([
+    const [products, sales, staffPayments, clients, fournisseurs, purchases, globalSettings] = await Promise.all([
         Product.findAll({ where: { userId } }),
         Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']] }),
+        StaffPayment.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']] }),
         Client.findAll({ where: { userId }, order: [['nom', 'ASC']] }),
         Fournisseur.findAll({ where: { userId }, order: [['entreprise', 'ASC']] }),
         Purchase.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']] }),
@@ -44,6 +45,7 @@ const buildLumoKnowledge = async (userId, user) => {
     const lowStockProducts = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
     const totalRevenueSales = sales.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
     const totalDebtClients = clients.reduce((acc, c) => acc + parseFloat(c.detteTotale || 0), 0);
+    const totalStaffExpenses = staffPayments.reduce((acc, sp) => acc + parseFloat(sp.amount || 0), 0);
 
     // Top 5 produits par valeur de stock
     const topProductsByStock = [...products]
@@ -82,6 +84,10 @@ const buildLumoKnowledge = async (userId, user) => {
     const exchangeRate = settingsMap['exchange_rate'] || settingsMap['tauxChange'] || '2800';
     const shopName = settingsMap['shop_name'] || settingsMap['nomBoutique'] || user.entreprise?.nom || 'votre boutique';
 
+    const staffExpensesText = staffPayments.length > 0
+        ? staffPayments.slice(0, 5).map(sp => `  - Paiement: ${sp.amount} ${sp.devise} (${sp.type})`).join('\n')
+        : '  Aucun paiement de personnel récent.';
+
     // 3. Construire le systemInstruction complet
     const systemInstruction = `Tu es LUMO, l'assistant IA intégré de la plateforme LUMO Pro.
 Tu as accès en temps réel à TOUTES les données de la boutique "${shopName}".
@@ -98,6 +104,12 @@ ${lowStockList}
 
 ━━━━━━━━━━ 👥 CLIENTS (${clients.length} total) ━━━━━━━━━━
 ${clientsList || '  Aucun client enregistré.'}
+
+━━━━━━━━━━ 💰 FINANCES & STAFF ━━━━━━━━━━
+Dette totale clients : ${totalDebtClients.toLocaleString()} FC
+Total paiements personnel : ${totalStaffExpenses.toLocaleString()} ${user.entreprise?.devise || 'CDF'}
+Paiements récents :
+${staffExpensesText}
 
 💳 Clients avec dettes : ${clientsWithDebt.length} clients | Dette totale : ${totalDebtClients.toLocaleString()} FC
 

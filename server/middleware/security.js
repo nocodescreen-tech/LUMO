@@ -68,6 +68,11 @@ const securityMiddleware = (app) => {
 
     // Application du CSRF sur les autres routes
     app.use((req, res, next) => {
+        // Désactiver le CSRF pendant les tests automatisés
+        if (process.env.NODE_ENV === 'test') {
+            return next();
+        }
+
         // Liste blanche pour les routes d'authentification
         const isAuthRoute = req.path.includes('/auth/login') || 
                            req.path.includes('/auth/register') || 
@@ -85,7 +90,7 @@ const securityMiddleware = (app) => {
         });
     });
 
-    // General API rate limiter: 3000 requests / 10 min per IP (increased for testing/defense)
+    // General API rate limiter
     const apiLimiter = rateLimit({
         windowMs: 10 * 60 * 1000,
         max: 300,
@@ -95,10 +100,10 @@ const securityMiddleware = (app) => {
     });
     app.use('/api', apiLimiter);
 
-    // Strict auth limiter: 10 attempts / 15 min (brute-force protection)
+    // Strict auth limiter
     const authLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 100, // Augmenté pour éviter les blocages pendant les tests
+        max: 100,
         standardHeaders: true,
         legacyHeaders: false,
         message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },

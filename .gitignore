@@ -8,6 +8,9 @@ server/.env.production
 server/config/*firebase*.json
 server/config/*service*.json
 
+# Backups
+server/backups/
+
 dist
 build
 .DS_Store

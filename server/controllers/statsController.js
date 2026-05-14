@@ -1,4 +1,4 @@
-const { Sale, Product, Client, User } = require('../models');
+const { Sale, Product, Client, User, StaffPayment } = require('../models');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 
@@ -24,8 +24,10 @@ const getDashboardStats = async (req, res, next) => {
         const normProdVal = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prix" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prix" AS NUMERIC) * "stock" END)`;
         const normProdCost = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prixAchat" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prixAchat" AS NUMERIC) * "stock" END)`;
 
+        const normExp = `SUM(CASE WHEN "devise" = 'USD' THEN "amount" * ${productRate} ELSE "amount" END)`;
+
         // 1. Chiffre d'Affaires & Bénéfices via agrégations SQL
-        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts] = await Promise.all([
+        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts, expStats] = await Promise.all([
             // Stats période actuelle
             Sale.findOne({
                 where: { userId, createdAt: { [Op.gte]: thirtyDaysAgo } },
@@ -77,12 +79,18 @@ const getDashboardStats = async (req, res, next) => {
                 attributes: ['nom', 'stock'],
                 limit: 3,
                 raw: true
+            }),
+            // 8. Dépenses totales (Staff Payments)
+            StaffPayment.findOne({
+                where: { userId },
+                attributes: [[sequelize.literal(normExp), 'total']],
+                raw: true
             })
         ]);
 
         const revAll = parseFloat(allTimeStats?.rev || 0);
         const profAll = parseFloat(allTimeStats?.prof || 0);
-        const expAll = 0;
+        const expAll = parseFloat(expStats?.total || 0);
 
         // Sanity check: if profAll is vastly larger than revAll, something is wrong with data
         // We'll cap profit at revenue if it's clearly corrupted to avoid "billions" display

@@ -5,7 +5,7 @@ describe('Health Check API', () => {
     it('Should return 200 and operational status', async () => {
         const res = await request(app).get('/');
         expect(res.statusCode).toEqual(200);
-        expect(res.text).toContain('API HubCommerce Pro (PostgreSQL) opérationnelle !');
+        expect(res.text).toContain('API LUMO Pro (PostgreSQL) opérationnelle !');
     });
 
     it('Should return 404 for an unknown endpoint', async () => {
