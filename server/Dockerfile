@@ -16,6 +16,5 @@ COPY . .
 RUN mkdir -p logs backups && chown -R node:node /app
 
 USER node
-EXPOSE 5001
 
 CMD ["node", "server.js"]
