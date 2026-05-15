@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getSales, createSale, deleteSale, deleteAllSales, updateSale, refundSale } = require('../controllers/saleController');
+const { getSales, createSale, deleteSale, deleteAllSales, updateSale, refundSale } = require('../controllers/SaleController');
 const { protect, authorize, checkPermission } = require('../middleware/authMiddleware');
 
 /**
