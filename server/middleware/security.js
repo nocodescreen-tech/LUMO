@@ -11,6 +11,7 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
     process.env.CLIENT_URL,
+    process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 const securityMiddleware = (app) => {
@@ -60,15 +61,22 @@ const securityMiddleware = (app) => {
         next();
     };
     
-    // Route pour initialiser le CSRF explicitement si besoin
-    app.get('/api/csrf-token', csrfProtection, setCsrfCookie, (req, res) => {
-        res.json({ success: true });
+    // Route pour initialiser le CSRF (désactivé en production - cross-domain avec Railway)
+    app.get('/api/csrf-token', (req, res) => {
+        // En production (2 domaines Railway différents), le CSRF via cookie ne fonctionne pas.
+        // L'auth JWT Bearer est suffisante. On retourne juste un succès.
+        if (process.env.NODE_ENV === 'production') {
+            return res.json({ success: true });
+        }
+        csrfProtection(req, res, () => {
+            setCsrfCookie(req, res, () => res.json({ success: true }));
+        });
     });
 
-    // Application du CSRF sur les autres routes
+    // Application du CSRF sur les autres routes (dev uniquement)
     app.use((req, res, next) => {
-        // Désactiver le CSRF pendant les tests automatisés
-        if (process.env.NODE_ENV === 'test') {
+        // Désactiver le CSRF en production (cross-domain) et pendant les tests
+        if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
             return next();
         }
 

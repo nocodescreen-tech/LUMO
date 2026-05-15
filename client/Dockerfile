@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Copy manifests first so dependency layer is cached independently of source
 COPY package*.json ./
-ARG CACHE_BUST=1
 RUN npm install --legacy-peer-deps --no-audit --no-fund
 COPY . .
 
@@ -21,11 +20,9 @@ RUN echo "==> Starting npm run build..." \
 # ── Stage 2: Serve with Nginx ─────────────────────────────────────────────────
 FROM nginx:stable-alpine
 
-# Remove the default Nginx config and copy our SPA-aware template
+# Remove the default Nginx config and replace with an SPA-aware one
 RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
-COPY env.sh /docker-entrypoint.d/env.sh
-RUN chmod +x /docker-entrypoint.d/env.sh
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy only the verified build artefacts from the builder stage
 COPY --from=builder /app/build /usr/share/nginx/html
@@ -35,4 +32,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:80/ | grep -q "<html" || exit 1
 
 EXPOSE 80
-CMD ["/docker-entrypoint.d/env.sh"]
+CMD ["nginx", "-g", "daemon off;"]
