@@ -39,24 +39,9 @@ export default defineConfig({
             }
           },
           {
-            // EXCLUDE AUTH ROUTES FROM CACHE
-            urlPattern: /\/api\/auth\/.*/i,
-            handler: 'NetworkOnly',
-          },
-          {
+            // ALL API routes must bypass Service Worker — no cache for backend calls
             urlPattern: /\/api\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5 // 5 minutes instead of 24h for real-time ERP data
-              },
-              networkTimeoutSeconds: 3, // Faster fallback to keep UI snappy
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
+            handler: 'NetworkOnly',
           }
         ]
       }
