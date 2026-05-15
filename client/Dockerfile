@@ -6,7 +6,8 @@ WORKDIR /app
 
 # Copy manifests first so dependency layer is cached independently of source
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+ARG CACHE_BUST=1
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 COPY . .
 
 # Run the build and stream output so any tsc/vite errors are visible in Railway logs
