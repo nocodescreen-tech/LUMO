@@ -1,17 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# ── Stage 1: Build ────────────────────────────────────────────────────────────
+# Stage 1: Build the React application
 FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copy manifests first so dependency layer is cached independently of source
 COPY package*.json ./
-
-# Install ALL dependencies (including devDependencies needed for tsc + vite build).
-# NODE_ENV is explicitly left unset so npm ci never skips devDependencies.
-RUN npm ci
-
-# Copy source after deps are installed
+RUN npm install
 COPY . .
 
 # Run the build and stream output so any tsc/vite errors are visible in Railway logs

@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build dependencies
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
 # Stage 2: Production runtime
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY . .
