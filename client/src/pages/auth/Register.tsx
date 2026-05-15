@@ -409,7 +409,7 @@ const Register = () => {
                   boxShadow: formData.typeActivite ? '0 15px 35px -8px rgba(109, 40, 217, 0.5)' : 'none'
                 }}
               >
-                Suivant <ArrowRight size={22} />
+                {t.registerNext} <ArrowRight size={22} />
               </motion.button>
             </motion.div>
           )}
@@ -556,7 +556,7 @@ const Register = () => {
                       justifyContent: 'center', gap: '10px', boxShadow: '0 15px 35px -8px rgba(109, 40, 217, 0.4)' 
                   }}
                 >
-                  Suivant <ArrowRight size={20} />
+                  {t.registerNext} <ArrowRight size={20} />
                 </motion.button>
               </div>
             </motion.div>
@@ -687,7 +687,7 @@ const Register = () => {
                 onClick={prevStep}
                 style={{ width: '100%', background: 'none', border: 'none', color: theme === 'dark' ? '#94a3b8' : '#475569', marginTop: '24px', cursor: 'pointer', fontSize: '1rem', fontWeight: '700', opacity: 0.8 }}
               >
-                {t.registerBack} à l'étape précédente
+                ← {t.registerBack}
               </button>
             </motion.div>
           )}
