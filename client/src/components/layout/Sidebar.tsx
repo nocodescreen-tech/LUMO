@@ -86,7 +86,7 @@ const Sidebar = () => {
   });
 
   const avatarSrc = user?.avatar
-    ? (user.avatar.startsWith('http') ? user.avatar : `http://localhost:5001${user.avatar}`)
+    ? (user.avatar.startsWith('http') ? user.avatar : `/public/${user.avatar}`)
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=128`;
 
   const roleLabel = user?.role === 'superadmin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Manager' : 'Caissier';

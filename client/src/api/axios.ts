@@ -26,7 +26,7 @@ const decodeData = (encoded: string | null) => {
 };
 
 const api = axios.create({
-  baseURL: (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5001/api',
+  baseURL: (import.meta as any).env.VITE_API_BASE_URL || '/api',
   withCredentials: true, // Crucial pour les cookies sécurisés et CSRF
 });
 

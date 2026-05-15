@@ -514,7 +514,7 @@ const SuperAdminDashboard = () => {
                                         >
                                             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                                                 <div style={{ width: '52px', height: '52px', borderRadius: '16px', border: '2px solid var(--border)', overflow: 'hidden' }}>
-                                                    <img src={u.avatar ? (u.avatar.startsWith('http') ? u.avatar : `http://localhost:5001${u.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <img src={u.avatar ? (u.avatar.startsWith('http') ? u.avatar : `/public/${u.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 </div>
                                                 <div>
                                                     <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>{u.nom}</div>
@@ -694,7 +694,7 @@ const SuperAdminDashboard = () => {
                                                             boxShadow: '0 8px 16px rgba(0,0,0,0.05)'
                                                         }}>
                                                             <img
-                                                                src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `http://localhost:5001${user.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nom)}&background=6366f1&color=fff&bold=true&size=128`}
+                                                                src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `/public/${user.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nom)}&background=6366f1&color=fff&bold=true&size=128`}
                                                                 alt=""
                                                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                             />
@@ -1134,7 +1134,7 @@ const SuperAdminDashboard = () => {
                                     flexShrink: 0
                                 }}>
                                     <img
-                                        src={selectedUser.avatar ? (selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `http://localhost:5001${selectedUser.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.nom)}&background=6366f1&color=fff&bold=true&size=512`}
+                                        src={selectedUser.avatar ? (selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `/public/${selectedUser.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.nom)}&background=6366f1&color=fff&bold=true&size=512`}
                                         alt=""
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     />

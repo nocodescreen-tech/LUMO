@@ -48,7 +48,7 @@ const AIChat = () => {
                token = JSON.parse(auth).token;
             }
 
-            const response = await fetch(`${(import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:5001/api'}/ai/chat`, {
+            const response = await fetch(`${(import.meta as any).env.VITE_API_BASE_URL || '/api'}/ai/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -53,7 +53,7 @@ const Topbar = () => {
             const interval = setInterval(fetchNotifications, 60000);
 
             // Connexion WebSocket pour notifications temps réel
-            const socketUrl = (import.meta as any).env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5001';
+            const socketUrl = (import.meta as any).env.VITE_API_BASE_URL?.replace('/api', '') || window.location.origin;
             const socket = io(socketUrl);
 
             // IMPORTANT: join with tenantId, not user.id

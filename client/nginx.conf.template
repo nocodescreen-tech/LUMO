@@ -17,6 +17,16 @@ server {
         proxy_read_timeout 30s;
     }
 
+    # Proxy /public requests to the backend for uploaded assets
+    location ^~ /public/ {
+        proxy_pass $API_UPSTREAM;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Serve static assets with long-lived cache headers
     location ~* \.(?:js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
         expires 1y;
