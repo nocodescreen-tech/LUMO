@@ -6,12 +6,42 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 
-const allowedOrigins = [
+// Static origins always allowed (development)
+const baseAllowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:3001',
-    process.env.CLIENT_URL,
-].filter(Boolean);
+];
+
+// Dynamically build the allowed-origins list at startup so that Railway
+// env vars (injected at container start) are picked up correctly.
+const buildAllowedOrigins = () => {
+    const origins = [...baseAllowedOrigins];
+
+    // Frontend URL explicitly configured (e.g. https://lumo-frontend-xxxx.up.railway.app)
+    if (process.env.CLIENT_URL) {
+        origins.push(process.env.CLIENT_URL);
+    }
+
+    // Backend's own public Railway domain – allows same-origin requests and
+    // lets the backend call itself without CORS errors.
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+
+    return origins;
+};
+
+const isRailwayOrigin = (origin) => {
+    // Accept any Railway-hosted subdomain so preview / staging deployments
+    // work automatically without updating CLIENT_URL each time.
+    try {
+        const { hostname } = new URL(origin);
+        return hostname.endsWith('.up.railway.app');
+    } catch {
+        return false;
+    }
+};
 
 const securityMiddleware = (app) => {
     // Set security HTTP headers
@@ -26,9 +56,16 @@ const securityMiddleware = (app) => {
     // CORS – Restricted to known origins
     app.use(cors({
         origin: (origin, callback) => {
-            // Allow requests with no origin (curl, mobile apps)
+            // Allow requests with no origin (curl, mobile apps, server-to-server)
             if (!origin) return callback(null, true);
+
+            const allowedOrigins = buildAllowedOrigins();
+
             if (allowedOrigins.includes(origin)) return callback(null, true);
+
+            // Allow any *.up.railway.app origin (covers preview deployments)
+            if (isRailwayOrigin(origin)) return callback(null, true);
+
             callback(new Error('CORS: Origine non autorisée'));
         },
         credentials: true,
