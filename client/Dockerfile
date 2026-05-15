@@ -20,9 +20,18 @@ RUN echo "==> Starting npm run build..." \
 # ── Stage 2: Serve with Nginx ─────────────────────────────────────────────────
 FROM nginx:stable-alpine
 
-# Remove the default Nginx config and replace with an SPA-aware one
+# Install gettext for envsubst
+RUN apk add --no-cache gettext
+
+# Remove default config
 RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy the template (runtime env substitution via env.sh)
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
+
+# Copy runtime entrypoint script
+COPY env.sh /env.sh
+RUN chmod +x /env.sh
 
 # Copy only the verified build artefacts from the builder stage
 COPY --from=builder /app/build /usr/share/nginx/html
@@ -32,4 +41,6 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:80/ | grep -q "<html" || exit 1
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+
+# Use env.sh to inject env vars into nginx config at runtime, then start nginx
+CMD ["/env.sh"]
