@@ -1,0 +1,40 @@
+# Dependencies — reinstalled inside the container by npm ci
+node_modules
+
+# Previous build output — always rebuilt fresh inside the container
+build
+dist
+
+# Version control
+.git
+.gitignore
+
+# Local environment files — secrets must be passed as Railway env vars, not baked in
+.env
+.env.local
+.env.*.local
+
+# Editor / OS artefacts
+.DS_Store
+*.swp
+*.swo
+.vscode
+.idea
+
+# Test output and coverage
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Vite cache / temp files
+.vite
+*.timestamp-*.mjs
+
+# Logs
+*.log
+npm-debug.log*
+
+# README and docs (not needed in the image)
+README.md
