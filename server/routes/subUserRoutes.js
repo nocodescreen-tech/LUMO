@@ -6,7 +6,7 @@ const {
   getSubUsers,
   updateSubUser,
   deleteSubUser
-} = require('../controllers/SubUserController');
+} = require('../controllers/subUserController');
 
 // Only admins can manage sub-users
 router.use(protect, authorize('admin', 'superadmin'));
