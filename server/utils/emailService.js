@@ -52,16 +52,6 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
     }
 };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] ✅ Message envoyé avec succès: ${info.messageId}`);
-        return true;
-    } catch (error) {
-        console.error('[EMAIL] ❌ Erreur lors de l\'envoi:', error.message);
-        throw error;
-    }
-
-
 const getVerificationTemplate = (code, name) => {
     return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
