@@ -23,6 +23,9 @@ if (process.env.SENTRY_DSN) {
   app.use(Sentry.Handlers.requestHandler());
 }
 
+// Railway runs behind a proxy — trust the first hop
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
 
 // Socket.io with Redis Adapter (for PM2 Cluster stability)
@@ -178,7 +181,7 @@ app.use(errorHandler);
 const PORT = config.port;
 
 if (require.main === module) {
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     logger.info(`
       🚀 Serveur lancé en mode ${config.env}
       📡 Port: ${PORT}

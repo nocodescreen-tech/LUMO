@@ -12,6 +12,7 @@ const allowedOrigins = [
     'http://localhost:3001',
     process.env.CLIENT_URL,
     process.env.FRONTEND_URL,
+    'https://lumo-frontend-production-1dba.up.railway.app',
 ].filter(Boolean);
 
 const securityMiddleware = (app) => {

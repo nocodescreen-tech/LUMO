@@ -85,7 +85,7 @@ const Sidebar = () => {
     return true;
   });
 
-  const avatarSrc = user?.avatar
+  const avatarSrc = user?.avatar && user.avatar !== 'default_avatar.png'
     ? (user.avatar.startsWith('http') ? user.avatar : `/public/${user.avatar}`)
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=128`;
 

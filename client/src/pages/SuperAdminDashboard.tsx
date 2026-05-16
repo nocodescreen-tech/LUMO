@@ -514,7 +514,7 @@ const SuperAdminDashboard = () => {
                                         >
                                             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                                                 <div style={{ width: '52px', height: '52px', borderRadius: '16px', border: '2px solid var(--border)', overflow: 'hidden' }}>
-                                                    <img src={u.avatar ? (u.avatar.startsWith('http') ? u.avatar : `/public/${u.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    <img src={u.avatar && u.avatar !== 'default_avatar.png' ? (u.avatar.startsWith('http') ? u.avatar : `/public/${u.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(u.nom)}&background=6366f1&color=fff&bold=true&size=128`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                 </div>
                                                 <div>
                                                     <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>{u.nom}</div>
@@ -694,7 +694,7 @@ const SuperAdminDashboard = () => {
                                                             boxShadow: '0 8px 16px rgba(0,0,0,0.05)'
                                                         }}>
                                                             <img
-                                                                src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `/public/${user.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nom)}&background=6366f1&color=fff&bold=true&size=128`}
+                                                                src={user.avatar && user.avatar !== 'default_avatar.png' ? (user.avatar.startsWith('http') ? user.avatar : `/public/${user.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nom)}&background=6366f1&color=fff&bold=true&size=128`}
                                                                 alt=""
                                                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                             />
@@ -1134,11 +1134,11 @@ const SuperAdminDashboard = () => {
                                     flexShrink: 0
                                 }}>
                                     <img
-                                        src={selectedUser.avatar ? (selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `/public/${selectedUser.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.nom)}&background=6366f1&color=fff&bold=true&size=512`}
+                                        src={selectedUser.avatar && selectedUser.avatar !== 'default_avatar.png' ? (selectedUser.avatar.startsWith('http') ? selectedUser.avatar : `/public/${selectedUser.avatar}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.nom)}&background=6366f1&color=fff&bold=true&size=512`}
                                         alt=""
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                     />
-                                    {!selectedUser.avatar && (
+                                    {(!selectedUser.avatar || selectedUser.avatar === 'default_avatar.png') && (
                                         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px', background: 'rgba(239, 68, 68, 0.85)', backdropFilter: 'blur(5px)', textAlign: 'center', fontSize: '0.65rem', fontWeight: '900', color: 'white', letterSpacing: '0.05em' }}>
                                             PHOTO REQUISE
                                         </div>
