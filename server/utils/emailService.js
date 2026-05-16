@@ -97,6 +97,11 @@ const sendViaSMTP = async ({ email, subject, html, attachments }) => {
         port: smtpPort,
         secure: smtpPort === 465,
         auth: { user: smtpUser, pass: smtpPass },
+        // Force IPv4 — Railway ne route pas IPv6 sortant (ENETUNREACH sur adresse ::)
+        family: 4,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
     });
 
     try {
