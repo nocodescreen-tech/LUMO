@@ -3,35 +3,36 @@ const nodemailer = require('nodemailer');
 const sendEmail = async ({ email, subject, html, attachments }) => {
     // Nettoyage des variables (Railway ajoute parfois des guillemets littéraux)
     const smtpUser = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
-    // Les mots de passe d'application Google ne doivent pas contenir d'espaces
     const smtpPass = (process.env.SMTP_PASS || '').replace(/['"]/g, '').replace(/\s/g, '');
+    const smtpHost = (process.env.SMTP_HOST || 'smtp-relay.brevo.com').replace(/['"]/g, '').trim();
+    const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
 
-    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpUser}`);
+    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpHost}:${smtpPort} (user: ${smtpUser})`);
 
     const transporter = nodemailer.createTransport({
-        host: (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/['"]/g, '').trim(),
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
         auth: {
             user: smtpUser,
             pass: smtpPass,
         },
         tls: {
-            rejectUnauthorized: false  // Nécessaire sur certains hébergeurs cloud (Railway)
+            rejectUnauthorized: false
         }
     });
 
     // Vérification de la connexion SMTP avant envoi
     try {
         await transporter.verify();
-        console.log('[EMAIL] Connexion SMTP OK');
+        console.log('[EMAIL] ✅ Connexion SMTP OK');
     } catch (verifyError) {
-        console.error('[EMAIL] Connexion SMTP ÉCHOUÉE:', verifyError.message);
+        console.error('[EMAIL] ❌ Connexion SMTP ÉCHOUÉE:', verifyError.message);
         throw verifyError;
     }
 
     const mailOptions = {
-        from: `"Lumo" <${smtpUser}>`,  // Utilise la variable nettoyée
+        from: `"Lumo" <${smtpUser}>`,
         to: email,
         subject: subject,
         html: html,
