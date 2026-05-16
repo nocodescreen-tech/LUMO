@@ -1,13 +1,18 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async ({ email, subject, html, attachments }) => {
+    // Nettoyage des variables (Railway ajoute parfois des guillemets littéraux)
+    const smtpUser = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
+    // Les mots de passe d'application Google ne doivent pas contenir d'espaces
+    const smtpPass = (process.env.SMTP_PASS || '').replace(/['"\s]/g, '');
+
     const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        host: (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/['"]/g, '').trim(),
         port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_PORT == 465, // true if port is 465
+        secure: parseInt(process.env.SMTP_PORT) === 465, // true if port is 465
         auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: smtpUser,
+            pass: smtpPass,
         },
         tls: {
             rejectUnauthorized: true

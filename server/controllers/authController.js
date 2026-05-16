@@ -45,6 +45,8 @@ const registerAdmin = async (req, res, next) => {
     const isFirstUser = (await User.count()) === 0;
 
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[DEV ONLY] Code de vérification pour ${email} : ${verificationCode}`);
+    
     const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
 
     const avatarUrl = req.file ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype) : 'default_avatar.png';
