@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['lumo_logo.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Lumo AI',
         short_name: 'Lumo AI',
