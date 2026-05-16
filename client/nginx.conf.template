@@ -4,6 +4,8 @@ server {
     server_name _;
     resolver 8.8.8.8 valid=30s;
 
+    client_max_body_size 10M;
+
     root /usr/share/nginx/html;
     index index.html;
 

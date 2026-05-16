@@ -587,6 +587,7 @@ const updateLogo = async (req, res, next) => {
     if (req.file) {
       const logoUrl = await uploadImage(req.file.buffer, 'logos', req.file.mimetype);
       user.entreprise = { ...user.entreprise, logo: logoUrl };
+      user.changed('entreprise', true);
       const updatedUser = await user.save();
       
       res.json({
