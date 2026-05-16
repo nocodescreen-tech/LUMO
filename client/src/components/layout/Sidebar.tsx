@@ -283,7 +283,7 @@ const Sidebar = () => {
               <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
 
               <div
-                onClick={() => setShowLogoutModal(true)}
+                onClick={() => { logout(); navigate('/login'); }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '11px 14px', borderRadius: '13px', cursor: 'pointer',
@@ -299,21 +299,6 @@ const Sidebar = () => {
             </div>
           )}
         </div>
-
-        <ConfirmModal 
-            isOpen={showLogoutModal}
-            onClose={() => setShowLogoutModal(false)}
-            onConfirm={() => {
-                logout();
-                navigate('/login');
-                setShowLogoutModal(false);
-            }}
-            title={t('logoutConfirmTitle')}
-            message={t('logoutConfirmMessage')}
-            confirmText={t('logout')}
-            cancelText={t('stay')}
-            type="danger"
-        />
       </div>
     </div>
   );

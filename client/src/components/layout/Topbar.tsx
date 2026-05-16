@@ -378,7 +378,7 @@ const Topbar = () => {
                                     <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.settings}</span>
                                 </div>
                                 <div 
-                                    onClick={() => setShowLogoutModal(true)}
+                                    onClick={() => { logout(); navigate('/login'); }}
                                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '12px', cursor: 'pointer', color: '#ef4444' }}
                                     onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.05)'}
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -389,20 +389,6 @@ const Topbar = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
-
-                    <ConfirmModal 
-                        isOpen={showLogoutModal}
-                        onClose={() => setShowLogoutModal(false)}
-                        onConfirm={() => {
-                            logout();
-                            navigate('/login');
-                        }}
-                        title="Confirmation de déconnexion"
-                        message="Êtes-vous sûr de vouloir vous déconnecter de votre session Lumo ?"
-                        confirmText="Se déconnecter"
-                        cancelText="Rester"
-                        type="danger"
-                    />
                 </div>
             </div>
         </div>

@@ -75,15 +75,11 @@ const registerAdmin = async (req, res, next) => {
 
     if (user) {
       if (!isFirstUser) {
-        try {
-          await sendEmail({
-            email: user.email,
-            subject: 'Vérifiez votre compte Lumo',
-            html: getVerificationTemplate(verificationCode, user.nom)
-          });
-        } catch (mailError) {
-          console.error('Email could not be sent', mailError);
-        }
+        sendEmail({
+          email: user.email,
+          subject: 'Vérifiez votre compte Lumo',
+          html: getVerificationTemplate(verificationCode, user.nom)
+        }).catch(mailError => console.error('Email could not be sent', mailError));
       }
 
       await logActivite(user.id, 'INSCRIPTION', isFirstUser ? 'SuperAdmin enregistré' : 'Nouvel utilisateur enregistré - Attente de validation', 'System', user.id);
