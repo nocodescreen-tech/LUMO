@@ -207,6 +207,7 @@ const VerifyEmail = () => {
 
                 <div style={{ marginTop: '40px' }}>
                     <button 
+                        type="button"
                         onClick={handleResendCode}
                         disabled={resendLoading}
                         style={{ 
