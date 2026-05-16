@@ -39,6 +39,20 @@ export default defineConfig({
             }
           },
           {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gstatic-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
             // ALL API routes must bypass Service Worker — no cache for backend calls
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkOnly',
