@@ -20,5 +20,6 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/build /usr/share/nginx/html
 
 ENV PORT=80
+ENV NGINX_API_UPSTREAM=http://localhost:5001
 
 CMD ["nginx", "-g", "daemon off;"]
