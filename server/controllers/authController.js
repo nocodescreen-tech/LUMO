@@ -439,31 +439,30 @@ const verifyEmail = async (req, res, next) => {
 const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
     if (!user) return res.status(404).json({ message: "Aucun utilisateur avec cet email" });
 
     // Générer un code OTP à 6 chiffres
     const resetOTP = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // On stocke le code en clair ou haché (ici clair pour la simplicité du reset immédiat, ou haché pour plus de sécurité)
     user.resetPasswordToken = crypto.createHash('sha256').update(resetOTP).digest('hex');
     user.resetPasswordExpire = Date.now() + 3600000; // 1 heure
 
     await user.save();
 
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Code de récupération - Lumo',
-        html: getResetPasswordTemplate(resetOTP, user.nom)
-      });
-      res.status(200).json({ message: 'Code de récupération envoyé par email' });
-    } catch (err) {
+    // Fire-and-forget pour éviter le timeout 499
+    sendEmail({
+      email: user.email,
+      subject: 'Code de récupération - Lumo',
+      html: getResetPasswordTemplate(resetOTP, user.nom)
+    }).catch(async (err) => {
+      console.error('[EMAIL] Échec envoi forgot-password:', err.message);
       user.resetPasswordToken = null;
       user.resetPasswordExpire = null;
       await user.save();
-      return res.status(500).json({ message: "L'email n'a pas pu être envoyé" });
-    }
+    });
+
+    res.status(200).json({ message: 'Code de récupération envoyé par email' });
   } catch (error) {
     next(error);
   }
@@ -477,7 +476,7 @@ const verifyResetCode = async (req, res, next) => {
     
     const user = await User.findOne({
       where: {
-        email,
+        email: { [Op.iLike]: email },
         resetPasswordToken,
         resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
       }
@@ -499,7 +498,7 @@ const resetPassword = async (req, res, next) => {
     
     const user = await User.findOne({
       where: {
-        email,
+        email: { [Op.iLike]: email },
         resetPasswordToken,
         resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
       }
@@ -677,7 +676,7 @@ const resendCode = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email requis' });
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     if (user.isVerified) return res.status(400).json({ message: 'Compte déjà vérifié' });
 

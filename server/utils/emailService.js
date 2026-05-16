@@ -1,13 +1,19 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async ({ email, subject, html, attachments }) => {
-    // Nettoyage des variables (Railway ajoute parfois des guillemets littéraux)
     const smtpUser = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
     const smtpPass = (process.env.SMTP_PASS || '').replace(/['"]/g, '').replace(/\s/g, '');
     const smtpHost = (process.env.SMTP_HOST || 'smtp-relay.brevo.com').replace(/['"]/g, '').trim();
     const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+    const fromEmail = (process.env.FROM_EMAIL || '').replace(/['"]/g, '').trim();
 
-    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpHost}:${smtpPort} (user: ${smtpUser})`);
+    // Fallback FROM : si FROM_EMAIL contient un nom + email, on extrait juste l'email
+    // sinon on utilise smtpUser comme expéditeur
+    const fromFinal = fromEmail.match(/<(.+?)>/)
+      ? `${fromEmail}`
+      : `"Lumo" <${smtpUser}>`;
+
+    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpHost}:${smtpPort} (from: ${fromFinal})`);
 
     const transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -17,13 +23,6 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
             user: smtpUser,
             pass: smtpPass,
         },
-        tls: {
-            rejectUnauthorized: false
-        },
-        // Ajouter des timeouts stricts (10 secondes) pour éviter que la requête ne tourne dans le vide (cause de l'erreur 499)
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
     });
 
     // Vérification de la connexion SMTP avant envoi
@@ -36,12 +35,22 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
     }
 
     const mailOptions = {
-        from: `"Lumo" <${smtpUser}>`,
+        from: fromFinal,
         to: email,
         subject: subject,
         html: html,
         attachments: attachments || [],
     };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL] ✅ Message envoyé avec succès: ${info.messageId}`);
+        return true;
+    } catch (error) {
+        console.error('[EMAIL] ❌ Erreur lors de l\'envoi:', error.message);
+        throw error;
+    }
+};
 
     try {
         const info = await transporter.sendMail(mailOptions);
