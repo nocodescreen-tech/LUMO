@@ -4,23 +4,34 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
     // Nettoyage des variables (Railway ajoute parfois des guillemets littéraux)
     const smtpUser = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
     // Les mots de passe d'application Google ne doivent pas contenir d'espaces
-    const smtpPass = (process.env.SMTP_PASS || '').replace(/['"\s]/g, '');
+    const smtpPass = (process.env.SMTP_PASS || '').replace(/['"]/g, '').replace(/\s/g, '');
+
+    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpUser}`);
 
     const transporter = nodemailer.createTransport({
         host: (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/['"]/g, '').trim(),
         port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465, // true if port is 465
+        secure: parseInt(process.env.SMTP_PORT) === 465,
         auth: {
             user: smtpUser,
             pass: smtpPass,
         },
         tls: {
-            rejectUnauthorized: true
+            rejectUnauthorized: false  // Nécessaire sur certains hébergeurs cloud (Railway)
         }
     });
 
+    // Vérification de la connexion SMTP avant envoi
+    try {
+        await transporter.verify();
+        console.log('[EMAIL] Connexion SMTP OK');
+    } catch (verifyError) {
+        console.error('[EMAIL] Connexion SMTP ÉCHOUÉE:', verifyError.message);
+        throw verifyError;
+    }
+
     const mailOptions = {
-        from: `"Lumo" <${process.env.SMTP_USER}>`,
+        from: `"Lumo" <${smtpUser}>`,  // Utilise la variable nettoyée
         to: email,
         subject: subject,
         html: html,
@@ -29,10 +40,10 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] Message envoyé: ${info.messageId}`);
+        console.log(`[EMAIL] ✅ Message envoyé avec succès: ${info.messageId}`);
         return true;
     } catch (error) {
-        console.error('[EMAIL] Erreur lors de l\'envoi:', error);
+        console.error('[EMAIL] ❌ Erreur lors de l\'envoi:', error.message);
         throw error;
     }
 };
