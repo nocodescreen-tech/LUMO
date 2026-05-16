@@ -1,57 +1,107 @@
 const nodemailer = require('nodemailer');
 
-const sendEmail = async ({ email, subject, html, attachments }) => {
-    const smtpUser = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
-    const smtpPass = (process.env.SMTP_PASS || '').replace(/['"]/g, '').replace(/\s/g, '');
-    const smtpHost = (process.env.SMTP_HOST || 'smtp-relay.brevo.com').replace(/['"]/g, '').trim();
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+// ─────────────────────────────────────────────────────────────
+//  RESEND (primary) — simple HTTP API, works on every cloud
+// ─────────────────────────────────────────────────────────────
+const sendViaResend = async ({ email, subject, html, attachments }) => {
+    const { Resend } = require('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const fromEmail = (process.env.FROM_EMAIL || 'Lumo <onboarding@resend.dev>').replace(/['"]/g, '').trim();
+
+    console.log(`[EMAIL/RESEND] Envoi vers: ${email} (from: ${fromEmail})`);
+
+    const payload = {
+        from: fromEmail,
+        to: [email],
+        subject,
+        html,
+    };
+
+    // Resend accepte les attachments en base64
+    if (attachments && attachments.length > 0) {
+        payload.attachments = attachments.map(a => ({
+            filename: a.filename,
+            content: a.content,
+        }));
+    }
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) {
+        console.error('[EMAIL/RESEND] ❌ Erreur API Resend:', JSON.stringify(error));
+        throw new Error(error.message || 'Resend API error');
+    }
+
+    console.log(`[EMAIL/RESEND] ✅ Envoyé avec succès. ID: ${data.id}`);
+    return true;
+};
+
+// ─────────────────────────────────────────────────────────────
+//  NODEMAILER (fallback SMTP) — utilisé si RESEND_API_KEY absent
+// ─────────────────────────────────────────────────────────────
+const sendViaSMTP = async ({ email, subject, html, attachments }) => {
+    const smtpUser  = (process.env.SMTP_USER || '').replace(/['"]/g, '').trim();
+    const smtpPass  = (process.env.SMTP_PASS || '').replace(/['"]/g, '').replace(/\s/g, '');
+    const smtpHost  = (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/['"]/g, '').trim();
+    const smtpPort  = parseInt(process.env.SMTP_PORT) || 587;
     const fromEmail = (process.env.FROM_EMAIL || '').replace(/['"]/g, '').trim();
 
-    // Fallback FROM : si FROM_EMAIL contient un nom + email, on extrait juste l'email
-    // sinon on utilise smtpUser comme expéditeur
-    const fromFinal = fromEmail.match(/<(.+?)>/)
-      ? `${fromEmail}`
-      : `"Lumo" <${smtpUser}>`;
+    const fromFinal = fromEmail.includes('<') ? fromEmail : `"Lumo" <${smtpUser}>`;
 
-    console.log(`[EMAIL] Tentative d'envoi vers: ${email} via ${smtpHost}:${smtpPort} (from: ${fromFinal})`);
+    console.log(`[EMAIL/SMTP] Envoi vers: ${email} via ${smtpHost}:${smtpPort} (from: ${fromFinal})`);
 
     const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
         secure: smtpPort === 465,
-        auth: {
-            user: smtpUser,
-            pass: smtpPass,
-        },
+        auth: { user: smtpUser, pass: smtpPass },
     });
 
-    // Vérification de la connexion SMTP avant envoi
     try {
         await transporter.verify();
-        console.log('[EMAIL] ✅ Connexion SMTP OK');
+        console.log('[EMAIL/SMTP] ✅ Connexion SMTP OK');
     } catch (verifyError) {
-        console.error('[EMAIL] ❌ Connexion SMTP ÉCHOUÉE:', verifyError.message);
+        console.error('[EMAIL/SMTP] ❌ Connexion SMTP ÉCHOUÉE:', verifyError.message);
         throw verifyError;
     }
 
-    const mailOptions = {
+    const info = await transporter.sendMail({
         from: fromFinal,
         to: email,
-        subject: subject,
-        html: html,
+        subject,
+        html,
         attachments: attachments || [],
-    };
+    });
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] ✅ Message envoyé avec succès: ${info.messageId}`);
-        return true;
-    } catch (error) {
-        console.error('[EMAIL] ❌ Erreur lors de l\'envoi:', error.message);
-        throw error;
-    }
+    console.log(`[EMAIL/SMTP] ✅ Envoyé avec succès. ID: ${info.messageId}`);
+    return true;
 };
 
+// ─────────────────────────────────────────────────────────────
+//  DISPATCHER PRINCIPAL — Resend en priorité, SMTP en fallback
+// ─────────────────────────────────────────────────────────────
+const sendEmail = async ({ email, subject, html, attachments }) => {
+    if (process.env.RESEND_API_KEY) {
+        try {
+            return await sendViaResend({ email, subject, html, attachments });
+        } catch (resendError) {
+            console.error('[EMAIL] ⚠️ Resend a échoué, tentative SMTP fallback:', resendError.message);
+            // Si SMTP aussi configuré, on tente
+            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+                return await sendViaSMTP({ email, subject, html, attachments });
+            }
+            throw resendError;
+        }
+    }
+
+    // Pas de RESEND_API_KEY → SMTP direct
+    return await sendViaSMTP({ email, subject, html, attachments });
+};
+
+// ─────────────────────────────────────────────────────────────
+//  TEMPLATES EMAIL
+// ─────────────────────────────────────────────────────────────
 const getVerificationTemplate = (code, name) => {
     return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
@@ -77,7 +127,7 @@ const getVerificationTemplate = (code, name) => {
             <p style="color: #94a3b8; font-size: 14px; margin-top: 12px;">Ce code expire dans 15 minutes.</p>
         </div>
         
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #e2e8f0; paddingTop: 24px; margin-top: 32px;">
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 32px;">
             Si vous n'avez pas créé de compte Lumo, vous pouvez ignorer cet email en toute sécurité.
         </p>
         
@@ -113,7 +163,7 @@ const getResetPasswordTemplate = (code, name) => {
             <p style="color: #94a3b8; font-size: 14px; margin-top: 12px;">Ce code de sécurité expire dans 1 heure.</p>
         </div>
         
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fed7aa; paddingTop: 24px; margin-top: 32px;">
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fed7aa; padding-top: 24px; margin-top: 32px;">
             Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet email. Votre mot de passe reste inchangé.
         </p>
         
@@ -128,7 +178,6 @@ const getNewsletterWelcomeTemplate = (title, body, logoUrl) => {
     const finalTitle = title || 'Bienvenue dans la communauté !';
     const finalBody = body || 'Votre inscription à la newsletter <strong>Lumo</strong> a été confirmée avec succès. Vous recevrez désormais en avant-première nos actualités, mises à jour et conseils pour booster votre commerce.';
 
-    // Si logoUrl est fourni on l'utilise, sinon on recrée le logo Lumo en HTML/CSS pro
     const logoContent = logoUrl
         ? `<img src="${logoUrl}" alt="Lumo" style="height: 48px; width: auto;" />`
         : `
@@ -167,7 +216,7 @@ const getNewsletterWelcomeTemplate = (title, body, logoUrl) => {
                 Lumo - L'intelligence au service de votre commerce
             </p>
             <div style="color: #cbd5e1; font-size: 12px;">
-                &copy; ${new Date().getFullYear()} Lumo | Innovation & Performance
+                &copy; ${new Date().getFullYear()} Lumo | Innovation &amp; Performance
             </div>
         </div>
     </div>
@@ -199,7 +248,7 @@ const getDebtReminderTemplate = (clientName, montant, currency) => {
             </div>
         </div>
         
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fecdd3; paddingTop: 24px; margin-top: 32px;">
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fecdd3; padding-top: 24px; margin-top: 32px;">
             Si ce paiement a déjà été effectué entre-temps, veuillez ignorer cet email.<br>
             Merci de votre confiance et de votre compréhension.
         </p>
