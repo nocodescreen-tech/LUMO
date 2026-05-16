@@ -60,7 +60,7 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
         console.error('[EMAIL] ❌ Erreur lors de l\'envoi:', error.message);
         throw error;
     }
-};
+
 
 const getVerificationTemplate = (code, name) => {
     return `
