@@ -15,7 +15,8 @@ const {
   disable2FA,
   verify2FA,
   updateLogo,
-  logout
+  logout,
+  resendCode
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -144,6 +145,7 @@ router.post('/2fa/verify', verify2FA);
 router.post('/logout', protect, logout);
 router.post('/avatar', protect, upload.single('avatar'), updateProfile);
 router.post('/logo', protect, upload.single('logo'), updateLogo);
+router.post('/resend-code', resendCode);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);

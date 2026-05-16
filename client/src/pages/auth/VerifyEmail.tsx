@@ -68,6 +68,21 @@ const VerifyEmail = () => {
         }
     };
 
+    const [resendLoading, setResendLoading] = useState(false);
+
+    const handleResendCode = async () => {
+        if (!email) return;
+        setResendLoading(true);
+        try {
+            await api.post('/auth/resend-code', { email });
+            toast.success('Un nouveau code a été envoyé à votre adresse email.');
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Erreur lors du renvoi du code');
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     return (
         <div style={{ 
             height: '100vh', 
@@ -191,19 +206,23 @@ const VerifyEmail = () => {
                 </form>
 
                 <div style={{ marginTop: '40px' }}>
-                    <button style={{ 
-                        background: 'none', 
-                        border: 'none', 
-                        color: 'var(--text-muted)', 
-                        fontSize: '1rem', 
-                        cursor: 'pointer', 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '8px',
-                        fontWeight: '700',
-                        opacity: 0.8
-                    }}>
-                        <RefreshCcw size={18} /> {t.verifyResend}
+                    <button 
+                        onClick={handleResendCode}
+                        disabled={resendLoading}
+                        style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            color: 'var(--text-muted)', 
+                            fontSize: '1rem', 
+                            cursor: resendLoading ? 'not-allowed' : 'pointer', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            fontWeight: '700',
+                            opacity: resendLoading ? 0.5 : 0.8
+                        }}>
+                        <RefreshCcw size={18} className={resendLoading ? "spin" : ""} /> 
+                        {resendLoading ? "Envoi en cours..." : t.verifyResend}
                     </button>
                 </div>
             </motion.div>

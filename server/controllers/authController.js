@@ -671,12 +671,44 @@ const getProfile = async (req, res, next) => {
   }
 };
 
+// Resend Verification Code
+const resendCode = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email requis' });
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (user.isVerified) return res.status(400).json({ message: 'Compte déjà vérifié' });
+
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[DEV ONLY] NOUVEAU Code de vérification pour ${email} : ${verificationCode}`);
+    
+    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    user.verificationCode = hashedVerificationCode;
+    user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    await user.save();
+
+    const { sendEmail, getVerificationTemplate } = require('../utils/emailService');
+    sendEmail({
+      email: user.email,
+      subject: 'Nouveau code de vérification Lumo',
+      html: getVerificationTemplate(verificationCode, user.nom)
+    }).catch(mailError => console.error('Email resend failed', mailError));
+
+    res.json({ message: 'Un nouveau code a été envoyé' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = { 
     register: registerAdmin, 
     login: loginAdmin, 
     getProfile,
     updateProfile, 
     verifyEmail, 
+    resendCode,
     forgotPassword, 
     verifyResetCode,
     resetPassword,
