@@ -19,7 +19,11 @@ const sendEmail = async ({ email, subject, html, attachments }) => {
         },
         tls: {
             rejectUnauthorized: false
-        }
+        },
+        // Ajouter des timeouts stricts (10 secondes) pour éviter que la requête ne tourne dans le vide (cause de l'erreur 499)
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
     });
 
     // Vérification de la connexion SMTP avant envoi
