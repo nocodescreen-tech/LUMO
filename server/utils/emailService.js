@@ -1,6 +1,48 @@
 const nodemailer = require('nodemailer');
 
 // ─────────────────────────────────────────────────────────────
+//  LOGO LUMO — SVG inline direct (source: /public/lumo_logo.svg)
+//  Dégradés couleur : violet/rose/bleu (cristal 3D)
+// ─────────────────────────────────────────────────────────────
+const LUMO_SVG = `<svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lt" x1="10" y1="45" x2="90" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a855f7"/><stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="ll" x1="10" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ec4899"/><stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="lr" x1="90" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3b82f6"/><stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <path d="M50 12 L86 45 L50 88 L14 45 Z" fill="url(#lt)" opacity="0.3"/>
+  <path d="M14 45 L50 88 L50 55 Z" fill="url(#ll)"/>
+  <path d="M86 45 L50 88 L50 55 Z" fill="url(#lr)"/>
+  <path d="M14 45 L50 12 L86 45 L50 55 Z" fill="url(#lt)"/>
+  <path d="M50 12 L14 45 L50 55 Z" fill="#ffffff" opacity="0.25"/>
+  <path d="M50 55 L86 45 L50 48 Z" fill="#ffffff" opacity="0.15"/>
+</svg>`;
+
+// Logo avec texte sombre (sur fond blanc)
+const logoBlockDark = () => `
+<table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 32px;">
+  <tr>
+    <td style="vertical-align: middle; padding-right: 10px;">${LUMO_SVG}</td>
+    <td style="vertical-align: middle;"><span style="font-family: 'Inter','Segoe UI',Arial,sans-serif; font-size: 34px; font-weight: 900; color: #1e293b; letter-spacing: -0.05em;">Lumo</span></td>
+  </tr>
+</table>`;
+
+// Logo avec texte blanc (sur fond coloré)
+const logoBlockLight = () => `
+<table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px;">
+  <tr>
+    <td style="vertical-align: middle; padding-right: 10px;">${LUMO_SVG}</td>
+    <td style="vertical-align: middle;"><span style="font-family: 'Inter','Segoe UI',Arial,sans-serif; font-size: 34px; font-weight: 900; color: #ffffff; letter-spacing: -0.05em;">Lumo</span></td>
+  </tr>
+</table>`;
+
+// ─────────────────────────────────────────────────────────────
 //  RESEND (primary) — simple HTTP API, works on every cloud
 // ─────────────────────────────────────────────────────────────
 const sendViaResend = async ({ email, subject, html, attachments }) => {
@@ -18,7 +60,6 @@ const sendViaResend = async ({ email, subject, html, attachments }) => {
         html,
     };
 
-    // Resend accepte les attachments en base64
     if (attachments && attachments.length > 0) {
         payload.attachments = attachments.map(a => ({
             filename: a.filename,
@@ -79,185 +120,256 @@ const sendViaSMTP = async ({ email, subject, html, attachments }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  DISPATCHER PRINCIPAL — Resend en priorité, SMTP en fallback
+//  DISPATCHER PRINCIPAL
+//  Priorité : SMTP Gmail (si configuré) → Resend API (fallback)
+//  Raison : Resend nécessite un domaine vérifié pour envoyer à n'importe qui
 // ─────────────────────────────────────────────────────────────
 const sendEmail = async ({ email, subject, html, attachments }) => {
-    if (process.env.RESEND_API_KEY) {
+    // Si SMTP configuré → priorité absolue (pas de restriction de domaine)
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         try {
-            return await sendViaResend({ email, subject, html, attachments });
-        } catch (resendError) {
-            console.error('[EMAIL] ⚠️ Resend a échoué, tentative SMTP fallback:', resendError.message);
-            // Si SMTP aussi configuré, on tente
-            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-                return await sendViaSMTP({ email, subject, html, attachments });
+            return await sendViaSMTP({ email, subject, html, attachments });
+        } catch (smtpError) {
+            console.error('[EMAIL] ⚠️ SMTP échoué, tentative Resend:', smtpError.message);
+            // Fallback Resend si disponible
+            if (process.env.RESEND_API_KEY) {
+                return await sendViaResend({ email, subject, html, attachments });
             }
-            throw resendError;
+            throw smtpError;
         }
     }
 
-    // Pas de RESEND_API_KEY → SMTP direct
-    return await sendViaSMTP({ email, subject, html, attachments });
+    // Pas de SMTP → Resend (nécessite domaine vérifié pour autres emails)
+    if (process.env.RESEND_API_KEY) {
+        return await sendViaResend({ email, subject, html, attachments });
+    }
+
+    throw new Error('[EMAIL] Aucun service email configuré (SMTP_USER ou RESEND_API_KEY requis)');
 };
 
 // ─────────────────────────────────────────────────────────────
-//  TEMPLATES EMAIL
+//  TEMPLATES EMAIL — avec logo SVG Lumo réel
 // ─────────────────────────────────────────────────────────────
+
 const getVerificationTemplate = (code, name) => {
-    return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 14px;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border-radius: 12px; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); text-align: center; line-height: 48px; color: white; font-family: 'Segoe UI', Tahoma, Verdana, sans-serif; font-size: 26px; font-weight: 900; transform: rotate(15deg);">
-                    <div style="transform: rotate(-15deg);">L</div>
-                </div>
-                <div style="font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; font-size: 38px; font-weight: 900; color: #1e293b; letter-spacing: -0.05em; line-height: 1;">
-                    Lumo
-                </div>
-            </div>
-            <h1 style="color: #1e293b; margin-top: 24px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Vérification de votre compte</h1>
-        </div>
-        
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong>${name}</strong>,</p>
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Merci de rejoindre <strong>Lumo</strong>. Pour finaliser la création de votre compte professionnel, veuillez utiliser le code de vérification suivant :</p>
-        
-        <div style="text-align: center; margin: 40px 0;">
-            <div style="display: inline-block; padding: 20px 40px; background-color: #ffffff; border: 2px dashed #6d28d9; border-radius: 16px; font-size: 36px; font-weight: 900; color: #6d28d9; letter-spacing: 0.2em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                ${code}
-            </div>
-            <p style="color: #94a3b8; font-size: 14px; margin-top: 12px;">Ce code expire dans 15 minutes.</p>
-        </div>
-        
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 24px; margin-top: 32px;">
-            Si vous n'avez pas créé de compte Lumo, vous pouvez ignorer cet email en toute sécurité.
-        </p>
-        
-        <div style="text-align: center; margin-top: 32px; color: #94a3b8; font-size: 12px;">
-            &copy; ${new Date().getFullYear()} Lumo - La gestion intelligente pour votre commerce.
-        </div>
-    </div>
-    `;
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; padding: 40px 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08);">
+
+                <!-- Header gradient -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 40px 36px; text-align: center;">
+                        ${logoBlockLight()}
+                        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Vérification de votre compte</h1>
+                        <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">Entrez le code ci-dessous pour activer votre compte</p>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding: 40px;">
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${name}</strong>,</p>
+                        <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Merci de rejoindre <strong>Lumo</strong>. Pour finaliser la création de votre compte professionnel, veuillez utiliser le code de vérification suivant :</p>
+
+                        <!-- OTP Box -->
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr><td align="center" style="padding: 8px 0 32px;">
+                                <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 2px solid #7c3aed; border-radius: 20px; text-align: center;">
+                                    <span style="font-size: 42px; font-weight: 900; color: #6d28d9; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${code}</span>
+                                    <p style="margin: 10px 0 0; color: #9ca3af; font-size: 13px;">⏱️ Ce code expire dans <strong>15 minutes</strong></p>
+                                </div>
+                            </td></tr>
+                        </table>
+
+                        <p style="margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.6; border-top: 1px solid #f1f5f9; padding-top: 24px;">
+                            Si vous n'avez pas créé de compte Lumo, vous pouvez ignorer cet email en toute sécurité.
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 40px; text-align: center;">
+                        <p style="margin: 0; color: #94a3b8; font-size: 12px;">&copy; ${new Date().getFullYear()} Lumo — La gestion intelligente pour votre commerce.</p>
+                    </td>
+                </tr>
+
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`;
 };
 
 const getResetPasswordTemplate = (code, name) => {
-    return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #fff7ed; border: 1px solid #fed7aa;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 14px;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); border-radius: 12px; box-shadow: 0 10px 20px -5px rgba(234, 88, 12, 0.4); text-align: center; line-height: 48px; color: white; font-family: 'Segoe UI', Tahoma, Verdana, sans-serif; font-size: 26px; font-weight: 900; transform: rotate(15deg);">
-                    <div style="transform: rotate(-15deg);">L</div>
-                </div>
-                <div style="font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; font-size: 38px; font-weight: 900; color: #1e293b; letter-spacing: -0.05em; line-height: 1;">
-                    Lumo
-                </div>
-            </div>
-            <h1 style="color: #1e293b; margin-top: 24px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Récupération de mot de passe</h1>
-        </div>
-        
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong>${name}</strong>,</p>
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Nous avons reçu une demande de réinitialisation pour votre compte Lumo. Utilisez le code suivant pour sécuriser votre accès :</p>
-        
-        <div style="text-align: center; margin: 40px 0;">
-            <div style="display: inline-block; padding: 20px 40px; background-color: #ffffff; border: 2px dashed #ea580c; border-radius: 16px; font-size: 36px; font-weight: 900; color: #ea580c; letter-spacing: 0.2em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                ${code}
-            </div>
-            <p style="color: #94a3b8; font-size: 14px; margin-top: 12px;">Ce code de sécurité expire dans 1 heure.</p>
-        </div>
-        
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fed7aa; padding-top: 24px; margin-top: 32px;">
-            Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet email. Votre mot de passe reste inchangé.
-        </p>
-        
-        <div style="text-align: center; margin-top: 32px; color: #94a3b8; font-size: 12px;">
-            &copy; ${new Date().getFullYear()} Lumo - Sécurité et Intelligence.
-        </div>
-    </div>
-    `;
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #fff7ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fff7ed; padding: 40px 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 24px; border: 1px solid #fed7aa; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); padding: 40px 40px 36px; text-align: center;">
+                        ${logoBlockLight()}
+                        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Récupération de mot de passe</h1>
+                        <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">Utilisez le code ci-dessous pour sécuriser votre accès</p>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding: 40px;">
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${name}</strong>,</p>
+                        <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Nous avons reçu une demande de réinitialisation pour votre compte Lumo. Utilisez le code suivant pour sécuriser votre accès :</p>
+
+                        <!-- OTP Box -->
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr><td align="center" style="padding: 8px 0 32px;">
+                                <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #ea580c; border-radius: 20px; text-align: center;">
+                                    <span style="font-size: 42px; font-weight: 900; color: #ea580c; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${code}</span>
+                                    <p style="margin: 10px 0 0; color: #9ca3af; font-size: 13px;">⏱️ Ce code expire dans <strong>1 heure</strong></p>
+                                </div>
+                            </td></tr>
+                        </table>
+
+                        <p style="margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.6; border-top: 1px solid #fed7aa; padding-top: 24px;">
+                            Si vous n'êtes pas à l'origine de cette demande, ignorez cet email. Votre mot de passe reste inchangé.
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #fff7ed; border-top: 1px solid #fed7aa; padding: 24px 40px; text-align: center;">
+                        <p style="margin: 0; color: #fb923c; font-size: 12px;">&copy; ${new Date().getFullYear()} Lumo — Sécurité et Intelligence.</p>
+                    </td>
+                </tr>
+
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`;
 };
 
 const getNewsletterWelcomeTemplate = (title, body, logoUrl) => {
     const finalTitle = title || 'Bienvenue dans la communauté !';
     const finalBody = body || 'Votre inscription à la newsletter <strong>Lumo</strong> a été confirmée avec succès. Vous recevrez désormais en avant-première nos actualités, mises à jour et conseils pour booster votre commerce.';
 
-    const logoContent = logoUrl
-        ? `<img src="${logoUrl}" alt="Lumo" style="height: 48px; width: auto;" />`
-        : `
-        <div style="display: inline-flex; align-items: center; gap: 12px; text-decoration: none;">
-            <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border-radius: 14px; position: relative; box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4); text-align: center; line-height: 44px; color: white; font-weight: 900; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 24px;">
-                <div style="transform: rotate(-5deg);">L</div>
-            </div>
-            <span style="font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-size: 32px; font-weight: 900; color: #1e293b; letter-spacing: -0.05em; line-height: 1;">
-                Lumo
-            </span>
-        </div>
-        `;
+    const customLogoImg = logoUrl
+        ? `<img src="${logoUrl}" alt="Lumo" style="height: 52px; width: auto; display: block; margin: 0 auto 24px;" />`
+        : logoBlockLight();
 
-    return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <div style="margin-bottom: 24px;">
-                ${logoContent}
-            </div>
-            <h1 style="color: #1e293b; margin-top: 12px; font-size: 24px; font-weight: 800; letter-spacing: -0.03em;">${finalTitle}</h1>
-        </div>
-        
-        <div style="background-color: #f8fafc; padding: 32px; border-radius: 20px; border: 1px solid #f1f5f9; margin-bottom: 32px;">
-            <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-top: 0;">Bonjour,</p>
-            <p style="color: #475569; font-size: 16px; line-height: 1.6; margin-bottom: 0;">${finalBody}</p>
-        </div>
-        
-        <div style="text-align: center; margin: 40px 0;">
-            <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 18px 36px; background-color: #6366f1; border-radius: 16px; font-weight: 900; color: #ffffff; text-decoration: none; box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3); font-size: 16px; letter-spacing: 0.02em;">
-                ACCÉDER À MON ESPACE
-            </a>
-        </div>
-        
-        <div style="text-align: center; border-top: 1px solid #f1f5f9; padding-top: 32px; margin-top: 40px;">
-            <p style="color: #94a3b8; font-size: 13px; font-weight: 600; margin-bottom: 8px;">
-                Lumo - L'intelligence au service de votre commerce
-            </p>
-            <div style="color: #cbd5e1; font-size: 12px;">
-                &copy; ${new Date().getFullYear()} Lumo | Innovation &amp; Performance
-            </div>
-        </div>
-    </div>
-    `;
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; padding: 40px 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 40px 36px; text-align: center;">
+                        ${customLogoImg}
+                        <h1 style="margin: 12px 0 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.03em;">${finalTitle}</h1>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding: 40px;">
+                        <div style="background-color: #f8fafc; padding: 28px; border-radius: 16px; border: 1px solid #f1f5f9; margin-bottom: 32px;">
+                            <p style="margin: 0 0 12px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour,</p>
+                            <p style="margin: 0; color: #475569; font-size: 15px; line-height: 1.7;">${finalBody}</p>
+                        </div>
+
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr><td align="center">
+                                <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}"
+                                   style="display: inline-block; padding: 16px 36px; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border-radius: 14px; font-weight: 900; color: #ffffff; text-decoration: none; font-size: 15px; letter-spacing: 0.03em;">
+                                    ACCÉDER À MON ESPACE →
+                                </a>
+                            </td></tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 40px; text-align: center;">
+                        <p style="margin: 0 0 4px; color: #94a3b8; font-size: 13px; font-weight: 600;">Lumo — L'intelligence au service de votre commerce</p>
+                        <p style="margin: 0; color: #cbd5e1; font-size: 12px;">&copy; ${new Date().getFullYear()} Lumo | Innovation &amp; Performance</p>
+                    </td>
+                </tr>
+
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`;
 };
 
 const getDebtReminderTemplate = (clientName, montant, currency) => {
-    return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border-radius: 24px; background-color: #fff1f2; border: 1px solid #fecdd3;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 14px;">
-                <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); border-radius: 12px; box-shadow: 0 10px 20px -5px rgba(225, 29, 72, 0.4); text-align: center; line-height: 48px; color: white; font-family: 'Segoe UI', Tahoma, Verdana, sans-serif; font-size: 26px; font-weight: 900; transform: rotate(15deg);">
-                    <div style="transform: rotate(-15deg);">L</div>
-                </div>
-                <div style="font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; font-size: 38px; font-weight: 900; color: #1e293b; letter-spacing: -0.05em; line-height: 1;">
-                    Lumo
-                </div>
-            </div>
-            <h1 style="color: #1e293b; margin-top: 24px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Rappel de paiement</h1>
-        </div>
-        
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong>${clientName}</strong>,</p>
-        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Nous espérons que vous allez bien. Sauf erreur de notre part, nous remarquons qu'un montant reste en attente de règlement sur votre compte.</p>
-        
-        <div style="text-align: center; margin: 40px 0;">
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 8px;">Montant restant dû</p>
-            <div style="display: inline-block; padding: 20px 40px; background-color: #ffffff; border: 2px dashed #e11d48; border-radius: 16px; font-size: 32px; font-weight: 900; color: #e11d48; letter-spacing: 0.05em; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-                ${montant} ${currency}
-            </div>
-        </div>
-        
-        <p style="color: #475569; font-size: 14px; line-height: 1.6; border-top: 1px solid #fecdd3; padding-top: 24px; margin-top: 32px;">
-            Si ce paiement a déjà été effectué entre-temps, veuillez ignorer cet email.<br>
-            Merci de votre confiance et de votre compréhension.
-        </p>
-        
-        <div style="text-align: center; margin-top: 32px; color: #94a3b8; font-size: 12px;">
-            &copy; ${new Date().getFullYear()} Lumo
-        </div>
-    </div>
-    `;
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background-color: #fff1f2; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #fff1f2; padding: 40px 20px;">
+        <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 24px; border: 1px solid #fecdd3; overflow: hidden; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08);">
+
+                <!-- Header -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%); padding: 40px 40px 36px; text-align: center;">
+                        ${logoBlockLight()}
+                        <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Rappel de paiement</h1>
+                        <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px;">Un montant est en attente de règlement sur votre compte</p>
+                    </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                    <td style="padding: 40px;">
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${clientName}</strong>,</p>
+                        <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Nous espérons que vous allez bien. Sauf erreur de notre part, nous remarquons qu'un montant reste en attente de règlement sur votre compte.</p>
+
+                        <!-- Amount Box -->
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr><td align="center" style="padding: 8px 0 32px;">
+                                <p style="margin: 0 0 10px; color: #64748b; font-size: 14px;">Montant restant dû</p>
+                                <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border: 2px solid #e11d48; border-radius: 20px; text-align: center;">
+                                    <span style="font-size: 38px; font-weight: 900; color: #e11d48; letter-spacing: 0.05em;">${montant} ${currency}</span>
+                                </div>
+                            </td></tr>
+                        </table>
+
+                        <p style="margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.6; border-top: 1px solid #fecdd3; padding-top: 24px;">
+                            Si ce paiement a déjà été effectué entre-temps, veuillez ignorer cet email.<br>
+                            Merci de votre confiance et de votre compréhension.
+                        </p>
+                    </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                    <td style="background-color: #fff1f2; border-top: 1px solid #fecdd3; padding: 24px 40px; text-align: center;">
+                        <p style="margin: 0; color: #fb7185; font-size: 12px;">&copy; ${new Date().getFullYear()} Lumo</p>
+                    </td>
+                </tr>
+
+            </table>
+        </td></tr>
+    </table>
+</body>
+</html>`;
 };
 
 module.exports = {
