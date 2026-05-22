@@ -459,7 +459,7 @@ const Clients = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px', display: 'block', marginLeft: '4px' }}>Email</label>
               <div style={{ position: 'relative' }}>
                 <Mail style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                <input type="email" placeholder="client@hub.com" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1rem', outline: 'none' }} />
+                <input type="email" placeholder="client@lumo.com" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', fontSize: '1rem', outline: 'none' }} />
               </div>
             </div>
           </div>

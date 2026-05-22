@@ -19,3 +19,6 @@ LUMO_TEMP
 LUMO_SOURCE
 client/node_modules
 server/node_modules
+
+# AutoClaw KDream data
+.autoclaw/

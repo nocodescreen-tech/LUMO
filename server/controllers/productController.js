@@ -51,6 +51,9 @@ exports.createProduct = async (req, res, next) => {
     if (typeof productData.variantes === 'string') {
       try { productData.variantes = JSON.parse(productData.variantes); } catch(e) { productData.variantes = []; }
     }
+    if (typeof productData.metadata === 'string') {
+      try { productData.metadata = JSON.parse(productData.metadata); } catch(e) { productData.metadata = {}; }
+    }
     if (req.file) {
       productData.image = await uploadImage(req.file.buffer, 'products', req.file.mimetype);
     }
@@ -85,6 +88,9 @@ exports.updateProduct = async (req, res, next) => {
     if (!updateData.codeBarre) updateData.codeBarre = null;
     if (typeof updateData.variantes === 'string') {
       try { updateData.variantes = JSON.parse(updateData.variantes); } catch(e) { updateData.variantes = []; }
+    }
+    if (typeof updateData.metadata === 'string') {
+      try { updateData.metadata = JSON.parse(updateData.metadata); } catch(e) { updateData.metadata = {}; }
     }
     if (req.file) {
       updateData.image = await uploadImage(req.file.buffer, 'products', req.file.mimetype);
@@ -132,8 +138,6 @@ exports.createBulkProducts = async (req, res, next) => {
       codeBarre: p.codeBarre?.trim() || null,
     }));
     const createdProducts = await Product.bulkCreate(products, {
-      updateOnDuplicate: ['nom', 'prix', 'prixAchat', 'stock', 'categorie', 'description', 'variantes'],
-      ignoreDuplicates: false, 
       individualHooks: true
     });
     

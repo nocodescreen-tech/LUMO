@@ -190,9 +190,9 @@ const SuperAdminDashboard = () => {
             toast.success(data.message);
             
             // Backup the superadmin token to allow easy return
-            const currentAuth = localStorage.getItem('hub-auth');
+            const currentAuth = localStorage.getItem('lumo-auth');
             if (currentAuth) {
-                localStorage.setItem('hub-auth-superadmin', currentAuth);
+                localStorage.setItem('lumo-auth-superadmin', currentAuth);
             }
 
             useAuthStore.getState().setAuth(data.user, data.token);
@@ -859,7 +859,7 @@ const SuperAdminDashboard = () => {
                                     <div style={{ padding: '16px', borderRadius: '18px', background: 'var(--primary-glow)', color: 'var(--primary)' }}>
                                         <Bell size={32} />
                                     </div>
-                                    <h2 style={{ fontSize: '2.8rem', fontWeight: '950', letterSpacing: '-0.04em', margin: 0 }}>Broadcast <span className="text-gradient">Hub</span></h2>
+                                    <h2 style={{ fontSize: '2.8rem', fontWeight: '950', letterSpacing: '-0.04em', margin: 0 }}>Broadcast <span className="text-gradient">Centre</span></h2>
                                 </div>
                                 <p style={{ color: 'var(--text-muted)', fontWeight: '600', fontSize: '1.15rem', lineHeight: 1.6, marginBottom: '48px' }}>
                                     Diffusez des annonces critiques, des mises à jour système ou des alertes de maintenance à l'ensemble des utilisateurs connectés.

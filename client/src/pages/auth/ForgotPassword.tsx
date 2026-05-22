@@ -237,14 +237,14 @@ const ForgotPassword = () => {
         </div>
       </motion.div>
 
-      <div style={{ position: 'absolute', bottom: '32px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '700', zIndex: 5 }}>
-        © 2026 HUBCOMMERCE &bull; SÉCURITÉ RENFORCÉE
+      <div style={{ position: 'fixed', bottom: '20px', left: 0, right: 0, textAlign: 'center', zIndex: 10 }}>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.1em' }}>
+        © 2026 LUMO &bull; SÉCURITÉ RENFORCÉE
+        </p>
       </div>
     </div>
   );
 };
 
 export default ForgotPassword;
-ForgotPassword;
-
 

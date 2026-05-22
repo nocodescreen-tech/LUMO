@@ -35,6 +35,19 @@ import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 import * as XLSX from 'xlsx';
+import { BUSINESS_TYPES } from '../constants/businessTypes';
+
+const normalizeActivityType = (type: string | undefined | null) => {
+  if (!type) return 'commerce-general';
+  // Direct match — already a valid key (new accounts)
+  if (type in BUSINESS_TYPES) return type;
+  // Fuzzy match — legacy values
+  const lower = type.toLowerCase();
+  if (lower.includes('pharma')) return 'pharmacie';
+  if (lower.includes('quinc')) return 'quincaillerie';
+  if (lower.includes('mode')) return 'boutique-mode';
+  return 'commerce-general';
+};
 
 const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -66,7 +79,7 @@ const Products = () => {
   };
 
   const [conversionBanner, setConversionBanner] = React.useState<string | null>(null);
-  const isPharmacy = user?.typeActivite === 'Pharmacie';
+  const isPharmacy = normalizeActivityType(user?.typeActivite) === 'pharmacie';
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -169,7 +182,8 @@ const Products = () => {
     stockAlerte: 5,
     description: '',
     devise: currency as string,
-    variantes: [] as any[]
+    variantes: [] as any[],
+    metadata: {} as Record<string, any>
   });
 
   const [calc, setCalc] = useState({
@@ -296,7 +310,7 @@ const Products = () => {
       toast.success(`Produit "${newProduct.nom}" ajouté avec succès !`);
       setShowAddModal(false);
       setNewProduct({
-        nom: '', codeBarre: '', categorie: 'Général', prixVente: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency, variantes: []
+        nom: '', codeBarre: '', categorie: 'Général', prixVente: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency, variantes: [], metadata: {}
       });
       setCalc({ packSize: 1, totalCost: 0, marginPct: 20, active: false });
       setSelectedImage(null);
@@ -313,7 +327,7 @@ const Products = () => {
     Object.entries(selectedProduct).forEach(([key, value]) => {
       // Don't skip codeBarre if it has a value
       if (key !== 'image' && value !== null && value !== undefined) {
-        if (key === 'variantes') {
+        if (key === 'variantes' || key === 'metadata') {
           formData.append(key, JSON.stringify(value));
         } else {
           formData.append(key, value.toString());
@@ -623,7 +637,7 @@ const Products = () => {
                       </button>
                       {canDo('products.edit') && (
                         <button
-                          onClick={() => { setSelectedProduct(p); setShowEditModal(true); }}
+                          onClick={() => { setSelectedProduct({...p, metadata: p.metadata || {}}); setShowEditModal(true); }}
                           className="glass btn-hover"
                           style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
@@ -905,6 +919,38 @@ const Products = () => {
             </div>
           </div>
 
+          {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
+            <div key={field.name}>
+              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{field.label}</label>
+              <div style={{ position: 'relative' }}>
+                {field.type === 'select' ? (
+                  <select
+                    value={newProduct.metadata?.[field.name] || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
+                    style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
+                  >
+                    <option value="">Sélectionnez...</option>
+                    {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                ) : field.type === 'boolean' ? (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={!!newProduct.metadata?.[field.name]} onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
+                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{field.label}</span>
+                  </label>
+                ) : (
+                  <input
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    value={newProduct.metadata?.[field.name] || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
+                    style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }}
+                  />
+                )}
+              </div>
+            </div>
+          ))}
+
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
             <button type="button" onClick={() => setShowAddModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>Fermer</button>
             <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1076,6 +1122,38 @@ const Products = () => {
                 <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '800', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
               </div>
             </div>
+
+            {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
+              <div key={field.name}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{field.label}</label>
+                <div style={{ position: 'relative' }}>
+                  {field.type === 'select' ? (
+                    <select
+                      value={selectedProduct.metadata?.[field.name] || ''}
+                      onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}
+                      style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
+                    >
+                      <option value="">Sélectionnez...</option>
+                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : field.type === 'boolean' ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!selectedProduct.metadata?.[field.name]} onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
+                      <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{field.label}</span>
+                    </label>
+                  ) : (
+                    <input
+                      type={field.type}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                      value={selectedProduct.metadata?.[field.name] || ''}
+                      onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}
+                      style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
 
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
               <button type="button" onClick={() => setShowEditModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>Annuler</button>

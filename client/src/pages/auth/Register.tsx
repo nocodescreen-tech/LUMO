@@ -18,7 +18,10 @@ import {
   Sparkles,
   MapPin,
   Target,
-  ShieldCheck
+  ShieldCheck,
+  Heart,
+  Wrench,
+  Shirt
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -52,9 +55,10 @@ const Register = () => {
   });
 
   const activityTypes = [
-    { id: 'Boutique', label: t.bizBoutiqueTitle, icon: Store, color: '#6d28d9', desc: t.bizBoutiqueDesc },
-    { id: 'Restaurant', label: t.bizRestaurantTitle, icon: UtensilsCrossed, color: '#f59e0b', desc: t.bizRestaurantDesc },
-    { id: 'Services', label: t.bizServicesTitle, icon: Briefcase, color: '#ef4444', desc: t.bizServicesDesc },
+    { id: 'commerce-general', label: 'Commerce Général', icon: Store, color: '#6366f1', desc: 'Gestion standard des ventes, stocks et clients.' },
+    { id: 'pharmacie', label: 'Pharmacie & Santé', icon: Heart, color: '#ef4444', desc: 'Suivi des dates d\'expiration, numéros de lot et ordonnances.' },
+    { id: 'quincaillerie', label: 'Quincaillerie & BTP', icon: Wrench, color: '#f59e0b', desc: 'Unités de mesure spéciales, poids, dimensions et marques.' },
+    { id: 'boutique-mode', label: 'Boutique de Mode', icon: Shirt, color: '#ec4899', desc: 'Gestion des variantes de tailles, couleurs, genres et matières.' },
   ];
 
   const updateForm = (fields: Partial<typeof formData>) => {

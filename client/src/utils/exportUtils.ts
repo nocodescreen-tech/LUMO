@@ -18,10 +18,11 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
     </head>
     <body>
         <table>
-            <tr>
-                <th class="title" colspan="${headers.length}">${moduleName.toUpperCase()} - HUBCOMMERCE ERP</th>
-            </tr>
-            <tr>
+            <thead>
+              <tr class="header-row">
+                <th class="title" colspan="${headers.length}">${moduleName.toUpperCase()} - LUMO ERP</th>
+              </tr>
+              <tr class="header-row">
                 <td class="subtitle" colspan="${headers.length}">Généré le : ${new Date().toLocaleString('fr-FR')}</td>
             </tr>
             <tr>

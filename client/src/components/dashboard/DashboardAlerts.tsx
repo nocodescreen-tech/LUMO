@@ -7,12 +7,14 @@ interface DashboardAlertsProps {
   lowStockCount?: number;
   lowStockProducts?: any[];
   debtsTotal?: number;
+  expiringProductsCount?: number;
+  expiringProducts?: any[];
 }
 
-const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal = 0 }: DashboardAlertsProps) => {
+const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal = 0, expiringProductsCount = 0, expiringProducts = [] }: DashboardAlertsProps) => {
   const navigate = useNavigate();
 
-  if (lowStockCount === 0 && debtsTotal === 0) return null;
+  if (lowStockCount === 0 && debtsTotal === 0 && expiringProductsCount === 0) return null;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
@@ -42,6 +44,38 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
               {lowStockProducts.length > 0 
                 ? `Articles : ${lowStockProducts.map(p => p.nom).join(', ')}...`
                 : 'Certains articles sont presque épuisés.'}
+            </p>
+          </div>
+          <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
+        </motion.div>
+      )}
+
+      {expiringProductsCount > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          onClick={() => navigate('/products')}
+          className="glass"
+          style={{ 
+            padding: '20px 24px', 
+            borderRadius: '24px', 
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            cursor: 'pointer'
+          }}
+        >
+          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+            <AlertTriangle size={24} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#ef4444', fontSize: '1.1rem' }}>Produits Périmés/Expirant ({expiringProductsCount})</h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
+              {expiringProducts.length > 0 
+                ? `À vérifier: ${expiringProducts.slice(0, 3).map(p => p.nom).join(', ')}...`
+                : 'Certains produits arrivent à expiration.'}
             </p>
           </div>
           <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />

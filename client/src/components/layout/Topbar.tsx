@@ -22,12 +22,12 @@ const Topbar = () => {
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
 
-    const isImpersonating = !!localStorage.getItem('hub-auth-superadmin');
+    const isImpersonating = !!localStorage.getItem('lumo-auth-superadmin');
 
     const handleStopImpersonation = () => {
-        const superadminAuth = localStorage.getItem('hub-auth-superadmin');
+        const superadminAuth = localStorage.getItem('lumo-auth-superadmin');
         if (superadminAuth) {
-            localStorage.removeItem('hub-auth-superadmin');
+            localStorage.removeItem('lumo-auth-superadmin');
             const data = decodeData(superadminAuth);
             if (data && data.user && data.token) {
                 setAuth(data.user, data.token);
