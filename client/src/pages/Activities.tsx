@@ -143,7 +143,7 @@ const Activities = () => {
                         <Database size={14} /> Audit & Traçabilité
                     </div>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>Journal d'<span className="text-gradient">Activités</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Historique complet des actions effectuées sur votre instance HubCommerce.</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Historique complet des actions effectuées sur votre instance LUMO.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button

@@ -1,5 +1,5 @@
 /**
- * Currency formatting utilities for HubCommerce
+ * Currency formatting utilities for LUMO
  * Handles conversion between CDF and USD with proper formatting
  */
 

@@ -249,7 +249,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
   const html = `
     <html>
       <head>
-        <title>Bilan Mensuel - HubCommerce</title>
+        <title>Bilan Mensuel - LUMO</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
           body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; background: #fff; }
@@ -275,7 +275,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
               ${logo ? `<img src="${logo}" alt="Logo" style="height: 60px; object-fit: contain;">` : ''}
               <div>
                 <div class="title">Bilan Financier</div>
-                <div style="color: #64748b; font-weight: 600; margin-top: 4px;">${user?.entreprise?.nom || 'HubCommerce Pro'}</div>
+                <div style="color: #64748b; font-weight: 600; margin-top: 4px;">${user?.entreprise?.nom || 'LUMO Pro'}</div>
               </div>
             </div>
             <div class="period">${periodLabel}</div>
@@ -288,7 +288,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
             </div>
             <div class="stat-card">
               <div class="stat-label">Bénéfice Net</div>
-              <div class="stat-value" style="color: #6366f1;">${Number((data?.totals?.revenue || 0)).toLocaleString()} ${currency}</div>
+              <div class="stat-value" style="color: #6366f1;">${Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0)).toLocaleString()} ${currency}</div>
             </div>
           </div>
 
@@ -334,7 +334,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
           </table>
 
           <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
-            Document généré automatiquement par HubCommerce ERP - ${new Date().toLocaleString('fr-FR', { hour12: false })}
+            Document généré automatiquement par LUMO ERP - ${new Date().toLocaleString('fr-FR', { hour12: false })}
           </div>
         </div>
         <script>
@@ -379,7 +379,7 @@ export const generateCashSessionReport = (session: any, user: any) => {
           <div class="header">
             ${logo ? `<img src="${logo}" alt="Logo" style="height: 50px; object-fit: contain; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto;">` : ''}
             <h1 style="margin: 0; font-size: 24px; font-weight: 900;">RAPPORT DE CLÔTURE DE CAISSE</h1>
-            <p style="color: #64748b; font-weight: 600; margin-top: 8px;">${user?.entreprise?.nom || 'HubCommerce Pro'}</p>
+            <p style="color: #64748b; font-weight: 600; margin-top: 8px;">${user?.entreprise?.nom || 'LUMO Pro'}</p>
           </div>
 
           <div style="margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">

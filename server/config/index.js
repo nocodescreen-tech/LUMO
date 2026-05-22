@@ -28,7 +28,7 @@ module.exports = {
   db: {
     host: dbParsed?.host || process.env.DB_HOST,
     port: dbParsed?.port || process.env.DB_PORT,
-    name: (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) ? (process.env.DB_NAME_TEST || process.env.DB_NAME || 'hubcommerce_db') : (dbParsed?.name || process.env.DB_NAME),
+    name: (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) ? (process.env.DB_NAME_TEST || process.env.DB_NAME || 'lumo_db') : (dbParsed?.name || process.env.DB_NAME),
     user: dbParsed?.user || process.env.DB_USER,
     pass: dbParsed?.pass || process.env.DB_PASSWORD
   },

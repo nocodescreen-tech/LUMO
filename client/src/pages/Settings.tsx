@@ -94,58 +94,169 @@ const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeho
 const TwoFASection = () => {
   const { user, updateUser } = useAuthStore();
   const [loading2FA, setLoading2FA] = React.useState(false);
+  const [showSetupModal, setShowSetupModal] = React.useState(false);
+  const [qrCode, setQrCode] = React.useState('');
+  const [secret, setSecret] = React.useState('');
+  const [otpCode, setOtpCode] = React.useState('');
+  const [activating, setActivating] = React.useState(false);
   const is2FAEnabled = !!(user as any)?.twoFactorEnabled;
 
-  const toggle2FA = async () => {
+  const handleEnable2FA = async () => {
     setLoading2FA(true);
     try {
-      const endpoint = is2FAEnabled ? '/auth/2fa/disable' : '/auth/2fa/enable';
-      const { data } = await api.post(endpoint);
-      updateUser({ ...(user as any), twoFactorEnabled: data.twoFactorEnabled });
-      toast.success(data.message);
+      const { data } = await api.get('/auth/2fa/setup');
+      setQrCode(data.qrCode);
+      setSecret(data.secret);
+      setOtpCode('');
+      setShowSetupModal(true);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la modification 2FA');
+      toast.error(err.response?.data?.message || 'Erreur lors de la configuration 2FA');
+    } finally {
+      setLoading2FA(false);
+    }
+  };
+
+  const handleActivate2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) {
+      toast.error('Veuillez entrer un code à 6 chiffres');
+      return;
+    }
+    setActivating(true);
+    try {
+      const { data } = await api.post('/auth/2fa/activate', { code: otpCode });
+      updateUser({ ...(user as any), twoFactorEnabled: true });
+      toast.success(data.message || 'Double authentification activée avec succès');
+      setShowSetupModal(false);
+      setOtpCode('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Code incorrect. Réessayez.');
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    setLoading2FA(true);
+    try {
+      const { data } = await api.post('/auth/2fa/disable');
+      updateUser({ ...(user as any), twoFactorEnabled: false });
+      toast.success(data.message || 'Double authentification désactivée');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Erreur lors de la désactivation 2FA');
     } finally {
       setLoading2FA(false);
     }
   };
 
   return (
-    <div style={{
-      padding: '24px',
-      borderRadius: '24px',
-      border: `2px solid ${is2FAEnabled ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
-      background: is2FAEnabled ? 'rgba(99,102,241,0.05)' : 'var(--bg-main)',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      transition: 'all 0.3s'
-    }}>
-      <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-        <div style={{ width: '54px', height: '54px', borderRadius: '16px', backgroundColor: is2FAEnabled ? 'rgba(99,102,241,0.15)' : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: is2FAEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
-          <ShieldCheck size={26} />
+    <>
+      <div style={{
+        padding: '24px',
+        borderRadius: '24px',
+        border: `2px solid ${is2FAEnabled ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
+        background: is2FAEnabled ? 'rgba(99,102,241,0.05)' : 'var(--bg-main)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        transition: 'all 0.3s'
+      }}>
+        <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '16px', backgroundColor: is2FAEnabled ? 'rgba(99,102,241,0.15)' : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: is2FAEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+            <ShieldCheck size={26} />
+          </div>
+          <div>
+            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
+              {is2FAEnabled
+                ? '✅ Activé — Code Google Authenticator requis à chaque connexion'
+                : 'Désactivé — Activez pour protéger votre compte avec Google Authenticator (TOTP)'}
+            </p>
+          </div>
         </div>
-        <div>
-          <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
-            {is2FAEnabled
-              ? '✅ Activé — Code OTP requis à chaque connexion'
-              : 'Désactivé — Activez pour protéger votre compte par email OTP'}
-          </p>
-        </div>
+        <button
+          onClick={is2FAEnabled ? handleDisable2FA : handleEnable2FA}
+          disabled={loading2FA}
+          style={{
+            padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
+            fontWeight: 800, fontSize: '0.9rem', transition: 'all 0.3s',
+            background: is2FAEnabled ? 'rgba(239,68,68,0.1)' : 'var(--primary)',
+            color: is2FAEnabled ? '#ef4444' : 'white',
+            opacity: loading2FA ? 0.6 : 1
+          }}
+        >
+          {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
+        </button>
       </div>
-      <button
-        onClick={toggle2FA}
-        disabled={loading2FA}
-        style={{
-          padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
-          fontWeight: 800, fontSize: '0.9rem', transition: 'all 0.3s',
-          background: is2FAEnabled ? 'rgba(239,68,68,0.1)' : 'var(--primary)',
-          color: is2FAEnabled ? '#ef4444' : 'white',
-          opacity: loading2FA ? 0.6 : 1
-        }}
-      >
-        {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
-      </button>
-    </div>
+
+      {/* TOTP Setup Modal */}
+      {showSetupModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            style={{ width: '100%', maxWidth: '480px', padding: '40px', borderRadius: '32px', background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.5)' }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <ShieldCheck size={32} color="white" />
+              </div>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 8px' }}>Configurer la 2FA</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
+                Scannez le QR Code avec Google Authenticator ou Authy
+              </p>
+            </div>
+
+            {qrCode && (
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <img src={qrCode} alt="QR Code 2FA" style={{ width: '200px', height: '200px', borderRadius: '16px', border: '4px solid var(--border)', margin: '0 auto', display: 'block' }} />
+                <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clé secrète manuelle</p>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--primary)', margin: 0, wordBreak: 'break-all', letterSpacing: '0.1em' }}>{secret}</p>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleActivate2FA} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Code de vérification (6 chiffres)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  style={{
+                    padding: '16px', borderRadius: '16px', border: '2px solid var(--border)',
+                    backgroundColor: 'var(--bg-main)', color: 'var(--text-main)',
+                    fontSize: '1.5rem', fontWeight: 900, textAlign: 'center', letterSpacing: '0.3em',
+                    outline: 'none'
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowSetupModal(false); setOtpCode(''); }}
+                  style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={activating || otpCode.length !== 6}
+                  style={{ flex: 2, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 800, cursor: activating || otpCode.length !== 6 ? 'not-allowed' : 'pointer', opacity: activating || otpCode.length !== 6 ? 0.6 : 1 }}
+                >
+                  {activating ? 'Vérification...' : 'Activer la 2FA'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </>
   );
 };
 
