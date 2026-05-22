@@ -82,7 +82,7 @@ export const decodeData = (encoded: string | null) => {
 };
 
 const loadInitialAuth = () => {
-  const stored = localStorage.getItem('hub-auth');
+  const stored = localStorage.getItem('lumo-auth');
   const decoded = decodeData(stored);
   if (decoded) {
     return {
@@ -105,14 +105,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   enabledModules: initialAuth.user?.preferences?.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
 
   setAuth: (user, token, refreshToken) => {
-    const current = decodeData(localStorage.getItem('hub-auth')) || {};
+    const current = decodeData(localStorage.getItem('lumo-auth')) || {};
     const authData: any = { user, token };
     if (refreshToken) {
         authData.refreshToken = refreshToken;
     } else if (current.refreshToken) {
         authData.refreshToken = current.refreshToken;
     }
-    localStorage.setItem('hub-auth', encodeData(authData));
+    localStorage.setItem('lumo-auth', encodeData(authData));
     localStorage.setItem('token', token);
     
     const prefs = user.preferences || {};
@@ -197,8 +197,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.setItem('exchangeRate', rate.toString());
       
       // Persist full user object using safe encoding (handles accents/unicode)
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user, token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user, token }));
 
       set({ 
         user, 
@@ -213,7 +213,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       document.documentElement.setAttribute('data-theme', theme);
     } catch (err) {
       // Token probably invalid
-      localStorage.removeItem('hub-auth');
+      localStorage.removeItem('lumo-auth');
       localStorage.removeItem('token');
       set({ token: null, user: null });
       if (shouldRedirect && window.location.pathname !== '/login' && window.location.pathname !== '/' && window.location.pathname !== '/register') {
@@ -226,8 +226,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateUser: (data) => set((state) => {
     if (!state.user) return { user: null };
     const updated = { ...state.user, ...data };
-    const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-    localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updated, token: state.token }));
+    const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+    localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updated, token: state.token }));
     return { user: updated };
   }),
 
@@ -259,8 +259,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, theme }
       };
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       // Fire and forget sync to backend
       useAuthStore.getState().syncPreferencesToServer({ theme });
     }
@@ -276,8 +276,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, language }
       };
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ language });
     }
     return { language, user: updatedUser };
@@ -294,8 +294,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         entreprise: { ...state.user.entreprise, devise: curr },
         preferences: { ...state.user.preferences, currency: curr }
       };
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ currency: curr });
     }
     return { currency: curr, user: updatedUser };
@@ -310,8 +310,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         ...state.user,
         preferences: { ...state.user.preferences, exchangeRate: rate }
       };
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ exchangeRate: rate });
     }
     return { exchangeRate: rate, user: updatedUser };
@@ -334,8 +334,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           enabledModules: updated
         }
       };
-      const currentAuth = decodeData(localStorage.getItem('hub-auth')) || {};
-      localStorage.setItem('hub-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
+      const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};
+      localStorage.setItem('lumo-auth', encodeData({ ...currentAuth, user: updatedUser, token: state.token }));
       useAuthStore.getState().syncPreferencesToServer({ enabledModules: updated });
     }
 

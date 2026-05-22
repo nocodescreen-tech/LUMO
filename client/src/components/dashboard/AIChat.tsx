@@ -42,7 +42,7 @@ const AIChat = () => {
         setLoading(true);
 
         try {
-            const auth = localStorage.getItem('hub-auth');
+            const auth = localStorage.getItem('lumo-auth');
             let token = '';
             if (auth) {
                token = JSON.parse(auth).token;
@@ -123,6 +123,7 @@ const AIChat = () => {
                             height: isExpanded ? '700px' : '520px', 
                             borderRadius: '28px', 
                             border: '1px solid var(--border)',
+                            background: 'var(--bg-card)',
                             display: 'flex',
                             flexDirection: 'column',
                             overflow: 'hidden',
@@ -166,7 +167,7 @@ const AIChat = () => {
                                     maxWidth: '85%',
                                     padding: '14px 18px',
                                     borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                    backgroundColor: m.role === 'user' ? 'var(--primary)' : 'rgba(255,255,255,0.04)',
+                                    backgroundColor: m.role === 'user' ? 'var(--primary)' : 'var(--bg-main)',
                                     color: m.role === 'user' ? 'white' : 'var(--text-main)',
                                     border: m.role === 'user' ? 'none' : '1px solid var(--border)',
                                     fontSize: '0.9rem',
@@ -177,7 +178,7 @@ const AIChat = () => {
                                 </div>
                             ))}
                             {loading && messages[messages.length - 1]?.role === 'user' && (
-                                <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.04)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px' }}>
+                                <div style={{ alignSelf: 'flex-start', background: 'var(--bg-main)', border: '1px solid var(--border)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px' }}>
                                     <Loader2 size={16} className="animate-spin" />
                                     <span style={{ fontSize: '0.8rem' }}>Analyse en cours...</span>
                                 </div>

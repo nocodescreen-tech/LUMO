@@ -14,9 +14,9 @@ const getDashboardStats = async (req, res, next) => {
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
-        // Normalization literals to CDF
-        const normRev = `SUM(CASE WHEN "devise" = 'USD' AND "montantTotal" < 10000 THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
-        const normProf = `SUM(CASE WHEN "devise" = 'USD' AND "profitNet" < 10000 THEN "profitNet" * "tauxChange" ELSE "profitNet" END)`;
+        // Normalization: ALL sales values are stored in CDF (base currency), USD sales were converted at sale time
+        const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
+        const normProf = `SUM(CASE WHEN "devise" = 'USD' THEN "profitNet" * "tauxChange" ELSE "profitNet" END)`;
 
         const user = await User.findByPk(userId);
         const productRate = user?.preferences?.exchangeRate || 2800;
@@ -27,7 +27,7 @@ const getDashboardStats = async (req, res, next) => {
         const normExp = `SUM(CASE WHEN "devise" = 'USD' THEN "amount" * ${productRate} ELSE "amount" END)`;
 
         // 1. Chiffre d'Affaires & Bénéfices via agrégations SQL
-        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts, expStats] = await Promise.all([
+        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts, expStats, expiringProductsRaw] = await Promise.all([
             // Stats période actuelle
             Sale.findOne({
                 where: { userId, createdAt: { [Op.gte]: thirtyDaysAgo } },
@@ -85,21 +85,37 @@ const getDashboardStats = async (req, res, next) => {
                 where: { userId },
                 attributes: [[sequelize.literal(normExp), 'total']],
                 raw: true
+            }),
+            // 9. Produits (expiration check)
+            Product.findAll({
+                where: { userId },
+                attributes: ['nom', 'metadata'],
+                raw: true
             })
         ]);
 
         const revAll = parseFloat(allTimeStats?.rev || 0);
         const profAll = parseFloat(allTimeStats?.prof || 0);
+        const stockCostAll = parseFloat(stockStats?.totalCost || 0);
         const expAll = parseFloat(expStats?.total || 0);
 
-        // Sanity check: if profAll is vastly larger than revAll, something is wrong with data
-        // We'll cap profit at revenue if it's clearly corrupted to avoid "billions" display
-        let validatedProfAll = profAll;
-        if (profAll > revAll * 1.5 && revAll > 0) {
-            validatedProfAll = revAll * 0.3; // Default to 30% margin if data is obviously corrupted
-        }
+        // Marge nette = Total Ventes enregistrées − Total Coût total des achats en stock
+        // Toutes les valeurs sont déjà normalisées en CDF
+        const netMargin = Math.max(0, revAll - stockCostAll);
 
-        // Pour le calcul précis du profit (basé sur prix achat articles), on récupère les récents pour le dashboard
+        // Produits avec date d'expiration proche (< 30 j)
+        const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+        const expiringProducts = expiringProductsRaw
+            .filter(p => {
+                if (!p.metadata || !p.metadata.dateExpiration) return false;
+                const expDate = new Date(p.metadata.dateExpiration);
+                return expDate <= thirtyDaysFromNow;
+            })
+            .map(p => ({
+                nom: p.nom,
+                dateExpiration: p.metadata.dateExpiration,
+                isExpired: new Date(p.metadata.dateExpiration) < now
+            }));
         const rawRecentSales = await Sale.findAll({
             where: { userId },
             order: [['createdAt', 'DESC']],
@@ -124,12 +140,14 @@ const getDashboardStats = async (req, res, next) => {
         res.json({
             summary: {
                 revenue: revAll,
-                profitNetEstimation: validatedProfAll - expAll,
-                totalExpenses: 0,
+                profitNetEstimation: netMargin,
+                totalExpenses: expAll,
                 stockValue: parseFloat(stockStats?.totalValue || 0),
                 stockCost: parseFloat(stockStats?.totalCost || 0),
                 lowStockCount: parseInt(stockStats?.lowStock || 0),
                 lowStockProducts,
+                expiringProductsCount: expiringProducts.length,
+                expiringProducts,
                 totalClients: clientStats,
                 revenueTrend: calculateGrowth(parseFloat(currentStats?.rev || 0), parseFloat(previousStats?.rev || 0)),
                 profitTrend: calculateGrowth(parseFloat(currentStats?.prof || 0), parseFloat(previousStats?.prof || 0)),
@@ -264,50 +282,56 @@ const getAnalytics = async (req, res, next) => {
             monthlyValues.push(match ? parseFloat(match.total) : 0);
         }
 
-        // -- 4. Produits les plus vendus (In-memory calculation for cross-DB compatibility and safety) --
+        // -- 4. Produits les plus vendus
+        // Tous les montants sont normalisés en CDF (convertir USD → CDF via tauxChange,
+        // laisser CDF tel quel) pour garantir une agrégation monétaire exacte
         let topProducts = [];
         try {
             const oneMonthAgo = new Date();
             oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-            
+
             const recentSales = await Sale.findAll({
                 where: {
                     userId,
                     createdAt: { [Op.gte]: oneMonthAgo }
                 },
-                attributes: ['articles', 'devise', 'tauxChange']
+                attributes: ['articles', 'devise', 'tauxChange', 'profitNet']
             });
 
             const productStats = {};
 
             recentSales.forEach(sale => {
                 const articles = sale.articles || [];
-                const devise = sale.devise || 'USD';
+                // Sale currency stored on each sale record
+                const saleDevise = sale.devise || 'USD';
                 const taux = sale.tauxChange || 1;
 
                 articles.forEach(item => {
                     const nom = item.nom || 'Inconnu';
                     const quantite = Number(item.quantite) || 0;
                     const prixUnitaire = Number(item.prixUnitaire) || 0;
-                    
-                    let revenu = prixUnitaire * quantite;
-                    // Sanity check: if price is > 1000 and currency is USD, it's likely already CDF or corrupted
-                    if (devise === 'USD' && prixUnitaire < 1000) {
-                        revenu *= taux;
+                    const prixAchat = Number(item.prixAchat) || 0;
+
+                    // Convert revenue and cost items to CDF for correct aggregation
+                    let revenuCDF = prixUnitaire * quantite;
+                    let coutAchatCDF = prixAchat * quantite;
+                    if (saleDevise === 'USD') {
+                        revenuCDF  *= taux;
+                        coutAchatCDF *= taux;
                     }
 
                     if (!productStats[nom]) {
-                        productStats[nom] = { nom, quantite: 0, revenu: 0 };
+                        productStats[nom] = { nom, quantite: 0, revenu: 0, margeNette: 0 };
                     }
                     productStats[nom].quantite += quantite;
-                    productStats[nom].revenu += revenu;
+                    productStats[nom].revenu += revenuCDF;
+                    productStats[nom].margeNette += (revenuCDF - coutAchatCDF);
                 });
             });
 
             topProducts = Object.values(productStats)
                 .sort((a, b) => b.quantite - a.quantite)
                 .slice(0, 5);
-
         } catch (error) {
             console.warn('[LUMO_STATS] topProducts calculation failed, returning empty:', error.message);
             topProducts = [];

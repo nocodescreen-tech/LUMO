@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 
-export const SESSION_EXPIRY_EVENT = 'hub-session-expired';
+export const SESSION_EXPIRY_EVENT = 'lumo-session-expired';
 
 const encodeData = (data: any) => {
   try {
@@ -32,7 +32,7 @@ const api = axios.create({
 
 // ─── Request Interceptor: attach access token & CSRF ──────────────────────────
 api.interceptors.request.use((config) => {
-  const auth = localStorage.getItem('hub-auth');
+  const auth = localStorage.getItem('lumo-auth');
   const decoded = decodeData(auth);
   let token = decoded ? decoded.token : null;
   
@@ -97,7 +97,7 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const stored = localStorage.getItem('hub-auth');
+      const stored = localStorage.getItem('lumo-auth');
       const decoded = decodeData(stored);
       if (!decoded) throw new Error('No auth');
       
@@ -113,7 +113,7 @@ api.interceptors.response.use(
 
       // Persist new tokens with safe encoding
       const updated = { ...decoded, token: data.token, refreshToken: data.refreshToken };
-      localStorage.setItem('hub-auth', encodeData(updated));
+      localStorage.setItem('lumo-auth', encodeData(updated));
       localStorage.setItem('token', data.token);
 
       processQueue(null, data.token);

@@ -13,11 +13,13 @@ import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import { exportToExcel } from '../utils/exportUtils';
 import { generateMonthlyReport } from '../utils/printHelpers';
+import { useCurrency } from '../utils/currencyHelpers';
 
 const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
 const Stats = () => {
-    const { currency, user } = useAuthStore();
+    const { user } = useAuthStore();
+    const { displayCurrency, exchangeRate, convert, format } = useCurrency();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('7d');
@@ -109,7 +111,7 @@ const Stats = () => {
                             '30d': '30 derniers jours',
                             '1y': '12 derniers mois'
                           };
-                          generateMonthlyReport(data, { ...user, preferences: { currency } }, labelsMap[period]);
+                          generateMonthlyReport(data, { ...user, preferences: { currency: displayCurrency } }, labelsMap[period]);
                         }}
                         className="btn-premium primary"
                     >
@@ -146,7 +148,14 @@ const Stats = () => {
                             </div>
                             <div style={{ height: '250px' }}>
                                 {data?.periodData?.length > 0 ? (
-                                    <DashboardCharts salesData={data.periodData} period={period} />
+                                    <DashboardCharts 
+                                        salesData={data.periodData.map((d: any) => ({
+                                            ...d,
+                                            revenue: convert(d.revenue || d.total || 0, 'CDF'),
+                                            total: convert(d.revenue || d.total || 0, 'CDF')
+                                        }))} 
+                                        period={period} 
+                                    />
                                 ) : (
                                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                         <BarChart3 size={48} style={{ opacity: 0.15 }} />
@@ -224,8 +233,11 @@ const Stats = () => {
                                                 <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{p.nom}</h4>
                                                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} unités vendues</p>
                                             </div>
-                                            <div style={{ fontWeight: 900, color: 'var(--text-main)' }}>
-                                                {Number(p.revenu).toLocaleString()} {currency}
+                                            <div style={{ fontWeight: 900, color: 'var(--text-main)', textAlign: 'right' }}>
+                                                <div>{format(convert(p.revenu, 'CDF'))}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                                                    ≈ {format(p.revenu, 'CDF')}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -238,7 +250,7 @@ const Stats = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <div>
                                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Revenu des 6 derniers mois</h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires mensuel en {currency}</p>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires mensuel en {displayCurrency}</p>
                             </div>
                             <TrendingUp size={20} color="var(--warning)" />
                         </div>
@@ -271,7 +283,9 @@ const Stats = () => {
                                         const bW = segW * 0.5;
                                         const xPos = segW * i + segW / 2 - bW / 2;
                                         const val = monthlyValues[i] || 0;
-                                        const bH = Math.max((val / maxMonthly) * barH, val > 0 ? 4 : 0);
+                                        const convertedVal = convert(val, 'CDF');
+                                        const maxMonthlyConverted = Math.max(...monthlyValues.map((v: number) => convert(v, 'CDF')), 1) * 1.2;
+                                        const bH = Math.max((convertedVal / maxMonthlyConverted) * barH, convertedVal > 0 ? 4 : 0);
                                         return (
                                             <g key={i}>
                                                 <motion.rect
@@ -288,7 +302,7 @@ const Stats = () => {
                                                 {val > 0 && (
                                                     <text x={xPos + bW / 2} y={barH - bH - 6} textAnchor="middle"
                                                         fill="var(--text-main)" fontSize="10" fontWeight="800">
-                                                        {val.toLocaleString()}
+                                                        {Math.round(convertedVal).toLocaleString()}
                                                     </text>
                                                 )}
                                             </g>

@@ -26,7 +26,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
-import { getDisplayAmount } from '../utils/currencyHelpers';
+import { getDisplayAmount, convertAmount } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
   <motion.div 
@@ -292,7 +292,14 @@ const Dashboard = () => {
             </div>
           </div>
           <div style={{ height: '280px', width: '100%' }}>
-            <DashboardCharts salesData={chartData} period={chartPeriod} />
+            <DashboardCharts 
+              salesData={chartData.map((d: any) => ({
+                ...d,
+                revenue: convertAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800),
+                total: convertAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800)
+              }))} 
+              period={chartPeriod} 
+            />
           </div>
         </motion.div>
 
@@ -401,7 +408,9 @@ const Dashboard = () => {
         <DashboardAlerts 
           lowStockCount={stats?.summary?.lowStockCount} 
           lowStockProducts={stats?.summary?.lowStockProducts}
-          debtsTotal={stats?.summary?.debtToCollect} 
+          debtsTotal={stats?.summary?.debtToCollect}
+          expiringProductsCount={stats?.summary?.expiringProductsCount}
+          expiringProducts={stats?.summary?.expiringProducts}
         />
       </div>
 
