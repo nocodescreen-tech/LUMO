@@ -121,7 +121,7 @@ const Modal: React.FC<ModalProps> = ({
                         {/* Header Section */}
                         <div style={{ marginBottom: '32px', position: 'relative', zIndex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--primary)', fontWeight: '800', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>
-                                <Icon size={18} strokeWidth={2.5} /> HubCommerce System
+                                <Icon size={18} strokeWidth={2.5} /> LUMO System
                             </div>
                             <h2 style={{ 
                                 fontSize: '2.2rem', 

@@ -27,6 +27,8 @@ const Fournisseurs = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const user = useAuthStore(state => state.user);
@@ -38,6 +40,15 @@ const Fournisseurs = () => {
 
   // Form State
   const [formData, setFormData] = useState({
+    nom: '',
+    email: '',
+    telephone: '',
+    adresse: '',
+    categorie: ''
+  });
+
+  // Edit Form State (separate to avoid conflicts)
+  const [editData, setEditData] = useState({
     nom: '',
     email: '',
     telephone: '',
@@ -84,12 +95,52 @@ const Fournisseurs = () => {
     e.preventDefault();
     try {
       const { data } = await api.post('/fournisseurs', formData);
-      setSuppliers([data, ...suppliers]);
+      // Backend wraps in { success, data: fournisseur }
+      const newSupplier = data?.data || data;
+      setSuppliers(prev => [newSupplier, ...prev]);
       setShowAddModal(false);
       setFormData({ nom: '', email: '', telephone: '', adresse: '', categorie: '' });
       toast.success("Fournisseur ajouté avec succès");
-    } catch (error) {
-      toast.error("Erreur lors de l'ajout");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de l'ajout");
+    }
+  };
+
+  const openEditModal = (supplier: any) => {
+    setEditingSupplier(supplier);
+    setEditData({
+      nom: supplier.nom || '',
+      email: supplier.email || '',
+      telephone: supplier.telephone || '',
+      adresse: supplier.adresse || '',
+      categorie: supplier.categorie || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupplier) return;
+    try {
+      const { data } = await api.put(`/fournisseurs/${editingSupplier.id}`, editData);
+      const updated = data?.data || data;
+      setSuppliers(prev => prev.map(s => s.id === editingSupplier.id ? { ...s, ...updated } : s));
+      setShowEditModal(false);
+      setEditingSupplier(null);
+      toast.success("Fournisseur mis à jour avec succès");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleDeleteSupplier = async (id: number, nom: string) => {
+    if (!confirm(`Supprimer le fournisseur "${nom}" ?`)) return;
+    try {
+      await api.delete(`/fournisseurs/${id}`);
+      setSuppliers(prev => prev.filter(s => s.id !== id));
+      toast.success("Fournisseur supprimé");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de la suppression");
     }
   };
 
@@ -197,9 +248,23 @@ const Fournisseurs = () => {
                  </div>
 
                  <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px' }}>
-                    <button className="btn-premium secondary" style={{ flex: 2, padding: '10px', borderRadius: '12px', fontSize: '0.85rem' }}>Approvisionner</button>
+                    {canDo('suppliers.edit') && (
+                      <button
+                        className="btn-premium secondary"
+                        style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        onClick={() => openEditModal(supplier)}
+                      >
+                        <Edit2 size={15} /> Modifier
+                      </button>
+                    )}
                     {canDo('suppliers.delete') && (
-                      <button className="btn-premium secondary" style={{ flex: 1, padding: '10px', borderRadius: '12px', color: 'var(--danger)' }}><Trash2 size={16} /></button>
+                      <button
+                        className="btn-premium secondary"
+                        style={{ flex: 1, padding: '10px', borderRadius: '12px', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        onClick={() => handleDeleteSupplier(supplier.id, supplier.nom)}
+                      >
+                        <Trash2 size={15} /> Supprimer
+                      </button>
                     )}
                  </div>
               </motion.div>
@@ -235,6 +300,45 @@ const Fournisseurs = () => {
                     <input type="text" placeholder="Kinshasa, Gombe" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <button type="submit" className="btn-premium primary" style={{ height: '60px', fontSize: '1.1rem', marginTop: '12px' }}>Enregistrer le Partenaire</button>
+              </form>
+           </motion.div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingSupplier && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+           <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="premium-card" style={{ width: '100%', maxWidth: '500px', padding: '48px', borderRadius: '36px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                 <h2 style={{ fontSize: '1.8rem', fontWeight: 900 }}>Modifier <span className="text-gradient">Fournisseur</span></h2>
+                 <button onClick={() => { setShowEditModal(false); setEditingSupplier(null); }} style={{ background: 'var(--sidebar-active)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+              </div>
+
+              <form onSubmit={handleEditSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Nom de l'Entreprise</label>
+                    <input type="text" placeholder="Ex: Global Supply Sarl" required value={editData.nom} onChange={e => setEditData({ ...editData, nom: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Email Partenaire</label>
+                    <input type="email" placeholder="contact@fournisseur.com" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Téléphone</label>
+                    <input type="text" placeholder="+243 ..." value={editData.telephone} onChange={e => setEditData({ ...editData, telephone: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Localisation</label>
+                    <input type="text" placeholder="Kinshasa, Gombe" value={editData.adresse} onChange={e => setEditData({ ...editData, adresse: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                 </div>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Catégorie</label>
+                    <input type="text" placeholder="Ex: IMPORTATEUR" value={editData.categorie} onChange={e => setEditData({ ...editData, categorie: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                 </div>
+                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => { setShowEditModal(false); setEditingSupplier(null); }} style={{ flex: 1, height: '56px', fontSize: '1rem', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}>Annuler</button>
+                    <button type="submit" className="btn-premium primary" style={{ flex: 2, height: '56px', fontSize: '1rem' }}>Enregistrer les modifications</button>
+                 </div>
               </form>
            </motion.div>
         </div>

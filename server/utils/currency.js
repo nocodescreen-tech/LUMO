@@ -1,5 +1,5 @@
 /**
- * Utilitaire de conversion de devises pour HubCommerce
+ * Utilitaire de conversion de devises pour LUMO
  */
 
 /**

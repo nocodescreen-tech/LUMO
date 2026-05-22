@@ -42,6 +42,10 @@ exports.createFournisseur = async (req, res, next) => {
 };
 
 exports.updateFournisseur = async (req, res, next) => {
+  // Normalize: if frontend doesn't send 'entreprise', derive it from 'nom'
+  if (!req.body.entreprise && req.body.nom) {
+    req.body.entreprise = req.body.nom;
+  }
   const { error } = validateFournisseur(req.body);
   if (error) return res.status(400).json({ message: error.details[0].message });
 

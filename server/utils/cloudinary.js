@@ -20,7 +20,7 @@ const uploadImage = async (fileBuffer, folder = 'general', mimetype = 'image/jpe
   try {
     const base64 = `data:${mimetype};base64,${fileBuffer.toString('base64')}`;
     const options = {
-      folder: `hubcommerce/${folder}`,
+      folder: `lumo/${folder}`,
       quality: 'auto:good',
       format: 'jpg'
     };
