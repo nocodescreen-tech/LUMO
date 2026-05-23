@@ -3,7 +3,7 @@ const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 
 const calculateGrowth = (current, previous) => {
-    if (!previous || previous === 0) return current > 0 ? 0 : 0; // Return 0 instead of 100 to avoid confusion if it's the first period
+    if (!previous || previous === 0) return current > 0 ? 0 : 0;
     return Math.round(((current - previous) / previous) * 100);
 };
 
@@ -14,54 +14,55 @@ const getDashboardStats = async (req, res, next) => {
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const sixtyDaysAgo = new Date(now.getTime() - (60 * 24 * 60 * 60 * 1000));
 
-        // Normalization: ALL sales values are stored in CDF (base currency), USD sales were converted at sale time
-        const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
-        const normProf = `SUM(CASE WHEN "devise" = 'USD' THEN "profitNet" * "tauxChange" ELSE "profitNet" END)`;
+        // Toutes les valeurs dans la DB sont en CDF, pas de conversion nécessaire
+        const sumRev = `SUM("montantTotal")`;
+        const sumProf = `SUM("profitNet")`;
 
-        const user = await User.findByPk(userId);
-        const productRate = user?.preferences?.exchangeRate || 2800;
-
-        const normProdVal = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prix" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prix" AS NUMERIC) * "stock" END)`;
-        const normProdCost = `SUM(CASE WHEN "devise" = 'USD' THEN CAST("prixAchat" AS NUMERIC) * ${productRate} * "stock" ELSE CAST("prixAchat" AS NUMERIC) * "stock" END)`;
-
-        const normExp = `SUM(CASE WHEN "devise" = 'USD' THEN "amount" * ${productRate} ELSE "amount" END)`;
-
-        // 1. Chiffre d'Affaires & Bénéfices via agrégations SQL
-        const [currentStats, previousStats, allTimeStats, stockStats, clientStats, previousClientStats, lowStockProducts, expStats, expiringProductsRaw] = await Promise.all([
-            // Stats période actuelle
+        // 1. Charger toutes les stats en parallèle
+        const [
+            currentStats,
+            previousStats,
+            allTimeStats,
+            stockStats,
+            clientStats,
+            previousClientStats,
+            lowStockProducts,
+            expStats,
+            expiringProductsRaw
+        ] = await Promise.all([
+            // Stats période actuelle (30 jours)
             Sale.findOne({
                 where: { userId, createdAt: { [Op.gte]: thirtyDaysAgo } },
                 attributes: [
-                    [sequelize.literal(normRev), 'rev'],
-                    [sequelize.literal(normProf), 'prof']
+                    [sequelize.literal(sumRev), 'rev'],
+                    [sequelize.literal(sumProf), 'prof']
                 ],
                 raw: true
             }),
-            // Stats période précédente
+            // Stats période précédente (30 jours avant ça)
             Sale.findOne({
                 where: { userId, createdAt: { [Op.between]: [sixtyDaysAgo, thirtyDaysAgo] } },
                 attributes: [
-                    [sequelize.literal(normRev), 'rev'],
-                    [sequelize.literal(normProf), 'prof']
+                    [sequelize.literal(sumRev), 'rev'],
+                    [sequelize.literal(sumProf), 'prof']
                 ],
                 raw: true
             }),
-            // Stats totales
+            // Stats totales (tout l'historique)
             Sale.findOne({
                 where: { userId },
                 attributes: [
-                    [sequelize.literal(normRev), 'rev'],
-                    [sequelize.literal(normProf), 'prof']
+                    [sequelize.literal(sumRev), 'rev'],
+                    [sequelize.literal(sumProf), 'prof']
                 ],
                 raw: true
             }),
-
-            // Stock (Normalized)
+            // Stock total / valeur
             Product.findOne({
                 where: { userId },
                 attributes: [
-                    [sequelize.literal(normProdVal), 'totalValue'],
-                    [sequelize.literal(normProdCost), 'totalCost'],
+                    [sequelize.literal('SUM(CAST("prix" AS NUMERIC) * "stock")'), 'totalValue'],
+                    [sequelize.literal('SUM(CAST("prixAchat" AS NUMERIC) * "stock")'), 'totalCost'],
                     [sequelize.literal('COUNT(CASE WHEN "stock" <= "stockAlerte" THEN 1 END)'), 'lowStock']
                 ],
                 raw: true
@@ -72,21 +73,18 @@ const getDashboardStats = async (req, res, next) => {
             Client.count({ where: { userId, createdAt: { [Op.lt]: thirtyDaysAgo } } }),
             // Produits en stock critique
             Product.findAll({
-                where: {
-                    userId,
-                    stock: { [Op.lte]: sequelize.col('stockAlerte') }
-                },
+                where: { userId, stock: { [Op.lte]: sequelize.col('stockAlerte') } },
                 attributes: ['nom', 'stock'],
                 limit: 3,
                 raw: true
             }),
-            // 8. Dépenses totales (Staff Payments)
+            // Dépenses totales (Staff Payments)
             StaffPayment.findOne({
                 where: { userId },
-                attributes: [[sequelize.literal(normExp), 'total']],
+                attributes: [[sequelize.literal('SUM("amount")'), 'total']],
                 raw: true
             }),
-            // 9. Produits (expiration check)
+            // Produits avec date d'expiration
             Product.findAll({
                 where: { userId },
                 attributes: ['nom', 'metadata'],
@@ -99,13 +97,13 @@ const getDashboardStats = async (req, res, next) => {
         const stockCostAll = parseFloat(stockStats?.totalCost || 0);
         const expAll = parseFloat(expStats?.total || 0);
 
-        // Marge nette = Total Profit Net enregistré (Ventes - Coût des ventes)
-        // Toutes les valeurs sont déjà normalisées en CDF
+        // Marge nette = profit total enregistré (Ventes - Coût des ventes)
+        // Toutes les valeurs sont en CDF
         const netMargin = profAll;
         // Calcul du pourcentage de marge nette
-        const marginPercent = revAll > 0 ? Math.round((profAll / revAll) * 100 * 100) / 100 : 0;
+        const marginPercent = revAll > 0 ? Math.round((profAll / revAll) * 10000) / 100 : 0;
 
-        // Produits avec date d'expiration proche (< 30 j)
+        // Produits expirant d'ici 30 jours
         const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
         const expiringProducts = expiringProductsRaw
             .filter(p => {
@@ -118,26 +116,20 @@ const getDashboardStats = async (req, res, next) => {
                 dateExpiration: p.metadata.dateExpiration,
                 isExpired: new Date(p.metadata.dateExpiration) < now
             }));
+
+        // Dernières ventes
         const rawRecentSales = await Sale.findAll({
             where: { userId },
             order: [['createdAt', 'DESC']],
             limit: 5
         });
 
-        // Convert recentSales to CDF with normalized amount for frontend display
-        const recentSales = rawRecentSales.map(sale => {
-            const tauxChange = sale.tauxChange || 1;
-            const devise = sale.devise || 'USD';
-            const montantCDF = devise === 'USD' ? sale.montantTotal * tauxChange : sale.montantTotal;
-            const profitCDF = devise === 'USD' ? (sale.profitNet || 0) * tauxChange : (sale.profitNet || 0);
-            return {
-                ...sale.toJSON(),
-                montantCDF,
-                profitCDF,
-                tauxChange,
-                deviseOriginal: devise
-            };
-        });
+        // Tous montants sont déjà en CDF, pas de conversion nécessaire
+        const recentSales = rawRecentSales.map(sale => ({
+            ...sale.toJSON(),
+            montantCDF: Number(sale.montantTotal || 0),
+            profitCDF: Number(sale.profitNet || 0)
+        }));
 
         res.json({
             summary: {
@@ -146,7 +138,7 @@ const getDashboardStats = async (req, res, next) => {
                 marginPercent: marginPercent,
                 totalExpenses: expAll,
                 stockValue: parseFloat(stockStats?.totalValue || 0),
-                stockCost: parseFloat(stockStats?.totalCost || 0),
+                stockCost: stockCostAll,
                 lowStockCount: parseInt(stockStats?.lowStock || 0),
                 lowStockProducts,
                 expiringProductsCount: expiringProducts.length,
@@ -173,14 +165,12 @@ const getSalesChartData = async (req, res, next) => {
 
         if (period === 'today') {
             interval = "1d";
-            // Group by hour for today to show interesting graph pattern instead of 1 point
             dateExpr = sequelize.literal("DATE_TRUNC('hour', \"createdAt\")");
         } else if (period === '30d') {
             interval = "30d";
         }
 
-        const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
-
+        // Toutes les ventes sont en CDF dans la DB
         const stats = await Sale.findAll({
             where: {
                 userId,
@@ -188,7 +178,7 @@ const getSalesChartData = async (req, res, next) => {
             },
             attributes: [
                 [dateExpr, 'date'],
-                [sequelize.literal(normRev), 'total']
+                [sequelize.literal('SUM("montantTotal")'), 'total']
             ],
             group: [dateExpr],
             order: [[dateExpr, 'ASC']]
@@ -198,8 +188,6 @@ const getSalesChartData = async (req, res, next) => {
         next(error);
     }
 };
-
-// module.exports will be at the bottom
 
 const getAnalytics = async (req, res, next) => {
     try {
@@ -221,8 +209,7 @@ const getAnalytics = async (req, res, next) => {
             dateExpr = sequelize.literal("DATE_TRUNC('month', \"createdAt\")");
         }
 
-        const normRev = `SUM(CASE WHEN "devise" = 'USD' THEN "montantTotal" * "tauxChange" ELSE "montantTotal" END)`;
-
+        // Toutes les ventes sont en CDF dans la DB
         const periodSales = await Sale.findAll({
             where: {
                 userId,
@@ -230,7 +217,7 @@ const getAnalytics = async (req, res, next) => {
             },
             attributes: [
                 [dateExpr, 'date'],
-                [sequelize.literal(normRev), 'total']
+                [sequelize.literal('SUM("montantTotal")'), 'total']
             ],
             group: [dateExpr],
             order: [[dateExpr, 'ASC']]
@@ -242,7 +229,7 @@ const getAnalytics = async (req, res, next) => {
         });
         const periodData = Object.values(dateMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // -- 2. Répartition du stock par catégorie --
+        // Répartition du stock par catégorie
         const products = await Product.findAll({ where: { userId } });
         const categoryMap = {};
         products.forEach(p => {
@@ -254,7 +241,7 @@ const getAnalytics = async (req, res, next) => {
             id, label, value
         }));
 
-        // -- 3. Revenu par mois (6 derniers mois) --
+        // Revenu par mois (6 derniers mois)
         const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
         const monthlyRevenueRaw = await Sale.findAll({
             where: {
@@ -263,7 +250,7 @@ const getAnalytics = async (req, res, next) => {
             },
             attributes: [
                 [sequelize.literal("DATE_TRUNC('month', \"createdAt\")"), 'month'],
-                [sequelize.literal(normRev), 'total']
+                [sequelize.literal('SUM("montantTotal")'), 'total']
             ],
             group: [sequelize.literal("DATE_TRUNC('month', \"createdAt\")")],
             order: [[sequelize.literal("DATE_TRUNC('month', \"createdAt\")"), 'ASC']],
@@ -285,9 +272,7 @@ const getAnalytics = async (req, res, next) => {
             monthlyValues.push(match ? parseFloat(match.total) : 0);
         }
 
-        // -- 4. Produits les plus vendus
-        // Tous les montants sont normalisés en CDF (convertir USD → CDF via tauxChange,
-        // laisser CDF tel quel) pour garantir une agrégation monétaire exacte
+        // Produits les plus vendus (montants déjà en CDF)
         let topProducts = [];
         try {
             const oneMonthAgo = new Date();
@@ -298,16 +283,14 @@ const getAnalytics = async (req, res, next) => {
                     userId,
                     createdAt: { [Op.gte]: oneMonthAgo }
                 },
-                attributes: ['articles', 'devise', 'tauxChange', 'profitNet']
+                attributes: ['articles', 'profitNet']
             });
 
             const productStats = {};
 
             recentSales.forEach(sale => {
                 const articles = sale.articles || [];
-                // Sale currency stored on each sale record
-                const saleDevise = sale.devise || 'USD';
-                const taux = sale.tauxChange || 1;
+                const saleProfit = Number(sale.profitNet || 0);
 
                 articles.forEach(item => {
                     const nom = item.nom || 'Inconnu';
@@ -315,13 +298,9 @@ const getAnalytics = async (req, res, next) => {
                     const prixUnitaire = Number(item.prixUnitaire) || 0;
                     const prixAchat = Number(item.prixAchat) || 0;
 
-                    // Convert revenue and cost items to CDF for correct aggregation
-                    let revenuCDF = prixUnitaire * quantite;
-                    let coutAchatCDF = prixAchat * quantite;
-                    if (saleDevise === 'USD') {
-                        revenuCDF  *= taux;
-                        coutAchatCDF *= taux;
-                    }
+                    // Articles stockés en CDF depuis la création de vente
+                    const revenuCDF = prixUnitaire * quantite;
+                    const coutAchatCDF = prixAchat * quantite;
 
                     if (!productStats[nom]) {
                         productStats[nom] = { nom, quantite: 0, revenu: 0, margeNette: 0 };
@@ -336,7 +315,7 @@ const getAnalytics = async (req, res, next) => {
                 .sort((a, b) => b.quantite - a.quantite)
                 .slice(0, 5);
         } catch (error) {
-            console.warn('[LUMO_STATS] topProducts calculation failed, returning empty:', error.message);
+            console.warn('[LUMO_STATS] topProducts calculation failed:', error.message);
             topProducts = [];
         }
 

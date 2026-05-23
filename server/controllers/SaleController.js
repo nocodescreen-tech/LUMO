@@ -108,15 +108,30 @@ exports.createSale = async (req, res, next) => {
         // Les notifications de stock sont gérées automatiquement par les hooks du modèle Product
       }
     }
-    // ... (logic for profitNet and client resolution remains same)
-    let profitNet = 0;
+    // owner et finalRate déjà définis plus haut
+
+    // Normaliser montantTotal en CDF avant stockage
+    let montantTotalNormalized = Number(montantTotal);
+    if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+      montantTotalNormalized = Math.round(montantTotalNormalized * finalRate);
+    } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+      montantTotalNormalized = Math.round((montantTotalNormalized / finalRate) * 100) / 100;
+    }
+
+    // Normaliser prixUnitaire en CDF avant calcul du profitNet
     const articles = Array.isArray(items)
       ? items.map((item) => {
           const quantite = item.quantite || 1;
-          const prixUnitaire = item.prix || 0;
-          const prixAchat = item.prixAchat || 0;
-          profitNet += (prixUnitaire - prixAchat) * quantite;
-          
+          const prixUnitaire = item.prix || 0;            // déjà en devise shop (CDF)
+          let prixUnitaireCDF = prixUnitaire;
+          if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+            prixUnitaireCDF = Math.round(prixUnitaire * finalRate);
+          } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+            prixUnitaireCDF = Math.round((prixUnitaire / finalRate) * 100) / 100;
+          }
+          const prixAchat = item.prixAchat || 0;           // déjà en devise shop (CDF)
+          profitNet += (prixUnitaireCDF - prixAchat) * quantite;
+
           return {
             id: item.id,
             nom: item.nom,
@@ -126,11 +141,19 @@ exports.createSale = async (req, res, next) => {
           };
         })
       : [];
-      
+
     const remise = req.body.remise || 0;
     profitNet -= remise;
 
-    // (Client resolution logic omitted for brevity in this chunk but kept in file)
+    // Normaliser profitNet en CDF avant stockage
+    let profitNetNormalized = Math.round(profitNet * 100) / 100;
+    if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
+      profitNetNormalized = Math.round(profitNetNormalized * finalRate);
+    } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
+      profitNetNormalized = Math.round((profitNetNormalized / finalRate) * 100) / 100;
+    }
+
+    // Résoudre le client avant création de la vente
     let resolvedClientId = clientId || null;
     if (!resolvedClientId && clientInfo && clientInfo.nom && clientInfo.nom.trim() !== 'Client de passage') {
       const trimmedNom = clientInfo.nom.trim();
@@ -154,6 +177,22 @@ exports.createSale = async (req, res, next) => {
         resolvedClientId = newClient.id;
       }
     }
+
+    const sale = await Sale.create({
+      userId,
+      clientId: resolvedClientId,
+      articles,
+      montantTotal: montantTotalNormalized,
+      remise,
+      profitNet: profitNetNormalized,
+      methodePaiement: methodePaiement || 'Espèces',
+      clientInfo: clientInfo || { nom: 'Client de passage', email: '' },
+      devise: saleCurrency,
+      tauxChange: finalRate,
+      devisePaiement: devisePaiement || devise || 'USD',
+      montantRecu: montantRecu || montantTotal,
+      sellerId: req.user.id
+    }, { transaction });
 
     const isCredit = (methodePaiement && (
       methodePaiement.toLowerCase().includes('crédit') || 
@@ -185,24 +224,6 @@ exports.createSale = async (req, res, next) => {
         await dbClient.save({ transaction });
       }
     }
-
-    // owner et finalRate déjà définis plus haut
-
-    const sale = await Sale.create({
-      userId,
-      clientId: resolvedClientId,
-      articles,
-      montantTotal,
-      remise,
-      profitNet,
-      methodePaiement: methodePaiement || 'Espèces',
-      clientInfo: clientInfo || { nom: 'Client de passage', email: '' },
-      devise: devise || shopCurrency || 'USD',
-      tauxChange: finalRate,
-      devisePaiement: devisePaiement || devise || 'USD',
-      montantRecu: montantRecu || montantTotal,
-      sellerId: req.user.id
-    }, { transaction });
 
     await transaction.commit();
     const { sendResponse } = require('../utils/response');

@@ -21,19 +21,8 @@ exports.getCurrentSession = async (req, res, next) => {
             where: { userId, createdAt: { [Op.gte]: session.openingTime } }
         });
 
-        const totalSales = sales.reduce((acc, s) => {
-            let amount = Number(s.montantTotal);
-            const saleCurrency = s.devise || 'USD';
-            if (saleCurrency !== shopCurrency) {
-                const rate = Number(s.tauxChange || defaultRate);
-                if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-                    amount = Math.round(amount * rate);
-                } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-                    amount = Math.round((amount / rate) * 100) / 100;
-                }
-            }
-            return acc + amount;
-        }, 0);
+        // Tous les montants sont stockés en CDF dans la DB
+        const totalSales = sales.reduce((acc, s) => acc + Number(s.montantTotal || 0), 0);
 
         const totalExpenses = 0;
 
@@ -106,19 +95,8 @@ exports.closeSession = async (req, res, next) => {
         const shopCurrency = owner?.entreprise?.devise || 'CDF';
         const defaultRate = Number(owner?.preferences?.exchangeRate || 2800);
 
-        const totalSales = sales.reduce((acc, s) => {
-            let amount = Number(s.montantTotal);
-            const saleCurrency = s.devise || 'USD';
-            if (saleCurrency !== shopCurrency) {
-                const rate = Number(s.tauxChange || defaultRate);
-                if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-                    amount = Math.round(amount * rate);
-                } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-                    amount = Math.round((amount / rate) * 100) / 100;
-                }
-            }
-            return acc + amount;
-        }, 0);
+        // Tous les montants sont stockés en CDF dans la DB
+        const totalSales = sales.reduce((acc, s) => acc + Number(s.montantTotal || 0), 0);
 
         const totalExpenses = 0;
         
