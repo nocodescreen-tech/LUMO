@@ -95,9 +95,15 @@ const Cash = () => {
         try {
             const totalUSD = Number(formData.openingBalanceUSD) || 0;
             const totalCDF = Number(formData.openingBalanceCDF) || 0;
-            const combinedShopCurrency = 
-                (shopCurrency === 'USD' ? totalUSD : normalizeAmount(totalUSD, 'USD', 'CDF', exchangeRate)) + 
-                (shopCurrency === 'CDF' ? totalCDF : normalizeAmount(totalCDF, 'CDF', 'USD', exchangeRate));
+            
+            // Convert both to shop currency correctly
+            const usdInShopCurrency = shopCurrency === 'CDF' 
+                ? normalizeAmount(totalUSD, 'USD', 'CDF', exchangeRate) 
+                : totalUSD;
+            const cdfInShopCurrency = shopCurrency === 'CDF' 
+                ? totalCDF 
+                : normalizeAmount(totalCDF, 'CDF', 'USD', exchangeRate);
+            const combinedShopCurrency = usdInShopCurrency + cdfInShopCurrency;
 
             const { data } = await api.post('/cash/open', {
                 openingBalance: combinedShopCurrency,
@@ -118,9 +124,15 @@ const Cash = () => {
         try {
             const totalUSD = Number(formData.closingBalanceUSD) || 0;
             const totalCDF = Number(formData.closingBalanceCDF) || 0;
-            const combinedShopCurrency = 
-                (shopCurrency === 'USD' ? totalUSD : normalizeAmount(totalUSD, 'USD', 'CDF', exchangeRate)) + 
-                (shopCurrency === 'CDF' ? totalCDF : normalizeAmount(totalCDF, 'CDF', 'USD', exchangeRate));
+            
+            // Convert both to shop currency correctly
+            const usdInShopCurrency = shopCurrency === 'CDF' 
+                ? normalizeAmount(totalUSD, 'USD', 'CDF', exchangeRate) 
+                : totalUSD;
+            const cdfInShopCurrency = shopCurrency === 'CDF' 
+                ? totalCDF 
+                : normalizeAmount(totalCDF, 'CDF', 'USD', exchangeRate);
+            const combinedShopCurrency = usdInShopCurrency + cdfInShopCurrency;
 
             await api.post('/cash/close', {
                 closingBalance: combinedShopCurrency,
@@ -373,15 +385,15 @@ const Cash = () => {
                             </div>
                         </div>
                     </div>
-                    {(formData.openingBalanceUSD || formData.openingBalanceCDF) && (
-                        <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
-                                {formatAmt((shopCurrency === 'USD' ? Number(formData.openingBalanceUSD) || 0 : normalizeAmount(Number(formData.openingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate)) + 
-                                          (shopCurrency === 'CDF' ? Number(formData.openingBalanceCDF) || 0 : normalizeAmount(Number(formData.openingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
-                            </div>
-                        </div>
-                    )}
+{(formData.openingBalanceUSD || formData.openingBalanceCDF) && (
+                         <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
+                             <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
+                                 {formatAmt((shopCurrency === 'CDF' ? normalizeAmount(Number(formData.openingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate) : Number(formData.openingBalanceUSD) || 0) + 
+                                           (shopCurrency === 'CDF' ? Number(formData.openingBalanceCDF) || 0 : normalizeAmount(Number(formData.openingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
+                             </div>
+                         </div>
+                     )}
                     <div>
                         <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>NOTE PARTICULIÈRE (OPTIONNEL)</label>
                         <textarea 
@@ -443,15 +455,15 @@ const Cash = () => {
                             </div>
                         </div>
                     </div>
-                    {(formData.closingBalanceUSD || formData.closingBalanceCDF) && (
-                        <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
-                                {formatAmt((shopCurrency === 'USD' ? Number(formData.closingBalanceUSD) || 0 : normalizeAmount(Number(formData.closingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate)) + 
-                                          (shopCurrency === 'CDF' ? Number(formData.closingBalanceCDF) || 0 : normalizeAmount(Number(formData.closingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
-                            </div>
-                        </div>
-                    )}
+{(formData.closingBalanceUSD || formData.closingBalanceCDF) && (
+                         <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
+                             <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
+                                 {formatAmt((shopCurrency === 'CDF' ? normalizeAmount(Number(formData.closingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate) : Number(formData.closingBalanceUSD) || 0) + 
+                                           (shopCurrency === 'CDF' ? Number(formData.closingBalanceCDF) || 0 : normalizeAmount(Number(formData.closingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
+                             </div>
+                         </div>
+                     )}
                     <button type="submit" className="btn-premium primary" style={{ width: '100%', padding: '20px', background: '#ef4444', boxShadow: '0 20px 40px -10px rgba(239, 68, 68, 0.3)' }}>
                         Confirmer la Clôture
                     </button>

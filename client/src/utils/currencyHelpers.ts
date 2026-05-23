@@ -6,6 +6,22 @@ import { useAuthStore } from '../store/useAuthStore';
  */
 
 /**
+ * Format a number with appropriate precision based on magnitude
+ */
+const formatSmart = (num: number): string => {
+  const abs = Math.abs(num);
+  if (abs >= 1000000) {
+    return num.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  } else if (abs >= 1000) {
+    return num.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  } else if (abs >= 1) {
+    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } else {
+    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+};
+
+/**
  * Normalize a currency value to a target currency
  */
 export const normalizeAmount = (
@@ -43,8 +59,8 @@ export const getDisplayAmount = (
   const altAmount = normalizeAmount(rawAmount, deviseOrigin, altCurrency, exchangeRate);
 
   return {
-    main: `${Number(normalized).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayCurrency}`,
-    sub: `${Number(altAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${altCurrency}`,
+    main: `${formatSmart(normalized)} ${displayCurrency}`,
+    sub: `${formatSmart(altAmount)} ${altCurrency}`,
     mainDevise: displayCurrency,
     subDevise: altCurrency
   };
@@ -60,7 +76,7 @@ export const formatMontant = (
   exchangeRate: number
 ): string => {
   const converted = normalizeAmount(montant, deviseOrigin, displayCurrency, exchangeRate);
-  return `${Number(converted).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayCurrency}`;
+  return `${formatSmart(converted)} ${displayCurrency}`;
 };
 
 export const useCurrency = () => {
@@ -74,7 +90,7 @@ export const useCurrency = () => {
 
   const format = (amount: number, currency?: string) => {
     const curr = currency || displayCurrency;
-    return `${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${curr}`;
+    return `${formatSmart(amount)} ${curr}`;
   };
 
   return { displayCurrency, exchangeRate, convert, format };
