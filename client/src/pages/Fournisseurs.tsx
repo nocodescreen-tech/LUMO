@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -100,7 +100,7 @@ const Fournisseurs = () => {
       setSuppliers(prev => [newSupplier, ...prev]);
       setShowAddModal(false);
       setFormData({ nom: '', email: '', telephone: '', adresse: '', categorie: '' });
-      toast.success("Fournisseur ajouté avec succès");
+      toast.success("Fournisseur ajoutÃ© avec succÃ¨s");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de l'ajout");
     }
@@ -127,9 +127,9 @@ const Fournisseurs = () => {
       setSuppliers(prev => prev.map(s => s.id === editingSupplier.id ? { ...s, ...updated } : s));
       setShowEditModal(false);
       setEditingSupplier(null);
-      toast.success("Fournisseur mis à jour avec succès");
+      toast.success("Fournisseur mis Ã  jour avec succÃ¨s");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la mise à jour");
+      toast.error(error.response?.data?.message || "Erreur lors de la mise Ã  jour");
     }
   };
 
@@ -138,7 +138,7 @@ const Fournisseurs = () => {
     try {
       await api.delete(`/fournisseurs/${id}`);
       setSuppliers(prev => prev.filter(s => s.id !== id));
-      toast.success("Fournisseur supprimé");
+      toast.success("Fournisseur supprimÃ©");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de la suppression");
     }
@@ -154,7 +154,7 @@ const Fournisseurs = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 className="title-xl">Gestion <span className="text-gradient">Fournisseurs</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Gérez vos partenaires et approvisionnements.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>GÃ©rez vos partenaires et approvisionnements.</p>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <button
@@ -237,7 +237,7 @@ const Fournisseurs = () => {
 
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                       <Phone size={15} color="var(--primary)" /> {supplier.telephone || 'Non renseigné'}
+                       <Phone size={15} color="var(--primary)" /> {supplier.telephone || 'Non renseignÃ©'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>
                        <Mail size={15} color="var(--primary)" /> {supplier.email || 'N/A'}
@@ -291,10 +291,10 @@ const Fournisseurs = () => {
                     <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Email Partenaire</label>
                     <input type="email" placeholder="contact@fournisseur.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>T├⌐l├⌐phone</label>
-                    <input type="text" placeholder="+243 ..." value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                     <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Téléphone</label>
+                     <input type="text" placeholder="+243 ..." value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
+                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Localisation</label>
                     <input type="text" placeholder="Kinshasa, Gombe" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
@@ -324,7 +324,7 @@ const Fournisseurs = () => {
                     <input type="email" placeholder="contact@fournisseur.com" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>T├⌐l├⌐phone</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Tâ”œâŒlâ”œâŒphone</label>
                     <input type="text" placeholder="+243 ..." value={editData.telephone} onChange={e => setEditData({ ...editData, telephone: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -332,7 +332,7 @@ const Fournisseurs = () => {
                     <input type="text" placeholder="Kinshasa, Gombe" value={editData.adresse} onChange={e => setEditData({ ...editData, adresse: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Catégorie</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>CatÃ©gorie</label>
                     <input type="text" placeholder="Ex: IMPORTATEUR" value={editData.categorie} onChange={e => setEditData({ ...editData, categorie: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
@@ -348,3 +348,4 @@ const Fournisseurs = () => {
 };
 
 export default Fournisseurs;
+

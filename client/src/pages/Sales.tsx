@@ -79,18 +79,33 @@ const Sales = () => {
         fetchSales();
     }, []);
 
-    const getNormalizedAmount = (sale: any) => {
-        const amt = sale.montantTotal || 0;
-        const saleDevise = sale.devise || 'CDF';
-        const rate = sale.tauxChange || exchangeRate || 2500;
-        
-        if (saleDevise === currency) return amt;
-        
-        if (saleDevise === 'USD' && currency === 'CDF') return Math.round(amt * rate);
-        if (saleDevise === 'CDF' && currency === 'USD') return Math.round((amt / rate) * 100) / 100;
-        
-        return amt;
+    const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
+
+    const convertAmount = (amount: number, from: string, to: string, rate: number) => {
+        const safeAmount = Number(amount) || 0;
+        const safeRate = Number(rate);
+        if (from === to) return safeAmount;
+        if (!Number.isFinite(safeRate) || safeRate <= 0) return safeAmount;
+        if (from === 'USD' && to === 'CDF') return Math.round(safeAmount * safeRate);
+        if (from === 'CDF' && to === 'USD') return Math.round((safeAmount / safeRate) * 100) / 100;
+        return safeAmount;
     };
+
+    const getSaleDisplayAmounts = (sale: any) => {
+        const storedAmount = Number(sale?.montantTotal || 0);
+        const saleCurrency = sale?.devise || shopCurrency;
+        const rate = Number(sale?.tauxChange || exchangeRate);
+        const altCurrency = saleCurrency === 'USD' ? 'CDF' : 'USD';
+
+        // Backend stores montantTotal in shop currency; rebuild original amount in sale currency
+        const originalAmount = convertAmount(storedAmount, shopCurrency, saleCurrency, rate);
+        const convertedAmount = convertAmount(originalAmount, saleCurrency, altCurrency, rate);
+        const displayCurrencyAmount = convertAmount(originalAmount, saleCurrency, currency, rate);
+
+        return { saleCurrency, altCurrency, originalAmount, convertedAmount, displayCurrencyAmount };
+    };
+
+    const getNormalizedAmount = (sale: any) => getSaleDisplayAmounts(sale).displayCurrencyAmount;
 
     const fetchSales = async () => {
         try {
@@ -397,8 +412,7 @@ const Sales = () => {
                         <tbody>
                             <AnimatePresence>
                                 {currentItems.map((sale, i) => {
-                                    const normalizedAmt = getNormalizedAmount(sale);
-                                    const isConverted = sale.devise !== currency;
+                                    const fx = getSaleDisplayAmounts(sale);
 
                                     return (
                                     <motion.tr 
@@ -432,13 +446,11 @@ const Sales = () => {
                                         </td>
                                         <td style={{ padding: '24px', textAlign: 'right' }}>
                                             <div style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                                                {sale.montantTotal?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 900 }}>{sale.devise}</span>
+                                                {fx.originalAmount?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 900 }}>{fx.saleCurrency}</span>
                                             </div>
-                                            {isConverted && (
-                                                <div style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: 950, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                                    <RefreshCcw size={14} /> {normalizedAmt.toLocaleString()} {currency}
-                                                </div>
-                                            )}
+                                            <div style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: 950, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                                <RefreshCcw size={14} /> {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
+                                            </div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
                                                 {sale.articles?.length || 0} articles · <span style={{ color: sale.statut === 'Remboursée' ? '#ef4444' : '#10b981' }}>{sale.statut || 'Payé'}</span>
                                             </div>
@@ -592,7 +604,19 @@ const Sales = () => {
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</p>
-                                <p style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--primary)' }}>{(selectedSale.montantTotal || selectedSale.articles?.reduce((acc: number, art: any) => acc + ((art.quantite || 1) * (art.prixUnitaire || 0)), 0))?.toLocaleString()} {currency}</p>
+                                {(() => {
+                                    const fx = getSaleDisplayAmounts(selectedSale);
+                                    return (
+                                        <div>
+                                            <p style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--primary)', margin: 0 }}>
+                                                {fx.originalAmount.toLocaleString()} {fx.saleCurrency}
+                                            </p>
+                                            <p style={{ fontSize: '0.9rem', color: '#10b981', fontWeight: 800, margin: '4px 0 0 0' }}>
+                                                ≙ {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 

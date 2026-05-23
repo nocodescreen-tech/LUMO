@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User as UserIcon,
   Store,
@@ -189,7 +190,7 @@ const TwoFASection = () => {
       </div>
 
       {/* TOTP Setup Modal */}
-      {showSetupModal && (
+      {showSetupModal && createPortal((
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -256,7 +257,7 @@ const TwoFASection = () => {
             </form>
           </motion.div>
         </div>
-      )}
+      ), document.body)}
     </>
   );
 };

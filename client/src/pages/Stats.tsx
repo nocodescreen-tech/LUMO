@@ -148,12 +148,14 @@ const Stats = () => {
                             </div>
                             <div style={{ height: '250px' }}>
                                 {data?.periodData?.length > 0 ? (
-                                    <DashboardCharts 
+                                    <DashboardCharts
                                         salesData={data.periodData.map((d: any) => ({
                                             ...d,
+                                            convertedRevenue: convert(d.revenue || d.total || 0, 'CDF'),
+                                            convertedTotal: convert(d.revenue || d.total || 0, 'CDF'),
                                             revenue: convert(d.revenue || d.total || 0, 'CDF'),
                                             total: convert(d.revenue || d.total || 0, 'CDF')
-                                        }))} 
+                                        }))}
                                         period={period} 
                                     />
                                 ) : (

@@ -1,23 +1,40 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface ChartProps {
   salesData?: any[];
   period?: string;
 }
 
+/**
+ * Convert a raw CDF backend value to the display currency.
+ * `exchangeRate` = how many CDF per 1 USD.
+ * Only call this for raw CDF amounts from the backend;
+ * do NOT call it on values that have already been converted.
+ */
+function normalizeToDisplay(rawCDF: number, exchangeRate: number, displayCurrency: string): number {
+  if (displayCurrency === 'CDF') return rawCDF;
+  return Math.round((rawCDF / exchangeRate) * 100) / 100;
+}
+
 const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
+  const { currency: displayCurrency } = useAuthStore();
+  const exchangeRate = 2800; // fallback; actual rate comes from store
+
   const parseData = () => {
     const daysArr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-    
+
     if (period === '7d') {
       const weekData = daysArr.map(name => ({ day: name, sales: 0 }));
-      
+
       salesData.forEach(d => {
         const dateObj = new Date(d.date);
         const dayIdx = (dateObj.getDay() + 6) % 7;
         if (dayIdx >= 0 && dayIdx < 7) {
-          weekData[dayIdx].sales += parseFloat(d.revenue || d.total) || 0;
+          // Prefer already-converted values (passed by caller); fall back to raw CDF
+          const raw = d.convertedRevenue ?? d.convertedTotal ?? d.revenue ?? d.total ?? 0;
+          weekData[dayIdx].sales += Number(raw);
         }
       });
       return weekData;
@@ -27,7 +44,7 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
       return salesData.map(d => {
         const dateObj = new Date(d.date);
         let dayFormat = '';
-        
+
         if (period === 'today') {
            dayFormat = dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         } else if (period === '30d') {
@@ -36,14 +53,16 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
            dayFormat = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' });
            dayFormat = dayFormat.charAt(0).toUpperCase() + dayFormat.slice(1);
         }
-        
+
+        // Prefer already-converted values (passed by caller); fall back to raw CDF
+        const raw = d.convertedRevenue ?? d.convertedTotal ?? d.revenue ?? d.total ?? 0;
         return {
           day: dayFormat,
-          sales: parseFloat(d.revenue || d.total) || 0
+          sales: Number(raw)
         };
       });
     }
-    
+
     // Default fallback if no data
     if (period === 'today') {
        return [
@@ -76,36 +95,34 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
 
           {/* Grid Lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((p) => (
-            <line 
-              key={p} 
-              x1="0" y1={height * (1-p)} 
-              x2={width} y2={height * (1-p)} 
-              stroke="var(--border)" 
-              strokeWidth="1" 
+            <line
+              key={p}
+              x1="0" y1={height * (1-p)}
+              x2={width} y2={height * (1-p)}
+              stroke="var(--border)"
+              strokeWidth="1"
               strokeDasharray="4 4"
             />
           ))}
 
-          {/* Bars */}
+          {/* Bars — sales already in display currency; do NOT re-convert */}
           {data.map((d, i) => {
             const groupWidth = Math.min(60, (width / data.length) * 0.8);
             const barWidth = groupWidth / 2 - 2;
             const xPos = (width / data.length) * i + (width / data.length) / 2 - groupWidth / 2;
             const salesHeight = Math.max((d.sales / maxSales) * height, 4);
-            
+
             // Only show labels for some data points if there's too many
             const showLabel = data.length > 10 ? i % Math.ceil(data.length / 7) === 0 || i === data.length - 1 : true;
-            
+
             return (
               <g key={i}>
-                  {/* Background shadow for hover effect */}
-                  <rect 
-                    x={xPos - 10} y={0} width={groupWidth + 20} height={height} 
-                    fill="transparent" 
+                  <rect
+                    x={xPos - 10} y={0} width={groupWidth + 20} height={height}
+                    fill="transparent"
                     className="chart-hover-bg"
                   />
-                  
-                  {/* Revenue Bar */}
+
                   <motion.rect
                       initial={{ height: 0, y: height }}
                       animate={{ height: salesHeight, y: height - salesHeight }}

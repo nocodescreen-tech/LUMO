@@ -336,17 +336,22 @@ const setupTOTP = async (req, res, next) => {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
+    // Réinitialiser seulement les champs actifs de setup précédent (pas twoFactorEnabled)
+    // pour éviter de perdre l'état activé si on re-scanne le QR code
+    user.twoFactorCode = null;
+    user.twoFactorExpire = null;
+
     const secret = authenticator.generateSecret();
     const otpauth = authenticator.keyuri(user.email, 'LUMO Pro', secret);
-    
-    // On stocke temporairement le secret dans le cache ou une session
-    // Ici on peut le stocker dans un champ temporaire du user pour validation
-    user.twoFactorCode = secret; // On réutilise ce champ temporairement
+
+    // Le secret est stocké dans twoFactorCode (champ réutilisé temporairement)
+    user.twoFactorCode = secret;
+    user.twoFactorExpire = new Date(Date.now() + 15 * 60 * 1000);
     await user.save({ hooks: false });
 
     const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
-    res.status(200).json({ 
-      qrCode: qrCodeDataUrl, 
+    res.status(200).json({
+      qrCode: qrCodeDataUrl,
       secret: secret,
       message: "Scannez le QR Code avec Google Authenticator."
     });
@@ -360,10 +365,19 @@ const activateTOTP = async (req, res, next) => {
   try {
     const { code } = req.body;
     const user = await User.findByPk(req.user.id);
-    
+
     // Le secret temporaire était dans twoFactorCode
     const secret = user.twoFactorCode;
     if (!secret) return res.status(400).json({ message: "Session d'activation expirée." });
+
+    // Vérifier l'expiration de la session de setup TOTP
+    if (user.twoFactorExpire && user.twoFactorExpire < Date.now()) {
+      // Nettoyage de sécurité
+      user.twoFactorCode = null;
+      user.twoFactorExpire = null;
+      await user.save({ hooks: false });
+      return res.status(400).json({ message: "Session d'activation TOTP expirée. Recommencez depuis le début." });
+    }
 
     authenticator.options = { window: 1 }; // Allow 1 step (30s) before/after
     const isVerified = authenticator.check(String(code), secret);
@@ -372,6 +386,7 @@ const activateTOTP = async (req, res, next) => {
     user.twoFactorSecret = secret;
     user.twoFactorEnabled = true;
     user.twoFactorCode = null;
+    user.twoFactorExpire = null;
     await user.save({ hooks: false });
 
     await logActivite(user.id, 'SECURITE', 'Double authentification TOTP activée', 'System', user.parentId || user.id);

@@ -122,13 +122,13 @@ const AIChat = () => {
                             width: isExpanded ? '600px' : '380px', 
                             height: isExpanded ? '700px' : '520px', 
                             borderRadius: '28px', 
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            backgroundColor: '#1E1E2D',
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'var(--bg-card)',
                             display: 'flex',
                             flexDirection: 'column',
                             overflow: 'hidden',
                             marginBottom: '16px',
-                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.1)',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)',
                             transition: 'width 0.3s, height 0.3s'
                         }}
                     >
@@ -154,7 +154,7 @@ const AIChat = () => {
                         </div>
 
                         {/* Messages Area */}
-                        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#16161F' }}>
+                        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-main)' }}>
                             {messages.length === 0 && (
                                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#64748b', padding: '20px' }}>
                                     <Bot size={48} color="#6366f1" opacity={0.3} style={{ marginBottom: '16px' }} />
