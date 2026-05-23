@@ -121,9 +121,18 @@ export const generateInvoice = (data: any, user: any = null) => {
               ${(invoiceData.items || []).map((item: any) => {
                 const pu = item.prixUnitaire || item.prix || 0;
                 const total = pu * (item.quantite || item.quantity || 1);
+                const metadata = item.metadata && typeof item.metadata === 'object' ? item.metadata : null;
+                const metadataLines = metadata
+                  ? Object.entries(metadata)
+                      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+                      .map(([k, v]) => `${k}: ${typeof v === 'boolean' ? (v ? 'Oui' : 'Non') : v}`)
+                  : [];
                 return `
                 <tr>
-                  <td style="font-weight: 700; color: #0f172a;">${item.nom}</td>
+                  <td style="font-weight: 700; color: #0f172a;">
+                    ${item.nom}
+                    ${metadataLines.length ? `<div style="margin-top: 4px; font-size: 11px; font-weight: 600; color: #64748b;">${metadataLines.join(' • ')}</div>` : ''}
+                  </td>
                   <td style="text-align: center; color: #475569; font-weight: 600;">${item.quantite || item.quantity || 1}</td>
                   <td style="text-align: right; color: #475569; font-weight: 600;">
                     ${pu.toLocaleString()} ${invoiceData.currency}<br/>
@@ -362,9 +371,9 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
                     ${Number(d.revenue).toLocaleString()} ${currency}<br/>
                     <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
-                  <td style="color: ${d.revenue >= 0 ? '#10b981' : '#ef4444'}">
-                    ${Number(d.revenue).toLocaleString()} ${currency}<br/>
-                    <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
+                  <td style="color: ${(d.profit ?? 0) >= 0 ? '#10b981' : '#ef4444'}">
+                    ${Number(d.profit ?? d.revenue ?? 0).toLocaleString()} ${currency}<br/>
+                    <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
                 </tr>
               `).join('')}

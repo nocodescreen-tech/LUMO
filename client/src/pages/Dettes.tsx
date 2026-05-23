@@ -95,8 +95,6 @@ const Dettes = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // ── Fetch clients ──────────────────────────
   const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
@@ -743,3 +741,4 @@ const Dettes = () => {
 };
 
 export default Dettes;
+

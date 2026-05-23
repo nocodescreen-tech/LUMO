@@ -99,16 +99,28 @@ const Products = () => {
   const importInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleExportExcel = () => {
-    const dataToExport = products.map((p: any) => ({
-      Reference: p.id,
-      Nom: p.nom,
-      Categorie: p.categorie,
-      Stock: p.stock,
-      PrixVente: p.prix,
-      PrixAchat: p.prixAchat,
-      Devise: p.devise || currency,
-      DatePeremption: p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : ''
-    }));
+    const activityType = normalizeActivityType(user?.typeActivite);
+    const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
+
+    const dataToExport = products.map((p: any) => {
+      const baseRow: Record<string, any> = {
+        Reference: p.id,
+        Nom: p.nom,
+        Categorie: p.categorie,
+        Stock: p.stock,
+        PrixVente: p.prix,
+        PrixAchat: p.prixAchat,
+        Devise: p.devise || currency,
+        DatePeremption: p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : ''
+      };
+
+      businessFields.forEach((field) => {
+        const val = p?.metadata?.[field.name];
+        baseRow[field.label] = typeof val === 'boolean' ? (val ? 'Oui' : 'Non') : (val ?? '');
+      });
+
+      return baseRow;
+    });
     exportToExcel(dataToExport, "Produits_Report");
   };
 

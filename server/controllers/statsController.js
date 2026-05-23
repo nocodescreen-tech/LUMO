@@ -7,6 +7,13 @@ const calculateGrowth = (current, previous) => {
     return Math.round(((current - previous) / previous) * 100);
 };
 
+const toCDF = (amount, devise, rate) => {
+    const safeAmount = Number(amount) || 0;
+    const safeRate = Number(rate) || 2800;
+    if (devise === 'USD') return Math.round(safeAmount * safeRate);
+    return safeAmount;
+};
+
 const getDashboardStats = async (req, res, next) => {
     try {
         const userId = req.user.tenantId;
@@ -283,24 +290,27 @@ const getAnalytics = async (req, res, next) => {
                     userId,
                     createdAt: { [Op.gte]: oneMonthAgo }
                 },
-                attributes: ['articles', 'profitNet']
+                attributes: ['articles', 'profitNet', 'devise', 'tauxChange']
             });
 
             const productStats = {};
 
             recentSales.forEach(sale => {
                 const articles = sale.articles || [];
-                const saleProfit = Number(sale.profitNet || 0);
+                const saleDevise = sale.devise || 'CDF';
+                const saleRate = Number(sale.tauxChange || 2800);
 
                 articles.forEach(item => {
                     const nom = item.nom || 'Inconnu';
                     const quantite = Number(item.quantite) || 0;
+                    const itemDevise = item.deviseOrigine || saleDevise || 'CDF';
+                    const itemRate = Number(item.tauxChange || saleRate || 2800);
                     const prixUnitaire = Number(item.prixUnitaire) || 0;
                     const prixAchat = Number(item.prixAchat) || 0;
 
                     // Articles stockés en CDF depuis la création de vente
-                    const revenuCDF = prixUnitaire * quantite;
-                    const coutAchatCDF = prixAchat * quantite;
+                    const revenuCDF = toCDF(prixUnitaire * quantite, itemDevise, itemRate);
+                    const coutAchatCDF = toCDF(prixAchat * quantite, itemDevise, itemRate);
 
                     if (!productStats[nom]) {
                         productStats[nom] = { nom, quantite: 0, revenu: 0, margeNette: 0 };
@@ -334,3 +344,4 @@ const getAnalytics = async (req, res, next) => {
 };
 
 module.exports = { getDashboardStats, getSalesChartData, getAnalytics };
+

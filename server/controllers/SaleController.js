@@ -97,6 +97,9 @@ exports.createSale = async (req, res, next) => {
     const products = await Product.findAll({ where: { id: productIds }, transaction });
     const productMap = products.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
 
+    // Initialise profit normalisé en CDF — BUG FIX: variable non initialisée causait ReferenceError
+    let profitNormalized = 0;
+
     // Déduction du stock et notifications
     for (const item of items) {
       const product = productMap[item.id];
@@ -130,7 +133,7 @@ exports.createSale = async (req, res, next) => {
             prixUnitaireCDF = Math.round((prixUnitaire / finalRate) * 100) / 100;
           }
           const prixAchat = item.prixAchat || 0;           // déjà en devise shop (CDF)
-          profitNet += (prixUnitaireCDF - prixAchat) * quantite;
+          profitNormalized += (prixUnitaireCDF - prixAchat) * quantite;
 
           return {
             id: item.id,
@@ -138,20 +141,22 @@ exports.createSale = async (req, res, next) => {
             prixUnitaire,
             quantite,
             prixAchat,
+            deviseOrigine: saleCurrency,
+            tauxChange: finalRate,
+            totalLigneOrigine: Math.round((prixUnitaire * quantite) * 100) / 100,
+            totalLigneCDF: Math.round((prixUnitaireCDF * quantite) * 100) / 100,
+            totalLigneUSD: Math.round(((prixUnitaireCDF * quantite) / finalRate) * 100) / 100,
+            deviseProduit: item.devise || shopCurrency,
+            metadata: item.metadata || null,
           };
         })
       : [];
 
     const remise = req.body.remise || 0;
-    profitNet -= remise;
+    profitNormalized -= remise;
 
-    // Normaliser profitNet en CDF avant stockage
-    let profitNetNormalized = Math.round(profitNet * 100) / 100;
-    if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-      profitNetNormalized = Math.round(profitNetNormalized * finalRate);
-    } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-      profitNetNormalized = Math.round((profitNetNormalized / finalRate) * 100) / 100;
-    }
+    // Arrondi à 2 décimales — toutes les valeurs sont déjà en CDF
+    let profitNet = Math.round(profitNormalized * 100) / 100;
 
     // Résoudre le client avant création de la vente
     let resolvedClientId = clientId || null;
@@ -184,7 +189,7 @@ exports.createSale = async (req, res, next) => {
       articles,
       montantTotal: montantTotalNormalized,
       remise,
-      profitNet: profitNetNormalized,
+      profitNet: profitNet,
       methodePaiement: methodePaiement || 'Espèces',
       clientInfo: clientInfo || { nom: 'Client de passage', email: '' },
       devise: saleCurrency,
@@ -263,14 +268,27 @@ exports.deleteSale = async (req, res, next) => {
 
     // Restitution de la dette client si applicable
     const isCredit = (sale.methodePaiement && (
-      sale.methodePaiement.toLowerCase().includes('crédit') || 
+      sale.methodePaiement.toLowerCase().includes('crédit') ||
       sale.methodePaiement.toLowerCase().includes('credit')
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit && sale.statut !== 'Remboursée') {
         const client = await Client.findByPk(sale.clientId);
         if (client) {
-            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - Number(sale.montantTotal - (sale.remise || 0)));
+          // Réduire la dette du client en convertissant dans la devise de la boutique
+          const owner = await require('../models/User').findByPk(sale.userId);
+          const shopCurrency = owner?.entreprise?.devise || 'CDF';
+          const effectiveDevise = sale.devise || 'USD';
+          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate || 2800);
+          let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
+          if (effectiveDevise !== shopCurrency) {
+            if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {
+              debtToSubtract = Math.round(debtToSubtract * rate);
+            } else if (effectiveDevise === 'CDF' && shopCurrency === 'USD') {
+              debtToSubtract = Math.round((debtToSubtract / rate) * 100) / 100;
+            }
+          }
+            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
             await client.save();
         }
     }
@@ -381,18 +399,31 @@ exports.refundSale = async (req, res, next) => {
     
     // Restitution de la dette client si applicable
     const isCredit = (sale.methodePaiement && (
-      sale.methodePaiement.toLowerCase().includes('crédit') || 
+      sale.methodePaiement.toLowerCase().includes('crédit') ||
       sale.methodePaiement.toLowerCase().includes('credit')
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit) {
         const client = await Client.findByPk(sale.clientId);
         if (client) {
-            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - Number(sale.montantTotal - (sale.remise || 0)));
+          // Convertir le montant dans la devise de la boutique avant de réduire la dette
+          const owner = await require('../models/User').findByPk(sale.userId);
+          const shopCurrency = owner?.entreprise?.devise || 'CDF';
+          const effectiveDevise = sale.devise || 'USD';
+          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate || 2800);
+          let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
+          if (effectiveDevise !== shopCurrency) {
+            if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {
+              debtToSubtract = Math.round(debtToSubtract * rate);
+            } else if (effectiveDevise === 'CDF' && shopCurrency === 'USD') {
+              debtToSubtract = Math.round((debtToSubtract / rate) * 100) / 100;
+            }
+          }
+            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
             await client.save();
         }
     }
-    
+
     sale.statut = 'Remboursée';
     await sale.save();
     const { sendResponse } = require('../utils/response');
