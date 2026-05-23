@@ -350,6 +350,7 @@ const POS = () => {
                 id: item.id,
                 nom: item.nom,
                 prix: item.prix,
+                prixAchat: item.prixAchat || 0,
                 quantite: item.quantite
             })),
             montantTotal: saleTotal,

@@ -244,7 +244,7 @@ const Dashboard = () => {
             value={getDisplayValues(stats?.summary?.profitNetEstimation || 0).main} 
             subValue={getDisplayValues(stats?.summary?.profitNetEstimation || 0).sub}
             icon={DollarSign} 
-            trend={stats?.summary?.profitTrend || 8} 
+            trend={stats?.summary?.marginPercent || 0} 
             color="var(--success)"
             delay={0.2}
           />

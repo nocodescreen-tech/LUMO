@@ -102,6 +102,8 @@ const getDashboardStats = async (req, res, next) => {
         // Marge nette = Total Profit Net enregistré (Ventes - Coût des ventes)
         // Toutes les valeurs sont déjà normalisées en CDF
         const netMargin = profAll;
+        // Calcul du pourcentage de marge nette
+        const marginPercent = revAll > 0 ? Math.round((profAll / revAll) * 100 * 100) / 100 : 0;
 
         // Produits avec date d'expiration proche (< 30 j)
         const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
@@ -141,6 +143,7 @@ const getDashboardStats = async (req, res, next) => {
             summary: {
                 revenue: revAll,
                 profitNetEstimation: netMargin,
+                marginPercent: marginPercent,
                 totalExpenses: expAll,
                 stockValue: parseFloat(stockStats?.totalValue || 0),
                 stockCost: parseFloat(stockStats?.totalCost || 0),
