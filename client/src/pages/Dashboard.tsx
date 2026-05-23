@@ -26,7 +26,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
-import { getDisplayAmount, convertAmount } from '../utils/currencyHelpers';
+import { getDisplayAmount, normalizeAmount } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
   <motion.div 
@@ -295,8 +295,8 @@ const Dashboard = () => {
             <DashboardCharts 
               salesData={chartData.map((d: any) => ({
                 ...d,
-                revenue: convertAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800),
-                total: convertAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800)
+                revenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800),
+                total: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800)
               }))} 
               period={chartPeriod} 
             />
