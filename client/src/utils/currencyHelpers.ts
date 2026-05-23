@@ -31,6 +31,7 @@ export const normalizeAmount = (
   rate: number
 ): number => {
   if (!amount || !fromDevise || !toDevise || fromDevise === toDevise) return amount;
+  if (!Number.isFinite(rate) || rate <= 0) return amount;
   if (fromDevise === 'USD' && toDevise === 'CDF') return Math.round(amount * rate);
   if (fromDevise === 'CDF' && toDevise === 'USD') return Math.round((amount / rate) * 100) / 100;
   return amount;
@@ -82,7 +83,7 @@ export const formatMontant = (
 export const useCurrency = () => {
   const { user } = useAuthStore();
   const displayCurrency = (user as any)?.preferences?.currency || 'CDF';
-  const exchangeRate = Number((user as any)?.preferences?.exchangeRate || 2800);
+  const exchangeRate = Number((user as any)?.preferences?.exchangeRate || 0);
 
   const convert = (amount: number, fromDevise: string = 'CDF') => {
     return normalizeAmount(amount, fromDevise, displayCurrency, exchangeRate);

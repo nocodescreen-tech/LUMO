@@ -102,7 +102,7 @@ const Dashboard = () => {
     if (!rawAmount) return { main: `0 ${currency}`, sub: `0 ${altCurrency}` };
 
     // Since the backend now sends all summary stats normalized to CDF
-    const result = getDisplayAmount(rawAmount, 'CDF', currency, exchangeRate || 2800);
+    const result = getDisplayAmount(rawAmount, 'CDF', currency, exchangeRate);
     return result;
   };
 
@@ -292,13 +292,17 @@ const Dashboard = () => {
             </div>
           </div>
           <div style={{ height: '280px', width: '100%' }}>
-            <DashboardCharts 
+            <DashboardCharts
               salesData={chartData.map((d: any) => ({
                 ...d,
-                revenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800),
-                total: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate || 2800)
-              }))} 
-              period={chartPeriod} 
+                // Pre-computed in display currency for DashboardCharts to consume directly
+                convertedRevenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                convertedTotal: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                // Legacy fields kept for backward compatibility (Stats.tsx reads these)
+                revenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                total: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate)
+              }))}
+              period={chartPeriod}
             />
           </div>
         </motion.div>
@@ -385,7 +389,7 @@ const Dashboard = () => {
                   {(() => {
                     // statsController.js sends montantCDF which is ALWAYS the value in CDF
                     const saleAmount = sale.montantCDF || sale.montantTotal;
-                    const result = getDisplayAmount(saleAmount, 'CDF', currency, exchangeRate || 2800);
+                    const result = getDisplayAmount(saleAmount, 'CDF', currency, exchangeRate);
                     return (
                       <>
                         <p style={{ fontWeight: 1000, color: '#10b981', fontSize: '1.4rem', margin: 0 }}>+{result.main}</p>

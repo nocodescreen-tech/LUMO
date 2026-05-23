@@ -101,7 +101,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   theme: initialAuth.user?.preferences?.theme || (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
   language: initialAuth.user?.preferences?.language || (localStorage.getItem('language') as 'fr' | 'en') || 'fr',
   currency: normalizeCurrency((initialAuth.user?.preferences?.currency as any) || localStorage.getItem('currency') as any),
-  exchangeRate: initialAuth.user?.preferences?.exchangeRate || 2250,
+  exchangeRate: Number(initialAuth.user?.preferences?.exchangeRate || localStorage.getItem('exchangeRate') || 0),
   enabledModules: initialAuth.user?.preferences?.enabledModules || JSON.parse(localStorage.getItem('enabledModules') || '[]'),
 
   setAuth: (user, token, refreshToken) => {
@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const modules = prefs.enabledModules || [];
     const curr = normalizeCurrency((prefs.currency as any) || (user.entreprise?.devise as any));
     
-    const rate = prefs.exchangeRate || 2250;
+    const rate = Number(prefs.exchangeRate || 0);
 
     localStorage.setItem('theme', theme);
     localStorage.setItem('language', lang);
@@ -188,7 +188,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const modules = (Array.isArray(serverModules) && serverModules.length > 0)
         ? serverModules
         : (localModules.length > 0 ? localModules : (serverModules || []));
-      const rate = prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '2250');
+      const rate = Number(prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '0'));
 
       // Update localStorage with latest server data (including nom changes)
       localStorage.setItem('theme', theme);

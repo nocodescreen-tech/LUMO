@@ -69,7 +69,12 @@ exports.createSale = async (req, res, next) => {
     const owner = await require('../models/User').findByPk(userId);
     const shopCurrency = owner?.entreprise?.devise || 'CDF';
     const saleCurrency = devise || 'USD';
-    const finalRate = Number(tauxChange || owner?.preferences?.exchangeRate || 2800);
+    const finalRate = Number(tauxChange || owner?.preferences?.exchangeRate);
+    if (!Number.isFinite(finalRate) || finalRate <= 0) {
+      return res.status(400).json({
+        message: "Taux de change invalide. Configurez le taux dans Paramètres avant d'enregistrer une vente."
+      });
+    }
 
     // Mise à jour de la session de caisse active
     const { CashSession } = require('../models');
@@ -216,7 +221,10 @@ exports.createSale = async (req, res, next) => {
       
       // If sale currency differs from shop currency, convert it
       if (effectiveDevise !== shopCurrency) {
-        const rate = Number(tauxChange || owner?.preferences?.exchangeRate || 2800);
+        const rate = Number(tauxChange || owner?.preferences?.exchangeRate);
+        if (!Number.isFinite(rate) || rate <= 0) {
+          return res.status(400).json({ message: "Taux de change invalide pour la gestion des dettes." });
+        }
         if (devise === 'USD' && shopCurrency === 'CDF') {
           amountToAdd = Math.round(amountToAdd * rate);
         } else if (devise === 'CDF' && shopCurrency === 'USD') {
@@ -279,7 +287,10 @@ exports.deleteSale = async (req, res, next) => {
           const owner = await require('../models/User').findByPk(sale.userId);
           const shopCurrency = owner?.entreprise?.devise || 'CDF';
           const effectiveDevise = sale.devise || 'USD';
-          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate || 2800);
+          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
+          if (!Number.isFinite(rate) || rate <= 0) {
+            return res.status(400).json({ message: "Taux de change invalide pour recalcul de dette." });
+          }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
           if (effectiveDevise !== shopCurrency) {
             if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {
@@ -410,7 +421,10 @@ exports.refundSale = async (req, res, next) => {
           const owner = await require('../models/User').findByPk(sale.userId);
           const shopCurrency = owner?.entreprise?.devise || 'CDF';
           const effectiveDevise = sale.devise || 'USD';
-          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate || 2800);
+          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
+          if (!Number.isFinite(rate) || rate <= 0) {
+            return res.status(400).json({ message: "Taux de change invalide pour remboursement de dette." });
+          }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
           if (effectiveDevise !== shopCurrency) {
             if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {

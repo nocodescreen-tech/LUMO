@@ -297,7 +297,7 @@ const Dettes = () => {
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
               {i === 0 ? (
                 (() => {
-                  const display = getDisplayAmount(totalDebt, shopCurrency, currency, exchangeRate || 2250);
+                  const display = getDisplayAmount(totalDebt, shopCurrency, currency, exchangeRate);
                   return (
                     <div>
                       <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>
@@ -440,7 +440,7 @@ const Dettes = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '32px', flexShrink: 0 }}>
                     <div style={{ textAlign: 'right' }}>
                       {(() => {
-                        const display = getDisplayAmount(debt.detteTotale, shopCurrency, currency, exchangeRate || 2250);
+                        const display = getDisplayAmount(debt.detteTotale, shopCurrency, currency, exchangeRate);
                         return (
                           <>
                             <div style={{ fontWeight: 950, fontSize: '1.2rem', color: statusColor }}>
