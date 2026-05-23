@@ -110,6 +110,7 @@ const validateSale = (data) => {
             id: Joi.number().required(),
             nom: Joi.string().required(),
             prix: Joi.number().required(),
+            prixAchat: Joi.number().min(0).optional(),
             quantite: Joi.number().integer().positive().required()
         })).min(1).required(),
         montantTotal: Joi.number().min(0).required(),
