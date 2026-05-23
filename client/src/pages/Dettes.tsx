@@ -34,7 +34,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { getDisplayWithSub, formatCurrency } from '../utils/currencyHelpers';
+import { getDisplayAmount, useCurrency } from '../utils/currencyHelpers';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../api/axios';
@@ -64,16 +64,15 @@ interface ActionMenuState {
 // Component
 // ──────────────────────────────────────────────
 const Dettes = () => {
-  const { currency, enabledModules, exchangeRate } = useAuthStore();
+  const { user, enabledModules } = useAuthStore();
+  const { displayCurrency: currency, exchangeRate, convert, format } = useCurrency();
+  const shopCurrency = (user as any)?.entreprise?.devise || 'CDF';
   const navigate = useNavigate();
 
   // Helper for currency conversion
   const convertAmount = useCallback((amount: number) => {
-    if (!exchangeRate || exchangeRate === 0) return amount;
-    // Assuming DB values are in CDF
-    if (currency === 'USD') return Math.round((amount / exchangeRate) * 100) / 100;
-    return amount;
-  }, [currency, exchangeRate]);
+    return convert(amount, shopCurrency);
+  }, [convert, shopCurrency]);
 
   // Data
   const [clients, setClients] = useState<ClientDebt[]>([]);
@@ -204,8 +203,8 @@ const Dettes = () => {
     }
     setSettleLoading(true);
     try {
-      // Convert back to base currency (CDF) for backend
-      const baseAmount = currency === 'USD' ? Math.round(amount * (exchangeRate || 2250)) : amount;
+      // Convert back to base currency for backend
+      const baseAmount = Math.round(amount / (currency === 'USD' && shopCurrency === 'CDF' ? 1/exchangeRate : currency === 'CDF' && shopCurrency === 'USD' ? exchangeRate : 1));
 
       await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
       toast.success(`${amount.toLocaleString()} ${currency} réglés pour ${settleModal.client.nom} ✅`);
@@ -300,7 +299,7 @@ const Dettes = () => {
               <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
               {i === 0 ? (
                 (() => {
-                  const display = getDisplayWithSub(totalDebt, 'CDF', currency, exchangeRate || 2250);
+                  const display = getDisplayAmount(totalDebt, shopCurrency, currency, exchangeRate || 2250);
                   return (
                     <div>
                       <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>
@@ -314,7 +313,7 @@ const Dettes = () => {
                 })()
               ) : (
                 <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>
-                  {s.noFormat ? `${s.value}${s.unit || ''}` : formatCurrency(s.value, currency)}
+                  {s.noFormat ? `${s.value}${s.unit || ''}` : format(s.value)}
                 </div>
               )}
             </div>
@@ -443,7 +442,7 @@ const Dettes = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '32px', flexShrink: 0 }}>
                     <div style={{ textAlign: 'right' }}>
                       {(() => {
-                        const display = getDisplayWithSub(debt.detteTotale, 'CDF', currency, exchangeRate || 2250);
+                        const display = getDisplayAmount(debt.detteTotale, shopCurrency, currency, exchangeRate || 2250);
                         return (
                           <>
                             <div style={{ fontWeight: 950, fontSize: '1.2rem', color: statusColor }}>
@@ -567,7 +566,7 @@ const Dettes = () => {
               <div style={{ padding: '8px 14px 6px', borderBottom: '1px solid var(--border)', marginBottom: '6px' }}>
                 <div style={{ fontWeight: 900, fontSize: '0.85rem', color: 'var(--text-main)' }}>{activeClient.nom}</div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  {formatCurrency(convertAmount(activeClient.detteTotale), currency)}
+                  {format(convertAmount(activeClient.detteTotale))}
                 </div>
               </div>
 
@@ -654,7 +653,7 @@ const Dettes = () => {
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px', fontWeight: 500 }}>
                 Client : <strong style={{ color: 'var(--text-main)' }}>{settleModal.client.nom}</strong><br />
-                Solde restant : <strong style={{ color: 'var(--danger)' }}>{formatCurrency(convertAmount(settleModal.client.detteTotale), currency)}</strong>
+                Solde restant : <strong style={{ color: 'var(--danger)' }}>{format(convertAmount(settleModal.client.detteTotale))}</strong>
               </p>
 
               {/* Amount input */}

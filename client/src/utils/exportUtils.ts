@@ -1,5 +1,13 @@
+import { useAuthStore } from '../store/useAuthStore';
+import { getDisplayAmount } from './currencyHelpers';
+
 export const exportToExcel = (data: any[], fileName: string, moduleName: string = 'Rapport') => {
     if (!data || data.length === 0) return;
+
+    const { user } = useAuthStore.getState() as any;
+    const currency = user?.preferences?.currency || 'USD';
+    const shopCurrency = user?.entreprise?.devise || 'CDF';
+    const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
 
     const headers = Object.keys(data[0]);
     
@@ -33,12 +41,21 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
                 ${headers.map(h => {
                     let val = item[h];
                     if (val === null || val === undefined) val = '';
-                    // For dates, format nicely
+                    
                     if (val instanceof Date || (typeof val === 'string' && val.includes('T') && val.includes('Z'))) {
                         try { val = new Date(val).toLocaleString('fr-FR'); } catch(e){}
                     }
+                    
                     const isNum = typeof val === 'number';
-                    return `<td class="${isNum ? 'cell-number' : 'cell'}">${val}</td>`;
+                    let cellClass = isNum ? 'cell-number' : 'cell';
+                    
+                    if (isNum && (h.toLowerCase().includes('prix') || h.toLowerCase().includes('total') || h.toLowerCase().includes('dette') || h.toLowerCase().includes('revenu') || h.toLowerCase().includes('montant'))) {
+                        const display = getDisplayAmount(val as number, shopCurrency, currency, exchangeRate);
+                        val = \`\${display.main} (≈ \${display.sub})\`;
+                        cellClass = 'cell'; 
+                    }
+                    
+                    return \`<td class="\${cellClass}">\${val}</td>\`;
                 }).join('')}
             </tr>
             `).join('')}

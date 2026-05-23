@@ -13,7 +13,7 @@ import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import { exportToExcel } from '../utils/exportUtils';
 import { generateMonthlyReport } from '../utils/printHelpers';
-import { useCurrency } from '../utils/currencyHelpers';
+import { useCurrency, getDisplayAmount } from '../utils/currencyHelpers';
 
 const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
@@ -234,9 +234,9 @@ const Stats = () => {
                                                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} unités vendues</p>
                                             </div>
                                             <div style={{ fontWeight: 900, color: 'var(--text-main)', textAlign: 'right' }}>
-                                                <div>{format(convert(p.revenu, 'CDF'))}</div>
+                                                <div>{getDisplayAmount(p.revenu, 'CDF', displayCurrency, exchangeRate).main}</div>
                                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
-                                                    ≈ {format(p.revenu, 'CDF')}
+                                                    ≈ {getDisplayAmount(p.revenu, 'CDF', displayCurrency, exchangeRate).sub}
                                                 </div>
                                             </div>
                                         </div>

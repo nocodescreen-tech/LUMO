@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/useAuthStore';
+
 /**
  * Currency formatting utilities for LUMO
  * Handles conversion between CDF and USD with proper formatting
@@ -20,10 +22,6 @@ export const normalizeAmount = (
 
 /**
  * Get display values with both main and converted amounts
- * @param rawAmount - the raw amount from DB
- * @param deviseOrigin - the currency of the raw amount (e.g., 'USD', 'CDF')
- * @param displayCurrency - the user's preferred display currency
- * @param exchangeRate - current exchange rate (1 USD = X CDF)
  */
 export const getDisplayAmount = (
   rawAmount: number,
@@ -40,11 +38,8 @@ export const getDisplayAmount = (
     };
   }
 
-  // Normalize to display currency
   const normalized = normalizeAmount(rawAmount, deviseOrigin, displayCurrency, exchangeRate);
   const altCurrency = displayCurrency === 'CDF' ? 'USD' : 'CDF';
-
-  // Also get the equivalent in alternate currency
   const altAmount = normalizeAmount(rawAmount, deviseOrigin, altCurrency, exchangeRate);
 
   return {
@@ -66,4 +61,21 @@ export const formatMontant = (
 ): string => {
   const converted = normalizeAmount(montant, deviseOrigin, displayCurrency, exchangeRate);
   return `${Number(converted).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${displayCurrency}`;
+};
+
+export const useCurrency = () => {
+  const { user } = useAuthStore();
+  const displayCurrency = (user as any)?.preferences?.currency || 'CDF';
+  const exchangeRate = Number((user as any)?.preferences?.exchangeRate || 2800);
+
+  const convert = (amount: number, fromDevise: string = 'CDF') => {
+    return normalizeAmount(amount, fromDevise, displayCurrency, exchangeRate);
+  };
+
+  const format = (amount: number, currency?: string) => {
+    const curr = currency || displayCurrency;
+    return `${Number(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${curr}`;
+  };
+
+  return { displayCurrency, exchangeRate, convert, format };
 };

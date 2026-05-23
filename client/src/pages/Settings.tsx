@@ -51,6 +51,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import { africanCountries } from '../constants/countries';
+import { BUSINESS_TYPES } from '../constants/businessTypes';
 import ConfirmModal from '../components/common/ConfirmModal';
 import Modal from '../components/common/Modal';
 
@@ -119,18 +120,18 @@ const TwoFASection = () => {
   const handleActivate2FA = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length !== 6) {
-      toast.error('Veuillez entrer un code à 6 chiffres');
+      toast.error('Veuillez entrer un code ├á 6 chiffres');
       return;
     }
     setActivating(true);
     try {
       const { data } = await api.post('/auth/2fa/activate', { code: otpCode });
       updateUser({ ...(user as any), twoFactorEnabled: true });
-      toast.success(data.message || 'Double authentification activée avec succès');
+      toast.success(data.message || 'Double authentification activ├⌐e avec succ├¿s');
       setShowSetupModal(false);
       setOtpCode('');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Code incorrect. Réessayez.');
+      toast.error(err.response?.data?.message || 'Code incorrect. R├⌐essayez.');
     } finally {
       setActivating(false);
     }
@@ -141,9 +142,9 @@ const TwoFASection = () => {
     try {
       const { data } = await api.post('/auth/2fa/disable');
       updateUser({ ...(user as any), twoFactorEnabled: false });
-      toast.success(data.message || 'Double authentification désactivée');
+      toast.success(data.message || 'Double authentification d├⌐sactiv├⌐e');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la désactivation 2FA');
+      toast.error(err.response?.data?.message || 'Erreur lors de la d├⌐sactivation 2FA');
     } finally {
       setLoading2FA(false);
     }
@@ -167,8 +168,8 @@ const TwoFASection = () => {
             <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
-                ? '✅ Activé — Code Google Authenticator requis à chaque connexion'
-                : 'Désactivé — Activez pour protéger votre compte avec Google Authenticator (TOTP)'}
+                ? 'Γ£à Activ├⌐ ΓÇö Code Google Authenticator requis ├á chaque connexion'
+                : 'D├⌐sactiv├⌐ ΓÇö Activez pour prot├⌐ger votre compte avec Google Authenticator (TOTP)'}
             </p>
           </div>
         </div>
@@ -183,7 +184,7 @@ const TwoFASection = () => {
             opacity: loading2FA ? 0.6 : 1
           }}
         >
-          {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
+          {loading2FA ? 'En cours...' : is2FAEnabled ? 'D├⌐sactiver' : 'Activer'}
         </button>
       </div>
 
@@ -209,7 +210,7 @@ const TwoFASection = () => {
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                 <img src={qrCode} alt="QR Code 2FA" style={{ width: '200px', height: '200px', borderRadius: '16px', border: '4px solid var(--border)', margin: '0 auto', display: 'block' }} />
                 <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clé secrète manuelle</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cl├⌐ secr├¿te manuelle</p>
                   <p style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--primary)', margin: 0, wordBreak: 'break-all', letterSpacing: '0.1em' }}>{secret}</p>
                 </div>
               </div>
@@ -218,7 +219,7 @@ const TwoFASection = () => {
             <form onSubmit={handleActivate2FA} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Code de vérification (6 chiffres)
+                  Code de v├⌐rification (6 chiffres)
                 </label>
                 <input
                   type="text"
@@ -249,7 +250,7 @@ const TwoFASection = () => {
                   disabled={activating || otpCode.length !== 6}
                   style={{ flex: 2, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 800, cursor: activating || otpCode.length !== 6 ? 'not-allowed' : 'pointer', opacity: activating || otpCode.length !== 6 ? 0.6 : 1 }}
                 >
-                  {activating ? 'Vérification...' : 'Activer la 2FA'}
+                  {activating ? 'V├⌐rification...' : 'Activer la 2FA'}
                 </button>
               </div>
             </form>
@@ -299,7 +300,7 @@ const TeamSection = () => {
     },
     {
       id: 'pos', label: 'Point de Vente (POS)', icon: ShoppingCart, actions: [
-        { id: 'pos.credit_sale', label: 'Vente à crédit (client)' },
+        { id: 'pos.credit_sale', label: 'Vente ├á cr├⌐dit (client)' },
         { id: 'pos.print', label: 'Imprimer ticket / facture' },
       ]
     },
@@ -326,7 +327,7 @@ const TeamSection = () => {
         { id: 'clients.add', label: 'Ajouter un client' },
         { id: 'clients.edit', label: 'Modifier un client' },
         { id: 'clients.delete', label: 'Supprimer un client' },
-        { id: 'clients.settle_debt', label: 'Régler une dette client' },
+        { id: 'clients.settle_debt', label: 'R├⌐gler une dette client' },
         { id: 'clients.send_reminder', label: 'Envoyer un rappel de paiement' },
       ]
     },
@@ -339,7 +340,7 @@ const TeamSection = () => {
     },
     {
       id: 'purchases', label: 'Achats (Bons de commande)', icon: Download, actions: [
-        { id: 'purchases.add', label: 'Créer un bon d\'achat' },
+        { id: 'purchases.add', label: 'Cr├⌐er un bon d\'achat' },
         { id: 'purchases.edit', label: 'Modifier un achat' },
         { id: 'purchases.delete', label: 'Supprimer un achat' },
       ]
@@ -347,16 +348,16 @@ const TeamSection = () => {
 
     {
       id: 'debts', label: 'Gestion Dettes', icon: CreditCard, actions: [
-        { id: 'debts.settle', label: 'Enregistrer un règlement' },
+        { id: 'debts.settle', label: 'Enregistrer un r├¿glement' },
         { id: 'debts.send_reminder', label: 'Envoyer rappel de paiement' },
       ]
     },
     { id: 'stats', label: 'Statistiques', icon: BarChart2, actions: [] },
-    { id: 'activities', label: 'Journal d\'Activités', icon: Activity, actions: [] },
+    { id: 'activities', label: 'Journal d\'Activit├⌐s', icon: Activity, actions: [] },
     {
-      id: 'settings', label: 'Paramètres (limités)', icon: SettingsIcon, actions: [
+      id: 'settings', label: 'Param├¿tres (limit├⌐s)', icon: SettingsIcon, actions: [
         { id: 'settings.profile', label: 'Modifier son profil' },
-        { id: 'settings.appearance', label: 'Changer l\'apparence (thème/langue)' },
+        { id: 'settings.appearance', label: 'Changer l\'apparence (th├¿me/langue)' },
         { id: 'settings.exchange_rate', label: 'Modifier le taux de change' },
       ]
     },
@@ -394,7 +395,7 @@ const TeamSection = () => {
       const members = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
       setSubUsers(members);
     } catch (err) {
-      toast.error('Erreur lors de la récupération de l\'équipe');
+      toast.error('Erreur lors de la r├⌐cup├⌐ration de l\'├⌐quipe');
       setSubUsers([]);
     } finally {
       setLoading(false);
@@ -411,17 +412,17 @@ const TeamSection = () => {
     // Validation mot de passe
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
     if (!passwordRegex.test(newUser.motDePasse)) {
-      return toast.error("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+      return toast.error("Le mot de passe doit contenir entre 8 et 100 caract├¿res, une majuscule, une minuscule, un chiffre et un caract├¿re sp├⌐cial (@$!%*?&#).");
     }
 
     try {
       await api.post('/subusers', newUser);
-      toast.success(`Membre ${newUser.nom} ajouté !`);
+      toast.success(`Membre ${newUser.nom} ajout├⌐ !`);
       setShowAddModal(false);
       setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: ['pos', 'products', 'clients'] });
       fetchSubUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de l’ajout');
+      toast.error(err.response?.data?.message || 'Erreur lors de lΓÇÖajout');
     }
   };
 
@@ -429,7 +430,7 @@ const TeamSection = () => {
     if (!confirmDelete.id) return;
     try {
       await api.delete(`/subusers/${confirmDelete.id}`);
-      toast.success('Membre supprimé');
+      toast.success('Membre supprim├⌐');
       setConfirmDelete({ isOpen: false, id: null, name: '' });
       fetchSubUsers();
     } catch (err) {
@@ -445,7 +446,7 @@ const TeamSection = () => {
       const { data } = await api.get(`/staff-payments?staffId=${staff.id}`);
       setStaffPayments(Array.isArray(data.data) ? data.data : []);
     } catch (err) {
-      toast.error('Erreur lors de la récupération des paiements');
+      toast.error('Erreur lors de la r├⌐cup├⌐ration des paiements');
     } finally {
       setLoadingPayments(false);
     }
@@ -459,11 +460,11 @@ const TeamSection = () => {
         staffId: selectedStaff.id,
         ...paymentData
       });
-      toast.success('Paiement enregistré');
+      toast.success('Paiement enregistr├⌐');
       setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
       openPaymentModal(selectedStaff); // Refresh list
     } catch (err) {
-      toast.error('Erreur lors de l’enregistrement');
+      toast.error('Erreur lors de lΓÇÖenregistrement');
     }
   };
 
@@ -471,8 +472,8 @@ const TeamSection = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Gestion de l’Équipe</h2>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Créez et gérez les accès pour vos vendeurs et gestionnaires.</p>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Gestion de lΓÇÖ├ëquipe</h2>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Cr├⌐ez et g├⌐rez les acc├¿s pour vos vendeurs et gestionnaires.</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -491,7 +492,7 @@ const TeamSection = () => {
         ) : subUsers.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '24px' }}>
             <Users size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Aucun membre dans votre équipe pour le moment.</p>
+            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Aucun membre dans votre ├⌐quipe pour le moment.</p>
           </div>
         ) : subUsers.map(u => (
           <motion.div
@@ -517,7 +518,7 @@ const TeamSection = () => {
                 <button
                   onClick={() => openPaymentModal(u)}
                   style={{ background: 'var(--primary-glow)', border: 'none', color: 'var(--primary)', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
-                  title="Gérer les paiements"
+                  title="G├⌐rer les paiements"
                 >
                   <Wallet size={18} />
                 </button>
@@ -547,19 +548,19 @@ const TeamSection = () => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         title="Nouveau Collaborateur"
-        subtitle="Créez un compte sécurisé avec des accès personnalisés."
+        subtitle="Cr├⌐ez un compte s├⌐curis├⌐ avec des acc├¿s personnalis├⌐s."
         maxWidth="600px"
         icon={Users}
       >
         <form onSubmit={handleAddSubUser} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <InputField label="Nom Complet" value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder="Ex: Jules Kamba" required />
-            <InputField label="Téléphone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
+            <InputField label="T├⌐l├⌐phone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
           </div>
 
           <InputField label="Email / Identifiant" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} placeholder="jules@example.com" required icon={Mail} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <InputField label="Mot de passe initial" type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caractères + symboles" required icon={Key} />
+            <InputField label="Mot de passe initial" type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caract├¿res + symboles" required icon={Key} />
             {newUser.motDePasse && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
                 {[
@@ -583,7 +584,7 @@ const TeamSection = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>
-              Accès & Permissions — Sélection Manuelle
+              Acc├¿s & Permissions ΓÇö S├⌐lection Manuelle
             </label>
             <div style={{
               display: 'flex',
@@ -665,7 +666,7 @@ const TeamSection = () => {
         onClose={() => setConfirmDelete({ isOpen: false, id: null, name: '' })}
         onConfirm={handleDelete}
         title="Supprimer un membre"
-        message={`Voulez-vous vraiment supprimer l'accès pour ${confirmDelete.name} ?`}
+        message={`Voulez-vous vraiment supprimer l'acc├¿s pour ${confirmDelete.name} ?`}
       />
 
       <Modal
@@ -702,11 +703,11 @@ const TeamSection = () => {
           </form>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h4 style={{ margin: 0, fontWeight: 900 }}>Historique Récent</h4>
+            <h4 style={{ margin: 0, fontWeight: 900 }}>Historique R├⌐cent</h4>
             {loadingPayments ? (
               <Loader2 size={24} className="animate-spin" style={{ margin: '20px auto' }} />
             ) : staffPayments.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontWeight: 600 }}>Aucun historique trouvé.</p>
+              <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontWeight: 600 }}>Aucun historique trouv├⌐.</p>
             ) : (
               <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {staffPayments.map((p: any) => (
@@ -717,7 +718,7 @@ const TeamSection = () => {
                       </div>
                       <div>
                         <p style={{ margin: 0, fontWeight: 800, fontSize: '0.9rem' }}>{p.type} - {Number(p.amount).toLocaleString()} {p.devise}</p>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(p.date).toLocaleDateString()} {p.note && `· ${p.note}`}</p>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(p.date).toLocaleDateString()} {p.note && `┬╖ ${p.note}`}</p>
                       </div>
                     </div>
                     <button 
@@ -836,10 +837,10 @@ const Settings = () => {
       const updated = resData.success && resData.data ? resData.data : resData;
 
       updateUser(updated);
-      toast.success('Photo de profil mise à jour avec succès !');
+      toast.success('Photo de profil mise ├á jour avec succ├¿s !');
     } catch (error: any) {
       console.error("Upload Error:", error);
-      toast.error(error.response?.data?.message || "Échec de l'upload de l'image.");
+      toast.error(error.response?.data?.message || "├ëchec de l'upload de l'image.");
     } finally {
       setUploading(false);
     }
@@ -863,10 +864,10 @@ const Settings = () => {
       const updated = resData.success && resData.data ? resData.data : resData;
 
       updateUser(updated);
-      toast.success("Logo de l'entreprise mis à jour avec succès !");
+      toast.success("Logo de l'entreprise mis ├á jour avec succ├¿s !");
     } catch (error: any) {
       console.error("Upload Error:", error);
-      toast.error(error.response?.data?.message || "Échec de l'upload du logo.");
+      toast.error(error.response?.data?.message || "├ëchec de l'upload du logo.");
     } finally {
       setUploadingLogo(false);
     }
@@ -876,7 +877,7 @@ const Settings = () => {
     if (profileData.motDePasse) {
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
       if (!passwordRegex.test(profileData.motDePasse)) {
-        return toast.error("Le nouveau mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+        return toast.error("Le nouveau mot de passe doit contenir entre 8 et 100 caract├¿res, une majuscule, une minuscule, un chiffre et un caract├¿re sp├⌐cial (@$!%*?&#).");
       }
     }
 
@@ -912,7 +913,7 @@ const Settings = () => {
       setProfileData(prev => ({ ...prev, motDePasse: '' }));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
-      toast.success('✅ Paramètres enregistrés et synchronisés !');
+      toast.success('Γ£à Param├¿tres enregistr├⌐s et synchronis├⌐s !');
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
@@ -927,7 +928,7 @@ const Settings = () => {
 
   const handleBackup = async () => {
     setBackupLoading(true);
-    toast('⏳ Génération de la sauvegarde en cours...');
+    toast('ΓÅ│ G├⌐n├⌐ration de la sauvegarde en cours...');
     try {
       const response = await api.get(`/backup/export?_t=${Date.now()}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
@@ -938,9 +939,9 @@ const Settings = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('✅ Sauvegarde téléchargée avec succès !');
+      toast.success('Γ£à Sauvegarde t├⌐l├⌐charg├⌐e avec succ├¿s !');
     } catch (error) {
-      toast.error('❌ Erreur lors de la génération de la sauvegarde.');
+      toast.error('Γ¥î Erreur lors de la g├⌐n├⌐ration de la sauvegarde.');
     } finally {
       setBackupLoading(false);
     }
@@ -948,7 +949,7 @@ const Settings = () => {
 
   const handleEmailBackup = async () => {
     setEmailBackupLoading(true);
-    toast('📧 Envoi de la sauvegarde par e-mail...');
+    toast('≡ƒôº Envoi de la sauvegarde par e-mail...');
     try {
       await api.get(`/backup/email?_t=${Date.now()}`);
     } finally {
@@ -971,7 +972,7 @@ const Settings = () => {
         const response = await api.post('/backup/preview', content);
         setRestorePreview({ ...response.data, rawData: content });
       } catch (error) {
-        toast.error('❌ Fichier invalide. Veuillez sélectionner une sauvegarde Lumo valide.');
+        toast.error('Γ¥î Fichier invalide. Veuillez s├⌐lectionner une sauvegarde Lumo valide.');
       }
     };
     reader.readAsText(file);
@@ -981,14 +982,14 @@ const Settings = () => {
     if (!restorePreview?.rawData) return;
 
     setRestoreLoading(true);
-    toast('⚡ Restauration des données en cours...');
+    toast('ΓÜí Restauration des donn├⌐es en cours...');
     try {
       const response = await api.post('/backup/import', restorePreview.rawData);
-      toast.success(`✅ Restauration réussie ! (${response.data.restored.products} produits, ${response.data.restored.clients} clients restorés)`);
+      toast.success(`Γ£à Restauration r├⌐ussie ! (${response.data.restored.products} produits, ${response.data.restored.clients} clients restor├⌐s)`);
       setRestorePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
-      toast.error('❌ Erreur lors de la restauration des données.');
+      toast.error('Γ¥î Erreur lors de la restauration des donn├⌐es.');
     } finally {
       setRestoreLoading(false);
     }
@@ -999,13 +1000,13 @@ const Settings = () => {
     { id: 'business', label: 'Mon Enseigne', icon: Store, color: 'var(--secondary)' },
     { id: 'appearance', label: 'Interface', icon: Palette, color: '#f59e0b' },
     { id: 'modules', label: 'Modules & IA', icon: Cpu, color: '#ef4444', adminOnly: true },
-    { id: 'team', label: 'Mon Équipe', icon: Users, color: '#10b981', adminOnly: true },
-    { id: 'security', label: 'Sécurité', icon: ShieldCheck, color: '#6366f1', adminOnly: true },
+    { id: 'team', label: 'Mon ├ëquipe', icon: Users, color: '#10b981', adminOnly: true },
+    { id: 'security', label: 'S├⌐curit├⌐', icon: ShieldCheck, color: '#6366f1', adminOnly: true },
   ];
 
   const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
 
-  const activityTypes = ['Pharmacie', 'Boutique', 'Restaurant', 'Services', 'Épicerie', 'Quincaillerie', 'Autre'];
+  const activityTypes = Object.keys(BUSINESS_TYPES);
   const devises = [
     { value: 'USD', label: 'USD (Dollar)' },
     { value: 'CDF', label: 'CDF (Franc Congolais)' }
@@ -1019,8 +1020,8 @@ const Settings = () => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>Paramètres <span style={{ color: 'var(--primary)', opacity: 0.5 }}>Système</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Contrôlez chaque aspect de votre plateforme LUMO.</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>Param├¿tres <span style={{ color: 'var(--primary)', opacity: 0.5 }}>Syst├¿me</span></h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Contr├┤lez chaque aspect de votre plateforme LUMO.</p>
         </div>
         <button
           onClick={() => setShowLogoutConfirm(true)}
@@ -1075,8 +1076,8 @@ const Settings = () => {
             {activeTab === 'profile' && (
               <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>Identité Personnelles</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Gérez votre avatar et vos informations de contact professionnelles.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>Identit├⌐ Personnelles</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>G├⌐rez votre avatar et vos informations de contact professionnelles.</p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '32px', padding: '24px', background: 'var(--bg-main)', borderRadius: '24px', border: '1.5px solid var(--border)' }}>
@@ -1105,7 +1106,7 @@ const Settings = () => {
                     <h3 style={{ margin: '0 0 6px 0', fontSize: '1.3rem', fontWeight: '900' }}>{user?.nom}</h3>
                     <p style={{ margin: '0 0 12px 0', color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 600 }}>ID Membre: #{user?.id}</p>
                     <button onClick={() => fileInputRef.current?.click()} className="btn-premium primary" style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
-                      Mettre à jour la photo
+                      Mettre ├á jour la photo
                     </button>
                   </div>
                 </div>
@@ -1114,7 +1115,7 @@ const Settings = () => {
                   <InputField label="Nom Complet" icon={UserIcon} value={profileData.nom} onChange={(e: any) => setProfileData({ ...profileData, nom: e.target.value })} placeholder="Ex: Jean Dupont" />
                   <InputField label="Email (Lecture seule)" icon={Mail} value={profileData.email} readOnly placeholder="email@example.com" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Numéro de Téléphone</label>
+                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Num├⌐ro de T├⌐l├⌐phone</label>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <div style={{ width: '130px', position: 'relative' }}>
                         <select
@@ -1163,7 +1164,7 @@ const Settings = () => {
                         onChange={(e) => setProfileData({ ...profileData, typeActivite: e.target.value })}
                         style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700', outline: 'none', boxSizing: 'border-box', appearance: 'none' }}
                       >
-                        {activityTypes.map(a => <option key={a} value={a}>{a}</option>)}
+                        {activityTypes.map(a => <option key={a} value={a}>{BUSINESS_TYPES[a]?.label || a}</option>)}
                       </select>
                     </div>
                   </div>
@@ -1176,7 +1177,7 @@ const Settings = () => {
               <motion.div key="business" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Configuration Enseigne</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Ces informations apparaîtront sur vos factures et rapports d'activité.</p>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Ces informations appara├«tront sur vos factures et rapports d'activit├⌐.</p>
                 </div>
 
                 <div style={{ padding: '24px', borderRadius: '24px', background: 'var(--secondary-glow)', border: '1.5px solid var(--secondary)', display: 'flex', alignItems: 'center', gap: '18px', position: 'relative' }}>
@@ -1191,7 +1192,7 @@ const Settings = () => {
                   </div>
                   <div>
                     <p style={{ margin: 0, fontWeight: '900', fontSize: '1.1rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{profileData.typeActivite} · Système de gestion {currency}</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{profileData.typeActivite} ┬╖ Syst├¿me de gestion {currency}</p>
                   </div>
                   <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
                   <button
@@ -1236,7 +1237,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <InputField label="Adresse Physique" icon={MapPin} value={profileData.entreprise.adresse} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, adresse: e.target.value } })} placeholder="Numéro, Rue, Ville, Pays" />
+                    <InputField label="Adresse Physique" icon={MapPin} value={profileData.entreprise.adresse} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, adresse: e.target.value } })} placeholder="Num├⌐ro, Rue, Ville, Pays" />
                   </div>
                 </div>
               </motion.div>
@@ -1246,8 +1247,8 @@ const Settings = () => {
             {activeTab === 'appearance' && (
               <motion.div key="appearance" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Expérience Visuelle</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Personnalisez l'apparence du système selon vos préférences de travail.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Exp├⌐rience Visuelle</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Personnalisez l'apparence du syst├¿me selon vos pr├⌐f├⌐rences de travail.</p>
                 </div>
 
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1257,7 +1258,7 @@ const Settings = () => {
                     </div>
                     <div>
                       <p style={{ fontWeight: '900', margin: 0 }}>Mode Sombre / Clair</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Thème actuel: {theme === 'dark' ? 'Minuit / Sombre' : 'Zen / Clair'}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Th├¿me actuel: {theme === 'dark' ? 'Minuit / Sombre' : 'Zen / Clair'}</p>
                     </div>
                   </div>
                   <div
@@ -1274,8 +1275,8 @@ const Settings = () => {
                       <Globe size={24} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>Langue du Système</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Traduction complète de l'interface.</p>
+                      <p style={{ fontWeight: '900', margin: 0 }}>Langue du Syst├¿me</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Traduction compl├¿te de l'interface.</p>
                     </div>
                   </div>
                   <select
@@ -1283,8 +1284,8 @@ const Settings = () => {
                     onChange={(e) => setLanguage(e.target.value as any)}
                     style={{ padding: '12px 24px', borderRadius: '14px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
                   >
-                    <option value="fr">🇫🇷 Français</option>
-                    <option value="en">🇬🇧 English</option>
+                    <option value="fr">≡ƒç½≡ƒç╖ Fran├ºais</option>
+                    <option value="en">≡ƒç¼≡ƒçº English</option>
                   </select>
                 </div>
               </motion.div>
@@ -1295,17 +1296,17 @@ const Settings = () => {
               <motion.div key="modules" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Hub de Modules</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Activez des puissances supplémentaires pour votre commerce.</p>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Activez des puissances suppl├⌐mentaires pour votre commerce.</p>
                 </div>
 
                 {[
-                  { id: 'ai', label: 'Intelligence Artificielle', desc: 'Analyses DeepSeek AI et prévisions de vente.', icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
-                  { id: 'suppliers', label: 'Gestion Fournisseurs', desc: 'Stocks et créances fournisseurs.', icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
-                  { id: 'debts', label: 'Crédit Client', desc: 'Suivi des impayés et relances.', icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
-                  { id: 'analytics', label: 'Dashboard Avancé', desc: 'Rapports graphiques et KPI exports.', icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
-                  { id: 'cash', label: 'Gestion de Caisse', desc: 'Sessions de caisse et rapports de clôture.', icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
+                  { id: 'ai', label: 'Intelligence Artificielle', desc: 'Analyses DeepSeek AI et pr├⌐visions de vente.', icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
+                  { id: 'suppliers', label: 'Gestion Fournisseurs', desc: 'Stocks et cr├⌐ances fournisseurs.', icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
+                  { id: 'debts', label: 'Cr├⌐dit Client', desc: 'Suivi des impay├⌐s et relances.', icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
+                  { id: 'analytics', label: 'Dashboard Avanc├⌐', desc: 'Rapports graphiques et KPI exports.', icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
+                  { id: 'cash', label: 'Gestion de Caisse', desc: 'Sessions de caisse et rapports de cl├┤ture.', icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
 
-                  { id: 'barcode', label: 'Scanner Code-barres', desc: 'Support caméra mobile et scanners USB.', icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
+                  { id: 'barcode', label: 'Scanner Code-barres', desc: 'Support cam├⌐ra mobile et scanners USB.', icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
                     key={mod.id}
@@ -1342,8 +1343,8 @@ const Settings = () => {
             {activeTab === 'security' && (
               <motion.div key="security" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Coffre-Fort & Accès</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Renforcez la sécurité de votre compte administrateur.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Coffre-Fort & Acc├¿s</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Renforcez la s├⌐curit├⌐ de votre compte administrateur.</p>
                 </div>
 
                 {/* 2FA Toggle */}
@@ -1392,12 +1393,12 @@ const Settings = () => {
                     )}
                   </div>
                   <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: '1.5' }}>
-                    ⚠️ Les modifications de mot de passe sont irréversibles. Assurez-vous d'avoir noté votre nouvelle clé d'accès.
+                    ΓÜá∩╕Å Les modifications de mot de passe sont irr├⌐versibles. Assurez-vous d'avoir not├⌐ votre nouvelle cl├⌐ d'acc├¿s.
                   </div>
 
                   <div style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1.5px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Save size={20} color="var(--primary)" /> Gestion des Données
+                      <Save size={20} color="var(--primary)" /> Gestion des Donn├⌐es
                     </h3>
 
                     <div style={{
@@ -1418,8 +1419,8 @@ const Settings = () => {
                           <p style={{ margin: 0, fontWeight: 900, fontSize: '1rem' }}>Sauvegarde Automatique (Cron)</p>
                           <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                             {autoBackupEnabled
-                              ? 'Activée — Sauvegarde quotidienne à minuit.'
-                              : 'Désactivée — Les données ne sont pas sauvegardées.'}
+                              ? 'Activ├⌐e ΓÇö Sauvegarde quotidienne ├á minuit.'
+                              : 'D├⌐sactiv├⌐e ΓÇö Les donn├⌐es ne sont pas sauvegard├⌐es.'}
                           </p>
                         </div>
                       </div>
@@ -1494,7 +1495,7 @@ const Settings = () => {
                         }}
                       >
                         {backupLoading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                        Télécharger (JSON)
+                        T├⌐l├⌐charger (JSON)
                       </motion.button>
 
                       <motion.button
@@ -1518,11 +1519,11 @@ const Settings = () => {
                     {/* Section Restauration */}
                     <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1.5px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <RefreshCcw size={20} color="var(--secondary)" /> Restauration des données
+                        <RefreshCcw size={20} color="var(--secondary)" /> Restauration des donn├⌐es
                       </h3>
                       <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
                         Importez un fichier de sauvegarde JSON pour restaurer vos listes de produits, clients et ventes.
-                        Note: Les doublons seront ignorés.
+                        Note: Les doublons seront ignor├⌐s.
                       </p>
 
                       <div style={{ position: 'relative' }}>
@@ -1567,8 +1568,8 @@ const Settings = () => {
                                 <FileJson size={24} color="#10b981" />
                               </div>
                               <div>
-                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aperçu de la sauvegarde</h4>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Exportée le : {new Date(restorePreview.exportedAt).toLocaleString()}</p>
+                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aper├ºu de la sauvegarde</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Export├⌐e le : {new Date(restorePreview.exportedAt).toLocaleString()}</p>
                               </div>
                             </div>
 
@@ -1589,7 +1590,7 @@ const Settings = () => {
                             <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                               <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
                               <p style={{ margin: 0, fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, lineHeight: 1.4 }}>
-                                Cette action va fusionner ces données avec vos données actuelles. Les ventes déjà existantes ne seront pas dupliquées.
+                                Cette action va fusionner ces donn├⌐es avec vos donn├⌐es actuelles. Les ventes d├⌐j├á existantes ne seront pas dupliqu├⌐es.
                               </p>
                             </div>
 
@@ -1659,7 +1660,7 @@ const Settings = () => {
               }}
             >
               {saving ? <Loader2 size={20} className="animate-spin" /> : savedSuccess ? <CheckCircle size={20} /> : <Save size={20} />}
-              {saving ? 'Synchronisation...' : savedSuccess ? 'Modifications Appliquées' : 'Sauvegarder les changements'}
+              {saving ? 'Synchronisation...' : savedSuccess ? 'Modifications Appliqu├⌐es' : 'Sauvegarder les changements'}
             </motion.button>
           </div>
         </div>
@@ -1668,8 +1669,8 @@ const Settings = () => {
       <Modal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
-        title="Se déconnecter ?"
-        subtitle="Confirmez-vous vouloir mettre fin à votre session actuelle ?"
+        title="Se d├⌐connecter ?"
+        subtitle="Confirmez-vous vouloir mettre fin ├á votre session actuelle ?"
         icon={LogOut}
         maxWidth="450px"
       >
@@ -1686,7 +1687,7 @@ const Settings = () => {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
             }}
           >
-            <LogOut size={18} /> Oui, me déconnecter
+            <LogOut size={18} /> Oui, me d├⌐connecter
           </button>
           <button
             onClick={() => setShowLogoutConfirm(false)}

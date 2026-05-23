@@ -99,9 +99,9 @@ const getDashboardStats = async (req, res, next) => {
         const stockCostAll = parseFloat(stockStats?.totalCost || 0);
         const expAll = parseFloat(expStats?.total || 0);
 
-        // Marge nette = Total Ventes enregistrées − Total Coût total des achats en stock
+        // Marge nette = Total Profit Net enregistré (Ventes - Coût des ventes)
         // Toutes les valeurs sont déjà normalisées en CDF
-        const netMargin = Math.max(0, revAll - stockCostAll);
+        const netMargin = profAll;
 
         // Produits avec date d'expiration proche (< 30 j)
         const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));

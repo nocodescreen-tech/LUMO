@@ -292,7 +292,7 @@ const Fournisseurs = () => {
                     <input type="email" placeholder="contact@fournisseur.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Téléphone</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>T├⌐l├⌐phone</label>
                     <input type="text" placeholder="+243 ..." value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -324,7 +324,7 @@ const Fournisseurs = () => {
                     <input type="email" placeholder="contact@fournisseur.com" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>Téléphone</label>
+                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>T├⌐l├⌐phone</label>
                     <input type="text" placeholder="+243 ..." value={editData.telephone} onChange={e => setEditData({ ...editData, telephone: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
                  </div>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -219,7 +219,8 @@ const verify2FA = async (req, res, next) => {
 
     // Mode TOTP (Google Authenticator)
     if (user.twoFactorSecret) {
-      isVerified = authenticator.check(code, user.twoFactorSecret);
+      authenticator.options = { window: 1 };
+      isVerified = authenticator.check(String(code), user.twoFactorSecret);
     } 
     // Mode Email (Fallback)
     else {
@@ -364,7 +365,8 @@ const activateTOTP = async (req, res, next) => {
     const secret = user.twoFactorCode;
     if (!secret) return res.status(400).json({ message: "Session d'activation expirée." });
 
-    const isVerified = authenticator.check(code, secret);
+    authenticator.options = { window: 1 }; // Allow 1 step (30s) before/after
+    const isVerified = authenticator.check(String(code), secret);
     if (!isVerified) return res.status(400).json({ message: "Code incorrect. Réessayez." });
 
     user.twoFactorSecret = secret;

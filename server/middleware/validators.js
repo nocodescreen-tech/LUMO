@@ -23,7 +23,7 @@ const validateRegister = (data) => {
                 'string.empty': 'Un mot de passe est indispensable',
                 'any.required': 'Le mot de passe est obligatoire'
             }).label('Mot de passe'),
-        typeActivite: Joi.string().optional(),
+        typeActivite: Joi.string().valid('commerce-general', 'pharmacie', 'quincaillerie', 'boutique-mode').optional(),
         telephone: Joi.string().optional(),
         entrepriseNom: Joi.string().required().messages({
             'string.empty': "Le nom de votre commerce est indispensable pour finaliser l'inscription",

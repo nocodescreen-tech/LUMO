@@ -117,25 +117,25 @@ const AIChat = () => {
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="glass"
+                        className="shadow-2xl"
                         style={{ 
                             width: isExpanded ? '600px' : '380px', 
                             height: isExpanded ? '700px' : '520px', 
                             borderRadius: '28px', 
-                            border: '1px solid var(--border)',
-                            background: 'var(--bg-card)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            backgroundColor: '#1E1E2D',
                             display: 'flex',
                             flexDirection: 'column',
                             overflow: 'hidden',
                             marginBottom: '16px',
-                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.1)',
                             transition: 'width 0.3s, height 0.3s'
                         }}
                     >
                         {/* Header */}
-                        <div style={{ padding: '20px', background: 'var(--grad-primary)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ padding: '20px', background: 'var(--grad-primary)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ background: 'white', padding: '6px', borderRadius: '10px', color: 'var(--primary)' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px', borderRadius: '10px', color: 'white' }}>
                                     <Sparkles size={20} />
                                 </div>
                                 <div>
@@ -144,21 +144,21 @@ const AIChat = () => {
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}>
+                                <button onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
                                     {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                                 </button>
-                                <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}>
+                                <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
                                     <X size={18} />
                                 </button>
                             </div>
                         </div>
 
                         {/* Messages Area */}
-                        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-card)' }}>
+                        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#16161F' }}>
                             {messages.length === 0 && (
-                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                    <Bot size={48} opacity={0.2} style={{ marginBottom: '16px' }} />
-                                    <p style={{ fontSize: '0.9rem' }}>Bonjour ! Posez-moi une question sur vos ventes, votre stock ou demandez-moi un conseil stratégique.</p>
+                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#64748b', padding: '20px' }}>
+                                    <Bot size={48} color="#6366f1" opacity={0.3} style={{ marginBottom: '16px' }} />
+                                    <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#64748b', fontWeight: 600 }}>Bonjour ! Posez-moi une question sur vos ventes, votre stock ou demandez-moi un conseil stratégique.</p>
                                 </div>
                             )}
                             {messages.map((m, i) => (
@@ -167,37 +167,38 @@ const AIChat = () => {
                                     maxWidth: '85%',
                                     padding: '14px 18px',
                                     borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                    backgroundColor: m.role === 'user' ? 'var(--primary)' : 'var(--bg-main)',
-                                    color: m.role === 'user' ? 'white' : 'var(--text-main)',
-                                    border: m.role === 'user' ? 'none' : '1px solid var(--border)',
+                                    backgroundColor: m.role === 'user' ? '#6366f1' : '#232333',
+                                    color: m.role === 'user' ? 'white' : '#e2e8f0',
+                                    border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.06)',
                                     fontSize: '0.9rem',
-                                    lineHeight: '1.5',
-                                    boxShadow: m.role === 'user' ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : 'none'
+                                    lineHeight: '1.6',
+                                    fontWeight: 500,
+                                    boxShadow: m.role === 'user' ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
                                 }}>
                                     {m.content}
                                 </div>
                             ))}
                             {loading && messages[messages.length - 1]?.role === 'user' && (
-                                <div style={{ alignSelf: 'flex-start', background: 'var(--bg-main)', border: '1px solid var(--border)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px' }}>
-                                    <Loader2 size={16} className="animate-spin" />
-                                    <span style={{ fontSize: '0.8rem' }}>Analyse en cours...</span>
+                                <div style={{ alignSelf: 'flex-start', background: '#232333', border: '1px solid rgba(255,255,255,0.06)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <Loader2 size={16} className="animate-spin" color="#6366f1" />
+                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Analyse en cours...</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Input Area */}
-                        <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px' }}>
+                        <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px', backgroundColor: '#1A1A28', flexShrink: 0 }}>
                             <input 
                                 type="text"
                                 placeholder="Posez votre question..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.9rem' }}
+                                style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#232333', color: '#e2e8f0', outline: 'none', fontSize: '0.9rem', fontWeight: 500 }}
                             />
                             <button 
                                 type="submit"
                                 disabled={loading || !input.trim()}
-                                style={{ width: '44px', height: '44px', borderRadius: '14px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}
+                                style={{ width: '44px', height: '44px', borderRadius: '14px', border: 'none', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.2s', flexShrink: 0 }}
                             >
                                 <Send size={18} />
                             </button>
