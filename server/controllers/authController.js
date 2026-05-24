@@ -346,7 +346,7 @@ const setupTOTP = async (req, res, next) => {
 
     // Le secret est stocké dans twoFactorCode (champ réutilisé temporairement)
     user.twoFactorCode = secret;
-    user.twoFactorExpire = new Date(Date.now() + 15 * 60 * 1000);
+    user.twoFactorExpire = Date.now() + 15 * 60 * 1000;
     await user.save({ hooks: false });
 
     const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
@@ -371,7 +371,7 @@ const activateTOTP = async (req, res, next) => {
     if (!secret) return res.status(400).json({ message: "Session d'activation expirée." });
 
     // Vérifier l'expiration de la session de setup TOTP
-    if (user.twoFactorExpire && user.twoFactorExpire < Date.now()) {
+    if (user.twoFactorExpire && Number(user.twoFactorExpire) < Date.now()) {
       // Nettoyage de sécurité
       user.twoFactorCode = null;
       user.twoFactorExpire = null;

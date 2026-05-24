@@ -3,6 +3,7 @@ const { validateSale } = require('../middleware/validators');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../utils/pagination');
+const { invalidateCache } = require('../utils/cache');
 
 exports.getSales = async (req, res, next) => {
   try {
@@ -239,6 +240,7 @@ exports.createSale = async (req, res, next) => {
     }
 
     await transaction.commit();
+    await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, sale, 'Vente enregistrée avec succès');
   } catch (error) {
@@ -305,6 +307,7 @@ exports.deleteSale = async (req, res, next) => {
     }
 
     await sale.destroy();
+    await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, null, 'Vente supprimée avec succès');
   } catch (error) {
@@ -360,6 +363,7 @@ exports.deleteAllSales = async (req, res, next) => {
       }
 
       await transaction.commit();
+      await invalidateCache('stats');
       const { sendResponse } = require('../utils/response');
       sendResponse(res, 200, null, 'Historique des ventes vidé et stocks restitués');
     } catch (error) {
@@ -379,6 +383,7 @@ exports.updateSale = async (req, res, next) => {
     
     // Pour une mise à jour simple sans recalcul de stock
     await sale.update(req.body);
+    await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, sale, 'Vente mise à jour');
   } catch (error) {
@@ -440,6 +445,7 @@ exports.refundSale = async (req, res, next) => {
 
     sale.statut = 'Remboursée';
     await sale.save();
+    await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, sale, 'Vente remboursée et stock restitué');
   } catch (error) {

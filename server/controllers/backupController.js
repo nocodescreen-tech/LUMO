@@ -121,7 +121,7 @@ exports.exportEmailBackup = async (req, res, next) => {
             <ul>
                 <li>🛍️ Produits : <strong>${backupData.data.products.length}</strong></li>
                 <li>💰 Ventes : <strong>${backupData.data.sales.length}</strong></li>
-                <li>💰 Achat : <strong>${backupData.data.purchase.length}</strong></li>
+                <li>💰 Achat : <strong>${backupData.data.purchases.length}</strong></li>
                 <li>👥 Clients : <strong>${backupData.data.clients.length}</strong></li>
                 <li>📦 Mouvements de stock : <strong>${backupData.data.movements.length}</strong></li>
                 <li>🏪 Sessions de caisse : <strong>${backupData.data.sessions.length}</strong></li>
