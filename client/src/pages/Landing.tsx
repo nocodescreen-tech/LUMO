@@ -763,9 +763,9 @@ export default function Landing() {
           <div style={{
             width: '100%', aspectRatio: '16/9', borderRadius: 16, overflow: 'hidden',
             background: 'var(--bg-main)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundImage: 'url(/screen3.png)', backgroundSize: 'cover', backgroundPosition: 'center',
+            backgroundImage: 'url(/video3.mp4)', backgroundSize: 'cover', backgroundPosition: 'center',
           }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
             <motion.button
               whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
               style={{
