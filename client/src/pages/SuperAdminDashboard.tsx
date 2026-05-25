@@ -17,6 +17,7 @@ import Logo from '../components/layout/Logo';
 
 const SuperAdminDashboard = () => {
     const { currency, exchangeRate } = useAuthStore();
+    const safeExchangeRate = Number(exchangeRate) > 0 ? Number(exchangeRate) : 2800;
     const [users, setUsers] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
     const [platformStats, setPlatformStats] = useState<any>(null);
@@ -25,7 +26,7 @@ const SuperAdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterOnline, setFilterOnline] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'logs' | 'notifications' | 'newsletter' | 'settings'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'logs' | 'notifications' | 'visitors' | 'newsletter' | 'settings'>('overview');
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [showUserModal, setShowUserModal] = useState(false);
     const [actionMenuOpenId, setActionMenuOpenId] = useState<number | null>(null);
@@ -264,6 +265,18 @@ const SuperAdminDashboard = () => {
         return matchesSearch && isOnline;
     }), [users, searchTerm, filterOnline]);
 
+    const formatMoney = (amount: number, devise: 'USD' | 'CDF') => {
+        const value = Number.isFinite(amount) ? amount : 0;
+        return `${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${devise}`;
+    };
+
+    const revenueUsd = Number(platformStats?.revenue?.total || 0);
+    const purchasesUsd = Number(platformStats?.purchases?.total || 0);
+    const marginUsd = revenueUsd - purchasesUsd;
+    const revenueDisplay = currency === 'USD' ? formatMoney(revenueUsd, 'USD') : formatMoney(revenueUsd * safeExchangeRate, 'CDF');
+    const purchasesDisplay = currency === 'USD' ? formatMoney(purchasesUsd, 'USD') : formatMoney(purchasesUsd * safeExchangeRate, 'CDF');
+    const marginDisplay = currency === 'USD' ? formatMoney(marginUsd, 'USD') : formatMoney(marginUsd * safeExchangeRate, 'CDF');
+
     const StatCard = ({ title, value, subtext, icon: Icon, color, trend }: any) => (
         <motion.div
             whileHover={{ y: -10, boxShadow: '0 40px 60px -15px rgba(0,0,0,0.08)' }}
@@ -411,6 +424,7 @@ const SuperAdminDashboard = () => {
                 <TabButton id="users" icon={Users} label="Utilisateurs" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
                 <TabButton id="logs" icon={Activity} label="Audit Log Central" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
                 <TabButton id="notifications" icon={Bell} label="Broadcast Système" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
+                <TabButton id="visitors" icon={Eye} label="Visiteurs & Messages" active={activeTab === 'visitors'} onClick={() => setActiveTab('visitors')} />
                 <TabButton id="newsletter" icon={Mail} label="Newsletter" active={activeTab === 'newsletter'} onClick={() => setActiveTab('newsletter')} />
                 <TabButton id="settings" icon={Database} label="Noyau Système" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
             </div>
@@ -428,34 +442,27 @@ const SuperAdminDashboard = () => {
                         {/* KPI GRID */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
                             <StatCard
-                                title="REVENU GLOBAL PLATEFORME"
-                                value={currency === 'USD' 
-                                    ? `${(platformStats?.revenue?.total || 0).toLocaleString()} USD` 
-                                    : `${((platformStats?.revenue?.total || 0) * exchangeRate).toLocaleString()} CDF`
-                                }
-                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.revenue?.total || 0).toLocaleString()} USD` : "Flux consolidé de toutes les instances"}
+                                title="CHIFFRE D'AFFAIRES CONSOLIDÉ"
+                                value={revenueDisplay}
+                                subtext={currency === 'CDF' ? `≈ ${formatMoney(revenueUsd, 'USD')}` : "Somme des ventes de toutes les instances"}
                                 icon={Landmark}
                                 color="#6366f1"
                                 trend={platformStats?.revenueTrend}
                             />
                             <StatCard
                                 title="VOLUME D'ACHATS BRUT"
-                                value={currency === 'USD' 
-                                    ? `${(platformStats?.purchases?.total || 0).toLocaleString()} USD` 
-                                    : `${((platformStats?.purchases?.total || 0) * exchangeRate).toLocaleString()} CDF`
-                                }
-                                subtext={currency === 'CDF' ? `≈ ${(platformStats?.purchases?.total || 0).toLocaleString()} USD` : "Approvisionnements cumulés"}
+                                value={purchasesDisplay}
+                                subtext={currency === 'CDF' ? `≈ ${formatMoney(purchasesUsd, 'USD')}` : "Approvisionnements cumulés"}
                                 icon={ShoppingBag}
                                 color="#ec4899"
                             />
 
                             <StatCard
-                                title="ARTICLES RÉFÉRENCÉS"
-                                value={`${(platformStats?.counts?.products || 0).toLocaleString()} UNITÉS`}
-                                subtext="Catalogue total Lumos"
-                                icon={Boxes}
-                                color="#10b981"
-                                trend={platformStats?.productsTrend}
+                                title="MARGE BRUTE ESTIMÉE"
+                                value={marginDisplay}
+                                subtext={currency === 'CDF' ? `≈ ${formatMoney(marginUsd, 'USD')}` : "CA consolidé - achats consolidés"}
+                                icon={Wallet}
+                                color={marginUsd < 0 ? '#ef4444' : '#10b981'}
                             />
                         </div>
 
@@ -554,6 +561,8 @@ const SuperAdminDashboard = () => {
                                         { label: 'E-mails Vérifiés', value: users.filter(u => u.isVerified).length, color: 'rgba(255,255,255,0.2)' },
                                         { label: 'Comptes Actifs', value: users.filter(u => u.isAdminValidated).length, color: 'rgba(255,255,255,0.2)' },
                                         { label: 'En attente de validation', value: users.filter(u => !u.isAdminValidated).length, color: '#f59e0b', special: true },
+                                        { label: 'Visites Landing', value: platformStats?.counts?.landingVisits || 0, color: 'rgba(255,255,255,0.2)' },
+                                        { label: 'Messages visiteurs', value: platformStats?.counts?.landingMessages || 0, color: 'rgba(255,255,255,0.2)' },
                                     ].map((item, idx) => (
                                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
                                             <span style={{ opacity: 0.9, fontWeight: '700', fontSize: '1.05rem' }}>{item.label}</span>
@@ -566,6 +575,60 @@ const SuperAdminDashboard = () => {
                                         <RefreshCw size={16} className="animate-spin" /> Serveur OPS • Latence stable (42ms)
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {activeTab === 'visitors' && (
+                    <motion.div
+                        key="visitors"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass"
+                        style={{ borderRadius: '44px', border: '1px solid var(--border)', padding: '40px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
+                    >
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+                            <div style={{ padding: '24px', borderRadius: '22px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                                    <Eye size={22} color="#6366f1" />
+                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900 }}>Visites Landing</h3>
+                                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: 950, color: 'var(--text-main)' }}>{(platformStats?.counts?.landingVisits || 0).toLocaleString()}</div>
+                                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontWeight: 600 }}>Trafic consolidé enregistré</p>
+                            </div>
+
+                            <div style={{ padding: '24px', borderRadius: '22px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                                    <Mail size={22} color="#10b981" />
+                                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 900 }}>Messages reçus</h3>
+                                </div>
+                                <div style={{ fontSize: '2rem', fontWeight: 950, color: 'var(--text-main)' }}>{landingInbox.length.toLocaleString()}</div>
+                                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontWeight: 600 }}>Inbox visiteurs / clients</p>
+                            </div>
+                        </div>
+
+                        <div style={{ border: '1px solid var(--border)', borderRadius: '20px', background: 'var(--bg-main)', overflow: 'hidden' }}>
+                            <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--text-main)' }}>Boîte de réception - Landing Page</h4>
+                                <button onClick={fetchSubscribers} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-main)', borderRadius: '12px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                                    <RefreshCw size={16} /> Actualiser
+                                </button>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '55vh', overflowY: 'auto', padding: '14px' }}>
+                                {landingInbox.map((m: any) => (
+                                    <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px', background: 'var(--bg-card)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                            <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{m.nom || 'Visiteur'}</strong>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(m.createdAt).toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>{m.email || 'Sans email'}</div>
+                                        <div style={{ marginTop: '8px', fontSize: '0.88rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{m.message}</div>
+                                    </div>
+                                ))}
+                                {landingInbox.length === 0 && (
+                                    <div style={{ color: 'var(--text-muted)', fontWeight: 600, padding: '10px' }}>Aucun message reçu pour le moment.</div>
+                                )}
                             </div>
                         </div>
                     </motion.div>
