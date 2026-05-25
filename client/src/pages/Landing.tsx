@@ -343,7 +343,7 @@ export default function Landing() {
       referrer: document.referrer || '',
       ua: navigator.userAgent || '',
       lang: navigator.language || '',
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
