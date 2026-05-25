@@ -334,6 +334,18 @@ export default function Landing() {
   const [contactForm, setContactForm] = useState({ nom: '', email: '', message: '' });
   const [sendingContact, setSendingContact] = useState(false);
 
+  useEffect(() => {
+    const key = `landing_visit_${new Date().toISOString().slice(0, 10)}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    api.post('/contact/visit', {
+      path: window.location.pathname || '/',
+      referrer: document.referrer || '',
+      ua: navigator.userAgent || '',
+      lang: navigator.language || '',
+    }).catch(() => {});
+  }, []);
+
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.nom || !contactForm.email || !contactForm.message) {
@@ -1329,9 +1341,8 @@ export default function Landing() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
           {[
-            { name: 'René M.', role: 'Lead Architect & Founder', img: '/team/rene.png' },
-            { name: 'Sarah L.', role: 'Product Designer', img: '/team/sarah.png' },
-            { name: 'Jean D.', role: 'AI Engineering', img: '/team/jean.png' }
+            { name: 'René Des.', role: 'Lead Architect & Founder', img: '/team/rene.png' },
+            { name: 'Mardoché Nl.', role: 'Product Designer', img: '/team/sarah.png' },
           ].map((m, i) => (
             <motion.div key={i} whileHover={{ y: -10 }} style={{ textAlign: 'center' }}>
               <div style={{ width: 180, height: 180, borderRadius: '30% 70% 70% 30% / 30% 30% 70% 70%', overflow: 'hidden', margin: '0 auto 24px', border: '4px solid var(--primary)' }}>

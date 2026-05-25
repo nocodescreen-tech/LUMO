@@ -11,6 +11,7 @@ const {
   deleteUser,
   verifyUserEmail,
   getNewsletterSubscribers,
+  getLandingInbox,
   getGlobalSettings,
   updateGlobalSetting,
   impersonateUser
@@ -48,6 +49,7 @@ router.delete('/users/:id', deleteUser);
 router.get('/logs', getSuperadminLogs);
 router.get('/stats', getSuperadminStats);
 router.get('/newsletter', getNewsletterSubscribers);
+router.get('/landing-inbox', getLandingInbox);
 router.post('/notify', broadcastNotification);
 
 router.get('/settings', getGlobalSettings);

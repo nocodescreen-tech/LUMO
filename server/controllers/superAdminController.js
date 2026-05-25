@@ -38,7 +38,7 @@ const getSuperadminLogs = async (req, res, next) => {
 const getSuperadminStats = async (req, res, next) => {
   try {
     const startTs = Date.now();
-    const [revenueRows, purchaseRows, counts, usersForAi] = await Promise.all([
+    const [revenueRows, purchaseRows, counts, usersForAi, landingVisits, landingMessages] = await Promise.all([
       Sale.findAll(),
       Purchase.findAll(),
       Promise.all([
@@ -46,7 +46,9 @@ const getSuperadminStats = async (req, res, next) => {
         Product.count(),
         Activite.count(),
       ]),
-      User.findAll({ attributes: ['chatHistory'] })
+      User.findAll({ attributes: ['chatHistory'] }),
+      Activite.count({ where: { type: 'LANDING_VISIT' } }),
+      Activite.count({ where: { type: 'LANDING_MESSAGE' } })
     ]);
 
     const totalRevenue = revenueRows.reduce((acc, s) => {
@@ -111,7 +113,9 @@ const getSuperadminStats = async (req, res, next) => {
       counts: {
         users: usersCount,
         products: productsCount,
-        activities: activityCount
+        activities: activityCount,
+        landingVisits,
+        landingMessages
       },
     });
   } catch (error) {
@@ -222,6 +226,31 @@ const getNewsletterSubscribers = async (req, res, next) => {
   }
 };
 
+const getLandingInbox = async (req, res, next) => {
+  try {
+    const messages = await Activite.findAll({
+      where: { type: 'LANDING_MESSAGE' },
+      order: [['createdAt', 'DESC']],
+      limit: 200
+    });
+
+    const payload = messages.map((m) => {
+      let parsed = {};
+      try { parsed = JSON.parse(m.description || '{}'); } catch (_) {}
+      return {
+        id: m.id,
+        nom: parsed.nom || m.userNom || 'Visiteur',
+        email: parsed.email || '',
+        message: parsed.message || m.description || '',
+        createdAt: m.createdAt,
+      };
+    });
+    res.json(payload);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Impersonation (Se connecter en tant que)
 const jwt = require('jsonwebtoken');
 
@@ -317,6 +346,7 @@ module.exports = {
   deleteUser,
   verifyUserEmail,
   getNewsletterSubscribers,
+  getLandingInbox,
   getGlobalSettings,
   updateGlobalSetting,
   impersonateUser

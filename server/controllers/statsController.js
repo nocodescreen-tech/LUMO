@@ -114,50 +114,97 @@ exports.getSalesChartData = async (req, res, next) => {
 exports.getAnalytics = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
-    const { startDate, endDate } = req.query;
+    const { period = '7d', startDate, endDate } = req.query;
 
-    const dateFilter =
-      startDate && endDate
-        ? { createdAt: { [Op.between]: [new Date(startDate), new Date(endDate)] } }
-        : { createdAt: { [Op.gte]: new Date(Date.now() - 30 * MS_PER_DAY), [Op.lt]: new Date() } };
+    const now = new Date();
+    let fromDate = new Date(Date.now() - 7 * MS_PER_DAY);
+    if (period === 'today') fromDate = new Date(Date.now() - 1 * MS_PER_DAY);
+    if (period === '30d') fromDate = new Date(Date.now() - 30 * MS_PER_DAY);
+    if (period === '1y') fromDate = new Date(Date.now() - 365 * MS_PER_DAY);
+    if (startDate && endDate) fromDate = new Date(startDate);
 
-    const [totalRevenue, totalSalesByStatus, revenueByMonth] = await Promise.all([
-      Sale.sum('montantTotal', { where: { userId, ...dateFilter } }),
-      Sale.findAll({
-        where: { userId, ...dateFilter },
-        attributes: [
-          'statut',
-          [Sale.sequelize.fn('COUNT', Sale.sequelize.col('id')), 'count'],
-          [Sale.sequelize.fn('SUM', Sale.sequelize.col('montantTotal')), 'total'],
-        ],
-        group: ['statut'],
-        raw: true,
-      }),
-      Sale.findAll({
-        where: { userId, ...dateFilter },
-        attributes: [
-          [Sale.sequelize.fn('DATE_TRUNC', 'month', Sale.sequelize.col('createdAt')), 'month'],
-          [Sale.sequelize.fn('SUM', Sale.sequelize.col('montantTotal')), 'revenue'],
-          [Sale.sequelize.fn('COUNT', Sale.sequelize.col('id')), 'orders'],
-        ],
-        group: ['month'],
-        order: [['month', 'ASC']],
-        raw: true,
-      }),
-    ]);
+    const toDate = endDate ? new Date(endDate) : now;
+    const where = {
+      userId,
+      ...notRefunded,
+      createdAt: { [Op.gte]: fromDate, [Op.lte]: toDate },
+    };
 
-    return sendResponse(
-      res,
-      200,
-      {
-        revenuTotal: Number(totalRevenue || 0),
-        repartitionStatut: totalSalesByStatus,
-        topProduits: [],
-        topClients: [],
-        revenueByMonth,
+    const sales = await Sale.findAll({
+      where,
+      attributes: ['id', 'articles', 'montantTotal', 'createdAt'],
+      order: [['createdAt', 'ASC']],
+      raw: true,
+    });
+
+    const periodByDay = {};
+    const topProductsMap = {};
+    let totalRevenue = 0;
+
+    for (const s of sales) {
+      const amount = Number(s.montantTotal || 0);
+      totalRevenue += amount;
+
+      const key = new Date(s.createdAt).toISOString().slice(0, 10);
+      if (!periodByDay[key]) periodByDay[key] = { date: key, revenue: 0, total: 0 };
+      periodByDay[key].revenue += amount;
+      periodByDay[key].total += amount;
+
+      const items = Array.isArray(s.articles) ? s.articles : [];
+      for (const item of items) {
+        const nom = item?.nom || 'Produit';
+        const quantite = Number(item?.quantite || 0);
+        const revenu = Number(item?.totalLigneCDF || ((item?.prixUnitaire || 0) * quantite) || 0);
+        if (!topProductsMap[nom]) topProductsMap[nom] = { nom, quantite: 0, revenu: 0 };
+        topProductsMap[nom].quantite += quantite;
+        topProductsMap[nom].revenu += revenu;
+      }
+    }
+
+    const stockByCategoryRaw = await Product.findAll({
+      where: { userId },
+      attributes: [
+        [Product.sequelize.fn('COALESCE', Product.sequelize.col('categorie'), 'Sans categorie'), 'label'],
+        [Product.sequelize.fn('SUM', Product.sequelize.col('stock')), 'value'],
+      ],
+      group: ['categorie'],
+      raw: true,
+    });
+
+    const monthlyRevenueRows = await Sale.findAll({
+      where: {
+        userId,
+        ...notRefunded,
+        createdAt: { [Op.gte]: new Date(Date.now() - 183 * MS_PER_DAY), [Op.lte]: now },
       },
-      'Analytiques avancees recuperees'
-    );
+      attributes: [
+        [Sale.sequelize.fn('TO_CHAR', Sale.sequelize.fn('DATE_TRUNC', 'month', Sale.sequelize.col('createdAt')), 'YYYY-MM'), 'month'],
+        [Sale.sequelize.fn('SUM', Sale.sequelize.col('montantTotal')), 'revenue'],
+      ],
+      group: ['month'],
+      order: [['month', 'ASC']],
+      raw: true,
+    });
+
+    const payload = {
+      totals: { revenue: totalRevenue, profit: totalRevenue },
+      periodData: Object.values(periodByDay),
+      topProducts: Object.values(topProductsMap)
+        .sort((a, b) => b.revenu - a.revenu)
+        .slice(0, 10),
+      stockByCategory: stockByCategoryRaw.map((r, i) => ({
+        id: i + 1,
+        label: r.label || 'Sans categorie',
+        value: Number(r.value || 0),
+      })),
+      monthlyRevenue: {
+        labels: monthlyRevenueRows.map((r) => String(r.month)),
+        values: monthlyRevenueRows.map((r) => Number(r.revenue || 0)),
+      },
+      revenuTotal: totalRevenue,
+    };
+
+    return sendResponse(res, 200, payload, 'Analytiques avancees recuperees');
   } catch (error) {
     next(error);
   }

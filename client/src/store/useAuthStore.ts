@@ -291,7 +291,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (state.user) {
       updatedUser = {
         ...state.user,
-        entreprise: { ...state.user.entreprise, devise: curr },
         preferences: { ...state.user.preferences, currency: curr }
       };
       const currentAuth = decodeData(localStorage.getItem('lumo-auth')) || {};

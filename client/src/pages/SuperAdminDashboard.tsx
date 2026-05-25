@@ -21,6 +21,7 @@ const SuperAdminDashboard = () => {
     const [logs, setLogs] = useState<any[]>([]);
     const [platformStats, setPlatformStats] = useState<any>(null);
     const [subscribers, setSubscribers] = useState<any[]>([]);
+    const [landingInbox, setLandingInbox] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterOnline, setFilterOnline] = useState(false);
@@ -104,9 +105,10 @@ const SuperAdminDashboard = () => {
 
     const fetchSubscribers = async () => {
         try {
-            const [subRes, settingsRes] = await Promise.all([
+            const [subRes, settingsRes, inboxRes] = await Promise.all([
                 api.get(`/superadmin/newsletter?_t=${Date.now()}`),
-                api.get(`/superadmin/settings?_t=${Date.now()}`)
+                api.get(`/superadmin/settings?_t=${Date.now()}`),
+                api.get(`/superadmin/landing-inbox?_t=${Date.now()}`)
             ]);
             
             const sData = subRes.data;
@@ -114,6 +116,8 @@ const SuperAdminDashboard = () => {
             
             const stData = settingsRes.data;
             const settings = stData.success && stData.data ? stData.data : (stData.data || stData || []);
+            const iData = inboxRes.data;
+            setLandingInbox(iData.success && iData.data ? iData.data : (iData.data || iData || []));
             
             // Populate settings
             const title = settings.find((s: any) => s.key === 'newsletter_title');
@@ -983,6 +987,28 @@ const SuperAdminDashboard = () => {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+
+                        <div style={{ marginTop: '28px', padding: '24px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--text-main)' }}>Messages reçus depuis la Landing Page</h4>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 800 }}>{landingInbox.length} messages</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '260px', overflowY: 'auto' }}>
+                                {landingInbox.slice(0, 20).map((m: any) => (
+                                    <div key={m.id} style={{ border: '1px solid var(--border)', borderRadius: '14px', padding: '12px 14px', background: 'var(--bg-card)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                                            <strong style={{ fontSize: '0.9rem' }}>{m.nom || 'Visiteur'}</strong>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(m.createdAt).toLocaleString('fr-FR')}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>{m.email}</div>
+                                        <div style={{ marginTop: '8px', fontSize: '0.88rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{m.message}</div>
+                                    </div>
+                                ))}
+                                {landingInbox.length === 0 && (
+                                    <div style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Aucun message pour le moment.</div>
+                                )}
+                            </div>
                         </div>
 
                         {/* SECTION PERSONNALISATION */}

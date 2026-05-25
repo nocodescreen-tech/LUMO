@@ -28,7 +28,7 @@ import { Printer } from 'lucide-react';
 const Cash = () => {
     const { currency, user } = useAuthStore();
     const exchangeRate = user?.preferences?.exchangeRate || 2800;
-    const shopCurrency = user?.entreprise?.devise || 'USD';
+    const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
 
     const formatAmt = (amount: number) => {
         const { main, sub } = getDisplayAmount(amount, shopCurrency, currency, exchangeRate);
