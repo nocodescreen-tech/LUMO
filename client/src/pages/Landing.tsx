@@ -4,7 +4,7 @@ import {
   ArrowRight, BarChart3, CheckCircle2, ChevronDown,
   Cpu, Globe, Loader2, Moon, Package, ShieldCheck,
   ShoppingCart, Sparkles, Sun, TrendingUp, Users, Zap,
-  Menu, X, Star, DollarSign, Activity, Lock, Play, ChevronUp, Check, MessageSquare, Smartphone, Mail, Phone, MapPin,
+  Menu, X, Star, DollarSign, Activity, Lock, ChevronUp, Check, MessageSquare, Smartphone, Mail, Phone, MapPin,
   Facebook, Instagram, Linkedin, Twitter, Calculator, Heart, Send
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -762,20 +762,24 @@ export default function Landing() {
         >
           <div style={{
             width: '100%', aspectRatio: '16/9', borderRadius: 16, overflow: 'hidden',
-            background: 'var(--bg-main)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundImage: 'url(/video3.mp4)', backgroundSize: 'cover', backgroundPosition: 'center',
+            background: 'var(--bg-main)', position: 'relative',
           }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }} />
-            <motion.button
-              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+            <video
+              src="/demo-preview.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="metadata"
               style={{
-                width: 80, height: 80, borderRadius: '50%', background: 'var(--primary)',
-                color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', zIndex: 10, boxShadow: '0 10px 30px rgba(99,102,241,0.5)'
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                objectFit: 'cover',
+                background: 'var(--bg-main)'
               }}
-            >
-              <Play size={36} style={{ marginLeft: 4 }} />
-            </motion.button>
+            />
           </div>
         </motion.div>
       </section>
