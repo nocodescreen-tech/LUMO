@@ -1342,7 +1342,7 @@ export default function Landing() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
           {[
             { name: 'René Des.', role: 'Lead Architect & Founder', img: '/team/rene.jpg' },
-            { name: 'Mardoché Nl.', role: 'Product Designer', img: '/team/sarah.png' },
+            { name: 'Mardoché Nl.', role: 'Tester Ui', img: '/team/sarah.png' },
           ].map((m, i) => (
             <motion.div key={i} whileHover={{ y: -10 }} style={{ textAlign: 'center' }}>
               <div style={{ width: 180, height: 180, borderRadius: '30% 70% 70% 30% / 30% 30% 70% 70%', overflow: 'hidden', margin: '0 auto 24px', border: '4px solid var(--primary)' }}>

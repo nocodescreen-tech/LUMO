@@ -35,15 +35,23 @@ const formatCustomDate = (dateValue: any) => {
 };
 
 export const generateInvoice = (data: any, user: any = null) => {
+  const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
+  const saleCurrency = data.devise || data.currency || shopCurrency;
+  const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
+  const storedTotal = Number(data.montantTotal || data.total || 0);
+  const displayTotal = normalizeAmount(storedTotal, shopCurrency, saleCurrency, rate);
+
   const invoiceData: InvoiceData = {
     ...data,
     items: data.items || data.articles || [],
-    currency: data.currency || data.devise || (user?.preferences?.currency) || 'CDF',
+    currency: saleCurrency,
+    montantTotal: displayTotal,
+    total: displayTotal,
     entreprise: data.entreprise || user?.entreprise
   };
   
   const altCurrency = invoiceData.currency === 'CDF' ? 'USD' : 'CDF';
-  const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+  const exchangeRate = rate;
   const getAltAmount = (amount: number) => {
     return normalizeAmount(amount, invoiceData.currency, altCurrency, exchangeRate);
   };
@@ -186,15 +194,23 @@ export const generateInvoice = (data: any, user: any = null) => {
 };
 
 export const generateTicket = (data: any, user: any = null) => {
+  const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
+  const saleCurrency = data.devise || data.currency || shopCurrency;
+  const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
+  const storedTotal = Number(data.montantTotal || data.total || 0);
+  const displayTotal = normalizeAmount(storedTotal, shopCurrency, saleCurrency, rate);
+
   const ticketData = {
     ...data,
     items: data.items || data.articles || [],
-    currency: data.currency || data.devise || (user?.preferences?.currency) || 'CDF',
+    currency: saleCurrency,
+    montantTotal: displayTotal,
+    total: displayTotal,
     entreprise: data.entreprise || user?.entreprise
   };
 
   const altCurrency = ticketData.currency === 'CDF' ? 'USD' : 'CDF';
-  const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+  const exchangeRate = rate;
   const getAltAmount = (amount: number) => {
     return normalizeAmount(amount, ticketData.currency, altCurrency, exchangeRate);
   };

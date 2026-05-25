@@ -279,7 +279,7 @@ const TeamSection = () => {
       'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder'
     ]
   });
-  
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [paymentData, setPaymentData] = useState({
@@ -683,8 +683,8 @@ const TeamSection = () => {
             <InputField label="Montant" type="number" value={paymentData.amount} onChange={(e: any) => setPaymentData({ ...paymentData, amount: e.target.value })} placeholder="Ex: 500" required icon={DollarSign} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 800 }}>Type</label>
-              <select 
-                value={paymentData.type} 
+              <select
+                value={paymentData.type}
                 onChange={(e) => setPaymentData({ ...paymentData, type: e.target.value })}
                 style={{ padding: '12px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
               >
@@ -722,7 +722,7 @@ const TeamSection = () => {
                         <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(p.date).toLocaleDateString()} {p.note && `· ${p.note}`}</p>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={async () => {
                         if (confirm('Supprimer ce paiement ?')) {
                           await api.delete(`/staff-payments/${p.id}`);
@@ -1114,7 +1114,7 @@ const Settings = () => {
 
                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                   <InputField label="Nom Complet" icon={UserIcon} value={profileData.nom} onChange={(e: any) => setProfileData({ ...profileData, nom: e.target.value })} placeholder="Ex: Jean Dupont" />
-                  <InputField label="Email (Lecture seule)" icon={Mail} value={profileData.email} readOnly placeholder="email@example.com" />
+                  <InputField label="Email" icon={Mail} value={profileData.email} readOnly placeholder="email@example.com" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Numéro de Téléphone</label>
                     <div style={{ display: 'flex', gap: '12px' }}>
@@ -1430,9 +1430,9 @@ const Settings = () => {
                           const newVal = !autoBackupEnabled;
                           setAutoBackupEnabled(newVal);
                           if (user) {
-                            useAuthStore.getState().syncPreferencesToServer({ 
+                            useAuthStore.getState().syncPreferencesToServer({
                               autoBackupEnabled: newVal,
-                              backupTime: backupTime 
+                              backupTime: backupTime
                             });
                           }
                         }}
@@ -1450,7 +1450,7 @@ const Settings = () => {
                     </div>
 
                     {autoBackupEnabled && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         style={{
@@ -1464,8 +1464,8 @@ const Settings = () => {
                           <Clock size={18} style={{ color: 'var(--primary)' }} />
                           <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Heure de la sauvegarde quotidienne</span>
                         </div>
-                        <input 
-                          type="time" 
+                        <input
+                          type="time"
                           value={backupTime}
                           onChange={(e) => {
                             const newTime = e.target.value;
