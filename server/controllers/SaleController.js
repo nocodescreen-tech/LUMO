@@ -304,7 +304,8 @@ exports.deleteSale = async (req, res, next) => {
     }
 
     // Restitution du stock optimisée
-    if (sale.statut !== 'Remboursée' && sale.articles && Array.isArray(sale.articles)) {
+    const saleArticles = safeParseArticles(sale.articles);
+    if (!isRefundedStatus(sale.statut) && saleArticles.length > 0) {
       const productIds = saleArticles.map(item => item.id);
       const products = await Product.findAll({ where: { id: productIds }, transaction });
       
@@ -324,7 +325,7 @@ exports.deleteSale = async (req, res, next) => {
       sale.methodePaiement.toLowerCase().includes('credit')
     )) || sale.statut === 'Dette';
 
-    if (sale.clientId && isCredit && sale.statut !== 'Remboursée') {
+    if (sale.clientId && isCredit && !isRefundedStatus(sale.statut)) {
         const client = await Client.findByPk(sale.clientId, { transaction });
         if (client) {
           // Réduire la dette du client en convertissant dans la devise de la boutique
