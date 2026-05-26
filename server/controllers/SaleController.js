@@ -144,7 +144,10 @@ exports.createSale = async (req, res, next) => {
     // owner et finalRate déjà définis plus haut
 
     // Normaliser montantTotal en CDF avant stockage
-    let montantTotalNormalized = Number(montantTotal);
+    const computedTotalSaleCurrency = Array.isArray(items) ? items.reduce((acc, it) => acc + (Number(it.prixUnitaire ?? it.prix ?? 0) * Number(it.quantite || 0)), 0) : 0;
+    const safeMontantTotal = Number.isFinite(computedTotalSaleCurrency) && computedTotalSaleCurrency > 0 ? computedTotalSaleCurrency : Number(montantTotal);
+
+    let montantTotalNormalized = safeMontantTotal;
     if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
       montantTotalNormalized = Math.round(montantTotalNormalized * finalRate);
     } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
@@ -155,15 +158,17 @@ exports.createSale = async (req, res, next) => {
     const articles = Array.isArray(items)
       ? items.map((item) => {
           const quantite = item.quantite || 1;
-          const prixUnitaire = item.prix || 0;            // déjà en devise shop (CDF)
+          const productRef = productMap[item.id];
+          const prixUnitaire = Number(item.prixUnitaire ?? item.prix ?? 0);            // déjà en devise shop (CDF)
           let prixUnitaireCDF = prixUnitaire;
           if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
             prixUnitaireCDF = Math.round(prixUnitaire * finalRate);
           } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
             prixUnitaireCDF = Math.round((prixUnitaire / finalRate) * 100) / 100;
           }
-          const productDevise = item.deviseProduit || saleCurrency || shopCurrency;
-          let prixAchatCDF = Number(item.prixAchat || 0);
+          const productDevise = item.deviseProduit || productRef?.devise || saleCurrency || shopCurrency;
+          const rawPrixAchat = Number(item.prixAchat || productRef?.prixAchat || 0);
+          let prixAchatCDF = rawPrixAchat;
           if (productDevise !== shopCurrency) {
             if (productDevise === 'USD' && shopCurrency === 'CDF') {
               prixAchatCDF = Math.round(prixAchatCDF * finalRate * 100) / 100;
@@ -178,13 +183,13 @@ exports.createSale = async (req, res, next) => {
             nom: item.nom,
             prixUnitaire,
             quantite,
-            prixAchat: Number(item.prixAchat || 0),
+            prixAchat: rawPrixAchat,
             deviseOrigine: saleCurrency,
             tauxChange: finalRate,
             totalLigneOrigine: Math.round((prixUnitaire * quantite) * 100) / 100,
             totalLigneCDF: Math.round((prixUnitaireCDF * quantite) * 100) / 100,
             totalLigneUSD: Math.round(((prixUnitaireCDF * quantite) / finalRate) * 100) / 100,
-            deviseProduit: item.devise || shopCurrency,
+            deviseProduit: productDevise,
             metadata: item.metadata || null,
           };
         })

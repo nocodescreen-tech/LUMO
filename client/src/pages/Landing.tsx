@@ -1355,8 +1355,8 @@ export default function Landing() {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 900, marginBottom: 4 }}>{m.name}</h3>
               <p style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem' }}>{m.role}</p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12 }}>
-                <a href={i === 0 ? "https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" : "#"} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Linkedin size={16} className="lp-footer-item" /></a>
-                <a href={i === 0 ? "https://x.com/rendevui" : "#"} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Twitter size={16} className="lp-footer-item" /></a>
+                {i === 0 && <a href="https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Linkedin size={16} className="lp-footer-item" /></a>}
+                {i === 0 && <a href="https://x.com/rendevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Twitter size={16} className="lp-footer-item" /></a>}
                 {i === 0 && <a href="https://web.facebook.com/rcdevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Facebook size={16} className="lp-footer-item" /></a>}
               </div>
             </motion.div>

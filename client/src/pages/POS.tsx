@@ -345,11 +345,18 @@ const POS = () => {
         setClientEmail(finalClientEmail);
         
         const saleTotal = getSaleTotal();
+        const toSaleCurrency = (amountInGlobalCurrency: number) => {
+            if (saleCurrency === currency) return amountInGlobalCurrency;
+            if (currency === 'USD' && saleCurrency === 'CDF' && exchangeRate) return Math.round(amountInGlobalCurrency * exchangeRate * 100) / 100;
+            if (currency === 'CDF' && saleCurrency === 'USD' && exchangeRate) return Math.round((amountInGlobalCurrency / exchangeRate) * 100) / 100;
+            return amountInGlobalCurrency;
+        };
         const salePayload = {
             items: cart.map(item => ({
                 id: item.id,
                 nom: item.nom,
-                prix: item.prix,
+                prix: toSaleCurrency(item.prix),
+                prixUnitaire: toSaleCurrency(item.prix),
                 prixAchat: item.prixAchat || 0,
                 deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                 quantite: item.quantite

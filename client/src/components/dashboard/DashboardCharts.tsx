@@ -29,7 +29,9 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
       const weekData = daysArr.map(name => ({ day: name, sales: 0 }));
 
       salesData.forEach(d => {
-        const dateObj = new Date(d.date);
+        const sourceDate = d.date || d.period || d.createdAt;
+        const dateObj = new Date(sourceDate);
+        if (Number.isNaN(dateObj.getTime())) return;
         const dayIdx = (dateObj.getDay() + 6) % 7;
         if (dayIdx >= 0 && dayIdx < 7) {
           // Prefer already-converted values (passed by caller); fall back to raw CDF
@@ -42,7 +44,11 @@ const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
 
     if (salesData && salesData.length > 0) {
       return salesData.map(d => {
-        const dateObj = new Date(d.date);
+        const sourceDate = d.date || d.period || d.createdAt;
+        const dateObj = new Date(sourceDate);
+        if (Number.isNaN(dateObj.getTime())) {
+          return { day: '-', sales: Number(d.convertedRevenue ?? d.convertedTotal ?? d.revenue ?? d.total ?? 0) };
+        }
         let dayFormat = '';
 
         if (period === 'today') {
