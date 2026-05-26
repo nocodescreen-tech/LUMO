@@ -31,10 +31,12 @@ const getSafeRate = (owner) => {
   return Number.isFinite(baseRate) && baseRate > 1 ? baseRate : 2800;
 };
 
+const normalizeCurrency = (currency) => (currency === 'FC' ? 'CDF' : (currency || 'CDF'));
+
 const toCDF = (amount, devise, rate, fallbackRate) => {
   const safeAmount = Number(amount || 0);
   const effectiveRate = Number.isFinite(Number(rate)) && Number(rate) > 1 ? Number(rate) : fallbackRate;
-  return (devise || 'CDF') === 'USD' ? (safeAmount * effectiveRate) : safeAmount;
+  return normalizeCurrency(devise) === 'USD' ? (safeAmount * effectiveRate) : safeAmount;
 };
 
 const normalizeItemSalesUnit = (item) => {
@@ -54,6 +56,7 @@ exports.getDashboardStats = async (req, res, next) => {
     const userId = req.user.tenantId;
     const owner = await User.findByPk(userId);
     const safeRate = getSafeRate(owner);
+    const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
 
     const [salesRows, totalProducts, totalClients, lowStockCount, recentSales] = await Promise.all([
       Sale.findAll({
@@ -80,7 +83,7 @@ exports.getDashboardStats = async (req, res, next) => {
 
     for (const sale of salesRows) {
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
-      const saleRevenueCDF = toCDF(sale.montantTotal, sale.devise, saleRate, safeRate);
+      const saleRevenueCDF = toCDF(sale.montantTotal, shopCurrency, saleRate, safeRate);
       revenue += saleRevenueCDF;
       if (['Terminee', 'Completee', 'Terminée', 'Complétée'].includes(String(sale.statut || ''))) completed += saleRevenueCDF;
 
@@ -97,7 +100,7 @@ exports.getDashboardStats = async (req, res, next) => {
         const remiseCDF = toCDF(sale.remise || 0, sale.devise, saleRate, safeRate);
         profit += saleRevenueCDF - costCDF - remiseCDF;
       } else {
-        profit += toCDF(sale.profitNet || 0, sale.devise, saleRate, safeRate);
+        profit += toCDF(sale.profitNet || 0, shopCurrency, saleRate, safeRate);
       }
     }
 
@@ -124,7 +127,7 @@ exports.getDashboardStats = async (req, res, next) => {
         },
         recentSales: recentSales.map((sale) => ({
           ...sale,
-          montantCDF: round2(toCDF(sale.montantTotal, sale.devise, sale.tauxChange, safeRate)),
+          montantCDF: round2(toCDF(sale.montantTotal, shopCurrency, sale.tauxChange, safeRate)),
         })),
       },
       'Statistiques du dashboard recuperees'
@@ -160,6 +163,7 @@ exports.getSalesChartData = async (req, res, next) => {
 
     const owner = await User.findByPk(userId);
     const safeRate = getSafeRate(owner);
+    const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const sales = await Sale.findAll({
       where: {
         userId,
@@ -189,7 +193,7 @@ exports.getSalesChartData = async (req, res, next) => {
       const row = grouped.get(key);
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
       row.totalCommandes += 1;
-      row.revenue += toCDF(sale.montantTotal, sale.devise, saleRate, safeRate);
+      row.revenue += toCDF(sale.montantTotal, shopCurrency, saleRate, safeRate);
     }
 
     const data = Array.from(grouped.values())
@@ -228,6 +232,7 @@ exports.getAnalytics = async (req, res, next) => {
 
     const owner = await User.findByPk(userId);
     const safeRate = getSafeRate(owner);
+    const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
 
     const sales = await Sale.findAll({
       where,
@@ -243,7 +248,7 @@ exports.getAnalytics = async (req, res, next) => {
 
     for (const s of sales) {
       const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
-      const amount = toCDF(s.montantTotal, s.devise, saleRate, safeRate);
+      const amount = toCDF(s.montantTotal, shopCurrency, saleRate, safeRate);
       totalRevenue += amount;
       let cost = 0;
       let discount = toCDF(s.remise || 0, s.devise, saleRate, safeRate);
@@ -295,7 +300,7 @@ exports.getAnalytics = async (req, res, next) => {
       const dt = new Date(s.createdAt);
       const month = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
       const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
-      const amount = toCDF(s.montantTotal, s.devise, saleRate, safeRate);
+      const amount = toCDF(s.montantTotal, shopCurrency, saleRate, safeRate);
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
     }
 
