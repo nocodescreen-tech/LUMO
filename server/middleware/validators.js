@@ -110,13 +110,15 @@ const validateSale = (data) => {
             id: Joi.number().required(),
             nom: Joi.string().required(),
             prix: Joi.number().required(),
+            prixUnitaire: Joi.number().min(0).optional(),
             prixAchat: Joi.number().min(0).optional(),
+            deviseProduit: Joi.string().valid('USD', 'CDF').optional(),
             quantite: Joi.number().integer().positive().required()
-        })).min(1).required(),
+        }).unknown(true)).min(1).required(),
         montantTotal: Joi.number().min(0).required(),
         methodePaiement: Joi.string().required(),
         devise: Joi.string().valid('USD', 'CDF').required(),
-        tauxChange: Joi.number().positive().required()
+        tauxChange: Joi.number().positive().optional()
     }).unknown(true);
     return schema.validate(data);
 };
