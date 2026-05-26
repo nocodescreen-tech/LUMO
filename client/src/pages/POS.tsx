@@ -351,6 +351,7 @@ const POS = () => {
                 nom: item.nom,
                 prix: item.prix,
                 prixAchat: item.prixAchat || 0,
+                deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                 quantite: item.quantite
             })),
             montantTotal: saleTotal,

@@ -38,7 +38,7 @@ const getSuperadminLogs = async (req, res, next) => {
 const getSuperadminStats = async (req, res, next) => {
   try {
     const startTs = Date.now();
-    const [revenueRows, purchaseRows, counts, usersForAi, landingVisits, landingMessages] = await Promise.all([
+    const [revenueRows, purchaseRows, counts, usersForAi, landingVisits, landingMessages, usersRates] = await Promise.all([
       Sale.findAll(),
       Purchase.findAll(),
       Promise.all([
@@ -48,19 +48,38 @@ const getSuperadminStats = async (req, res, next) => {
       ]),
       User.findAll({ attributes: ['chatHistory'] }),
       Activite.count({ where: { type: 'LANDING_VISIT' } }),
-      Activite.count({ where: { type: 'LANDING_MESSAGE' } })
+      Activite.count({ where: { type: 'LANDING_MESSAGE' } }),
+      User.findAll({ attributes: ['id', 'preferences', 'entreprise'] })
     ]);
+
+    const ratesByUser = new Map();
+    usersRates.forEach((u) => {
+      const prefRate = Number(u?.preferences?.exchangeRate);
+      const companyRate = Number(u?.entreprise?.exchangeRate);
+      const rate = Number.isFinite(prefRate) && prefRate > 1
+        ? prefRate
+        : (Number.isFinite(companyRate) && companyRate > 1 ? companyRate : 2800);
+      ratesByUser.set(Number(u.id), rate);
+    });
+
+    const getUserRate = (userId) => ratesByUser.get(Number(userId)) || 2800;
+
+    const toUsd = (amount, devise, rate) => {
+      const safeAmount = Number(amount || 0);
+      const safeRate = Number.isFinite(Number(rate)) && Number(rate) > 1 ? Number(rate) : 2800;
+      return devise === 'CDF' ? safeAmount / safeRate : safeAmount;
+    };
 
     const totalRevenue = revenueRows.reduce((acc, s) => {
       const amount = s.montantTotal || 0;
-      const rate = s.tauxChange || 2800;
-      return acc + (s.devise === 'CDF' ? amount / rate : amount);
+      const rate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : getUserRate(s.userId);
+      return acc + toUsd(amount, s.devise, rate);
     }, 0);
 
     const totalPurchases = purchaseRows.reduce((acc, p) => {
       const amount = p.montantTotal || 0;
-      const rate = p.tauxChange || 2800;
-      return acc + (p.devise === 'CDF' ? amount / rate : amount);
+      const rate = getUserRate(p.userId);
+      return acc + toUsd(amount, p.devise, rate);
     }, 0);
     
     // Calcul réel de l'utilisation de l'IA (messages échangés)

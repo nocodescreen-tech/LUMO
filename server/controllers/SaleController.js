@@ -4,6 +4,21 @@ const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
+const REFUNDED_STATUSES = ['Remboursee', 'Rembours?e'];
+const isRefundedStatus = (status = '') =>
+  REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
+const safeParseArticles = (articles) => {
+  if (Array.isArray(articles)) return articles;
+  if (typeof articles === 'string') {
+    try {
+      const parsed = JSON.parse(articles);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return [];
+};
 
 exports.getSales = async (req, res, next) => {
   try {
@@ -59,7 +74,6 @@ exports.createSale = async (req, res, next) => {
       clientId, 
       clientInfo,
       devise,
-      tauxChange,
       devisePaiement,
       montantRecu
     } = req.body;
@@ -67,10 +81,10 @@ exports.createSale = async (req, res, next) => {
     transaction = await sequelize.transaction();
 
     // Récupérer le propriétaire pour la devise et le taux de change
-    const owner = await require('../models/User').findByPk(userId);
+    const owner = await require('../models/User').findByPk(userId, { transaction });
     const shopCurrency = owner?.entreprise?.devise || 'CDF';
     const saleCurrency = devise || 'USD';
-    const finalRate = Number(tauxChange || owner?.preferences?.exchangeRate);
+    const finalRate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate);
     if (!Number.isFinite(finalRate) || finalRate <= 0) {
       return res.status(400).json({
         message: "Taux de change invalide. Configurez le taux dans Paramètres avant d'enregistrer une vente."
@@ -101,7 +115,10 @@ exports.createSale = async (req, res, next) => {
     // Optimisation N+1 : Récupérer tous les produits concernés en une seule requête
     const productIds = items.map(item => item.id);
     const products = await Product.findAll({ where: { id: productIds }, transaction });
-    const productMap = products.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+    const productMap = {};
+    for (const p of products) {
+      productMap[p.id] = p;
+    }
 
     // Initialise profit normalisé en CDF — BUG FIX: variable non initialisée causait ReferenceError
     let profitNormalized = 0;
@@ -110,8 +127,15 @@ exports.createSale = async (req, res, next) => {
     for (const item of items) {
       const product = productMap[item.id];
       if (product) {
+        const requestedQty = Number(item.quantite || 0);
+        if (requestedQty <= 0) {
+          throw new Error(`Quantité invalide pour ${product.nom}`);
+        }
+        if (Number(product.stock || 0) < requestedQty) {
+          throw new Error(`Stock insuffisant pour ${product.nom}`);
+        }
         product.stockUpdateRaison = 'Vente';
-        product.stock -= item.quantite;
+        product.stock -= requestedQty;
         await product.save({ transaction });
 
         // Les notifications de stock sont gérées automatiquement par les hooks du modèle Product
@@ -138,15 +162,23 @@ exports.createSale = async (req, res, next) => {
           } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
             prixUnitaireCDF = Math.round((prixUnitaire / finalRate) * 100) / 100;
           }
-          const prixAchat = item.prixAchat || 0;           // déjà en devise shop (CDF)
-          profitNormalized += (prixUnitaireCDF - prixAchat) * quantite;
+          const productDevise = item.deviseProduit || saleCurrency || shopCurrency;
+          let prixAchatCDF = Number(item.prixAchat || 0);
+          if (productDevise !== shopCurrency) {
+            if (productDevise === 'USD' && shopCurrency === 'CDF') {
+              prixAchatCDF = Math.round(prixAchatCDF * finalRate * 100) / 100;
+            } else if (productDevise === 'CDF' && shopCurrency === 'USD') {
+              prixAchatCDF = Math.round((prixAchatCDF / finalRate) * 100) / 100;
+            }
+          }
+          profitNormalized += (prixUnitaireCDF - prixAchatCDF) * quantite;
 
           return {
             id: item.id,
             nom: item.nom,
             prixUnitaire,
             quantite,
-            prixAchat,
+            prixAchat: Number(item.prixAchat || 0),
             deviseOrigine: saleCurrency,
             tauxChange: finalRate,
             totalLigneOrigine: Math.round((prixUnitaire * quantite) * 100) / 100,
@@ -213,17 +245,18 @@ exports.createSale = async (req, res, next) => {
     
     // M4 Fix: Normalize debt amount to the shop's base currency
     if (resolvedClientId && isCredit) {
-      const dbClient = await Client.findByPk(resolvedClientId);
+      const dbClient = await Client.findByPk(resolvedClientId, { transaction });
       const owner = await require('../models/User').findByPk(userId);
       const shopCurrency = owner?.entreprise?.devise || 'CDF';
       
       let amountToAdd = Number(montantTotal - remise);
       const effectiveDevise = devise || 'USD';
       
-      // If sale currency differs from shop currency, convert it
+      // If sale currency differs from shop currency, convert it (authoritative server rate)
       if (effectiveDevise !== shopCurrency) {
-        const rate = Number(tauxChange || owner?.preferences?.exchangeRate);
+        const rate = finalRate;
         if (!Number.isFinite(rate) || rate <= 0) {
+          await transaction.rollback();
           return res.status(400).json({ message: "Taux de change invalide pour la gestion des dettes." });
         }
         if (devise === 'USD' && shopCurrency === 'CDF') {
@@ -250,28 +283,32 @@ exports.createSale = async (req, res, next) => {
 };
 
 exports.deleteSale = async (req, res, next) => {
+  let transaction;
   try {
-    const sale = await Sale.findByPk(req.params.id);
+    transaction = await sequelize.transaction();
+    const sale = await Sale.findByPk(req.params.id, { transaction });
     if (!sale) {
+      await transaction.rollback();
       return res.status(404).json({ message: "Vente non trouvée" });
     }
 
     // Sécurité : seul le propriétaire (admin) ou le superadmin peut supprimer
     if (sale.userId !== req.user.tenantId && req.user.role !== 'superadmin') {
+      await transaction.rollback();
       return res.status(403).json({ message: 'Accès refusé : cette vente ne vous appartient pas' });
     }
 
     // Restitution du stock optimisée
     if (sale.statut !== 'Remboursée' && sale.articles && Array.isArray(sale.articles)) {
-      const productIds = sale.articles.map(item => item.id);
-      const products = await Product.findAll({ where: { id: productIds } });
+      const productIds = saleArticles.map(item => item.id);
+      const products = await Product.findAll({ where: { id: productIds }, transaction });
       
-      for (const item of sale.articles) {
+      for (const item of saleArticles) {
         const product = products.find(p => p.id === item.id);
         if (product) {
           product.stockUpdateRaison = 'Suppression Vente';
           product.stock += item.quantite;
-          await product.save();
+          await product.save({ transaction });
         }
       }
     }
@@ -283,14 +320,15 @@ exports.deleteSale = async (req, res, next) => {
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit && sale.statut !== 'Remboursée') {
-        const client = await Client.findByPk(sale.clientId);
+        const client = await Client.findByPk(sale.clientId, { transaction });
         if (client) {
           // Réduire la dette du client en convertissant dans la devise de la boutique
-          const owner = await require('../models/User').findByPk(sale.userId);
+          const owner = await require('../models/User').findByPk(sale.userId, { transaction });
           const shopCurrency = owner?.entreprise?.devise || 'CDF';
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
           if (!Number.isFinite(rate) || rate <= 0) {
+            await transaction.rollback();
             return res.status(400).json({ message: "Taux de change invalide pour recalcul de dette." });
           }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
@@ -302,15 +340,17 @@ exports.deleteSale = async (req, res, next) => {
             }
           }
             client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
-            await client.save();
+            await client.save({ transaction });
         }
     }
 
-    await sale.destroy();
+    await sale.destroy({ transaction });
+    await transaction.commit();
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, null, 'Vente supprimée avec succès');
   } catch (error) {
+    if (transaction) await transaction.rollback();
     next(error);
   }
 };
@@ -381,8 +421,15 @@ exports.updateSale = async (req, res, next) => {
     const sale = await Sale.findOne({ where: { id: req.params.id, userId } });
     if (!sale) return res.status(404).json({ message: 'Vente non trouvée' });
     
-    // Pour une mise à jour simple sans recalcul de stock
-    await sale.update(req.body);
+    const allowedFields = ['statut', 'methodePaiement', 'clientInfo'];
+    const payload = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) payload[key] = req.body[key];
+    }
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({ message: 'Aucune mise ? jour valide fournie.' });
+    }
+    await sale.update(payload);
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, sale, 'Vente mise à jour');
@@ -392,23 +439,29 @@ exports.updateSale = async (req, res, next) => {
 };
 
 exports.refundSale = async (req, res, next) => {
+  let transaction;
   try {
     const userId = req.user.tenantId;
-    const sale = await Sale.findOne({ where: { id: req.params.id, userId } });
-    if (!sale) return res.status(404).json({ message: 'Vente non trouvée' });
+    transaction = await sequelize.transaction();
+    const sale = await Sale.findOne({ where: { id: req.params.id, userId }, transaction });
+    if (!sale) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Vente non trouvée' });
+    }
     
     if (sale.statut === 'Remboursée') {
+      await transaction.rollback();
       return res.status(400).json({ message: 'Vente déjà remboursée' });
     }
     
     // Restitution du stock
     if (sale.articles && Array.isArray(sale.articles)) {
       for (const item of sale.articles) {
-        const product = await Product.findByPk(item.id);
+        const product = await Product.findByPk(item.id, { transaction });
         if (product) {
           product.stockUpdateRaison = 'Remboursement Vente';
           product.stock += item.quantite;
-          await product.save();
+          await product.save({ transaction });
         }
       }
     }
@@ -420,14 +473,15 @@ exports.refundSale = async (req, res, next) => {
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit) {
-        const client = await Client.findByPk(sale.clientId);
+        const client = await Client.findByPk(sale.clientId, { transaction });
         if (client) {
           // Convertir le montant dans la devise de la boutique avant de réduire la dette
-          const owner = await require('../models/User').findByPk(sale.userId);
+          const owner = await require('../models/User').findByPk(sale.userId, { transaction });
           const shopCurrency = owner?.entreprise?.devise || 'CDF';
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
           if (!Number.isFinite(rate) || rate <= 0) {
+            await transaction.rollback();
             return res.status(400).json({ message: "Taux de change invalide pour remboursement de dette." });
           }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
@@ -439,16 +493,18 @@ exports.refundSale = async (req, res, next) => {
             }
           }
             client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
-            await client.save();
+            await client.save({ transaction });
         }
     }
 
     sale.statut = 'Remboursée';
-    await sale.save();
+    await sale.save({ transaction });
+    await transaction.commit();
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, sale, 'Vente remboursée et stock restitué');
   } catch (error) {
+    if (transaction) await transaction.rollback();
     next(error);
   }
 };

@@ -32,6 +32,7 @@ const SuperAdminDashboard = () => {
     const [actionMenuOpenId, setActionMenuOpenId] = useState<number | null>(null);
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+    const [viewportWidth, setViewportWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1280);
 
     // Notification states
     const [notifTitre, setNotifTitre] = useState('');
@@ -159,6 +160,12 @@ const SuperAdminDashboard = () => {
         setSearchTerm('');
     }, [activeTab]);
 
+    useEffect(() => {
+        const onResize = () => setViewportWidth(window.innerWidth);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     const validateUser = async (id: number) => {
         try {
             await api.put(`/superadmin/users/${id}/validate`);
@@ -276,13 +283,15 @@ const SuperAdminDashboard = () => {
     const revenueDisplay = currency === 'USD' ? formatMoney(revenueUsd, 'USD') : formatMoney(revenueUsd * safeExchangeRate, 'CDF');
     const purchasesDisplay = currency === 'USD' ? formatMoney(purchasesUsd, 'USD') : formatMoney(purchasesUsd * safeExchangeRate, 'CDF');
     const marginDisplay = currency === 'USD' ? formatMoney(marginUsd, 'USD') : formatMoney(marginUsd * safeExchangeRate, 'CDF');
+    const isMobile = viewportWidth < 768;
+    const isTablet = viewportWidth >= 768 && viewportWidth < 1200;
 
     const StatCard = ({ title, value, subtext, icon: Icon, color, trend }: any) => (
         <motion.div
             whileHover={{ y: -10, boxShadow: '0 40px 60px -15px rgba(0,0,0,0.08)' }}
             style={{
-                padding: '35px',
-                borderRadius: '44px',
+                padding: isMobile ? '20px' : '30px',
+                borderRadius: isMobile ? '20px' : '32px',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
                 boxShadow: 'var(--shadow-lg)',
@@ -327,7 +336,7 @@ const SuperAdminDashboard = () => {
             <div>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '950', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>{title}</p>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '3.4rem', fontWeight: '950', letterSpacing: '-0.06em', color: 'var(--text-main)' }}>{value}</h3>
+                    <h3 style={{ margin: 0, fontSize: isMobile ? '1.45rem' : isTablet ? '1.95rem' : '2.8rem', fontWeight: '950', letterSpacing: '-0.04em', color: 'var(--text-main)' }}>{value}</h3>
                 </div>
                 {subtext && <p style={{ margin: '14px 0 0 0', fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: '600', letterSpacing: '-0.01em' }}>{subtext}</p>}
             </div>
@@ -339,16 +348,16 @@ const SuperAdminDashboard = () => {
             onClick={onClick}
             style={{
                 display: 'flex', alignItems: 'center', gap: '14px',
-                padding: '24px 36px', border: 'none', background: 'none',
+                padding: isMobile ? '12px 14px' : '24px 36px', border: 'none', background: 'none',
                 color: active ? '#4f46e5' : '#64748b',
                 borderBottom: active ? '3px solid #4f46e5' : '3px solid transparent',
                 fontWeight: active ? '950' : '700',
-                fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.3s',
+                fontSize: isMobile ? '0.88rem' : '1.1rem', cursor: 'pointer', transition: 'all 0.3s',
                 marginBottom: '-1px',
                 whiteSpace: 'nowrap'
             }}
         >
-            <Icon size={24} strokeWidth={active ? 2.5 : 2} style={{ opacity: active ? 1 : 0.7 }} /> {label}
+            <Icon size={isMobile ? 18 : 24} strokeWidth={active ? 2.5 : 2} style={{ opacity: active ? 1 : 0.7 }} /> {label}
         </button>
     );
 
@@ -381,21 +390,21 @@ const SuperAdminDashboard = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             style={{
-                padding: 'min(5vw, 60px)',
+                padding: isMobile ? '14px' : isTablet ? '24px' : 'min(5vw, 60px)',
                 maxWidth: '1700px',
                 margin: '0 auto',
-                paddingBottom: '100px',
+                paddingBottom: isMobile ? '50px' : '100px',
                 minHeight: '100vh',
                 overflow: 'visible'
             }}
         >
             {/* TOP HEADER */}
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '60px' }}>
-                <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '12px' : 0, marginBottom: isMobile ? '24px' : '60px' }}>
+                <div style={{ display: 'flex', gap: isMobile ? '12px' : '28px', alignItems: 'center' }}>
                     <div style={{
-                        width: '72px',
-                        height: '72px',
-                        borderRadius: '24px',
+                        width: isMobile ? '54px' : '72px',
+                        height: isMobile ? '54px' : '72px',
+                        borderRadius: isMobile ? '16px' : '24px',
                         background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                         display: 'flex',
                         alignItems: 'center',
@@ -403,23 +412,23 @@ const SuperAdminDashboard = () => {
                         boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.4)',
                         border: '1px solid rgba(255,255,255,0.1)'
                     }}>
-                        <ShieldCheck size={40} color="white" />
+                        <ShieldCheck size={isMobile ? 28 : 40} color="white" />
                     </div>
                     <div>
-                        <h1 style={{ fontSize: '3.2rem', fontWeight: '950', letterSpacing: '-0.06em', margin: 0, lineHeight: 1, color: 'var(--text-main)' }}>
+                        <h1 style={{ fontSize: isMobile ? '1.35rem' : isTablet ? '2rem' : '3.2rem', fontWeight: '950', letterSpacing: '-0.04em', margin: 0, lineHeight: 1.1, color: 'var(--text-main)' }}>
                             SuperAdmin <span style={{ color: '#6366f1' }}>Control Center</span>
                         </h1>
-                        <p style={{ margin: '8px 0 0 0', color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: '700' }}>Pilote central de la plateforme LUMO v2.0</p>
+                        <p style={{ margin: '8px 0 0 0', color: 'var(--text-muted)', fontSize: isMobile ? '0.86rem' : '1.1rem', fontWeight: '700' }}>Pilote central de la plateforme LUMO v2.0</p>
                     </div>
                 </div>
-                <div style={{ textAlign: 'right', background: 'var(--bg-card)', padding: '16px 28px', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ fontSize: '1.8rem', fontWeight: '950', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div style={{ textAlign: isMobile ? 'left' : 'right', background: 'var(--bg-card)', padding: isMobile ? '10px 14px' : '16px 28px', borderRadius: isMobile ? '14px' : '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ fontSize: isMobile ? '1.1rem' : '1.8rem', fontWeight: '950', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     <div style={{ color: '#6366f1', fontWeight: '800', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</div>
                 </div>
             </header>
 
             {/* NAVIGATION */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '48px', overflowX: 'auto', paddingBottom: '12px' }} className="premium-scroll">
+            <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid var(--border)', marginBottom: isMobile ? '18px' : '48px', overflowX: 'auto', paddingBottom: '8px' }} className="premium-scroll">
                 <TabButton id="overview" icon={BarChart3} label="Architecture & Flux" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
                 <TabButton id="users" icon={Users} label="Utilisateurs" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
                 <TabButton id="logs" icon={Activity} label="Audit Log Central" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
@@ -437,10 +446,10 @@ const SuperAdminDashboard = () => {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.98 }}
-                        style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}
+                        style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '18px' : '48px' }}
                     >
                         {/* KPI GRID */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: isMobile ? '14px' : '32px' }}>
                             <StatCard
                                 title="CHIFFRE D'AFFAIRES CONSOLIDÉ"
                                 value={revenueDisplay}
@@ -467,7 +476,7 @@ const SuperAdminDashboard = () => {
                         </div>
 
                         {/* SYSTEM & AI HEALTH */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: isMobile ? '14px' : '32px' }}>
                             <StatCard
                                 title="CONSOMMATION IA"
                                 value={`${(platformStats?.aiUsage || 0).toLocaleString()} MSGS`}
@@ -498,9 +507,9 @@ const SuperAdminDashboard = () => {
                             />
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '40px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '16px' : '40px' }}>
                             {/* RECENT ACCOUNTS */}
-                            <div className="glass premium-shadow" style={{ padding: '48px', borderRadius: '44px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                            <div className="glass premium-shadow" style={{ padding: isMobile ? '16px' : '48px', borderRadius: isMobile ? '18px' : '44px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
                                     <div>
                                         <h3 style={{ fontSize: '1.8rem', fontWeight: '950', display: 'flex', alignItems: 'center', gap: '16px', letterSpacing: '-0.03em', margin: 0 }}>
@@ -548,7 +557,7 @@ const SuperAdminDashboard = () => {
                             </div>
 
                             {/* GLOBAL STATS CARD */}
-                            <div className="glass" style={{ padding: '48px', borderRadius: '44px', background: 'var(--grad-primary)', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 40px 80px -20px var(--primary-glow)' }}>
+                            <div className="glass" style={{ padding: isMobile ? '16px' : '48px', borderRadius: isMobile ? '18px' : '44px', background: 'var(--grad-primary)', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 40px 80px -20px var(--primary-glow)' }}>
                                 <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.15 }}>
                                     <HardDrive size={160} />
                                 </div>
@@ -586,7 +595,7 @@ const SuperAdminDashboard = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="glass"
-                        style={{ borderRadius: '44px', border: '1px solid var(--border)', padding: '40px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
+                        style={{ borderRadius: isMobile ? '18px' : '44px', border: '1px solid var(--border)', padding: isMobile ? '16px' : '40px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
                     >
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '28px' }}>
                             <div style={{ padding: '24px', borderRadius: '22px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
@@ -640,7 +649,7 @@ const SuperAdminDashboard = () => {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="glass"
-                        style={{ borderRadius: '44px', border: '1px solid var(--border)', padding: '48px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
+                        style={{ borderRadius: isMobile ? '18px' : '44px', border: '1px solid var(--border)', padding: isMobile ? '16px' : '48px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
                     >
                         <div style={{ display: 'flex', gap: '24px', marginBottom: '48px', alignItems: 'center' }}>
                             <div style={{ position: 'relative', flex: 1 }}>
@@ -918,7 +927,7 @@ const SuperAdminDashboard = () => {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="glass premium-shadow"
-                        style={{ padding: '64px', borderRadius: '44px', maxWidth: '1000px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                        style={{ padding: isMobile ? '16px' : '64px', borderRadius: isMobile ? '18px' : '44px', maxWidth: '1000px', margin: '0 auto', background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                     >
                         <div style={{ display: 'flex', gap: '48px', alignItems: 'flex-start' }}>
                             <div style={{ flex: 1 }}>
@@ -933,7 +942,7 @@ const SuperAdminDashboard = () => {
                                 </p>
 
                                 <form onSubmit={handleSendNotification} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '20px' }}>
                                         <div>
                                             <label style={{ fontSize: '0.75rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '12px' }}>Priorité de Diffusion</label>
                                             <select
@@ -1083,7 +1092,7 @@ const SuperAdminDashboard = () => {
                                 <h3 style={{ fontSize: '1.6rem', fontWeight: '950', margin: 0 }}>Personnaliser l'E-mail</h3>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '40px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 0.8fr', gap: '40px' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <label style={{ fontSize: '0.75rem', fontWeight: '950', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>URL du Logo</label>
