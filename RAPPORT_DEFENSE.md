@@ -252,7 +252,7 @@ La solution intègre plusieurs modules métiers interagissant en synergie pour f
   - *Top 5 des produits les plus vendus.*
 * **Export de Données** : Fonctionnalité de génération de rapports sous format Microsoft Excel (`.xlsx`) pour traitement comptable externe.
 
-### 6.5 Module Intelligence Artificielle (Lumo AI Hub)
+### 6.5 Module LUMO AIO
 * **Intégration Modèle LLM** : Connexion à l'API DeepSeek (Modèle `deepseek-chat`).
 * **Prédiction algorithmique** : L'IA croise les historiques de ventes pour prédire les pics de demande saisonniers.
 * **Analyse de rentabilité textuelle** : Fournit des résumés écrits automatiques au manager ("Attention, la catégorie 'Boissons' génère 40% de revenus en moins ce mois-ci par rapport au mois dernier").
