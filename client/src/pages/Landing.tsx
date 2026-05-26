@@ -1027,7 +1027,7 @@ export default function Landing() {
               <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Sparkles size={13} color="white" />
               </div>
-              <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#a855f7' }}>Lumo AI</span>
+              <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#a855f7' }}>LUMO AIO</span>
             </div>
             <p style={{ fontStyle: 'italic', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.65, marginBottom: 20 }}>
               {language === 'fr'
@@ -1606,7 +1606,7 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* ── CHAT WIDGET (LUMO AI LIVE) ────────────────────────── */}
+      {/* ── CHAT WIDGET (LUMO AIO LIVE) ────────────────────────── */}
       <div style={{ position: 'fixed', bottom: 30, right: 90, zIndex: 1000 }}>
         <AnimatePresence>
           {chatOpen && (

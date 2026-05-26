@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['lumo_logo.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Lumo AI',
-        short_name: 'Lumo AI',
+        name: 'LUMO AIO',
+        short_name: 'LUMO AIO',
         description: 'Solution ERP complète pour commerçants en RDC',
         theme_color: '#6366f1',
         background_color: '#ffffff',

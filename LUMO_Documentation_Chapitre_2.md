@@ -20,7 +20,7 @@ Ce chapitre expose la démarche méthodologique et technique adoptée pour la co
 | OI-2 : Conception Base de Données | Schéma relationnel (ERD) validé | Script SQL / Modèles Sequelize | Cohérence des données |
 | OI-3 : Développement API Backend | Temps de réponse < 200ms | Logs serveur / Postman | Stabilité de l'environnement Node.js |
 | OI-4 : Développement Frontend React | Interface 100% responsive | Tests navigateurs / Mobile | Compatibilité cross-browser |
-| OI-5 : Intégration IA DeepSeek | Précision des analyses > 90% | Tests de prompts (LUMO AI) | Latence de l'API externe |
+| OI-5 : Intégration IA DeepSeek | Précision des analyses > 90% | Tests de prompts (LUMO AIO) | Latence de l'API externe |
 | **Résultats Attendus (RA)** | | | |
 | RA-1 : Système d'authentification JWT | Zéro faille de sécurité détectée | Audit de sécurité | Fiabilité du cryptage Bcrypt |
 | RA-2 : Module POS opérationnel | Moins de 3s pour valider une vente | Tests de charge | Stabilité du matériel (scanner) |

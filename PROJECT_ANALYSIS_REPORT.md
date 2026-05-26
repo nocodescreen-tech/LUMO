@@ -35,7 +35,7 @@
 - **Improvements**: 
   - Hybrid AI provider support (DeepSeek primary, Ollama/Local fallback).
   - Standardized configuration using `DEEPSEEK_API_KEY`.
-  - Graceful degradation and offline mode for LUMO AI.
+  - Graceful degradation and offline mode for LUMO AIO.
 
 ---
 
@@ -75,7 +75,7 @@
 10. **Cron Jobs** - Automated daily database backups.
 
 ### ✅ Features
-11. **LUMO AI** - Intelligent context-aware assistant with Redis caching for insights.
+11. **LUMO AIO** - Intelligent context-aware assistant with Redis caching for insights.
 12. **Multi-tenant** - Solid tenant isolation logic using `userId` and `tenantId`.
 13. **Cloud Integration** - Seamless Cloudinary integration for product and avatar images.
 
