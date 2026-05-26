@@ -60,6 +60,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const t = (translations as any)[language] || translations.fr;
+    const playNotificationCling = React.useCallback(() => {
+        try {
+            const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1320, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(980, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.2);
+        } catch (_) {
+            // Silent fallback if audio is blocked by browser policy
+        }
+    }, []);
 
     const fetchUnreadCount = async () => {
         try {
@@ -82,6 +103,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             
             socket.on('notification', (notif: any) => {
                 setUnreadCount(prev => prev + 1);
+                const soundEnabled = user?.preferences?.notificationSoundEnabled !== false;
+                if (soundEnabled) {
+                    playNotificationCling();
+                }
                 toast.info(notif.titre || 'Nouvelle notification', {
                     description: notif.contenu || notif.message,
                     duration: 5000,
@@ -100,7 +125,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         }
         
         return () => clearInterval(interval);
-    }, [user?.id]);
+    }, [user?.id, playNotificationCling]);
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 

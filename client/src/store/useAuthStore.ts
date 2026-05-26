@@ -23,6 +23,7 @@ interface UserPreferences {
   exchangeRate?: number;
   autoBackupEnabled?: boolean;
   backupTime?: string;
+  notificationSoundEnabled?: boolean;
 }
 
 interface User {
