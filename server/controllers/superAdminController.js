@@ -1,5 +1,90 @@
-const { User, Sale, Product, Notification, Purchase, Newsletter, GlobalSetting, Activite } = require('../models');
+const {
+  User,
+  Sale,
+  Product,
+  Client,
+  Fournisseur,
+  Notification,
+  Purchase,
+  Newsletter,
+  GlobalSetting,
+  Activite,
+  StockMovement,
+  CashSession,
+  Feedback,
+  StaffPayment,
+} = require('../models');
+const { sequelize } = require('../config/database');
+const { Op } = require('sequelize');
 const Joi = require('joi');
+
+const unlinkAndDeleteStaffUsers = async (staffIds, transaction) => {
+  const ids = staffIds.filter(Boolean);
+  if (ids.length === 0) return;
+
+  await Promise.all([
+    StockMovement.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+    Sale.destroy({ where: { userId: { [Op.in]: ids } }, force: true, transaction }),
+    Sale.update({ sellerId: null }, { where: { sellerId: { [Op.in]: ids } }, transaction }),
+    Purchase.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+    CashSession.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+    Activite.update({ UserId: null }, { where: { UserId: { [Op.in]: ids } }, transaction }),
+    StaffPayment.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+    StaffPayment.destroy({ where: { staffId: { [Op.in]: ids } }, transaction }),
+    Feedback.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+    Notification.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+  ]);
+
+  await Promise.all([
+    Product.update({ creatorId: null }, { where: { creatorId: { [Op.in]: ids } }, transaction }),
+    Product.destroy({ where: { userId: { [Op.in]: ids } }, force: true, transaction }),
+    Client.destroy({ where: { userId: { [Op.in]: ids } }, force: true, transaction }),
+    Fournisseur.destroy({ where: { userId: { [Op.in]: ids } }, transaction }),
+  ]);
+
+  await User.destroy({ where: { id: { [Op.in]: ids } }, transaction });
+};
+
+const deleteTenantData = async (tenantId, transaction) => {
+  const subUsers = await User.findAll({
+    where: { parentId: tenantId },
+    attributes: ['id'],
+    transaction,
+  });
+  const subUserIds = subUsers.map((u) => u.id);
+  const allUserIds = [tenantId, ...subUserIds];
+
+  await unlinkAndDeleteStaffUsers(subUserIds, transaction);
+
+  await Promise.all([
+    StockMovement.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+    Sale.destroy({ where: { userId: { [Op.in]: allUserIds } }, force: true, transaction }),
+    Sale.update({ sellerId: null }, { where: { sellerId: { [Op.in]: allUserIds } }, transaction }),
+    Purchase.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+    CashSession.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+    StaffPayment.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+    StaffPayment.destroy({ where: { staffId: { [Op.in]: allUserIds } }, transaction }),
+    Notification.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+    Feedback.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+  ]);
+
+  await Promise.all([
+    Product.update({ creatorId: null }, { where: { creatorId: { [Op.in]: allUserIds } }, transaction }),
+    Product.destroy({ where: { userId: { [Op.in]: allUserIds } }, force: true, transaction }),
+    Client.destroy({ where: { userId: { [Op.in]: allUserIds } }, force: true, transaction }),
+    Fournisseur.destroy({ where: { userId: { [Op.in]: allUserIds } }, transaction }),
+  ]);
+
+  await Activite.destroy({
+    where: {
+      [Op.or]: [
+        { UserId: { [Op.in]: allUserIds } },
+        { shopId: tenantId },
+      ],
+    },
+    transaction,
+  });
+};
 
 // Liste des utilisateurs / instances
 const getSuperadminUsers = async (req, res, next) => {
@@ -184,20 +269,30 @@ const validateUser = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (!user) return res.status(404).json({ message: 'Utilisateur non trouve' });
 
-    // Sécurité: Empêcher la suppression du SuperAdmin
     if (user.role === 'superadmin') {
-      return res.status(403).json({ message: 'Action interdite : Le compte SuperAdmin est protégé et ne peut pas être supprimé.' });
+      return res.status(403).json({ message: 'Action interdite : le compte SuperAdmin est protege et ne peut pas etre supprime.' });
     }
 
-    await user.destroy();
-    res.json({ message: 'Utilisateur supprimé définitivement' });
+    await sequelize.transaction(async (transaction) => {
+      if (user.parentId) {
+        await unlinkAndDeleteStaffUsers([user.id], transaction);
+        return;
+      }
+
+      await deleteTenantData(user.id, transaction);
+      await user.destroy({ transaction });
+    });
+
+    res.json({ message: 'Utilisateur supprime definitivement' });
   } catch (error) {
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({ message: "Impossible de supprimer cet utilisateur car il possede des donnees liees." });
+    }
     next(error);
   }
 };
-
 // Broadcast de notification système
 const broadcastNotification = async (req, res, next) => {
   try {

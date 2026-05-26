@@ -183,7 +183,7 @@ const Users = () => {
       message: `Supprimer définitivement l'accès pour ${name} ?`,
       onConfirm: async () => {
         try { await api.delete(`/subusers/${id}`); toast.success("Membre retiré."); fetchUsers(); }
-        catch { toast.error("Échec"); }
+        catch (err: any) { toast.error(err.response?.data?.message || "Echec de la suppression"); }
       }
     });
   };

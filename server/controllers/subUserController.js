@@ -1,4 +1,18 @@
-const { User } = require('../models');
+const {
+  User,
+  Sale,
+  Product,
+  Client,
+  Fournisseur,
+  Purchase,
+  Activite,
+  StockMovement,
+  CashSession,
+  StaffPayment,
+  Feedback,
+  Notification,
+} = require('../models');
+const { sequelize } = require('../config/database');
 const { sendResponse } = require('../utils/response');
 
 // Create a sub-user (cashier/manager)
@@ -125,9 +139,34 @@ exports.deleteSubUser = async (req, res) => {
       return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
     }
 
-    await subUser.destroy();
+    await sequelize.transaction(async (transaction) => {
+      await Promise.all([
+        StockMovement.destroy({ where: { userId: subUser.id }, transaction }),
+        Sale.destroy({ where: { userId: subUser.id }, force: true, transaction }),
+        Sale.update({ sellerId: null }, { where: { sellerId: subUser.id }, transaction }),
+        Purchase.destroy({ where: { userId: subUser.id }, transaction }),
+        CashSession.destroy({ where: { userId: subUser.id }, transaction }),
+        Activite.update({ UserId: null }, { where: { UserId: subUser.id }, transaction }),
+        StaffPayment.destroy({ where: { userId: subUser.id }, transaction }),
+        StaffPayment.destroy({ where: { staffId: subUser.id }, transaction }),
+        Feedback.destroy({ where: { userId: subUser.id }, transaction }),
+        Notification.destroy({ where: { userId: subUser.id }, transaction }),
+      ]);
+
+      await Promise.all([
+        Product.update({ creatorId: null }, { where: { creatorId: subUser.id }, transaction }),
+        Product.destroy({ where: { userId: subUser.id }, force: true, transaction }),
+        Client.destroy({ where: { userId: subUser.id }, force: true, transaction }),
+        Fournisseur.destroy({ where: { userId: subUser.id }, transaction }),
+      ]);
+
+      await subUser.destroy({ transaction });
+    });
     sendResponse(res, 200, null, 'Membre d’équipe supprimé');
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    const message = error.name === 'SequelizeForeignKeyConstraintError'
+      ? 'Impossible de supprimer ce membre car des donnees liees existent encore.'
+      : error.message;
+    res.status(500).json({ success: false, message });
   }
 };

@@ -227,8 +227,8 @@ const SuperAdminDashboard = () => {
                     await api.delete(`/superadmin/users/${id}`);
                     toast.success("Utilisateur supprimé définitivement");
                     fetchData();
-                } catch (error) {
-                    toast.error("Erreur lors de la suppression");
+                } catch (error: any) {
+                    toast.error(error.response?.data?.message || "Erreur lors de la suppression");
                 }
             }
         });
