@@ -335,13 +335,21 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
           .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
           .stat-card { padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9; background: #f8fafc; }
           .stat-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
-          .stat-value { font-size: 24px; font-weight: 800; color: #0f172a; }
-          .stat-sub { font-size: 13px; font-weight: 600; color: #94a3b8; margin-top: 4px; }
+          .stat-value { font-size: 24px; font-weight: 800; color: #0f172a; white-space: nowrap; }
+          .stat-sub { font-size: 13px; font-weight: 600; color: #94a3b8; margin-top: 4px; white-space: nowrap; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 12px; }
           td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 600; }
           .section-title { font-size: 18px; font-weight: 800; margin-top: 40px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
           .section-title::before { content: ""; width: 4px; height: 18px; background: #6366f1; border-radius: 4px; }
+          
+          @media print {
+            body { padding: 0; margin: 0; background: #fff; color: #000; }
+            .report-box { max-width: 100% !important; width: 100% !important; padding: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important; }
+            .stat-value { font-size: 20px !important; }
+            .stat-sub { font-size: 11px !important; }
+            @page { margin: 1.5cm 1.2cm; }
+          }
         </style>
       </head>
       <body>
@@ -374,22 +382,22 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Revenus</th>
-                <th>Profit</th>
+                <th style="width: 25%; padding: 12px 6px;">Date</th>
+                <th style="width: 37.5%; text-align: right; padding: 12px 6px;">Revenus</th>
+                <th style="width: 37.5%; text-align: right; padding: 12px 6px;">Profit</th>
               </tr>
             </thead>
             <tbody>
               ${(data?.periodData || []).map((d: any) => `
                 <tr>
-                  <td>${new Date(d.date).toLocaleDateString()}</td>
-                  <td>
-                    ${Number(d.revenue).toLocaleString()} ${currency}<br/>
-                    <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
+                  <td style="padding: 12px 6px; vertical-align: top;">${new Date(d.date).toLocaleDateString()}</td>
+                  <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top;">
+                    <span style="font-weight: 700;">${Number(d.revenue).toLocaleString()} ${currency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
-                  <td style="color: ${(d.profit ?? 0) >= 0 ? '#10b981' : '#ef4444'}">
-                    ${Number(d.profit ?? d.revenue ?? 0).toLocaleString()} ${currency}<br/>
-                    <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
+                  <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top; color: ${(d.profit ?? 0) >= 0 ? '#10b981' : '#ef4444'}">
+                    <span style="font-weight: 700;">${Number(d.profit ?? d.revenue ?? 0).toLocaleString()} ${currency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
                 </tr>
               `).join('')}
@@ -400,19 +408,19 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
           <table>
             <thead>
               <tr>
-                <th>Produit</th>
-                <th>Quantité</th>
-                <th>Revenu</th>
+                <th style="width: 50%; padding: 12px 6px;">Produit</th>
+                <th style="width: 15%; text-align: center; padding: 12px 6px;">Quantité</th>
+                <th style="width: 35%; text-align: right; padding: 12px 6px;">Revenu</th>
               </tr>
             </thead>
             <tbody>
               ${(data?.topProducts || []).map((p: any) => `
                 <tr>
-                  <td>${p.nom}</td>
-                  <td>${p.quantite}</td>
-                  <td>
-                    ${Number(p.revenu).toLocaleString()} ${currency}<br/>
-                    <span style="font-size: 11px; color: #94a3b8;">≈ ${getAltAmount(Number(p.revenu)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
+                  <td style="padding: 12px 6px; font-weight: 700; color: #0f172a; vertical-align: top;">${p.nom}</td>
+                  <td style="text-align: center; padding: 12px 6px; color: #475569; font-weight: 700; vertical-align: top;">${p.quantite}</td>
+                  <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top;">
+                    <span style="font-weight: 700;">${Number(p.revenu).toLocaleString()} ${currency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(p.revenu)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
                 </tr>
               `).join('')}
