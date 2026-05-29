@@ -124,6 +124,20 @@ const Products = () => {
     exportToExcel(dataToExport, "Produits_Report");
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        Nom: 'Exemple Produit (Obligatoire)',
+        Categorie: 'Électronique (Optionnel)',
+        PrixVente: 1500,
+        PrixAchat: 1000,
+        Stock: 50,
+        Devise: 'USD'
+      }
+    ];
+    exportToExcel(templateData, 'Modele_Import_Produits');
+  };
+
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -491,7 +505,10 @@ const Products = () => {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <input type="file" ref={importInputRef} accept=".xlsx, .xls, .csv" onChange={handleImportExcel} style={{ display: 'none' }} />
-          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
+          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Télécharger le modèle Excel pour l'importation">
+            <Download size={20} /> Modèle
+          </button>
+          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Importer un fichier Excel">
             <Upload size={20} /> Excel
           </button>
           <button onClick={() => setShowTextImportModal(true)} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
