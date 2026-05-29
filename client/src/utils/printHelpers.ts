@@ -359,27 +359,26 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
       </head>
       <body>
         <div class="report-box">
-          <div class="header">
-            <div style="display: flex; align-items: center; gap: 20px;">
-              ${logo ? \`<img src="\${logo}" alt="Logo" style="height: 60px; object-fit: contain;">\` : ''}
+                    <div style="display: flex; align-items: center; gap: 20px;">
+              ${logo ? `<img src="${logo}" alt="Logo" style="height: 60px; object-fit: contain;">` : ''}
               <div>
                 <div class="title">Bilan Financier</div>
-                <div style="color: #64748b; font-weight: 600; margin-top: 4px;">\${user?.entreprise?.nom || 'LUMO Pro'}</div>
+                <div style="color: #64748b; font-weight: 600; margin-top: 4px;">${user?.entreprise?.nom || 'LUMO Pro'}</div>
               </div>
             </div>
-            <div class="period">\${periodLabel}</div>
+            <div class="period">${periodLabel}</div>
           </div>
 
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-label">Revenus Totaux</div>
-              <div class="stat-value" style="color: #10b981;">\${getMainAmount(Number(data?.totals?.revenue || 0)).toLocaleString()} \${displayCurrency}</div>
-              <div class="stat-sub">≈ \${getAltAmount(Number(data?.totals?.revenue || 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} \${altCurrency}</div>
+              <div class="stat-value" style="color: #10b981;">${getMainAmount(Number(data?.totals?.revenue || 0)).toLocaleString()} ${displayCurrency}</div>
+              <div class="stat-sub">≈ ${getAltAmount(Number(data?.totals?.revenue || 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Bénéfice Net</div>
-              <div class="stat-value" style="color: #6366f1;">\${getMainAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))).toLocaleString()} \${displayCurrency}</div>
-              <div class="stat-sub">≈ \${getAltAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))).toLocaleString(undefined, {maximumFractionDigits: 2})} \${altCurrency}</div>
+              <div class="stat-value" style="color: #6366f1;">${getMainAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))).toLocaleString()} ${displayCurrency}</div>
+              <div class="stat-sub">≈ ${getAltAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</div>
             </div>
           </div>
 
@@ -393,19 +392,19 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
               </tr>
             </thead>
             <tbody>
-              \${(data?.periodData || []).map((d: any) => \`
+              ${(data?.periodData || []).map((d: any) => `
                 <tr>
-                  <td style="padding: 12px 6px; vertical-align: top;">\${new Date(d.date).toLocaleDateString()}</td>
+                  <td style="padding: 12px 6px; vertical-align: top;">${new Date(d.date).toLocaleDateString()}</td>
                   <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top;">
-                    <span style="font-weight: 700;">\${getMainAmount(Number(d.revenue)).toLocaleString()} \${displayCurrency}</span><br/>
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ \${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} \${altCurrency}</span>
+                    <span style="font-weight: 700;">${getMainAmount(Number(d.revenue)).toLocaleString()} ${displayCurrency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(d.revenue)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
-                  <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top; color: \${(d.profit ?? 0) >= 0 ? '#10b981' : '#ef4444'}">
-                    <span style="font-weight: 700;">\${getMainAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString()} \${displayCurrency}</span><br/>
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ \${getAltAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} \${altCurrency}</span>
+                  <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top; color: ${(d.profit ?? 0) >= 0 ? '#10b981' : '#ef4444'}">
+                    <span style="font-weight: 700;">${getMainAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString()} ${displayCurrency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(d.profit ?? d.revenue ?? 0)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
                 </tr>
-              \`).join('')}
+              `).join('')}
             </tbody>
           </table>
 
@@ -419,21 +418,21 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
               </tr>
             </thead>
             <tbody>
-              \${(data?.topProducts || []).map((p: any) => \`
+              ${(data?.topProducts || []).map((p: any) => `
                 <tr>
-                  <td style="padding: 12px 6px; font-weight: 700; color: #0f172a; vertical-align: top;">\${p.nom}</td>
-                  <td style="text-align: center; padding: 12px 6px; color: #475569; font-weight: 700; vertical-align: top;">\${p.quantite}</td>
+                  <td style="padding: 12px 6px; font-weight: 700; color: #0f172a; vertical-align: top;">${p.nom}</td>
+                  <td style="text-align: center; padding: 12px 6px; color: #475569; font-weight: 700; vertical-align: top;">${p.quantite}</td>
                   <td style="text-align: right; padding: 12px 6px; white-space: nowrap; vertical-align: top;">
-                    <span style="font-weight: 700;">\${getMainAmount(Number(p.revenu)).toLocaleString()} \${displayCurrency}</span><br/>
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ \${getAltAmount(Number(p.revenu)).toLocaleString(undefined, {maximumFractionDigits: 2})} \${altCurrency}</span>
+                    <span style="font-weight: 700;">${getMainAmount(Number(p.revenu)).toLocaleString()} ${displayCurrency}</span><br/>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">≈ ${getAltAmount(Number(p.revenu)).toLocaleString(undefined, {maximumFractionDigits: 2})} ${altCurrency}</span>
                   </td>
                 </tr>
-              \`).join('')}
+              `).join('')}
             </tbody>
           </table>
 
           <div style="margin-top: 60px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
-            Document généré automatiquement par LUMO ERP - \${new Date().toLocaleString('fr-FR', { hour12: false })}
+            Document généré automatiquement par LUMO ERP - ${new Date().toLocaleString('fr-FR', { hour12: false })}
           </div>
         </div>
         <script>
