@@ -83,17 +83,17 @@ const Stats = () => {
                         onClick={() => {
                        if (!data) return;
                        const exportData = [
-                         { Section: 'Ventes' },
-                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: s.revenue })),
+                         { Section: `Ventes (${displayCurrency})` },
+                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: convert(s.revenue, 'CDF') })),
                          { Section: '' },
                          { Section: 'Stock Par Catégorie' },
                          ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
                          { Section: '' },
-                         { Section: 'Produits les plus vendus' },
-                         ...(data.topProducts || []).map((p: any) => ({ Produit: p.nom, Quantite: p.quantite, Revenu: p.revenu })),
+                         { Section: `Produits les plus vendus (${displayCurrency})` },
+                         ...(data.topProducts || []).map((p: any) => ({ Produit: p.nom, Quantite: p.quantite, Revenu: convert(p.revenu, 'CDF') })),
                          { Section: '' },
-                         { Section: 'Revenus Mensuels (6 mois)' },
-                         ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: data.monthlyRevenue.values[idx] }))
+                         { Section: `Revenus Mensuels (6 mois) - ${displayCurrency}` },
+                         ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: convert(data.monthlyRevenue.values[idx] || 0, 'CDF') }))
                        ];
                        exportToExcel(exportData, 'Statistiques_Avancees_Report');
                         }}
