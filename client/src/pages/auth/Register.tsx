@@ -55,10 +55,42 @@ const Register = () => {
   });
 
   const activityTypes = [
-    { id: 'commerce-general', label: 'Commerce Général', icon: Store, color: '#6366f1', desc: 'Gestion standard des ventes, stocks et clients.' },
-    { id: 'pharmacie', label: 'Pharmacie & Santé', icon: Heart, color: '#ef4444', desc: 'Suivi des dates d\'expiration, numéros de lot et ordonnances.' },
-    { id: 'quincaillerie', label: 'Quincaillerie & BTP', icon: Wrench, color: '#f59e0b', desc: 'Unités de mesure spéciales, poids, dimensions et marques.' },
-    { id: 'boutique-mode', label: 'Boutique de Mode', icon: Shirt, color: '#ec4899', desc: 'Gestion des variantes de tailles, couleurs, genres et matières.' },
+    {
+      id: 'commerce-general',
+      label: language === 'fr' ? 'Commerce general' : 'General commerce',
+      icon: Store,
+      color: '#6366f1',
+      desc: language === 'fr'
+        ? 'Gestion standard des ventes, stocks et clients.'
+        : 'Standard management of sales, stock and customers.'
+    },
+    {
+      id: 'pharmacie',
+      label: language === 'fr' ? 'Pharmacie & sante' : 'Pharmacy & health',
+      icon: Heart,
+      color: '#ef4444',
+      desc: language === 'fr'
+        ? "Suivi des dates d'expiration, numeros de lot et ordonnances."
+        : 'Track expiration dates, batch numbers and prescriptions.'
+    },
+    {
+      id: 'quincaillerie',
+      label: language === 'fr' ? 'Quincaillerie & BTP' : 'Hardware & construction',
+      icon: Wrench,
+      color: '#f59e0b',
+      desc: language === 'fr'
+        ? 'Unites de mesure speciales, poids, dimensions et marques.'
+        : 'Special measurement units, weights, dimensions and brands.'
+    },
+    {
+      id: 'boutique-mode',
+      label: language === 'fr' ? 'Boutique de mode' : 'Fashion store',
+      icon: Shirt,
+      color: '#ec4899',
+      desc: language === 'fr'
+        ? 'Gestion des variantes de tailles, couleurs, genres et matieres.'
+        : 'Manage size, color, gender and material variants.'
+    },
   ];
 
   const updateForm = (fields: Partial<typeof formData>) => {

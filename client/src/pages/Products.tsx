@@ -56,6 +56,7 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const user = useAuthStore(state => state.user);
+  const language = useAuthStore(state => state.language);
   const currency = useAuthStore(state => state.currency) || 'CDF';
   const exchangeRate = useAuthStore(state => state.exchangeRate) || 2250;
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,6 +81,12 @@ const Products = () => {
 
   const [conversionBanner, setConversionBanner] = React.useState<string | null>(null);
   const isPharmacy = normalizeActivityType(user?.typeActivite) === 'pharmacie';
+
+  const getFieldLabel = (field: any) => language === 'en' ? (field.labelEn || field.label) : field.label;
+  const getFieldPlaceholder = (field: any) => language === 'en' ? (field.placeholderEn || field.placeholder) : field.placeholder;
+  const getFieldOptionLabel = (field: any, option: string, index: number) => (
+    language === 'en' ? (field.optionsEn?.[index] || option) : option
+  );
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -116,7 +123,9 @@ const Products = () => {
 
       businessFields.forEach((field) => {
         const val = p?.metadata?.[field.name];
-        baseRow[field.label] = typeof val === 'boolean' ? (val ? 'Oui' : 'Non') : (val ?? '');
+        baseRow[getFieldLabel(field)] = typeof val === 'boolean'
+          ? (val ? (language === 'en' ? 'Yes' : 'Oui') : (language === 'en' ? 'No' : 'Non'))
+          : (val ?? '');
       });
 
       return baseRow;
@@ -138,11 +147,11 @@ const Products = () => {
     };
 
     businessFields.forEach((field) => {
-      let example = field.placeholder || '...';
-      if (field.type === 'boolean') example = 'Oui / Non';
+      let example = getFieldPlaceholder(field) || '...';
+      if (field.type === 'boolean') example = language === 'en' ? 'Yes / No' : 'Oui / Non';
       if (field.type === 'date') example = 'YYYY-MM-DD';
-      if (field.options) example = field.options.join(' / ');
-      templateRow[field.label] = example;
+      if (field.options) example = field.options.map((opt, idx) => getFieldOptionLabel(field, opt, idx)).join(' / ');
+      templateRow[getFieldLabel(field)] = example;
     });
 
     const templateData = [templateRow];
@@ -961,7 +970,7 @@ const Products = () => {
 
           {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
             <div key={field.name}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{field.label}</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
               <div style={{ position: 'relative' }}>
                 {field.type === 'select' ? (
                   <select
@@ -969,18 +978,18 @@ const Products = () => {
                     onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
                     style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
                   >
-                    <option value="">Sélectionnez...</option>
-                    {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    <option value="">{language === 'en' ? 'Select...' : 'Selectionnez...'}</option>
+                    {field.options?.map((opt, idx) => <option key={opt} value={opt}>{getFieldOptionLabel(field, opt, idx)}</option>)}
                   </select>
                 ) : field.type === 'boolean' ? (
                   <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={!!newProduct.metadata?.[field.name]} onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
-                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{field.label}</span>
+                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
                   </label>
                 ) : (
                   <input
                     type={field.type}
-                    placeholder={field.placeholder}
+                    placeholder={getFieldPlaceholder(field)}
                     required={field.required}
                     value={newProduct.metadata?.[field.name] || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
@@ -1165,7 +1174,7 @@ const Products = () => {
 
             {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
               <div key={field.name}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{field.label}</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
                 <div style={{ position: 'relative' }}>
                   {field.type === 'select' ? (
                     <select
@@ -1173,18 +1182,18 @@ const Products = () => {
                       onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}
                       style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
                     >
-                      <option value="">Sélectionnez...</option>
-                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      <option value="">{language === 'en' ? 'Select...' : 'Selectionnez...'}</option>
+                      {field.options?.map((opt, idx) => <option key={opt} value={opt}>{getFieldOptionLabel(field, opt, idx)}</option>)}
                     </select>
                   ) : field.type === 'boolean' ? (
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
                       <input type="checkbox" checked={!!selectedProduct.metadata?.[field.name]} onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
-                      <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{field.label}</span>
+                      <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
                     </label>
                   ) : (
                     <input
                       type={field.type}
-                      placeholder={field.placeholder}
+                      placeholder={getFieldPlaceholder(field)}
                       required={field.required}
                       value={selectedProduct.metadata?.[field.name] || ''}
                       onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}

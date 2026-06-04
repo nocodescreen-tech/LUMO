@@ -775,6 +775,11 @@ const Settings = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const getBusinessTypeLabel = (type: string) => {
+    const businessType = BUSINESS_TYPES[type];
+    if (!businessType) return type;
+    return language === 'en' ? (businessType.labelEn || businessType.label) : businessType.label;
+  };
 
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(user?.preferences?.autoBackupEnabled || false);
   const [backupTime, setBackupTime] = useState(user?.preferences?.backupTime || '00:00');
@@ -785,7 +790,7 @@ const Settings = () => {
     email: user?.email || '',
     telephone: '',
     countryCode: '+243',
-    typeActivite: user?.typeActivite || 'Boutique',
+    typeActivite: user?.typeActivite || 'commerce-general',
     entreprise: {
       nom: user?.entreprise?.nom || '',
       devise: (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF',
@@ -1169,7 +1174,7 @@ const Settings = () => {
                         onChange={(e) => setProfileData({ ...profileData, typeActivite: e.target.value })}
                         style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700', outline: 'none', boxSizing: 'border-box', appearance: 'none' }}
                       >
-                        {activityTypes.map(a => <option key={a} value={a}>{BUSINESS_TYPES[a]?.label || a}</option>)}
+                        {activityTypes.map(a => <option key={a} value={a}>{getBusinessTypeLabel(a)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -1197,7 +1202,7 @@ const Settings = () => {
                   </div>
                   <div>
                     <p style={{ margin: 0, fontWeight: '900', fontSize: '1.1rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{profileData.typeActivite} · Système de gestion {currency}</p>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{getBusinessTypeLabel(profileData.typeActivite)} · {language === 'en' ? 'Management system' : 'Systeme de gestion'} {currency}</p>
                   </div>
                   <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
                   <button

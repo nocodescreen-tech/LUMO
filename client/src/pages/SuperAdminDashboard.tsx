@@ -14,9 +14,10 @@ import api from '../api/axios';
 import { toast } from 'sonner';
 import { useAuthStore, encodeData, decodeData } from '../store/useAuthStore';
 import Logo from '../components/layout/Logo';
+import { BUSINESS_TYPES } from '../constants/businessTypes';
 
 const SuperAdminDashboard = () => {
-    const { currency, exchangeRate } = useAuthStore();
+    const { currency, exchangeRate, language } = useAuthStore();
     const safeExchangeRate = Number(exchangeRate) > 0 ? Number(exchangeRate) : 2800;
     const [users, setUsers] = useState<any[]>([]);
     const [logs, setLogs] = useState<any[]>([]);
@@ -43,6 +44,21 @@ const SuperAdminDashboard = () => {
     // Newsletter Personalization
     const [newsTitle, setNewsTitle] = useState('');
     const [newsBody, setNewsBody] = useState('');
+
+    const normalizeActivityType = (type: string | undefined | null) => {
+        if (!type) return 'commerce-general';
+        if (type in BUSINESS_TYPES) return type;
+        const lower = type.toLowerCase();
+        if (lower.includes('pharma')) return 'pharmacie';
+        if (lower.includes('quinc')) return 'quincaillerie';
+        if (lower.includes('mode')) return 'boutique-mode';
+        return 'commerce-general';
+    };
+
+    const getBusinessTypeLabel = (type: string | undefined | null) => {
+        const businessType = BUSINESS_TYPES[normalizeActivityType(type)];
+        return language === 'en' ? (businessType.labelEn || businessType.label) : businessType.label;
+    };
     const [newsLogo, setNewsLogo] = useState('');
     const [savingSettings, setSavingSettings] = useState(false);
 
@@ -790,7 +806,7 @@ const SuperAdminDashboard = () => {
                                                 </td>
                                                 <td style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                                                     <div style={{ fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>{user.entreprise?.nom || 'Structure Non Définie'}</div>
-                                                    <div style={{ fontSize: '0.8rem', color: '#6366f1', fontWeight: '950', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '0.05em' }}>{user.typeActivite}</div>
+                                                    <div style={{ fontSize: '0.8rem', color: '#6366f1', fontWeight: '950', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '0.05em' }}>{getBusinessTypeLabel(user.typeActivite)}</div>
                                                 </td>
                                                 <td style={{ padding: '24px 32px', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '100px', backgroundColor: user.isVerified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: user.isVerified ? '#10b981' : '#f59e0b', fontSize: '0.85rem', fontWeight: '950', border: '1px solid currentColor' }}>
@@ -1287,7 +1303,7 @@ const SuperAdminDashboard = () => {
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                             <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(148, 163, 184, 0.1)', flexShrink: 0 }}><Activity size={20} color="var(--text-muted)" /></div>
-                                            <span style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--text-main)' }}>{selectedUser.typeActivite || '—'}</span>
+                                            <span style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--text-main)' }}>{getBusinessTypeLabel(selectedUser.typeActivite)}</span>
                                         </div>
                                     </div>
                                 </div>
