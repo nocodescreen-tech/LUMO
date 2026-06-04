@@ -125,16 +125,27 @@ const Products = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        Nom: 'Exemple Produit (Obligatoire)',
-        Categorie: 'Électronique (Optionnel)',
-        PrixVente: 1500,
-        PrixAchat: 1000,
-        Stock: 50,
-        Devise: 'USD'
-      }
-    ];
+    const activityType = normalizeActivityType(user?.typeActivite);
+    const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
+
+    const templateRow: any = {
+      Nom: 'Exemple Produit (Obligatoire)',
+      Categorie: 'Électronique (Optionnel)',
+      PrixVente: 1500,
+      PrixAchat: 1000,
+      Stock: 50,
+      Devise: 'USD'
+    };
+
+    businessFields.forEach((field) => {
+      let example = field.placeholder || '...';
+      if (field.type === 'boolean') example = 'Oui / Non';
+      if (field.type === 'date') example = 'YYYY-MM-DD';
+      if (field.options) example = field.options.join(' / ');
+      templateRow[field.label] = example;
+    });
+
+    const templateData = [templateRow];
     exportToExcel(templateData, 'Modele_Import_Produits');
   };
 
@@ -150,9 +161,9 @@ const Products = () => {
         const sheet = workbook.Sheets[sheetName];
         const parsedData: any[] = XLSX.utils.sheet_to_json(sheet);
 
-        let validProducts = parsedData.map(row => ({
+        const validProducts = parsedData.map(row => ({
           nom: row.Nom || row.nom || row.Name || 'Produit Inconnu',
-          categorie: row.Categorie || row.categorie || row.Category || 'Général',
+          categorie: row.Categorie || row.categorie || row.Category || 'General',
           prix: parseFloat(row.PrixVente || row.prix || 0),
           prixAchat: parseFloat(row.PrixAchat || row.prixAchat || 0),
           stock: parseInt(row.Stock || row.stock || 0),
@@ -161,7 +172,7 @@ const Products = () => {
 
         const res = await api.post('/products/bulk', { products: validProducts });
         const importedCount = res.data.success ? res.data.data.length : res.data.length;
-        toast.success(`${importedCount} produits importés avec succès !`);
+        toast.success(`${importedCount} produits importes avec succes !`);
         fetchProducts();
       } catch (err) {
         toast.error("Erreur lors de l'importation. Vérifiez le format du fichier.");

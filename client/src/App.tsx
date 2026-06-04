@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { useAuthStore } from './store/useAuthStore';
 import api from './api/axios';
 import { Loader2 } from 'lucide-react';
+import { useRuntimeTranslator } from './i18n/runtimeTranslator';
 
 // Chargement paresseux (Lazy Loading) pour optimiser les performances
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -49,6 +50,7 @@ const LoadingFallback = () => (
 
 const App = () => {
   const { token, checkAuth, theme, user } = useAuthStore();
+  useRuntimeTranslator();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
