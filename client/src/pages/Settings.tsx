@@ -96,6 +96,7 @@ const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeho
 
 const TwoFASection = () => {
   const { user, updateUser } = useAuthStore();
+  const { t } = useTranslation();
   const [loading2FA, setLoading2FA] = React.useState(false);
   const [showSetupModal, setShowSetupModal] = React.useState(false);
   const [qrCode, setQrCode] = React.useState('');
@@ -113,7 +114,7 @@ const TwoFASection = () => {
       setOtpCode('');
       setShowSetupModal(true);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la configuration 2FA');
+      toast.error(err.response?.data?.message || t('twoFactorError'));
     } finally {
       setLoading2FA(false);
     }
@@ -122,18 +123,18 @@ const TwoFASection = () => {
   const handleActivate2FA = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length !== 6) {
-      toast.error('Veuillez entrer un code à 6 chiffres');
+      toast.error(t('verificationCode'));
       return;
     }
     setActivating(true);
     try {
       const { data } = await api.post('/auth/2fa/activate', { code: otpCode });
       updateUser({ ...(user as any), twoFactorEnabled: true });
-      toast.success(data.message || 'Double authentification activée avec succès');
+      toast.success(data.message || t('twoFactorEnabled'));
       setShowSetupModal(false);
       setOtpCode('');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Code incorrect. Réessayez.');
+      toast.error(err.response?.data?.message || t('invalidCode'));
     } finally {
       setActivating(false);
     }
@@ -144,9 +145,9 @@ const TwoFASection = () => {
     try {
       const { data } = await api.post('/auth/2fa/disable');
       updateUser({ ...(user as any), twoFactorEnabled: false });
-      toast.success(data.message || 'Double authentification désactivée');
+      toast.success(data.message || t('twoFactorDisabled'));
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la désactivation 2FA');
+      toast.error(err.response?.data?.message || t('twoFactorError'));
     } finally {
       setLoading2FA(false);
     }
@@ -167,11 +168,11 @@ const TwoFASection = () => {
             <ShieldCheck size={26} />
           </div>
           <div>
-            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
+            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{t('twoFactorAuth')}</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
-                ? 'Activée - Code Google Authenticator requis à chaque connexion'
-                : 'Désactivée - Activez pour protéger votre compte avec Google Authenticator (TOTP)'}
+                ? t('twoFactorDesc')
+                : t('twoFactorDescDisabled')}
             </p>
           </div>
         </div>
@@ -186,7 +187,7 @@ const TwoFASection = () => {
             opacity: loading2FA ? 0.6 : 1
           }}
         >
-          {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
+          {loading2FA ? t('inProgress') : is2FAEnabled ? t('disable') : t('enable')}
         </button>
       </div>
 
@@ -202,9 +203,9 @@ const TwoFASection = () => {
               <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <ShieldCheck size={32} color="white" />
               </div>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 8px' }}>Configurer la 2FA</h2>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 8px' }}>{t('setupTwoFactor')}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
-                Scannez le QR Code avec Google Authenticator ou Authy
+                {t('scanQRCode')}
               </p>
             </div>
 
@@ -212,7 +213,7 @@ const TwoFASection = () => {
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                 <img src={qrCode} alt="QR Code 2FA" style={{ width: '200px', height: '200px', borderRadius: '16px', border: '4px solid var(--border)', margin: '0 auto', display: 'block' }} />
                 <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clé secrète manuelle</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('manualSecret')}</p>
                   <p style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--primary)', margin: 0, wordBreak: 'break-all', letterSpacing: '0.1em' }}>{secret}</p>
                 </div>
               </div>
@@ -221,7 +222,7 @@ const TwoFASection = () => {
             <form onSubmit={handleActivate2FA} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                  Code de vérification (6 chiffres)
+                  {t('verificationCode')}
                 </label>
                 <input
                   type="text"
@@ -252,7 +253,7 @@ const TwoFASection = () => {
                   disabled={activating || otpCode.length !== 6}
                   style={{ flex: 2, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 800, cursor: activating || otpCode.length !== 6 ? 'not-allowed' : 'pointer', opacity: activating || otpCode.length !== 6 ? 0.6 : 1 }}
                 >
-                  {activating ? 'Vérification...' : 'Activer la 2FA'}
+                  {activating ? t('verifying') : t('activate2FA')}
                 </button>
               </div>
             </form>
@@ -264,6 +265,7 @@ const TwoFASection = () => {
 };
 
 const TeamSection = () => {
+  const { t } = useTranslation();
   const [subUsers, setSubUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -397,7 +399,7 @@ const TeamSection = () => {
       const members = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
       setSubUsers(members);
     } catch (err) {
-      toast.error("Erreur lors de la récupération de l'équipe");
+      toast.error(t('errorLoadingClients'));
       setSubUsers([]);
     } finally {
       setLoading(false);
@@ -414,17 +416,17 @@ const TeamSection = () => {
     // Validation mot de passe
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
     if (!passwordRegex.test(newUser.motDePasse)) {
-      return toast.error("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+      return toast.error(t('passwordRequirement'));
     }
 
     try {
       await api.post('/subusers', newUser);
-      toast.success(`Membre ${newUser.nom} ajouté !`);
+      toast.success(`${t('memberAdded').replace('!', '')} ${newUser.nom} !`);
       setShowAddModal(false);
       setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: ['pos', 'products', 'clients'] });
       fetchSubUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'ajout");
+      toast.error(err.response?.data?.message || t('errorAddingMember'));
     }
   };
 
@@ -432,11 +434,11 @@ const TeamSection = () => {
     if (!confirmDelete.id) return;
     try {
       await api.delete(`/subusers/${confirmDelete.id}`);
-      toast.success('Membre supprimé');
+      toast.success(t('memberRemoved'));
       setConfirmDelete({ isOpen: false, id: null, name: '' });
       fetchSubUsers();
     } catch (err) {
-      toast.error('Erreur lors de la suppression');
+      toast.error(t('errorDeletingMember'));
     }
   };
 
@@ -462,11 +464,11 @@ const TeamSection = () => {
         staffId: selectedStaff.id,
         ...paymentData
       });
-      toast.success('Paiement enregistré');
+      toast.success(t('paymentRecorded'));
       setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
       openPaymentModal(selectedStaff); // Refresh list
     } catch (err) {
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('paymentError'));
     }
   };
 
@@ -474,15 +476,15 @@ const TeamSection = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Gestion de l'équipe</h2>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Créez et gérez les accès pour vos vendeurs et gestionnaires.</p>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('teamManagement')}</h2>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('teamDesc')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-premium primary"
           style={{ padding: '12px 24px' }}
         >
-          + Ajouter un membre
+          + {t('addMember')}
         </button>
       </div>
 
@@ -494,7 +496,7 @@ const TeamSection = () => {
         ) : subUsers.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '24px' }}>
             <Users size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Aucun membre dans votre équipe pour le moment.</p>
+            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>{t('noTeamMembers')}</p>
           </div>
         ) : subUsers.map(u => (
           <motion.div
@@ -520,7 +522,7 @@ const TeamSection = () => {
                 <button
                   onClick={() => openPaymentModal(u)}
                   style={{ background: 'var(--primary-glow)', border: 'none', color: 'var(--primary)', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
-                  title="Gérer les paiements"
+                  title={t('managePayments')}
                 >
                   <Wallet size={18} />
                 </button>
@@ -549,14 +551,14 @@ const TeamSection = () => {
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Nouveau Collaborateur"
-        subtitle="Créez un compte sécurisé avec des accès personnalisés."
+        title={t('newCollaborator')}
+        subtitle={t('createSecureAccount')}
         maxWidth="600px"
         icon={Users}
       >
         <form onSubmit={handleAddSubUser} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <InputField label="Nom Complet" value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder="Ex: Jules Kamba" required />
+            <InputField label={t('fullName')} value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder="Ex: Jules Kamba" required />
             <InputField label="Téléphone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
           </div>
 

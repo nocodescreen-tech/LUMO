@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
@@ -55,6 +56,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const { t } = useTranslation();
   const user = useAuthStore(state => state.user);
   const language = useAuthStore(state => state.language);
   const currency = useAuthStore(state => state.currency) || 'CDF';
@@ -181,10 +183,10 @@ const Products = () => {
 
         const res = await api.post('/products/bulk', { products: validProducts });
         const importedCount = res.data.success ? res.data.data.length : res.data.length;
-        toast.success(`${importedCount} produits importes avec succes !`);
+        toast.success(`${importedCount} ${t('bulkImportSuccess')}`);
         fetchProducts();
       } catch (err) {
-        toast.error("Erreur lors de l'importation. Vérifiez le format du fichier.");
+        toast.error(t('importError'));
         console.error(err);
       }
     };
@@ -209,12 +211,12 @@ const Products = () => {
     try {
       const res = await api.post('/products/bulk', { products: validProducts });
       const importedCount = res.data.success ? res.data.data.length : res.data.length;
-      toast.success(`${importedCount} produits importés avec succès !`);
+      toast.success(`${importedCount} ${t('textImportSuccess')}`);
       setShowTextImportModal(false);
       setBulkText('');
       fetchProducts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'importation de texte.");
+      toast.error(err.response?.data?.message || t('textImportError'));
     }
   };
 
@@ -353,7 +355,7 @@ const Products = () => {
 
     try {
       await api.post('/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Produit "${newProduct.nom}" ajouté avec succès !`);
+      toast.success(t('productAdded'));
       setShowAddModal(false);
       setNewProduct({
         nom: '', codeBarre: '', categorie: 'Général', prixVente: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency, variantes: [], metadata: {}
@@ -384,7 +386,7 @@ const Products = () => {
 
     try {
       await api.put(`/products/${selectedProduct.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Modification de "${selectedProduct.nom}" enregistrée !`);
+      toast.success(t('productModified'));
       setShowEditModal(false);
       setSelectedImage(null);
       setImagePreview(null);
@@ -397,15 +399,15 @@ const Products = () => {
   const handleDeleteProduct = async (id: number, name: string) => {
     setConfirmModal({
       isOpen: true,
-      title: "Supprimer Produit",
-      message: `Voulez-vous vraiment supprimer le produit "${name}" ? Cette action est irréversible.`,
+      title: t('deleteProduct'),
+      message: `${t('deleteProductMsg')} "${name}" ?`,
       onConfirm: async () => {
         try {
           await api.delete(`/products/${id}`);
-          toast.success("Produit supprimé.");
+          toast.success(t('productDeleted'));
           fetchProducts();
         } catch (error: any) {
-          toast.error("Erreur lors de la suppression");
+          toast.error(t('errorDeletingMember'));
         }
       }
     });
@@ -414,15 +416,15 @@ const Products = () => {
   const handleAllDelete = async () => {
     setConfirmModal({
       isOpen: true,
-      title: "SUPPRESSION TOTALE",
-      message: "ATTENTION : Voulez-vous vraiment supprimer TOUS les produits de votre catalogue ? Cette action est irréversible.",
+      title: t('deleteAllProducts'),
+      message: t('deleteAllProductsMsg'),
       onConfirm: async () => {
         try {
           await api.delete('/products/all');
-          toast.success("Catalogue entièrement vidé.");
+          toast.success(t('catalogCleared'));
           fetchProducts();
         } catch (error: any) {
-          toast.error("Erreur lors de la suppression massive");
+          toast.error(t('deletionFailed'));
         }
       }
     });
@@ -442,10 +444,10 @@ const Products = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
-            <Boxes size={14} /> Inventaire Global
+            <Boxes size={14} /> {t('globalInventory')}
           </div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
-            Produits & <span className="text-gradient">Stock</span>
+            {t('productsStock').split(' ')[0]} & <span className="text-gradient">{t('productsStock').split(' ').slice(1).join(' ')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Visualisez vos stocks et gérez vos références en temps réel.</p>
         </div>
@@ -456,7 +458,7 @@ const Products = () => {
               <Layers size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Articles</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('articles')}</span>
               <div style={{ fontSize: '1.1rem', fontWeight: '950' }}>{totalProducts}</div>
             </div>
           </div>
@@ -466,7 +468,7 @@ const Products = () => {
               <TrendingUp size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Valeur Stock (Vente)</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('stockValue')}</span>
               <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#10b981' }}>
                 {allProducts.reduce((acc, p) => acc + (convertPrice(p.prix || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
               </div>
@@ -479,7 +481,7 @@ const Products = () => {
                 <Package size={20} />
               </div>
               <div>
-                <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Coût Total (Achat)</span>
+                <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('costValue')}</span>
                 <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#f59e0b' }}>
                   {allProducts.reduce((acc, p) => acc + (convertPrice(p.prixAchat || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
                 </div>
@@ -507,7 +509,7 @@ const Products = () => {
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Rechercher une référence ou une catégorie..."
+            placeholder={t('searchProduct')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -525,14 +527,14 @@ const Products = () => {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <input type="file" ref={importInputRef} accept=".xlsx, .xls, .csv" onChange={handleImportExcel} style={{ display: 'none' }} />
-          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Télécharger le modèle Excel pour l'importation">
-            <Download size={20} /> Modèle
+          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('downloadTemplate')}>
+            <Download size={20} /> {t('template')}
           </button>
-          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Importer un fichier Excel">
+          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('importExcel')}>
             <Upload size={20} /> Excel
           </button>
           <button onClick={() => setShowTextImportModal(true)} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-            <FileText size={20} /> Texte
+            <FileText size={20} /> {t('text')}
           </button>
           <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
             <Download size={20} /> Rapport
@@ -557,7 +559,7 @@ const Products = () => {
                 fontSize: '1rem'
               }}
             >
-              <Plus size={22} /> Nouveau Produit
+              <Plus size={22} /> {t('newProduct')}
             </button>
           )}
         </div>
@@ -766,8 +768,8 @@ const Products = () => {
       <Modal
         isOpen={showTextImportModal}
         onClose={() => setShowTextImportModal(false)}
-        title="Importation Rapide"
-        subtitle="Collez votre liste d'articles (un article par ligne)"
+        title={t('quickImport')}
+        subtitle={t('pasteItems')}
         maxWidth="600px"
         icon={FileText}
       >
@@ -809,8 +811,8 @@ const Products = () => {
         isOpen={showAddModal}
 
         onClose={() => setShowAddModal(false)}
-        title="Nouveau Produit"
-        subtitle="Enregistrez une nouvelle référence dans votre catalogue Lumos."
+        title={t('newProduct')}
+        subtitle={t('registerProduct')}
         maxWidth="800px"
         icon={PackageCheck}
       >
@@ -1013,8 +1015,8 @@ const Products = () => {
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        title="Mise à jour Article"
-        subtitle="Ajustez les détails de votre référence produit."
+        title={t('updateProduct')}
+        subtitle={t('adjustDetails')}
         maxWidth="800px"
         icon={Edit}
       >
@@ -1218,8 +1220,8 @@ const Products = () => {
       <Modal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
-        title="Historique des Mouvements"
-        subtitle={`Suivi des stocks pour : ${selectedProduct?.nom}`}
+        title={t('movementHistory')}
+        subtitle={`${t('stockHistory')} : ${selectedProduct?.nom}`}
         maxWidth="700px"
         icon={Activity}
       >

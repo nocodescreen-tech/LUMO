@@ -9,6 +9,7 @@ import {
     BarChart3
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import { exportToExcel } from '../utils/exportUtils';
@@ -19,6 +20,7 @@ const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'
 
 const Stats = () => {
     const { user } = useAuthStore();
+    const { t } = useTranslation();
     const { displayCurrency, exchangeRate, convert, format } = useCurrency();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -64,8 +66,8 @@ const Stats = () => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h1 className="title-xl">Analytiques <span className="text-gradient">Avancées</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Rapports détaillés depuis vos vraies données.</p>
+                    <h1 className="title-xl">{t('advancedAnalytics').split(' ')[0]} <span className="text-gradient">{t('advancedAnalytics').split(' ').slice(1).join(' ')}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('detailedReports')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <select 
@@ -74,10 +76,10 @@ const Stats = () => {
                         className="glass" 
                         style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
                     >
-                        <option value="today">Aujourd'hui</option>
-                        <option value="7d">7 derniers jours</option>
-                        <option value="30d">30 derniers jours</option>
-                        <option value="1y">12 derniers mois</option>
+                        <option value="today">{t('today')}</option>
+                        <option value="7d">{t('last7Days')}</option>
+                        <option value="30d">{t('last30Days')}</option>
+                        <option value="1y">{t('last12Months')}</option>
                     </select>
                     <button 
                         onClick={() => {
@@ -106,16 +108,16 @@ const Stats = () => {
                         onClick={() => {
                           if (!data) return;
                           const labelsMap: any = {
-                            'today': "Aujourd'hui",
-                            '7d': '7 derniers jours',
-                            '30d': '30 derniers jours',
-                            '1y': '12 derniers mois'
+                            'today': t('today'),
+                            '7d': t('last7Days'),
+                            '30d': t('last30Days'),
+                            '1y': t('last12Months')
                           };
                           generateMonthlyReport(data, { ...user, preferences: { currency: displayCurrency } }, labelsMap[period]);
                         }}
                         className="btn-premium primary"
                     >
-                        <BarChart3 size={18} /> Générer Bilan (PDF)
+                        <BarChart3 size={18} /> {t('generateReport')}
                     </button>
                 </div>
             </div>
@@ -135,7 +137,7 @@ const Stats = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                                        {period === 'today' ? "Performance d'aujourd'hui" : period === '30d' ? 'Performance des 30 derniers jours' : period === '1y' ? 'Performance de l\'année' : 'Performance des 7 derniers jours'}
+                                        {period === 'today' ? t('todayPerformance') : period === '30d' ? t('last30Performance') : period === '1y' ? t('yearPerformance') : t('last7Performance')}
                                     </h3>
                                     <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -161,7 +163,7 @@ const Stats = () => {
                                 ) : (
                                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                         <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                        <p style={{ fontWeight: 700 }}>Aucune donnée sur cette période</p>
+                                        <p style={{ fontWeight: 700 }}>{t('noData')}</p>
                                     </div>
                                 )}
                             </div>
@@ -171,15 +173,15 @@ const Stats = () => {
                         <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Stock par catégorie</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Répartition des unités</p>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('stockByCategory')}</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('stockDistribution')}</p>
                                 </div>
                                 <Package size={20} color="var(--success)" />
                             </div>
                             {stockData.length === 0 ? (
                                 <div style={{ height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                     <Package size={48} style={{ opacity: 0.15 }} />
-                                    <p style={{ fontWeight: 700 }}>Aucun produit</p>
+                                    <p style={{ fontWeight: 700 }}>{t('noProducts')}</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -214,15 +216,15 @@ const Stats = () => {
                         <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Top Produits</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Les plus vendus</p>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('topProducts')}</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('bestSellers')}</p>
                                 </div>
                                 <TrendingUp size={20} color="var(--primary)" />
                             </div>
                             {(!data?.topProducts || data.topProducts.length === 0) ? (
                                 <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                     <Package size={48} style={{ opacity: 0.15 }} />
-                                    <p style={{ fontWeight: 700 }}>Aucune donnée</p>
+                                    <p style={{ fontWeight: 700 }}>{t('noData')}</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -233,7 +235,7 @@ const Stats = () => {
                                             </div>
                                             <div style={{ flex: 1 }}>
                                                 <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{p.nom}</h4>
-                                                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} unités vendues</p>
+                                                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} {t('unitsSold')}</p>
                                             </div>
                                             <div style={{ fontWeight: 900, color: 'var(--text-main)', textAlign: 'right' }}>
                                                 <div>{getDisplayAmount(p.revenu, 'CDF', displayCurrency, exchangeRate).main}</div>
@@ -251,8 +253,8 @@ const Stats = () => {
                     <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <div>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Revenu des 6 derniers mois</h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires mensuel en {displayCurrency}</p>
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('monthlyRevenue')}</h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('monthlySales')} en {displayCurrency}</p>
                             </div>
                             <TrendingUp size={20} color="var(--warning)" />
                         </div>
@@ -260,7 +262,7 @@ const Stats = () => {
                         {monthlyValues.every((v: number) => v === 0) ? (
                             <div style={{ height: '250px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                 <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                <p style={{ fontWeight: 700 }}>Aucune vente enregistrée</p>
+                                <p style={{ fontWeight: 700 }}>{t('noSalesRecorded')}</p>
                             </div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>

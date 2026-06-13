@@ -27,6 +27,7 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
@@ -58,6 +59,7 @@ interface Sale {
 
 const Sales = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { currency, user, exchangeRate } = useAuthStore();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ const Sales = () => {
             
             setSales(salesList);
         } catch (error) {
-            toast.error("Impossible de charger l'historique");
+            toast.error(t('errorLoadingHistory'));
         } finally {
             setLoading(false);
         }
@@ -152,15 +154,15 @@ const Sales = () => {
     const deleteSale = async (id: number) => {
         setConfirmModal({
             isOpen: true,
-            title: "Supprimer Transaction",
-            message: "Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible et affectera vos rapports financiers.",
+            title: t('deleteTransaction'),
+            message: t('deleteTransactionMsg'),
             onConfirm: async () => {
                 try {
                     await api.delete(`/sales/${id}`);
-                    toast.success("Transaction supprimée");
+                    toast.success(t('transactionDeleted'));
                     fetchSales();
                 } catch (error) {
-                    toast.error("Échec de la suppression");
+                    toast.error(t('deletionFailed'));
                 }
             }
         });
@@ -169,16 +171,16 @@ const Sales = () => {
     const handleAllDelete = async () => {
         setConfirmModal({
             isOpen: true,
-            title: "SUPPRESSION TOTALE",
-            message: "ATTENTION : Voulez-vous vraiment supprimer TOUT l'historique des ventes ? Cette action est irréversible et les stocks seront restitués.",
+            title: t('totalDeletion'),
+            message: t('totalDeletionMsg'),
             onConfirm: async () => {
                 try {
                     setLoading(true);
                     await api.delete('/sales/all');
-                    toast.success("Historique des ventes vidé avec succès !");
+                    toast.success(t('salesHistoryCleared'));
                     fetchSales();
                 } catch (error: any) {
-                    toast.error(error.response?.data?.message || "Échec de la suppression massive");
+                    toast.error(error.response?.data?.message || t('deletionFailed'));
                 } finally {
                     setLoading(false);
                 }
@@ -190,22 +192,22 @@ const Sales = () => {
 
         setConfirmModal({
             isOpen: true,
-            title: "Rembourser Vente",
-            message: `Confirmez-vous le remboursement de la vente #${sale.id} ? Le stock sera réintégré et le montant marqué comme remboursé.`,
+            title: t('refundSale'),
+            message: `${t('refundMsg')} #${sale.id} ?`,
             onConfirm: async () => {
                 try {
                     await api.post(`/sales/${sale.id}/refund`);
-                    toast.success("Vente remboursée avec succès !");
+                    toast.success(t('saleRefunded'));
                     fetchSales();
                 } catch (error: any) {
-                    toast.error(error.response?.data?.message || "Échec du remboursement");
+                    toast.error(error.response?.data?.message || t('refundFailed'));
                 }
             }
         });
     };
 
     const handleExportExcel = () => {
-        if (sales.length === 0) return toast.error("Aucune donnée à exporter");
+        if (sales.length === 0) return toast.error(t('noDataExport'));
         
         const rows = filteredSales.map(s => ({
             "ID": s.id,
@@ -220,7 +222,7 @@ const Sales = () => {
         }));
 
         exportToExcel(rows, `Rapport_Ventes_${currency}`);
-        toast.success("Exportation Excel réussie");
+        toast.success(t('excelExportSuccess'));
     };
 
     const filteredSales = sales.filter(s => {
@@ -259,7 +261,7 @@ const Sales = () => {
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
                 <Loader2 size={40} color="var(--primary)" />
             </motion.div>
-            <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Chargement des transactions...</p>
+            <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{t('loadingTransactions')}</p>
         </div>
     );
 
@@ -267,16 +269,16 @@ const Sales = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
             <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
                 <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                    <h1 className="title-xl">Flux des <span className="text-gradient">Ventes</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Suivi analytique de toutes vos transactions commerciales.</p>
+                    <h1 className="title-xl">{t('salesFlow').split(' ').slice(0, -1).join(' ')} <span className="text-gradient">{t('salesFlow').split(' ').slice(-1)[0]}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('salesTracking')}</p>
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
-                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> Rapports</button>
+                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> {t('reports')}</button>
                     <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> Excel</button>
                     {(user?.role === 'admin' || user?.role === 'superadmin') && (
-                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> Vider</button>
+                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> {t('clearAll')}</button>
                     )}
-                    <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> Nouvelle Vente</button>
+                    <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> {t('newSale')}</button>
                 </div>
             </div>
 
@@ -288,7 +290,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
                             <TrendingUp size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>CHIFFRE D'AFFAIRES</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('revenue')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 900 }}>{currency}</span>
@@ -301,7 +303,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
                             <DollarSign size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>PANIER MOYEN</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('avgBasket')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {Math.round(reportStats.averageValue).toLocaleString()} <span style={{ fontSize: '1rem', color: '#10b981', fontWeight: 900 }}>{currency}</span>
@@ -314,7 +316,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
                             <PieChart size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>TRANSACTIONS</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('transactions')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {reportStats.count} <span style={{ fontSize: '1rem', color: '#f59e0b', fontWeight: 900 }}>Factures</span>
@@ -328,7 +330,7 @@ const Sales = () => {
                         <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
                         <input 
                           type="text" 
-                          placeholder="Rechercher par référence ou client..." 
+                          placeholder={t('searchByRef')} 
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }} 
@@ -351,7 +353,7 @@ const Sales = () => {
                                 transition: 'all 0.3s'
                             }}
                         >
-                           <Filter size={18} /> {showFilters ? 'Masquer Filtres' : 'Filtres'}
+                           <Filter size={18} /> {showFilters ? t('hideFilters') : t('showFilters')}
                         </button>
                     </div>
                 </div>
@@ -366,7 +368,7 @@ const Sales = () => {
                             style={{ overflow: 'hidden', paddingBottom: '32px', display: 'flex', gap: '20px', borderBottom: '1.5px solid var(--border)', marginBottom: '32px' }}
                         >
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>DATE</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('date')}</label>
                                 <input 
                                     type="date" 
                                     value={filterDate}
@@ -375,7 +377,7 @@ const Sales = () => {
                                 />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>MÉTHODE</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('method')}</label>
                                 <select 
                                     value={filterMethod}
                                     onChange={(e) => setFilterMethod(e.target.value)}
@@ -391,7 +393,7 @@ const Sales = () => {
                                     onClick={() => { setFilterDate(''); setFilterMethod(''); }}
                                     style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', fontWeight: 800, cursor: 'pointer' }}
                                 >
-                                    RAZ
+                                    {t('reset')}
                                 </button>
                             </div>
                         </motion.div>
@@ -402,10 +404,10 @@ const Sales = () => {
                     <table style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Référence / Client</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Date & Méthode</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Vendeur</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>Montant Total</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('reference')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('dateMethod')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('seller')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>{t('totalAmount')}</th>
                                 <th style={{ padding: '16px 24px' }}></th>
                             </tr>
                         </thead>
@@ -504,7 +506,7 @@ const Sales = () => {
                                                                     onMouseOver={e => e.currentTarget.style.background = 'var(--secondary-glow)'}
                                                                     onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                                 >
-                                                                    <RotateCcw size={16} /> Rembourser
+                                                                    <RotateCcw size={16} /> {t('refundSale')}
                                                                 </button>
                                                             )}
                                                             <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
@@ -700,7 +702,7 @@ const Sales = () => {
                                 </div>
                             ))}
                             {Object.keys(reportStats.methodSplit).length === 0 && (
-                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>Aucune donnée disponible</p>
+                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>{t('noData')}</p>
                             )}
                         </div>
                     </div>

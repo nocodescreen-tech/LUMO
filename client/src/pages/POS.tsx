@@ -22,11 +22,13 @@ import BarcodeScanner from '../components/common/BarcodeScanner';
 import api from '../api/axios';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import { toast } from 'sonner';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
 
 const POS = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -178,13 +180,13 @@ const POS = () => {
 
         if (found) {
             handleProductClick(found);
-            toast.success(`🛒 ${found.nom} ajouté !`, {
+            toast.success(`🛒 ${found.nom} ${t('posProductAdded')}`, {
                 icon: '✅',
                 style: { borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--primary)' }
             });
         } else {
-            toast.error(`Inconnu : ${normalized}`, {
-                description: "Le produit n'existe pas ou le code est mal renseigné.",
+            toast.error(`${t('unknownProduct')} : ${normalized}`, {
+                description: t('productNotFound'),
                 icon: '❓'
             });
         }
@@ -228,7 +230,7 @@ const POS = () => {
             
             setProducts(productsList);
         } catch (error) {
-            toast.error("Erreur de chargement des produits");
+            toast.error(t('loadingProducts'));
         } finally {
             setLoading(false);
         }
@@ -292,7 +294,7 @@ const POS = () => {
             const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance) });
             setCashSession(data);
             setShowCashModal(false);
-            toast.success("Caisse ouverte !");
+            toast.success(t('cashOpened'));
         } catch (error: any) {
             // Idempotent: si déjà ouvert, le serveur renvoie 200 maintenant
             // mais on garde une sécurité si le serveur renvoyait encore 400
@@ -311,7 +313,7 @@ const POS = () => {
         try {
             await api.post('/cash/close');
             setCashSession(null);
-            toast.success("Caisse fermée avec succès !");
+            toast.success(t('cashClosed'));
         } catch (error) {
             toast.error("Erreur lors de la fermeture");
         }
@@ -385,7 +387,7 @@ const POS = () => {
             setLastSale(data);
             setShowSuccess(true);
             setShowClientModal(false);
-            toast.success("Vente terminée avec succès !");
+            toast.success(t('saleCompleted'));
             clearCart();
         } catch (error: any) {
             // Support Hors-ligne
@@ -395,7 +397,7 @@ const POS = () => {
                 const offlineSale = { ...salePayload, id: localId, createdAt: new Date().toISOString(), status: 'OFFLINE' };
                 pending.push(offlineSale);
                 localStorage.setItem('pending-sales', JSON.stringify(pending));
-                toast.info("Vente enregistrée localement (Hors-ligne)");
+                toast.info(t('offlineSale'));
                 setShowSuccess(true);
                 setShowClientModal(false);
                 clearCart();
@@ -426,7 +428,7 @@ const POS = () => {
             }
             localStorage.setItem('pending-sales', JSON.stringify(remaining));
             if (remaining.length === 0) {
-                toast.success("✅ Toutes les ventes hors-ligne ont été synchronisées !");
+                toast.success(`✅ ${t('offlineSynced')}`);
             }
         };
 
@@ -450,7 +452,7 @@ const POS = () => {
                         <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={20} />
                         <input 
                             type="text" 
-                            placeholder="Rechercher un produit..." 
+                            placeholder={t('searchProductPOS')} 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ width: '100%', padding: '16px 20px 16px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
@@ -458,7 +460,7 @@ const POS = () => {
                         {enabledModules.includes('barcode') && (
                             <button 
                                 onClick={() => setShowCameraModal(true)}
-                                title="Scanner un code-barres"
+                                title={t('scanBarcode')}
                                 style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 800 }}
                             >
                                 <ScanLine size={18} />
@@ -480,7 +482,7 @@ const POS = () => {
                         ) : (
                             <Zap size={18} fill={cashSession ? '#ef4444' : 'white'} />
                         )}
-                        {checkingSession ? 'Vérification...' : (cashSession ? 'Fermer Caisse' : 'Ouvrir Caisse')}
+                        {checkingSession ? t('verifying') : (cashSession ? t('closeCash') : t('openCash'))}
                     </button>
                 </div>
 
@@ -644,7 +646,7 @@ const POS = () => {
                                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>{saleCurrency === 'USD' ? '$' : 'CDF'}</span>
                                 <input
                                     type="number"
-                                    placeholder="Montant reçu"
+                                    placeholder={t('amountReceived')}
                                     value={amountReceived}
                                     onChange={(e) => setAmountReceived(e.target.value)}
                                     style={{ width: '100%', padding: '10px 16px 10px 40px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 900, outline: 'none' }}
@@ -801,7 +803,7 @@ const POS = () => {
                                         type="text" 
                                         value={clientSearch} 
                                         onChange={e => setClientSearch(e.target.value)} 
-                                        placeholder="Tapez le nom ou 'Client de passage'..." 
+                                        placeholder={t('typeNameOrWalkIn')} 
                                         style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 700, outline: 'none' }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !filteredClients.length) {
@@ -860,7 +862,7 @@ const POS = () => {
                             </div>
 
                             <div style={{ display: 'flex', gap: '12px' }}>
-                                <button onClick={() => executeSale('Client de passage', '', '')} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>Client de Passage</button>
+                                <button onClick={() => executeSale(t('walkInCustomer'), '', '')} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('walkInCustomer')}</button>
                                 <button onClick={() => executeSale(clientSearch || 'Client de passage', clientPhone, clientEmail)} className="btn-premium primary" style={{ flex: 1, padding: '16px' }}>Confirmer</button>
                             </div>
                         </motion.div>
