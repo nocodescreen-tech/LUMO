@@ -4,10 +4,11 @@ import { getDisplayAmount } from './currencyHelpers';
 export const exportToExcel = (data: any[], fileName: string, moduleName: string = 'Rapport') => {
     if (!data || data.length === 0) return;
 
-    const { user } = useAuthStore.getState() as any;
+    const { user, language } = useAuthStore.getState() as any;
     const currency = user?.preferences?.currency || 'USD';
     const shopCurrency = user?.entreprise?.devise || 'CDF';
     const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+    const dateLocale = language === 'en' ? 'en-US' : 'fr-FR';
 
     const headers = Object.keys(data[0]);
 
@@ -20,7 +21,7 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
             if (val === null || val === undefined) val = '';
 
             if (val instanceof Date || (typeof val === 'string' && val.includes('T') && val.includes('Z'))) {
-                try { val = new Date(val).toLocaleString('fr-FR'); } catch (e) { }
+                try { val = new Date(val).toLocaleString(dateLocale); } catch (e) { }
             }
 
             const isNum = typeof val === 'number';
@@ -55,7 +56,7 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
         '.row-alt { background-color: #f8fafc; }',
         '</style></head><body><table><thead>',
         '<tr><th class="title" colspan="' + headers.length + '">' + moduleName.toUpperCase() + ' - LUMO ERP</th></tr>',
-        '<tr><td class="subtitle" colspan="' + headers.length + '">Generated on: ' + new Date().toLocaleString('fr-FR') + '</td></tr>',
+        '<tr><td class="subtitle" colspan="' + headers.length + '">' + (language === 'en' ? 'Generated on: ' : 'Généré le : ') + new Date().toLocaleString(dateLocale) + '</td></tr>',
         '<tr>' + headerCells + '</tr>',
         '</thead><tbody>',
         bodyRows,

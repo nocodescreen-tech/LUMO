@@ -61,7 +61,7 @@ exports.getDashboardStats = async (req, res, next) => {
     const [salesRows, totalProducts, totalClients, lowStockCount, recentSales] = await Promise.all([
       Sale.findAll({
         where: { userId, ...notRefunded },
-        attributes: ['id', 'montantTotal', 'devise', 'tauxChange', 'articles', 'profitNet', 'remise', 'statut', 'createdAt'],
+        attributes: ['id', 'montantTotal', 'devise', 'tauxChange', 'articles', 'profitNet', 'statut', 'createdAt'],
         order: [['createdAt', 'DESC']],
         raw: true,
       }),
@@ -83,7 +83,7 @@ exports.getDashboardStats = async (req, res, next) => {
 
     for (const sale of salesRows) {
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
-      const saleRevenueCDF = toCDF(sale.montantTotal, shopCurrency, saleRate, safeRate);
+      const saleRevenueCDF = toCDF(sale.montantTotal, sale.devise || shopCurrency, saleRate, safeRate);
       revenue += saleRevenueCDF;
       if (['Terminee', 'Completee', 'Terminée', 'Complétée'].includes(String(sale.statut || ''))) completed += saleRevenueCDF;
 
@@ -97,8 +97,7 @@ exports.getDashboardStats = async (req, res, next) => {
       }
 
       if (costCDF > 0) {
-        const remiseCDF = toCDF(sale.remise || 0, sale.devise, saleRate, safeRate);
-        profit += saleRevenueCDF - costCDF - remiseCDF;
+        profit += saleRevenueCDF - costCDF;
       } else {
         profit += toCDF(sale.profitNet || 0, shopCurrency, saleRate, safeRate);
       }
@@ -127,7 +126,7 @@ exports.getDashboardStats = async (req, res, next) => {
         },
         recentSales: recentSales.map((sale) => ({
           ...sale,
-          montantCDF: round2(toCDF(sale.montantTotal, shopCurrency, sale.tauxChange, safeRate)),
+          montantCDF: round2(toCDF(sale.montantTotal, sale.devise || shopCurrency, sale.tauxChange, safeRate)),
         })),
       },
       'Statistiques du dashboard recuperees'
@@ -193,7 +192,7 @@ exports.getSalesChartData = async (req, res, next) => {
       const row = grouped.get(key);
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
       row.totalCommandes += 1;
-      row.revenue += toCDF(sale.montantTotal, shopCurrency, saleRate, safeRate);
+      row.revenue += toCDF(sale.montantTotal, sale.devise || shopCurrency, saleRate, safeRate);
     }
 
     const data = Array.from(grouped.values())
@@ -236,7 +235,7 @@ exports.getAnalytics = async (req, res, next) => {
 
     const sales = await Sale.findAll({
       where,
-      attributes: ['id', 'articles', 'montantTotal', 'devise', 'tauxChange', 'remise', 'createdAt'],
+      attributes: ['id', 'articles', 'montantTotal', 'devise', 'tauxChange', 'createdAt'],
       order: [['createdAt', 'ASC']],
       raw: true,
     });
@@ -248,18 +247,18 @@ exports.getAnalytics = async (req, res, next) => {
 
     for (const s of sales) {
       const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
-      const amount = toCDF(s.montantTotal, shopCurrency, saleRate, safeRate);
+      const amount = toCDF(s.montantTotal, s.devise || shopCurrency, saleRate, safeRate);
       totalRevenue += amount;
       let cost = 0;
-      let discount = toCDF(s.remise || 0, s.devise, saleRate, safeRate);
 
       const key = new Date(s.createdAt).toISOString().slice(0, 10);
-      if (!periodByDay[key]) periodByDay[key] = { date: key, revenue: 0 };
+      if (!periodByDay[key]) periodByDay[key] = { date: key, revenue: 0, profit: 0 };
       periodByDay[key].revenue += amount;
 
       const items = safeParseArticles(s.articles);
       for (const item of items) {
         const nom = item?.nom || 'Produit';
+        const productKey = item?.id ? `${nom}::${item.id}` : nom;
         const quantite = Number(item?.quantite || 0);
         const unitSale = normalizeItemSalesUnit(item);
         const revenu = Number.isFinite(Number(item?.totalLigneCDF))
@@ -267,11 +266,13 @@ exports.getAnalytics = async (req, res, next) => {
           : Number(toCDF(unitSale * quantite, item?.deviseProduit || s.devise || 'CDF', saleRate, safeRate) || 0);
         cost += toCDF((Number(item?.prixAchat || 0) * quantite), item?.deviseProduit || s.devise || 'CDF', saleRate, safeRate);
 
-        if (!topProductsMap[nom]) topProductsMap[nom] = { nom, quantite: 0, revenu: 0 };
-        topProductsMap[nom].quantite += quantite;
-        topProductsMap[nom].revenu += revenu;
+        if (!topProductsMap[productKey]) topProductsMap[productKey] = { nom, quantite: 0, revenu: 0 };
+        topProductsMap[productKey].quantite += quantite;
+        topProductsMap[productKey].revenu += revenu;
       }
-      totalProfit += (amount - cost - discount);
+      const dayProfit = amount - cost;
+      periodByDay[key].profit += dayProfit;
+      totalProfit += dayProfit;
     }
 
     const stockByCategoryRaw = await Product.findAll({
@@ -284,11 +285,14 @@ exports.getAnalytics = async (req, res, next) => {
       raw: true,
     });
 
+    const monthlyLookbackDays = period === 'today' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : period === '1y' ? 365 : 183;
+    const monthlyFromDate = new Date(Date.now() - monthlyLookbackDays * MS_PER_DAY);
+
     const monthlySales = await Sale.findAll({
       where: {
         userId,
         ...notRefunded,
-        createdAt: { [Op.gte]: new Date(Date.now() - 183 * MS_PER_DAY), [Op.lte]: now },
+        createdAt: { [Op.gte]: monthlyFromDate, [Op.lte]: toDate },
       },
       attributes: ['montantTotal', 'devise', 'tauxChange', 'createdAt'],
       order: [['createdAt', 'ASC']],
@@ -300,7 +304,7 @@ exports.getAnalytics = async (req, res, next) => {
       const dt = new Date(s.createdAt);
       const month = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
       const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
-      const amount = toCDF(s.montantTotal, shopCurrency, saleRate, safeRate);
+      const amount = toCDF(s.montantTotal, s.devise || shopCurrency, saleRate, safeRate);
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
     }
 
@@ -310,7 +314,7 @@ exports.getAnalytics = async (req, res, next) => {
 
     const payload = {
       totals: { revenue: round2(totalRevenue), profit: round2(totalProfit) },
-      periodData: Object.values(periodByDay).map((p) => ({ ...p, revenue: round2(p.revenue) })),
+      periodData: Object.values(periodByDay).map((p) => ({ ...p, revenue: round2(p.revenue), profit: round2(p.profit || 0) })),
       topProducts: Object.values(topProductsMap)
         .sort((a, b) => b.revenu - a.revenu)
         .slice(0, 10)

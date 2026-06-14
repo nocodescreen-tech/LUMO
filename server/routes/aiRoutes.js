@@ -13,7 +13,8 @@ router.get('/chat/history', protect, getChatHistory);
 
 // Feedback pour les réponses de l'IA
 router.post('/feedback', protect, createFeedback);
-// Chat public pour la Landing Page (sans authentification)
+
+// Chat public pour la Landing Page (sans authentification)
 router.post('/public-chat', publicChatAI);
 
 module.exports = router;

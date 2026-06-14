@@ -1,3 +1,4 @@
+import { useTranslation } from '../../hooks/useTranslation';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +23,7 @@ const Modal: React.FC<ModalProps> = ({
     maxWidth = '600px',
     icon: Icon = Sparkles
 }) => {
+    const { t } = useTranslation();
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
         setMounted(true);

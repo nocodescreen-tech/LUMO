@@ -18,6 +18,7 @@ import {
     Layers,
     ScanLine
 } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 import BarcodeScanner from '../components/common/BarcodeScanner';
 import api from '../api/axios';
 import { useCartStore } from '../store/useCartStore';
@@ -26,6 +27,8 @@ import { toast } from 'sonner';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
 
 const POS = () => {
+    const { t } = useTranslation();
+    const language = useAuthStore(state => state.language);
     const navigate = useNavigate();
     const [products, setProducts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,6 +41,13 @@ const POS = () => {
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
     const { currency, user, exchangeRate, enabledModules } = useAuthStore();
+
+    const canPrint = (): boolean => {
+        if (!user) return false;
+        if (user.role === 'admin' || user.role === 'superadmin') return true;
+        const perms = user.permissions || [];
+        return perms.includes('pos.print') || perms.includes('pos');
+    };
     
     const [cashSession, setCashSession] = useState<any>(null);
     const [showCashModal, setShowCashModal] = useState(false);
@@ -178,12 +188,12 @@ const POS = () => {
 
         if (found) {
             handleProductClick(found);
-            toast.success(`🛒 ${found.nom} ajouté !`, {
+            toast.success(`🛒 ${t('posProductAdded').replace('{name}', found.nom)}`, {
                 icon: '✅',
                 style: { borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--primary)' }
             });
         } else {
-            toast.error(`Inconnu : ${normalized}`, {
+            toast.error(t('posBarcodeUnknown').replace('{code}', normalized), {
                 description: "Le produit n'existe pas ou le code est mal renseigné.",
                 icon: '❓'
             });
@@ -228,7 +238,7 @@ const POS = () => {
             
             setProducts(productsList);
         } catch (error) {
-            toast.error("Erreur de chargement des produits");
+            toast.error(t('errorLoadingProducts'));
         } finally {
             setLoading(false);
         }
@@ -292,7 +302,7 @@ const POS = () => {
             const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance) });
             setCashSession(data);
             setShowCashModal(false);
-            toast.success("Caisse ouverte !");
+            toast.success(t('cashOpened'));
         } catch (error: any) {
             // Idempotent: si déjà ouvert, le serveur renvoie 200 maintenant
             // mais on garde une sécurité si le serveur renvoyait encore 400
@@ -300,7 +310,7 @@ const POS = () => {
                 setShowCashModal(false);
                 checkCashSession();
             } else {
-                toast.error(error.response?.data?.message || "Erreur lors de l'ouverture de la caisse");
+                toast.error(error.response?.data?.message || t('cashOpenError'));
             }
         } finally {
             setOpeningCash(false);
@@ -311,9 +321,9 @@ const POS = () => {
         try {
             await api.post('/cash/close');
             setCashSession(null);
-            toast.success("Caisse fermée avec succès !");
+            toast.success(t('cashClosed'));
         } catch (error) {
-            toast.error("Erreur lors de la fermeture");
+            toast.error(t('cashCloseError'));
         }
     };
 
@@ -334,7 +344,7 @@ const POS = () => {
 
     const handleCheckout = () => {
         if (cart.length === 0) return;
-        setClientSearch(clientName === 'Client de passage' ? '' : clientName);
+        setClientSearch(clientName === t('walkInClient') ? '' : clientName);
         setShowClientModal(true);
     };
 
@@ -359,48 +369,68 @@ const POS = () => {
                 prixUnitaire: toSaleCurrency(item.prix),
                 prixAchat: item.prixAchat || 0,
                 deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
-                quantite: item.quantite
+                quantite: item.quantite,
+                metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
+                    acc[v.nom] = v.valeur;
+                    return acc;
+                }, {})
             })),
             montantTotal: saleTotal,
             devise: saleCurrency || currency || 'USD',
             tauxChange: Number(exchangeRate) || 2800,
             methodePaiement: paymentMethod || 'Espèces',
+            montantRecu: paymentMethod === 'Espèces' ? Number(amountReceived) || saleTotal : saleTotal,
             clientInfo: {
-                nom: finalClientName.trim() || 'Client de passage',
-                telephone: finalClientPhone.trim() || ''
+                nom: finalClientName.trim() || t('walkInClient'),
+                telephone: finalClientPhone.trim() || '',
+                email: finalClientEmail.trim() || ''
             }
         };
 
         try {
-            // Check if client exists, if not create them (silent)
-            if (finalClientName.trim() && finalClientName !== 'Client de passage') {
+            if (finalClientName.trim() && finalClientName !== t('walkInClient')) {
                 const exists = allClients.find(c => c.nom.toLowerCase() === finalClientName.toLowerCase());
                 if (!exists) {
-                    try { await api.post('/clients', { nom: finalClientName, telephone: finalClientPhone, email: finalClientEmail }); } catch (e) {}
+                    try {
+                        await api.post('/clients', {
+                            nom: finalClientName.trim(),
+                            telephone: finalClientPhone.trim(),
+                            email: finalClientEmail.trim()
+                        });
+                    } catch (clientError) {
+                        console.warn('Client non créé silencieusement:', clientError);
+                    }
                 }
             }
 
-            const { data } = await api.post('/sales', salePayload);
-            
-            setLastSale(data);
+            const response = await api.post('/sales', salePayload);
+            const createdSale = response.data?.success ? response.data.data : response.data;
+            setLastSale(createdSale);
+
+            toast.success(t('saleCompleted'));
             setShowSuccess(true);
             setShowClientModal(false);
-            toast.success("Vente terminée avec succès !");
             clearCart();
+            await checkCashSession();
         } catch (error: any) {
-            // Support Hors-ligne
-            if (!navigator.onLine || error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+            if (!navigator.onLine || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
                 const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
-                const localId = 'OFFLINE_' + Date.now();
-                const offlineSale = { ...salePayload, id: localId, createdAt: new Date().toISOString(), status: 'OFFLINE' };
+                const offlineSale = {
+                    ...salePayload,
+                    articles: salePayload.items,
+                    id: 'OFFLINE_' + Date.now(),
+                    createdAt: new Date().toISOString(),
+                    status: 'OFFLINE'
+                };
                 pending.push(offlineSale);
                 localStorage.setItem('pending-sales', JSON.stringify(pending));
-                toast.info("Vente enregistrée localement (Hors-ligne)");
+                setLastSale(offlineSale);
+                toast.info(t('saleSavedOffline'));
                 setShowSuccess(true);
                 setShowClientModal(false);
                 clearCart();
             } else {
-                toast.error(error.response?.data?.message || "Erreur lors de la vente");
+                toast.error(error.response?.data?.message || t('saleError'));
             }
         } finally {
             setLoading(false);
@@ -415,7 +445,10 @@ const POS = () => {
             const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
             if (pending.length === 0) return;
 
-            toast.info(`⏳ Synchronisation de ${pending.length} vente(s) hors-ligne...`);
+            const syncMsg = language === 'fr'
+  ? `⏳ Synchronisation de ${pending.length} vente(s) hors-ligne...`
+  : `⏳ Syncing ${pending.length} offline sale(s)...`;
+toast.info(syncMsg);
             const remaining = [];
             for (const sale of pending) {
                 try {
@@ -426,7 +459,7 @@ const POS = () => {
             }
             localStorage.setItem('pending-sales', JSON.stringify(remaining));
             if (remaining.length === 0) {
-                toast.success("✅ Toutes les ventes hors-ligne ont été synchronisées !");
+                toast.success("✅ " + t('allOfflineSynced'));
             }
         };
 
@@ -450,7 +483,7 @@ const POS = () => {
                         <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={20} />
                         <input 
                             type="text" 
-                            placeholder="Rechercher un produit..." 
+                            placeholder={t('searchProduct')} 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ width: '100%', padding: '16px 20px 16px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
@@ -458,11 +491,11 @@ const POS = () => {
                         {enabledModules.includes('barcode') && (
                             <button 
                                 onClick={() => setShowCameraModal(true)}
-                                title="Scanner un code-barres"
+                                title={t('scanBarcode')}
                                 style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 800 }}
                             >
                                 <ScanLine size={18} />
-                                Scanner
+                                {t('scanBarcode')}
                             </button>
                         )}
                     </div>
@@ -480,7 +513,7 @@ const POS = () => {
                         ) : (
                             <Zap size={18} fill={cashSession ? '#ef4444' : 'white'} />
                         )}
-                        {checkingSession ? 'Vérification...' : (cashSession ? 'Fermer Caisse' : 'Ouvrir Caisse')}
+                        {checkingSession ? t('checking') : (cashSession ? t('closeRegister') : t('openRegister'))}
                     </button>
                 </div>
 
@@ -536,12 +569,12 @@ const POS = () => {
                             <ShoppingCart size={28} />
                         </div>
                         <div>
-                            <h2 style={{ fontWeight: 900, fontSize: '1.4rem' }}>Panier Client</h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{cart.length} articles sélectionnés</p>
+                            <h2 style={{ fontWeight: 900, fontSize: '1.4rem' }}>{t('customerCart')}</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{cart.length} {language === 'fr' ? 'articles sélectionnés' : 'selected items'}</p>
                         </div>
                     </div>
                     {cart.length > 0 && (
-                        <button onClick={clearCart} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>Vider</button>
+                        <button onClick={clearCart} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>{t('clearCart')}</button>
                     )}
                 </div>
 
@@ -550,7 +583,7 @@ const POS = () => {
                         {cart.length === 0 ? (
                             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '16px' }}>
                                 <ShoppingCart size={64} opacity={0.15} />
-                                <p style={{ fontWeight: 700 }}>Le panier est vide</p>
+                                <p style={{ fontWeight: 700 }}>{t('cartEmpty')}</p>
                             </div>
                         ) : (
                             cart.map((item) => (
@@ -598,25 +631,25 @@ const POS = () => {
                     {/* Devise & Total */}
                     <div style={{ background: 'var(--bg-main)', borderRadius: '16px', border: '1px solid var(--border)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '6px' }}>DEVISE DE VENTE</div>
+                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '6px' }}>{t('saleCurrency')}</div>
                             <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border)', gap: '4px' }}>
                                 <button onClick={() => setSaleCurrency('USD')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
                                 <button onClick={() => setSaleCurrency('CDF')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px' }}>TOTAL À PAYER</div>
+                            <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px' }}>{t('totalToPay')}</div>
                             <div className="text-gradient" style={{ fontWeight: 900, fontSize: '2rem', lineHeight: '1', letterSpacing: '-0.02em' }}>{getSaleTotal().toLocaleString()} <span style={{ fontSize: '1rem' }}>{saleCurrency}</span></div>
                         </div>
                     </div>
 
                     {/* Méthode de paiement (Compact) */}
                     <div>
-                        <div style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Méthode de Paiement</div>
+                        <div style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('paymentMethod')}</div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {[
-                                { value: 'Espèces', label: '💵 Espèces' },
-                                { value: 'Crédit', label: '📋 À Crédit (Dette)', module: 'debts' },
+                                { value: 'Espèces', label: `💵 ${t('cashPayment')}` },
+                                { value: 'Crédit', label: `📋 ${t('creditPayment')}`, module: 'debts' },
                             ].filter(m => !m.module || enabledModules?.includes(m.module)).map(m => (
                                 <button
                                     key={m.value}
@@ -639,12 +672,12 @@ const POS = () => {
                     {/* Calculateur de monnaie à rendre (uniquement Espèces) */}
                     {paymentMethod === 'Espèces' && (
                         <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(99,102,241,0.2)', padding: '16px' }}>
-                            <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>💰 Monnaie à Rendre</div>
+                            <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('changeToReturn')}</div>
                             <div style={{ position: 'relative', marginBottom: '8px' }}>
                                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>{saleCurrency === 'USD' ? '$' : 'CDF'}</span>
                                 <input
                                     type="number"
-                                    placeholder="Montant reçu"
+                                    placeholder={t('amountReceived')}
                                     value={amountReceived}
                                     onChange={(e) => setAmountReceived(e.target.value)}
                                     style={{ width: '100%', padding: '10px 16px 10px 40px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 900, outline: 'none' }}
@@ -658,7 +691,7 @@ const POS = () => {
                                     border: `1px solid ${parseFloat(amountReceived) >= getSaleTotal() ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
                                 }}>
                                     <span style={{ fontWeight: 800, fontSize: '0.85rem', color: parseFloat(amountReceived) >= getSaleTotal() ? '#10b981' : '#ef4444' }}>
-                                        {parseFloat(amountReceived) >= getSaleTotal() ? '✅ Monnaie à rendre' : '⚠️ Montant insuffisant'}
+                                        {parseFloat(amountReceived) >= getSaleTotal() ? t('changeToGive') : t('insufficientAmount')}
                                     </span>
                                     <span style={{ fontWeight: 900, fontSize: '1.1rem', color: parseFloat(amountReceived) >= getSaleTotal() ? '#10b981' : '#ef4444' }}>
                                         {Math.abs(parseFloat(amountReceived) - getSaleTotal()).toLocaleString()} {saleCurrency}
@@ -674,7 +707,7 @@ const POS = () => {
                         className="btn-premium primary"
                         style={{ width: '100%', padding: '18px', borderRadius: '16px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: ((enabledModules?.includes('cash') && !cashSession) || cart.length === 0) ? 0.5 : 1 }}
                     >
-                        <CreditCard size={20} /> {(enabledModules?.includes('cash') && !cashSession) ? "Ouvrez la caisse d'abord" : 'Finaliser la vente'} <ChevronRight size={16} />
+                        <CreditCard size={20} /> {(enabledModules?.includes('cash') && !cashSession) ? t('openCashFirst') : t('finalizeSale')} <ChevronRight size={16} />
                     </button>
                 </div>
 
@@ -687,7 +720,7 @@ const POS = () => {
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '32px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <div>
-                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>Choisir une variante</h2>
+                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>{t('chooseVariant')}</h2>
                                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>{selectedProductForVariants.nom}</p>
                                 </div>
                                 <button onClick={() => setSelectedProductForVariants(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
@@ -744,13 +777,13 @@ const POS = () => {
                             <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
                                 <Zap size={40} fill="var(--primary)" />
                             </div>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px' }}>Ouverture de Caisse</h2>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Fond de caisse initial ({currency}).</p>
+                            <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px' }}>{t('cashRegisterOpening')}</h2>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', currency)}</p>
                             <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} autoFocus style={{ width: '100%', padding: '20px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 900, textAlign: 'center', outline: 'none', marginBottom: '32px' }} />
                             <div style={{ display: 'flex', gap: '12px' }}>
-                                <button onClick={() => setShowCashModal(false)} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>Annuler</button>
+                                <button onClick={() => setShowCashModal(false)} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('cancelBtn')}</button>
                                 <button onClick={handleOpenSession} disabled={openingCash} className="btn-premium primary" style={{ flex: 2, padding: '16px', opacity: openingCash ? 0.6 : 1 }}>
-                                    {openingCash ? 'Ouverture...' : 'Ouvrir session'}
+                                    {openingCash ? t('opening') : t('openSession')}
                                 </button>
                             </div>
                         </motion.div>
@@ -766,18 +799,20 @@ const POS = () => {
                             <div style={{ width: '100px', height: '100px', borderRadius: '50%', backgroundColor: 'var(--success-glow)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px', border: '2px solid var(--success)' }}>
                                 <CheckCircle2 size={60} />
                             </div>
-                            <h2 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '16px' }}>Vente Réussie !</h2>
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '16px' }}>{t('saleSuccessful')}</h2>
+                            {canPrint() && (
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
                                 <button onClick={() => (generateTicket as any)(lastSale, user)} className="btn-hover" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                     <Download size={24} color="var(--primary)" />
-                                    <span style={{ fontWeight: 800 }}>Ticket</span>
+                                    <span style={{ fontWeight: 800 }}>{t('ticket')}</span>
                                 </button>
                                 <button onClick={() => (generateInvoice as any)(lastSale, user)} className="btn-hover" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                     <Download size={24} color="#6366f1" />
-                                    <span style={{ fontWeight: 800 }}>Facture A4</span>
+                                    <span style={{ fontWeight: 800 }}>{t('invoiceA4')}</span>
                                 </button>
                             </div>
-                            <button onClick={() => { setShowSuccess(false); setAmountReceived(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>Nouvelle Vente</button>
+                            )}
+                            <button onClick={() => { setShowSuccess(false); setAmountReceived(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>{t('newSale')}</button>
                         </motion.div>
                     </motion.div>
                 )}
@@ -789,23 +824,23 @@ const POS = () => {
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300 }}>
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '32px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>Finalisation : Client</h2>
+                                <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>{t('checkoutCustomer')}</h2>
                                 <button onClick={() => setShowClientModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 
                             <div style={{ marginBottom: '20px' }}>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Nom du client</label>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>{t('customerName')}</label>
                                 <div style={{ position: 'relative' }}>
                                     <input 
                                         autoFocus
                                         type="text" 
                                         value={clientSearch} 
                                         onChange={e => setClientSearch(e.target.value)} 
-                                        placeholder="Tapez le nom ou 'Client de passage'..." 
+                                        placeholder={t('typeNameOrWalkIn')} 
                                         style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 700, outline: 'none' }}
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter' && !filteredClients.length) {
-                                                executeSale(clientSearch || 'Client de passage', clientPhone, clientEmail);
+                                                executeSale(clientSearch || t('walkInClient'), clientPhone, clientEmail);
                                             }
                                         }}
                                     />
@@ -835,7 +870,7 @@ const POS = () => {
                             </div>
 
                             <div style={{ marginBottom: '24px' }}>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Téléphone (Optionnel)</label>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>{t('phoneOptional')}</label>
                                 <input 
                                     type="text" 
                                     value={clientPhone} 
@@ -844,7 +879,7 @@ const POS = () => {
                                     style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 700, outline: 'none', marginBottom: '16px' }}
                                 />
 
-                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Email (Optionnel)</label>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>{t('emailOptional')}</label>
                                 <input 
                                     type="email" 
                                     value={clientEmail} 
@@ -853,15 +888,15 @@ const POS = () => {
                                     style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 700, outline: 'none' }}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                            executeSale(clientSearch || 'Client de passage', clientPhone, clientEmail);
+                                            executeSale(clientSearch || t('walkInClient'), clientPhone, clientEmail);
                                         }
                                     }}
                                 />
                             </div>
 
                             <div style={{ display: 'flex', gap: '12px' }}>
-                                <button onClick={() => executeSale('Client de passage', '', '')} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>Client de Passage</button>
-                                <button onClick={() => executeSale(clientSearch || 'Client de passage', clientPhone, clientEmail)} className="btn-premium primary" style={{ flex: 1, padding: '16px' }}>Confirmer</button>
+                                <button onClick={() => executeSale(t('walkInClient'), '', '')} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('walkInCustomerBtn')}</button>
+                                <button onClick={() => executeSale(clientSearch || t('walkInClient'), clientPhone, clientEmail)} className="btn-premium primary" style={{ flex: 1, padding: '16px' }}>{t('confirm')}</button>
                             </div>
                         </motion.div>
                     </div>

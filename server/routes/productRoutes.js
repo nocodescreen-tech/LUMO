@@ -3,6 +3,13 @@ const router = express.Router();
 const { getProducts, createProduct, updateProduct, deleteProduct, createBulkProducts, deleteAllProducts } = require('../controllers/productController');
 const { protect, authorize, checkPermission } = require('../middleware/authMiddleware');
 
+const allowProductImport = (req, res, next) => {
+  if (req.user.role === 'admin' || req.user.role === 'superadmin') return next();
+  const perms = req.user.permissions || [];
+  if (perms.includes('products.import') || perms.includes('products.add') || perms.includes('products')) return next();
+  return res.status(403).json({ message: 'Accès refusé. Permission requise : products.import' });
+};
+
 const upload = require('../middleware/uploadMiddleware');
 const { cacheMiddleware } = require('../utils/cache');
 
@@ -108,7 +115,7 @@ router.put('/:id', protect, checkPermission('products.edit'), upload.single('ima
  *       201:
  *         description: Produits importés
  */
-router.post('/bulk', protect, checkPermission('products.add'), createBulkProducts);
+router.post('/bulk', protect, allowProductImport, createBulkProducts);
 
 /**
  * @swagger

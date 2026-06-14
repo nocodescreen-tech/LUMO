@@ -19,8 +19,10 @@ import { useAuthStore } from '../store/useAuthStore';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';
+import { useTranslation } from '../hooks/useTranslation';
 
 const Purchases = () => {
+    const { t } = useTranslation();
     const { currency } = useAuthStore();
     const [purchases, setPurchases] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
@@ -83,7 +85,7 @@ const Purchases = () => {
             setFournisseurs(processData(fourRes));
             setAllProducts(processData(prodRes));
         } catch (error) {
-            toast.error("Erreur lors de la récupération des données");
+            toast.error(t('dataLoadError'));
         } finally {
             setLoading(false);
         }
@@ -94,7 +96,7 @@ const Purchases = () => {
         
         // BUG3 Fix: Validate that at least one article is added before submitting
         if (items.length === 0) {
-            toast.error("Veuillez ajouter au moins un article avant d'enregistrer l'achat.");
+            toast.error(t('purchaseAddItemRequired'));
             setSubmitting(false);
             return;
         }
@@ -131,7 +133,7 @@ const Purchases = () => {
                     prixAchat: item.prixAchat
                 }))
             });
-            toast.success("Achat enregistré avec succès !");
+            toast.success(t('purchaseRecorded'));
             setShowModal(false);
             fetchData();
             setFormData({
@@ -145,7 +147,7 @@ const Purchases = () => {
             });
             setItems([]);
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement de l'achat");
+            toast.error(error.response?.data?.message || t('purchaseSaveError'));
         } finally {
             setSubmitting(false);
         }
@@ -181,8 +183,8 @@ const Purchases = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h1 className="title-xl">Gestion des <span className="text-gradient">Achats</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Commandes fournisseurs et suivi des marchandises entrantes.</p>
+                    <h1 className="title-xl">{t('purchasesMgmtPrefix')} <span className="text-gradient">{t('purchases')}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('purchasesSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <button 
@@ -200,14 +202,14 @@ const Purchases = () => {
                     className="btn-hover"
                     style={{ padding: '14px 24px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
                   >
-                      <Download size={18} /> Rapport
+                      <Download size={18} /> {t('report')}
                   </button>
                   <button 
                     onClick={() => setShowModal(true)} 
                     className="btn-premium primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 24px', borderRadius: '16px', fontWeight: 800 }}
                   >
-                      <Plus size={18} /> Nouvel Achat
+                      <Plus size={18} /> {t('registerPurchase')}
                   </button>
                 </div>
             </div>
@@ -218,7 +220,7 @@ const Purchases = () => {
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input 
                           type="text" 
-                          placeholder="Rechercher par facture, description..." 
+                          placeholder={t('searchPurchase')} 
                           value={searchTerm}
                           onChange={(e) => {
                               setSearchTerm(e.target.value);
@@ -249,7 +251,7 @@ const Purchases = () => {
                                     </td>
                                 </tr>
                             ) : currentItems.map((purchase) => {
-                                const fourName = fournisseurs.find(f => f.id === purchase.fournisseurId)?.nom || 'Fournisseur Inconnu';
+                                const fourName = fournisseurs.find(f => f.id === purchase.fournisseurId)?.nom || t('unknownSupplier');
                                 const st = getStatusStyle(purchase.statut);
                                 return (
                                     <motion.tr 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDashboardStats, getSalesChartData, getAnalytics } = require('../controllers/statsController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, checkPermission } = require('../middleware/authMiddleware');
 
 const { cacheMiddleware } = require('../utils/cache');
 
@@ -12,6 +12,6 @@ router.get('/dashboard', protect, cacheMiddleware(600), getDashboardStats);
 router.get('/sales-chart', protect, cacheMiddleware(300), getSalesChartData);
 
 // Analytiques avancées (page /stats) (Cache 5 min)
-router.get('/analytics', protect, cacheMiddleware(300), getAnalytics);
+router.get('/analytics', protect, checkPermission('stats'), cacheMiddleware(300), getAnalytics);
 
 module.exports = router;

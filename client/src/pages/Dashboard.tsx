@@ -193,7 +193,7 @@ const Dashboard = () => {
              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>{t('updatedAt')} {new Date().toLocaleTimeString()}</span>
           </div>
           <h1 className="title-xl" style={{ fontSize: '3.6rem', marginBottom: '16px', letterSpacing: '-0.06em' }}>
-            {language === 'fr' ? 'Tableau de ' : ''}<span className="text-gradient">{t('highPerfDashboard')}</span>
+            <span className="text-gradient">{t('highPerfDashboard')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
             {t('poweredBy')} <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>LUMO Intelligence</strong>. 
@@ -283,9 +283,9 @@ const Dashboard = () => {
                 className="glass" 
                 style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
               >
-                <option value="today">Aujourd'hui</option>
-                <option value="7d">7 derniers jours</option>
-                <option value="30d">30 derniers jours</option>
+                <option value="today">{t('today')}</option>
+                <option value="7d">{t('last7days')}</option>
+                <option value="30d">{t('last30days')}</option>
               </select>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 2s infinite' }}></div>
               {t('realTime')}
@@ -310,7 +310,7 @@ const Dashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
            {/* Quick Actions Vertical */}
            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }} className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
-              <h3 style={{ fontSize: '1.3rem', marginBottom: '24px', fontWeight: 800 }}>Raccourcis Stratégiques</h3>
+              <h3 style={{ fontSize: '1.3rem', marginBottom: '24px', fontWeight: 800 }}>{t('strategicShortcuts')}</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {quickActions.map((action, i) => (
                   <button 

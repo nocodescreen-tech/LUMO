@@ -189,7 +189,7 @@ const getSuperadminStats = async (req, res, next) => {
     const uptimeSeconds = process.uptime();
     const days = Math.floor(uptimeSeconds / (3600 * 24));
     const hours = Math.floor(uptimeSeconds % (3600 * 24) / 3600);
-    const uptimeStr = days > 0 ? `${days}j ${hours}h` : `${hours}h ${Math.floor(uptimeSeconds % 3600 / 60)}m`;
+    const uptimeStr = days > 0 ? `${days}d ${hours}h` : `${hours}h ${Math.floor(uptimeSeconds % 3600 / 60)}m`;
 
     // Metrics Système
     const os = require('os');

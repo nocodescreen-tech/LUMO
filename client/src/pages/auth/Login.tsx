@@ -20,7 +20,7 @@ const Login = () => {
   React.useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('expired') === 'true') {
-      toast.error('Votre session a expiré. Veuillez vous reconnecter pour continuer.');
+      toast.error(t('sessionExpiredLogin'));
     }
   }, [location]);
 
@@ -58,14 +58,14 @@ const Login = () => {
       if (data.requires2FA) {
         setTwoFAUserId(data.userId);
         setStep('2fa');
-        toast.info('Code 2FA envoyé sur votre email.');
+        toast.info(t('code2FASent'));
         return;
       }
       persistAuth(data);
-      toast.success('Bon retour sur Lumo !');
+      toast.success(t('welcomeBack'));
       navigate('/');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Identifiants incorrects');
+      toast.error(error.response?.data?.message || t('invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -73,15 +73,15 @@ const Login = () => {
 
   const handle2FAVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (twoFACode.length !== 6) return toast.error('Entrez un code à 6 chiffres');
+    if (twoFACode.length !== 6) return toast.error(t('enter6DigitCode'));
     setLoading(true);
     try {
       const { data } = await api.post('/auth/2fa/verify', { userId: twoFAUserId, code: twoFACode });
       persistAuth(data);
-      toast.success('Connexion 2FA réussie !');
+      toast.success(t('login2FASuccess'));
       navigate('/');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Code invalide ou expiré');
+      toast.error(error.response?.data?.message || t('invalidOrExpiredCode'));
     } finally {
       setLoading(false);
     }

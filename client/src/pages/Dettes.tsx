@@ -38,6 +38,7 @@ import { getDisplayAmount, useCurrency } from '../utils/currencyHelpers';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../api/axios';
+import { useTranslation } from '../hooks/useTranslation';
 import { exportToExcel } from '../utils/exportUtils';
 import { Download } from 'lucide-react';
 
@@ -64,9 +65,10 @@ interface ActionMenuState {
 // Component
 // ──────────────────────────────────────────────
 const Dettes = () => {
+  const { t } = useTranslation();
   const { user, enabledModules } = useAuthStore();
   const { displayCurrency: currency, exchangeRate, convert, format } = useCurrency();
-  const shopCurrency = (user as any)?.entreprise?.devise || 'CDF';
+  const shopCurrency = (user as any)?.entreprise?.devise || 'USD';
   const navigate = useNavigate();
 
   // Helper for currency conversion
@@ -127,7 +129,7 @@ const Dettes = () => {
       setClients(withDebt);
     } catch (err) {
       console.error(err);
-      toast.error('Impossible de charger les dettes');
+      toast.error(t('errorLoadingDebts'));
     } finally {
       setLoading(false);
     }
@@ -149,7 +151,7 @@ const Dettes = () => {
   // ── Debt stats ────────────────────────────
   const totalDebt = clients.reduce((s, c) => s + c.detteTotale, 0);
   const totalDebtConverted = convertAmount(totalDebt);
-  const urgentLimit = currency === 'USD' ? 50 : 100000;
+  const urgentLimit = currency === 'USD' ? 50 : (50 * exchangeRate);
   const urgentCount = clients.filter(c => convertAmount(c.detteTotale) > urgentLimit).length;
   const normalCount = clients.filter(c => {
     const amt = convertAmount(c.detteTotale);
@@ -196,7 +198,7 @@ const Dettes = () => {
     const maxAllowed = convertAmount(settleModal.client.detteTotale);
 
     if (!amount || amount <= 0 || amount > maxAllowed + 0.01) {
-      toast.error('Montant invalide');
+      toast.error(t('invalidAmount'));
       return;
     }
     setSettleLoading(true);
@@ -205,12 +207,12 @@ const Dettes = () => {
       const baseAmount = Math.round(amount / (currency === 'USD' && shopCurrency === 'CDF' ? 1/exchangeRate : currency === 'CDF' && shopCurrency === 'USD' ? exchangeRate : 1));
 
       await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
-      toast.success(`${amount.toLocaleString()} ${currency} réglés pour ${settleModal.client.nom} ✅`);
+      toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom) + ' ✅');
       setSettleModal({ open: false, client: null });
       setSettleAmount('');
       fetchClients();
     } catch {
-      toast.error('Erreur lors du règlement');
+      toast.error(t('settlementError'));
     } finally {
       setSettleLoading(false);
     }
@@ -220,9 +222,9 @@ const Dettes = () => {
   const handleReminder = async (client: ClientDebt) => {
     try {
       await api.post(`/clients/${client.id}/rappel`);
-      toast.success(`Rappel envoyé à ${client.nom}`);
+      toast.success(t('reminderSentTo').replace('{name}', client.nom));
     } catch {
-      toast.error('Impossible d\'envoyer le rappel');
+      toast.error(t('reminderSendError'));
     }
     setActionMenu(prev => ({ ...prev, open: false }));
   };
@@ -236,9 +238,9 @@ const Dettes = () => {
 
   const getStatusLabel = (amount: number) => {
     const amt = convertAmount(amount);
-    if (amt > urgentLimit) return 'Urgent';
-    if (amt > (urgentLimit * 0.3)) return 'Modéré';
-    return 'Normal';
+    if (amt > urgentLimit) return t('statusUrgent');
+    if (amt > (urgentLimit * 0.3)) return t('statusModerate');
+    return t('statusNormal');
   };
 
   // ─────────────────────────────────────────────
@@ -250,14 +252,14 @@ const Dettes = () => {
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 className="title-xl">Suivi des <span className="text-gradient">Dettes</span></h1>
+          <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '6px' }}>
-            Crédits clients, remboursements et échéances en temps réel.
+            {t('debtsSubtitle')}
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button className="btn-premium secondary" onClick={fetchClients} title="Actualiser">
+          <button className="btn-premium secondary" onClick={fetchClients} title={t('refresh')}>
             <RefreshCw size={16} />
           </button>
           <button className="btn-premium secondary" onClick={() => {
@@ -269,10 +271,10 @@ const Dettes = () => {
             }));
             exportToExcel(rows, 'Dettes_Report');
           }}>
-            <Download size={16} /> Rapport
+            <Download size={16} /> {t('report')}
           </button>
           <button className="btn-premium primary" onClick={() => navigate('/clients')}>
-            <Plus size={16} /> Crédit Client
+            <Plus size={16} /> {t('creditClient')}
           </button>
         </div>
       </div>
@@ -741,4 +743,3 @@ const Dettes = () => {
 };
 
 export default Dettes;
-

@@ -24,8 +24,10 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import { generateCashSessionReport } from '../utils/printHelpers';
 import { getDisplayAmount, normalizeAmount } from '../utils/currencyHelpers';
 import { Printer } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 const Cash = () => {
+    const { t } = useTranslation();
     const { currency, user } = useAuthStore();
     const exchangeRate = user?.preferences?.exchangeRate || 2800;
     const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
@@ -84,7 +86,7 @@ const Cash = () => {
             
             setSessions(sessionList);
         } catch (error) {
-            toast.error("Erreur de chargement des données de caisse");
+            toast.error(t('cashLoadError'));
         } finally {
             setLoading(false);
         }
@@ -112,10 +114,10 @@ const Cash = () => {
             setCurrentSession(data);
             setShowOpenModal(false);
             setFormData({ ...formData, openingBalanceUSD: '', openingBalanceCDF: '', note: '' });
-            toast.success("Caisse ouverte avec succès !");
+            toast.success(t('cashOpenedSuccess'));
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Erreur lors de l'ouverture");
+            toast.error(error.response?.data?.message || t('cashOpenError'));
         }
     };
 
@@ -141,48 +143,48 @@ const Cash = () => {
             setCurrentSession(null);
             setShowCloseModal(false);
             setFormData({ ...formData, closingBalanceUSD: '', closingBalanceCDF: '', note: '' });
-            toast.success("Caisse clôturée avec succès !");
+            toast.success(t('cashClosedSuccess'));
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Erreur lors de la clôture");
+            toast.error(error.response?.data?.message || t('cashCloseError'));
         }
     };
     const handleDeleteSession = async () => {
         if (!confirmDelete.id) return;
         try {
             await api.delete(`/cash/${confirmDelete.id}`);
-            toast.success("Session supprimée avec succès");
+            toast.success(t('sessionDeleted'));
             setConfirmDelete({ isOpen: false, id: null });
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "Erreur lors de la suppression");
+            toast.error(error.response?.data?.message || t('deleteError'));
         }
     };
 
 
-    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Chargement...</div>;
+    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('loading')}</div>;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
             {/* Header Section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h1 className="title-xl">Gestion de <span className="text-gradient">Caisse</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Contrôlez vos flux de trésorerie quotidiens.</p>
+                    <h1 className="title-xl">{t('cashMgmtPrefix')} <span className="text-gradient">{t('cashRegister')}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('cashSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {currentSession ? (
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button onClick={() => generateCashSessionReport(currentSession, { ...useAuthStore.getState().user, preferences: { currency } })} className="btn-premium secondary" style={{ background: 'var(--bg-card)' }}>
-                                <Printer size={18} /> Imprimer Rapport
+                                <Printer size={18} /> {t('printReport')}
                             </button>
                             <button onClick={() => setShowCloseModal(true)} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                                <Lock size={18} /> Clôturer la Caisse
+                                <Lock size={18} /> {t('closeCash')}
                             </button>
                         </div>
                     ) : (
                         <button onClick={() => setShowOpenModal(true)} className="btn-premium primary">
-                            <Unlock size={18} /> Ouvrir la Caisse
+                            <Unlock size={18} /> {t('openCash')}
                         </button>
                     )}
                 </div>
@@ -328,7 +330,7 @@ const Cash = () => {
                                             <button 
                                                 onClick={() => generateCashSessionReport(s, { ...useAuthStore.getState().user, preferences: { currency } })}
                                                 style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '8px' }}
-                                                title="Imprimer le rapport"
+                                                title={t('printReport')}
                                             >
                                                 <Printer size={18} />
                                             </button>
@@ -352,7 +354,7 @@ const Cash = () => {
             <Modal
                 isOpen={showOpenModal}
                 onClose={() => setShowOpenModal(false)}
-                title="Ouvrir la Caisse"
+                title={t('openCash')}
                 subtitle="Définissez le montant initial présent dans le tiroir-caisse."
                 icon={Unlock}
             >
@@ -413,7 +415,7 @@ const Cash = () => {
             <Modal
                 isOpen={showCloseModal}
                 onClose={() => setShowCloseModal(false)}
-                title="Clôturer la Caisse"
+                title={t('closeCash')}
                 subtitle="Vérifiez le solde et fermez la session de travail."
                 icon={Lock}
             >

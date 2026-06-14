@@ -38,7 +38,7 @@ const VerifyEmail = () => {
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
         const verificationCode = code.join('');
-        if (verificationCode.length < 6) return toast.error('Veuillez entrer le code complet');
+        if (verificationCode.length < 6) return toast.error(t('enterFullCode'));
 
         setLoading(true);
         try {
@@ -59,10 +59,10 @@ const VerifyEmail = () => {
                 data.token,
                 data.refreshToken
             );
-            toast.success('Compte vérifié ! Bienvenue sur Lumo.');
+            toast.success(t('accountVerified'));
             navigate('/dashboard');
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Code invalide');
+            toast.error(error.response?.data?.message || t('invalidCode'));
         } finally {
             setLoading(false);
         }
@@ -75,9 +75,9 @@ const VerifyEmail = () => {
         setResendLoading(true);
         try {
             await api.post('/auth/resend-code', { email });
-            toast.success('Un nouveau code a été envoyé à votre adresse email.');
+            toast.success(t('newCodeSent'));
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Erreur lors du renvoi du code');
+            toast.error(error.response?.data?.message || t('codeResendError'));
         } finally {
             setResendLoading(false);
         }

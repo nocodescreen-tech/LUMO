@@ -36,12 +36,11 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 import * as XLSX from 'xlsx';
 import { BUSINESS_TYPES } from '../constants/businessTypes';
+import { useTranslation } from '../hooks/useTranslation';
 
 const normalizeActivityType = (type: string | undefined | null) => {
   if (!type) return 'commerce-general';
-  // Direct match — already a valid key (new accounts)
   if (type in BUSINESS_TYPES) return type;
-  // Fuzzy match — legacy values
   const lower = type.toLowerCase();
   if (lower.includes('pharma')) return 'pharmacie';
   if (lower.includes('quinc')) return 'quincaillerie';
@@ -50,13 +49,13 @@ const normalizeActivityType = (type: string | undefined | null) => {
 };
 
 const Products = () => {
+  const { t, language } = useTranslation();
   const [products, setProducts] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   const user = useAuthStore(state => state.user);
-  const language = useAuthStore(state => state.language);
   const currency = useAuthStore(state => state.currency) || 'CDF';
   const exchangeRate = useAuthStore(state => state.exchangeRate) || 2250;
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +76,11 @@ const Products = () => {
     // USD -> CDF
     if (fromDevise === 'USD' && toDevise === 'CDF') return Math.round(price * exchangeRate);
     return price;
+  };
+
+  const normalizeCurrency = (val: string): string => {
+    const c = val?.toUpperCase().trim();
+    return (c === 'FC' || c === 'CDF') ? 'CDF' : 'USD';
   };
 
   const [conversionBanner, setConversionBanner] = React.useState<string | null>(null);
@@ -130,20 +134,21 @@ const Products = () => {
 
       return baseRow;
     });
-    exportToExcel(dataToExport, "Produits_Report");
+    exportToExcel(dataToExport, language === 'en' ? 'Products_Report' : 'Produits_Report');
   };
 
   const handleDownloadTemplate = () => {
     const activityType = normalizeActivityType(user?.typeActivite);
     const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
 
+    const isEn = language === 'en';
     const templateRow: any = {
-      Nom: 'Exemple Produit (Obligatoire)',
-      Categorie: 'Électronique (Optionnel)',
-      PrixVente: 1500,
-      PrixAchat: 1000,
-      Stock: 50,
-      Devise: 'USD'
+      [isEn ? 'Name' : 'Nom']: isEn ? 'Example Product (Required)' : 'Exemple Produit (Obligatoire)',
+      [isEn ? 'Category' : 'Categorie']: isEn ? 'Electronics (Optional)' : 'Électronique (Optionnel)',
+      [isEn ? 'SalePrice' : 'PrixVente']: 1500,
+      [isEn ? 'PurchasePrice' : 'PrixAchat']: 1000,
+      [isEn ? 'Stock' : 'Stock']: 50,
+      [isEn ? 'Currency' : 'Devise']: 'USD'
     };
 
     businessFields.forEach((field) => {
@@ -155,41 +160,101 @@ const Products = () => {
     });
 
     const templateData = [templateRow];
-    exportToExcel(templateData, 'Modele_Import_Produits');
+    exportToExcel(templateData, isEn ? 'Product_Import_Template' : 'Modele_Import_Produits');
   };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+    if (!isExcel) {
+      toast.error(t('invalidExcelFile'));
+      if (importInputRef.current) importInputRef.current.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = event.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
         const sheetName = workbook.SheetNames[0];
+        if (!sheetName) throw new Error('No sheet found');
         const sheet = workbook.Sheets[sheetName];
         const parsedData: any[] = XLSX.utils.sheet_to_json(sheet);
 
-        const validProducts = parsedData.map(row => ({
-          nom: row.Nom || row.nom || row.Name || 'Produit Inconnu',
-          categorie: row.Categorie || row.categorie || row.Category || 'General',
-          prix: parseFloat(row.PrixVente || row.prix || 0),
-          prixAchat: parseFloat(row.PrixAchat || row.prixAchat || 0),
-          stock: parseInt(row.Stock || row.stock || 0),
-          devise: row.Devise || row.devise || currency
-        }));
+        if (!parsedData.length) {
+          throw new Error('Empty sheet');
+        }
+
+        const hasRequiredColumns = parsedData.some((row: any) => {
+          const name = row.Nom || row.nom || row.Name || row.name;
+          const price = row.PrixVente || row.prixVente || row.prix || row.SalePrice || row.price;
+          const stock = row.Stock || row.stock;
+          return name && price !== undefined && stock !== undefined;
+        });
+
+        if (!hasRequiredColumns) {
+          throw new Error('Missing required columns');
+        }
+
+        const activityType = normalizeActivityType(user?.typeActivite);
+        const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
+
+        const validProducts = parsedData
+          .map(row => {
+          const price = Number(row.PrixVente || row.prixVente || row.prix || row.SalePrice || row.price);
+          const purchasePrice = Number(row.PrixAchat || row.prixAchat || row.PurchasePrice || row.cost || 0);
+          const stock = Number(row.Stock || row.stock);
+          const devise = normalizeCurrency(row.Devise || row.devise || row.Currency || currency);
+          const nom = String(row.Nom || row.nom || row.Name || row.name || '').trim();
+
+          const metadata: Record<string, any> = typeof row.Metadata === 'string'
+            ? (() => { try { return JSON.parse(row.Metadata); } catch { return {}; } })()
+            : (row.Metadata && typeof row.Metadata === 'object' ? row.Metadata : {});
+
+          businessFields.forEach((field: any) => {
+            const label = getFieldLabel(field);
+            const val = row[label] ?? row[field.name];
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+              metadata[field.name] = field.type === 'boolean'
+                ? ['oui', 'yes', 'true', '1'].includes(String(val).toLowerCase())
+                : val;
+            }
+          });
+
+          return {
+            nom: nom || (language === 'en' ? 'Unknown Product' : 'Produit Inconnu'),
+            categorie: String(row.Categorie || row.categorie || row.Category || row.category || 'General').trim(),
+            prix: Number.isFinite(price) ? price : 0,
+            prixAchat: Number.isFinite(purchasePrice) ? purchasePrice : 0,
+            stock: Number.isFinite(stock) ? stock : 0,
+            devise,
+            codeBarre: String(row.CodeBarre || row.codeBarre || row.Barcode || row.barcode || '').trim() || null,
+            description: String(row.Description || row.description || '').trim() || '',
+            metadata
+          };
+        })
+          .filter(p => p.nom && p.prix > 0 && p.stock >= 0);
+
+        if (!validProducts.length) {
+          throw new Error('No valid rows');
+        }
 
         const res = await api.post('/products/bulk', { products: validProducts });
         const importedCount = res.data.success ? res.data.data.length : res.data.length;
-        toast.success(`${importedCount} produits importes avec succes !`);
+        const serverMsg = res.data?.message || '';
+        toast.success(serverMsg || t('productsImportedCount').replace('{count}', String(importedCount)));
         fetchProducts();
       } catch (err) {
-        toast.error("Erreur lors de l'importation. Vérifiez le format du fichier.");
+        toast.error(t('importExcelError'));
         console.error(err);
+      } finally {
+        if (importInputRef.current) importInputRef.current.value = '';
       }
     };
     reader.readAsBinaryString(file);
-    if (importInputRef.current) importInputRef.current.value = '';
   };
 
   const handleTextImport = async (e: React.FormEvent) => {
@@ -209,12 +274,12 @@ const Products = () => {
     try {
       const res = await api.post('/products/bulk', { products: validProducts });
       const importedCount = res.data.success ? res.data.data.length : res.data.length;
-      toast.success(`${importedCount} produits importés avec succès !`);
+      toast.success(t('productsImportedCount').replace('{count}', String(importedCount)));
       setShowTextImportModal(false);
       setBulkText('');
       fetchProducts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'importation de texte.");
+      toast.error(err.response?.data?.message || t('textImportError'));
     }
   };
 
@@ -269,20 +334,20 @@ const Products = () => {
       // M6 Fix: Ajout d'un timestamp pour forcer le Service Worker à ignorer le cache
       const response = await api.get(`/products?_t=${Date.now()}`);
       const resData = response.data;
-      
+
       let productsList = [];
-      
+
       // Handle standardized response structure: { success: true, data: { data: [], pagination: {} } }
       if (resData.success && resData.data) {
         if (Array.isArray(resData.data.data)) {
-            productsList = resData.data.data;
+          productsList = resData.data.data;
         } else if (Array.isArray(resData.data)) {
-            productsList = resData.data;
+          productsList = resData.data;
         } else if (typeof resData.data === 'object') {
-            // Check if it's nested like { data: { products: [] } }
-            productsList = resData.data.products || resData.data.items || [];
+          // Check if it's nested like { data: { products: [] } }
+          productsList = resData.data.products || resData.data.items || [];
         }
-      } 
+      }
       // Fallback for older/direct structures
       else {
         const data = resData;
@@ -290,12 +355,12 @@ const Products = () => {
         else if (data && Array.isArray(data.data)) productsList = data.data;
         else if (data && Array.isArray(data.products)) productsList = data.products;
       }
-      
+
       setAllProducts(productsList);
       setProducts(productsList);
     } catch (error) {
       console.error(error);
-      toast.error("Échec de la récupération des produits.");
+      toast.error(t('productsLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -309,7 +374,7 @@ const Products = () => {
       setShowHistoryModal(true);
     } catch (error) {
       console.error(error);
-      toast.error("Erreur lors de la récupération de l'historique.");
+      toast.error(t('stockHistoryError'));
     }
   };
 
@@ -353,7 +418,7 @@ const Products = () => {
 
     try {
       await api.post('/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Produit "${newProduct.nom}" ajouté avec succès !`);
+      toast.success(t('productAddedNamed').replace('{name}', newProduct.nom));
       setShowAddModal(false);
       setNewProduct({
         nom: '', codeBarre: '', categorie: 'Général', prixVente: 0, prixAchat: 0, stock: 0, stockAlerte: 5, description: '', devise: currency, variantes: [], metadata: {}
@@ -363,7 +428,7 @@ const Products = () => {
       setImagePreview(null);
       fetchProducts();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de l’ajout du produit");
+      toast.error(error.response?.data?.message || t('productAddError'));
     }
   };
 
@@ -384,13 +449,13 @@ const Products = () => {
 
     try {
       await api.put(`/products/${selectedProduct.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(`Modification de "${selectedProduct.nom}" enregistrée !`);
+      toast.success(t('productUpdatedNamed').replace('{name}', selectedProduct.nom));
       setShowEditModal(false);
       setSelectedImage(null);
       setImagePreview(null);
       fetchProducts();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la modification");
+      toast.error(error.response?.data?.message || t('productUpdateError'));
     }
   };
 
@@ -402,10 +467,10 @@ const Products = () => {
       onConfirm: async () => {
         try {
           await api.delete(`/products/${id}`);
-          toast.success("Produit supprimé.");
+          toast.success(t('productDeleted'));
           fetchProducts();
         } catch (error: any) {
-          toast.error("Erreur lors de la suppression");
+          toast.error(t('deleteError'));
         }
       }
     });
@@ -419,10 +484,10 @@ const Products = () => {
       onConfirm: async () => {
         try {
           await api.delete('/products/all');
-          toast.success("Catalogue entièrement vidé.");
+          toast.success(t('catalogCleared'));
           fetchProducts();
         } catch (error: any) {
-          toast.error("Erreur lors de la suppression massive");
+          toast.error(t('bulkDeleteError'));
         }
       }
     });
@@ -442,12 +507,12 @@ const Products = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
-            <Boxes size={14} /> Inventaire Global
+            <Boxes size={14} /> {t('globalInventory')}
           </div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
-            Produits & <span className="text-gradient">Stock</span>
+            {t('productsStock').split(' & ')[0]} & <span className="text-gradient">{t('productsStock').split(' & ')[1] || 'Stock'}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Visualisez vos stocks et gérez vos références en temps réel.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('inventoryDesc')}</p>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -456,7 +521,7 @@ const Products = () => {
               <Layers size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Articles</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('items')}</span>
               <div style={{ fontSize: '1.1rem', fontWeight: '950' }}>{totalProducts}</div>
             </div>
           </div>
@@ -466,7 +531,7 @@ const Products = () => {
               <TrendingUp size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Valeur Stock (Vente)</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('stockValueSale')}</span>
               <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#10b981' }}>
                 {allProducts.reduce((acc, p) => acc + (convertPrice(p.prix || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
               </div>
@@ -479,7 +544,7 @@ const Products = () => {
                 <Package size={20} />
               </div>
               <div>
-                <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Coût Total (Achat)</span>
+                <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('totalCostPurchase')}</span>
                 <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#f59e0b' }}>
                   {allProducts.reduce((acc, p) => acc + (convertPrice(p.prixAchat || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
                 </div>
@@ -507,7 +572,7 @@ const Products = () => {
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Rechercher une référence ou une catégorie..."
+            placeholder={t('searchReferenceCategory')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -524,22 +589,28 @@ const Products = () => {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <input type="file" ref={importInputRef} accept=".xlsx, .xls, .csv" onChange={handleImportExcel} style={{ display: 'none' }} />
-          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Télécharger le modèle Excel pour l'importation">
-            <Download size={20} /> Modèle
+          <input type="file" ref={importInputRef} accept=".xlsx,.xls" onChange={handleImportExcel} style={{ display: 'none' }} />
+          {(canDo('products.import') || canDo('products.add')) && (
+          <>
+          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('downloadExcelTemplate')}>
+            <Download size={20} /> {t('template')}
           </button>
-          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title="Importer un fichier Excel">
-            <Upload size={20} /> Excel
+          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('importExcelFile')}>
+            <Upload size={20} /> {t('excel')}
           </button>
           <button onClick={() => setShowTextImportModal(true)} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-            <FileText size={20} /> Texte
+            <FileText size={20} /> {t('text')}
           </button>
+          </>
+          )}
+          {(canDo('products.export') || canDo('products.add')) && (
           <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-            <Download size={20} /> Rapport
+            <Download size={20} /> {t('report')}
           </button>
+          )}
           {products.length > 0 && canDo('products.delete') && (
             <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '800' }}>
-              <Trash2 size={20} /> Tout Supprimer
+              <Trash2 size={20} /> {t('deleteAll')}
             </button>
           )}
           <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '56px', height: '56px', borderRadius: '18px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
@@ -686,7 +757,7 @@ const Products = () => {
                       </button>
                       {canDo('products.edit') && (
                         <button
-                          onClick={() => { setSelectedProduct({...p, metadata: p.metadata || {}}); setShowEditModal(true); }}
+                          onClick={() => { setSelectedProduct({ ...p, metadata: p.metadata || {} }); setShowEditModal(true); }}
                           className="glass btn-hover"
                           style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
@@ -766,7 +837,7 @@ const Products = () => {
       <Modal
         isOpen={showTextImportModal}
         onClose={() => setShowTextImportModal(false)}
-        title="Importation Rapide"
+        title={t('quickImport')}
         subtitle="Collez votre liste d'articles (un article par ligne)"
         maxWidth="600px"
         icon={FileText}
@@ -796,7 +867,7 @@ const Products = () => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowTextImportModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>Annuler</button>
+            <button type="button" onClick={() => setShowTextImportModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>{t('cancelBtn')}</button>
             <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Upload size={24} /> Importer {bulkText.split('\n').filter(l => l.trim().length > 0).length > 0 ? `(${bulkText.split('\n').filter(l => l.trim().length > 0).length})` : ''}
             </button>
@@ -809,7 +880,7 @@ const Products = () => {
         isOpen={showAddModal}
 
         onClose={() => setShowAddModal(false)}
-        title="Nouveau Produit"
+        title={t('newProduct')}
         subtitle="Enregistrez une nouvelle référence dans votre catalogue Lumos."
         maxWidth="800px"
         icon={PackageCheck}
@@ -1013,7 +1084,7 @@ const Products = () => {
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        title="Mise à jour Article"
+        title={t('updateArticle')}
         subtitle="Ajustez les détails de votre référence produit."
         maxWidth="800px"
         icon={Edit}
@@ -1205,7 +1276,7 @@ const Products = () => {
             ))}
 
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
-              <button type="button" onClick={() => setShowEditModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>Annuler</button>
+              <button type="button" onClick={() => setShowEditModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>{t('cancelBtn')}</button>
               <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Edit size={24} /> Sauvegarder
               </button>

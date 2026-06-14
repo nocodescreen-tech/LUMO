@@ -120,7 +120,7 @@ const Register = () => {
     // Explicit validation before sending
     if (!formData.nom) {
         setError("Le nom complet du propriétaire est obligatoire.");
-        toast.error("Le nom du propriétaire manque (Étape 2)");
+        toast.error(t('ownerNameMissing'));
         setStep(2);
         setLoading(false);
         return;
@@ -148,7 +148,7 @@ const Register = () => {
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
         if (!passwordRegex.test(formData.motDePasse)) {
             setError("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
-            toast.error("Mot de passe trop faible");
+            toast.error(t('weakPassword'));
             setStep(2);
             setLoading(false);
             return;
@@ -163,7 +163,7 @@ const Register = () => {
       const { data: responseData } = await api.post('/auth/register', data);
       
       if (responseData.role === 'superadmin') {
-        toast.success('Bienvenue, SuperAdmin ! Prêt à transformer le commerce.');
+        toast.success(t('superAdminWelcome'));
         if (responseData.token) {
           useAuthStore.getState().setAuth(
             {
@@ -180,7 +180,7 @@ const Register = () => {
           navigate('/');
         }
       } else {
-        toast.success('Compte créé ! Veuillez vérifier votre email.');
+        toast.success(t('accountCreatedVerifyEmail'));
         navigate('/verify-email', { state: { email: formData.email } });
       }
     } catch (err: any) {

@@ -6,6 +6,12 @@ const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
 const { sendResponse } = require('../utils/response');
 
+const normalizeCurrency = (currency) => {
+  const normalized = String(currency || '').toUpperCase();
+  if (normalized === 'FC') return 'CDF';
+  return normalized === 'USD' ? 'USD' : 'CDF';
+};
+
 exports.getProducts = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
@@ -49,21 +55,22 @@ exports.createProduct = async (req, res, next) => {
     delete productData.prixVente;
     if (!productData.codeBarre) productData.codeBarre = null;
     if (typeof productData.variantes === 'string') {
-      try { productData.variantes = JSON.parse(productData.variantes); } catch(e) { productData.variantes = []; }
+      try { productData.variantes = JSON.parse(productData.variantes); } catch (e) { productData.variantes = []; }
     }
     if (typeof productData.metadata === 'string') {
-      try { productData.metadata = JSON.parse(productData.metadata); } catch(e) { productData.metadata = {}; }
+      try { productData.metadata = JSON.parse(productData.metadata); } catch (e) { productData.metadata = {}; }
     }
     if (req.file) {
       productData.image = await uploadImage(req.file.buffer, 'products', req.file.mimetype);
     }
+    if (productData.devise) productData.devise = normalizeCurrency(productData.devise);
     const product = await Product.create(productData);
     await logActivite(req.user.id, 'PRODUIT', `Création du produit: ${product.nom}`, 'System', tenantId);
-    
+
     // Invalidation du cache
     await invalidateCache('products');
     await invalidateCache('stats');
-    
+
     sendResponse(res, 201, product, 'Produit créé avec succès');
   } catch (error) {
     next(error);
@@ -78,7 +85,7 @@ exports.updateProduct = async (req, res, next) => {
     const tenantId = req.user.tenantId;
     const product = await Product.findOne({ where: { id: req.params.id, userId: tenantId } });
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
-    
+
     const updateData = { ...req.body };
     // Le frontend envoie 'prixVente', mais la colonne BD est 'prix'
     if (updateData.prixVente !== undefined && updateData.prix === undefined) {
@@ -87,22 +94,23 @@ exports.updateProduct = async (req, res, next) => {
     delete updateData.prixVente;
     if (!updateData.codeBarre) updateData.codeBarre = null;
     if (typeof updateData.variantes === 'string') {
-      try { updateData.variantes = JSON.parse(updateData.variantes); } catch(e) { updateData.variantes = []; }
+      try { updateData.variantes = JSON.parse(updateData.variantes); } catch (e) { updateData.variantes = []; }
     }
     if (typeof updateData.metadata === 'string') {
-      try { updateData.metadata = JSON.parse(updateData.metadata); } catch(e) { updateData.metadata = {}; }
+      try { updateData.metadata = JSON.parse(updateData.metadata); } catch (e) { updateData.metadata = {}; }
     }
     if (req.file) {
       updateData.image = await uploadImage(req.file.buffer, 'products', req.file.mimetype);
     }
-    
+    if (updateData.devise) updateData.devise = normalizeCurrency(updateData.devise);
+
     await product.update(updateData);
     await logActivite(req.user.id, 'PRODUIT', `Mise à jour du produit: ${product.nom}`, 'System', tenantId);
-    
+
     // Invalidation du cache
     await invalidateCache('products');
     await invalidateCache('stats');
-    
+
     res.status(200).json(product);
   } catch (error) {
     next(error);
@@ -117,11 +125,11 @@ exports.deleteProduct = async (req, res, next) => {
     const nomProduit = product.nom;
     await product.destroy();
     await logActivite(req.user.id, 'PRODUIT', `Suppression du produit: ${nomProduit}`, 'System', tenantId);
-    
+
     // Invalidation du cache
     await invalidateCache('products');
     await invalidateCache('stats');
-    
+
     res.status(200).json({ message: 'Produit supprimé' });
   } catch (error) {
     next(error);
@@ -131,22 +139,60 @@ exports.deleteProduct = async (req, res, next) => {
 exports.createBulkProducts = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
-    // B7 Fix: strip empty/null codeBarre to avoid unique constraint crashes on duplicates
-    const products = req.body.products.map(p => ({
-      ...p,
-      userId: tenantId,
-      codeBarre: p.codeBarre?.trim() || null,
-    }));
-    const createdProducts = await Product.bulkCreate(products, {
-      individualHooks: true
+    if (!Array.isArray(req.body?.products) || req.body.products.length === 0) {
+      return res.status(400).json({ message: 'Liste de produits invalide ou vide' });
+    }
+    if (req.body.products.length > 1000) {
+      return res.status(400).json({ message: 'Maximum 1000 produits par import' });
+    }
+
+    const products = req.body.products.map(p => {
+      const productData = { ...p };
+      if (productData.prixVente !== undefined && productData.prix === undefined) {
+        productData.prix = productData.prixVente;
+      }
+      delete productData.prixVente;
+      productData.devise = normalizeCurrency(productData.devise);
+      return {
+        ...productData,
+        userId: tenantId,
+        codeBarre: productData.codeBarre?.trim() || null,
+      };
     });
-    
-    
-    // Invalidation du cache
+
+    const createdProducts = [];
+    const skippedCount = { value: 0 };
+
+    for (const p of products) {
+      const barcode = p.codeBarre;
+      const name = p.nom?.trim();
+
+      let existing = null;
+      if (barcode) {
+        existing = await Product.findOne({ where: { codeBarre: barcode, userId: tenantId } });
+      }
+      if (!existing && name) {
+        existing = await Product.findOne({ where: { nom: name, userId: tenantId } });
+      }
+
+      if (existing) {
+        skippedCount.value++;
+        continue;
+      }
+
+      try {
+        const created = await Product.create(p, { individualHooks: true });
+        createdProducts.push(created);
+      } catch (err) {
+        skippedCount.value++;
+      }
+    }
+
     await invalidateCache('products');
     await invalidateCache('stats');
-    
-    sendResponse(res, 201, createdProducts, `${createdProducts.length} produits importés`);
+
+    const message = `${createdProducts.length} produits importés${skippedCount.value > 0 ? `, ${skippedCount.value} ignorés (doublons)` : ''}`;
+    sendResponse(res, 201, createdProducts, message);
   } catch (error) {
     next(error);
   }
@@ -159,11 +205,11 @@ exports.deleteAllProducts = async (req, res, next) => {
     await StockMovement.destroy({ where: { userId: tenantId } });
     await Product.destroy({ where: { userId: tenantId }, force: true });
     await logActivite(req.user.id, 'PRODUIT', 'Suppression de TOUS les produits et de l\'historique stock', 'System', tenantId);
-    
+
     // Invalidation du cache
     await invalidateCache('products');
     await invalidateCache('stats');
-    
+
     res.status(200).json({ message: 'Tous vos produits ont été supprimés' });
   } catch (error) {
     next(error);

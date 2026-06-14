@@ -20,10 +20,10 @@ const ForgotPassword = () => {
     setLoading(true);
     try {
       await api.post('/auth/forgot-password', { email });
-      toast.success('Code de récupération envoyé !');
+      toast.success(t('recoveryCodeSent'));
       navigate('/verify-reset-otp', { state: { email } });
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Email non trouvé ou erreur réseau');
+      toast.error(error.response?.data?.message || t('emailNotFound'));
     } finally {
       setLoading(false);
     }

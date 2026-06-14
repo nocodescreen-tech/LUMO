@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  Lock,
   User as UserIcon,
   Store,
   Palette,
@@ -95,8 +96,11 @@ const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeho
 );
 
 const TwoFASection = () => {
+  const { t } = useTranslation();
   const { user, updateUser } = useAuthStore();
   const [loading2FA, setLoading2FA] = React.useState(false);
+  const [showDisableModal, setShowDisableModal] = React.useState(false);
+  const [disablePassword, setDisablePassword] = React.useState('');
   const [showSetupModal, setShowSetupModal] = React.useState(false);
   const [qrCode, setQrCode] = React.useState('');
   const [secret, setSecret] = React.useState('');
@@ -122,7 +126,7 @@ const TwoFASection = () => {
   const handleActivate2FA = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length !== 6) {
-      toast.error('Veuillez entrer un code à 6 chiffres');
+      toast.error(t('VeuillezentreruMsg'));
       return;
     }
     setActivating(true);
@@ -140,13 +144,19 @@ const TwoFASection = () => {
   };
 
   const handleDisable2FA = async () => {
+    if (!disablePassword) {
+      toast.error(t('twoFADisablePasswordPrompt'));
+      return;
+    }
     setLoading2FA(true);
     try {
-      const { data } = await api.post('/auth/2fa/disable');
+      const { data } = await api.post('/auth/2fa/disable', { motDePasse: disablePassword });
       updateUser({ ...(user as any), twoFactorEnabled: false });
-      toast.success(data.message || 'Double authentification désactivée');
+      toast.success(data.message || t('twoFADisabledSuccess'));
+      setShowDisableModal(false);
+      setDisablePassword('');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Erreur lors de la désactivation 2FA');
+      toast.error(err.response?.data?.message || t('twoFADeactivateError'));
     } finally {
       setLoading2FA(false);
     }
@@ -167,7 +177,7 @@ const TwoFASection = () => {
             <ShieldCheck size={26} />
           </div>
           <div>
-            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>Double Authentification (2FA)</p>
+            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{t('twoFactorAuth')}</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
                 ? 'Activée - Code Google Authenticator requis à chaque connexion'
@@ -176,7 +186,7 @@ const TwoFASection = () => {
           </div>
         </div>
         <button
-          onClick={is2FAEnabled ? handleDisable2FA : handleEnable2FA}
+          onClick={is2FAEnabled ? () => setShowDisableModal(true) : handleEnable2FA}
           disabled={loading2FA}
           style={{
             padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
@@ -202,7 +212,7 @@ const TwoFASection = () => {
               <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <ShieldCheck size={32} color="white" />
               </div>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 8px' }}>Configurer la 2FA</h2>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 8px' }}>{t('setup2FA')}</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
                 Scannez le QR Code avec Google Authenticator ou Authy
               </p>
@@ -212,7 +222,7 @@ const TwoFASection = () => {
               <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                 <img src={qrCode} alt="QR Code 2FA" style={{ width: '200px', height: '200px', borderRadius: '16px', border: '4px solid var(--border)', margin: '0 auto', display: 'block' }} />
                 <div style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Clé secrète manuelle</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('manualSecretKey')}</p>
                   <p style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--primary)', margin: 0, wordBreak: 'break-all', letterSpacing: '0.1em' }}>{secret}</p>
                 </div>
               </div>
@@ -252,7 +262,7 @@ const TwoFASection = () => {
                   disabled={activating || otpCode.length !== 6}
                   style={{ flex: 2, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 800, cursor: activating || otpCode.length !== 6 ? 'not-allowed' : 'pointer', opacity: activating || otpCode.length !== 6 ? 0.6 : 1 }}
                 >
-                  {activating ? 'Vérification...' : 'Activer la 2FA'}
+                  {activating ? t('verifying') : t('activate2FA')}
                 </button>
               </div>
             </form>
@@ -264,6 +274,7 @@ const TwoFASection = () => {
 };
 
 const TeamSection = () => {
+  const { t } = useTranslation();
   const [subUsers, setSubUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -432,11 +443,11 @@ const TeamSection = () => {
     if (!confirmDelete.id) return;
     try {
       await api.delete(`/subusers/${confirmDelete.id}`);
-      toast.success('Membre supprimé');
+      toast.success(t('MembresupprimMsg'));
       setConfirmDelete({ isOpen: false, id: null, name: '' });
       fetchSubUsers();
     } catch (err) {
-      toast.error('Erreur lors de la suppression');
+      toast.error(t('ErreurlorsdelasMsg'));
     }
   };
 
@@ -448,7 +459,7 @@ const TeamSection = () => {
       const { data } = await api.get(`/staff-payments?staffId=${staff.id}`);
       setStaffPayments(Array.isArray(data.data) ? data.data : []);
     } catch (err) {
-      toast.error('Erreur lors de la récupération des paiements');
+      toast.error(t('ErreurlorsdelarMsg'));
     } finally {
       setLoadingPayments(false);
     }
@@ -462,7 +473,7 @@ const TeamSection = () => {
         staffId: selectedStaff.id,
         ...paymentData
       });
-      toast.success('Paiement enregistré');
+      toast.success(t('PaiementenregisMsg'));
       setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
       openPaymentModal(selectedStaff); // Refresh list
     } catch (err) {
@@ -474,7 +485,7 @@ const TeamSection = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Gestion de l'équipe</h2>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('teamManagement')}</h2>
           <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Créez et gérez les accès pour vos vendeurs et gestionnaires.</p>
         </div>
         <button
@@ -846,7 +857,7 @@ const Settings = () => {
       const updated = resData.success && resData.data ? resData.data : resData;
 
       updateUser(updated);
-      toast.success('Photo de profil mise à jour avec succès !');
+      toast.success(t('PhotodeprofilmiMsg'));
     } catch (error: any) {
       console.error("Upload Error:", error);
       toast.error(error.response?.data?.message || "Échec de l'upload de l'image.");
@@ -923,7 +934,7 @@ const Settings = () => {
       setProfileData(prev => ({ ...prev, motDePasse: '' }));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
-      toast.success('Paramètres enregistrés et synchronisés !');
+      toast.success(t('ParamtresenregiMsg'));
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
@@ -949,9 +960,9 @@ const Settings = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Sauvegarde téléchargée avec succès !');
+      toast.success(t('SauvegardetlchaMsg'));
     } catch (error) {
-      toast.error('Erreur lors de la génération de la sauvegarde.');
+      toast.error(t('ErreurlorsdelagMsg'));
     } finally {
       setBackupLoading(false);
     }
@@ -982,7 +993,7 @@ const Settings = () => {
         const response = await api.post('/backup/preview', content);
         setRestorePreview({ ...response.data, rawData: content });
       } catch (error) {
-        toast.error('Fichier invalide. Veuillez sélectionner une sauvegarde Lumo valide.');
+        toast.error(t('FichierinvalideMsg'));
       }
     };
     reader.readAsText(file);
@@ -999,7 +1010,7 @@ const Settings = () => {
       setRestorePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
-      toast.error('Erreur lors de la restauration des données.');
+      toast.error(t('ErreurlorsdelarMsg'));
     } finally {
       setRestoreLoading(false);
     }

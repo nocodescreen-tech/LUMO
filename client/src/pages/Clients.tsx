@@ -30,8 +30,10 @@ import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 
 const Clients = () => {
+  const { t } = useTranslation();
   const [clients, setClients] = useState<any[]>([]);
   const [allClients, setAllClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +106,7 @@ const Clients = () => {
       setAllClients(clientsList);
       setTotalPages(pages);
     } catch (error) {
-      toast.error("Erreur de chargement des clients");
+      toast.error(t('clientsLoadError'));
     } finally {
       setLoading(false);
     }
@@ -141,12 +143,12 @@ const Clients = () => {
     e.preventDefault();
     try {
       await api.post('/clients', newClient);
-      toast.success(`Client ${newClient.nom} ajouté avec succès !`);
+      toast.success(t('clientAddedNamed').replace('{name}', newClient.nom));
       setShowAddModal(false);
       setNewClient({ nom: '', email: '', telephone: '', adresse: '' });
       fetchClients();
     } catch (error) {
-      toast.error("Erreur lors de l’ajout du client");
+      toast.error(t('clientAddError'));
     }
   };
 
@@ -154,11 +156,11 @@ const Clients = () => {
     e.preventDefault();
     try {
       await api.put(`/clients/${selectedClient.id}`, selectedClient);
-      toast.success("Fiche client mise à jour !");
+      toast.success(t('clientUpdated'));
       setShowEditModal(false);
       fetchClients();
     } catch (error) {
-      toast.error("Erreur lors de la modification");
+      toast.error(t('clientUpdateError'));
     }
   };
 
@@ -170,10 +172,10 @@ const Clients = () => {
       onConfirm: async () => {
         try {
           await api.delete(`/clients/${id}`);
-          toast.success("Client retiré de la base.");
+          toast.success(t('clientDeleted'));
           fetchClients();
         } catch (error) {
-          toast.error("Échec de la suppression");
+          toast.error(t('clientDeleteFailed'));
         }
       }
     });
@@ -187,10 +189,10 @@ const Clients = () => {
       onConfirm: async () => {
         try {
           await api.delete('/clients/all');
-          toast.success("Répertoire client entièrement vidé.");
+          toast.success(t('clientBulkDeleted'));
           fetchClients();
         } catch (error) {
-          toast.error("Erreur lors de la suppression massive");
+          toast.error(t('clientBulkDeleteError'));
         }
       }
     });
@@ -208,7 +210,7 @@ const Clients = () => {
             <Users size={14} /> Répertoire CRM Premium
           </div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
-            Gestion <span className="text-gradient">Clientèle</span>
+            {t('clientsMgmtPrefix')} <span className="text-gradient">{t('clientsGradient')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Centralisez les informations de vos clients et suivez leur cycle d'achat.</p>
         </div>

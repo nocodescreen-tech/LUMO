@@ -399,8 +399,18 @@ const activateTOTP = async (req, res, next) => {
 // @desc  Disable 2FA for current user
 const disable2FA = async (req, res, next) => {
   try {
+    const { motDePasse } = req.body;
+    if (!motDePasse) {
+      return res.status(400).json({ message: 'Mot de passe requis pour désactiver la 2FA' });
+    }
+
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    const valid = await user.matchMotDePasse(motDePasse);
+    if (!valid) {
+      return res.status(401).json({ message: 'Mot de passe incorrect' });
+    }
 
     user.twoFactorEnabled = false;
     user.twoFactorSecret = null;
@@ -565,7 +575,20 @@ const updateProfile = async (req, res, next) => {
     }
 
     if (motDePasse) {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
+      if (!passwordRegex.test(motDePasse)) {
+        return res.status(400).json({
+          message: 'Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).'
+        });
+      }
       user.motDePasse = motDePasse;
+    }
+
+    if (preferences?.exchangeRate !== undefined) {
+      const rate = Number(preferences.exchangeRate);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        return res.status(400).json({ message: 'Taux de change invalide. Il doit être supérieur à 0.' });
+      }
     }
 
     const updatedUser = await user.save();

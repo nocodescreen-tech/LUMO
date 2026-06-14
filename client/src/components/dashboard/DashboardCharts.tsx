@@ -19,11 +19,13 @@ function normalizeToDisplay(rawCDF: number, exchangeRate: number, displayCurrenc
 }
 
 const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {
-  const { currency: displayCurrency } = useAuthStore();
+  const { currency: displayCurrency, language } = useAuthStore();
   const exchangeRate = 2800; // fallback; actual rate comes from store
 
   const parseData = () => {
-    const daysArr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const daysArr = language === 'en'
+      ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+      : ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
     if (period === '7d') {
       const weekData = daysArr.map(name => ({ day: name, sales: 0 }));

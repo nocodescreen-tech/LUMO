@@ -6,11 +6,13 @@ import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useAuthStore';
 import Logo from '../../components/layout/Logo';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const ResetPassword = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { theme, setTheme } = useAuthStore();
+    const { t } = useTranslation();
     const email = location.state?.email;
     const code = location.state?.code;
     
@@ -38,14 +40,14 @@ const ResetPassword = () => {
                     <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', margin: '0 auto 24px' }}>
                         <ShieldAlert size={40} />
                     </div>
-                    <h2 style={{ marginBottom: '12px', fontSize: '1.8rem', fontWeight: 900, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Session expirée</h2>
-                    <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', marginBottom: '32px', fontSize: '1.05rem', fontWeight: 500 }}>Veuillez recommencer la procédure de récupération pour sécuriser votre compte.</p>
+                    <h2 style={{ marginBottom: '12px', fontSize: '1.8rem', fontWeight: 900, color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>{t('sessionExpired')}</h2>
+                    <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', marginBottom: '32px', fontSize: '1.05rem', fontWeight: 500 }}>{t('sessionExpiredDesc')}</p>
                     <motion.button 
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => navigate('/forgot-password')} 
                         style={{ width: '100%', padding: '18px', borderRadius: '18px', background: '#ef4444', color: 'white', border: 'none', fontWeight: '800', fontSize: '1.1rem', cursor: 'pointer' }}>
-                        Recommencer la procédure
+                        {t('restartProcedure')}
                     </motion.button>
                 </motion.div>
             </div>
@@ -58,18 +60,18 @@ const ResetPassword = () => {
         // Validation stricte
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
         if (!passwordRegex.test(password)) {
-            return toast.error("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+            return toast.error(t('passwordRequirements'));
         }
         
-        if (password !== confirm) return toast.error('Les mots de passe ne correspondent pas');
+        if (password !== confirm) return toast.error(t('passwordMismatch'));
 
         setLoading(true);
         try {
             await api.post('/auth/reset-password', { email, code, motDePasse: password });
-            toast.success('Mot de passe mis à jour avec succès !');
+            toast.success(t('passwordUpdated'));
             navigate('/login');
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour');
+            toast.error(error.response?.data?.message || t('passwordUpdateError'));
         } finally {
             setLoading(false);
         }

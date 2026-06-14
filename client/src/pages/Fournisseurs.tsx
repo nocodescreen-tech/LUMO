@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -22,8 +22,10 @@ import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 
 const Fournisseurs = () => {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -85,7 +87,7 @@ const Fournisseurs = () => {
       
       setSuppliers(suppliersList);
     } catch (error) {
-      toast.error("Impossible de charger les fournisseurs");
+      toast.error(t('suppliersLoadError'));
     } finally {
       setLoading(false);
     }
@@ -100,9 +102,9 @@ const Fournisseurs = () => {
       setSuppliers(prev => [newSupplier, ...prev]);
       setShowAddModal(false);
       setFormData({ nom: '', email: '', telephone: '', adresse: '', categorie: '' });
-      toast.success("Fournisseur ajoutÃ© avec succÃ¨s");
+      toast.success(t('supplierAdded'));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de l'ajout");
+      toast.error(error.response?.data?.message || t('supplierAddError'));
     }
   };
 
@@ -127,9 +129,9 @@ const Fournisseurs = () => {
       setSuppliers(prev => prev.map(s => s.id === editingSupplier.id ? { ...s, ...updated } : s));
       setShowEditModal(false);
       setEditingSupplier(null);
-      toast.success("Fournisseur mis Ã  jour avec succÃ¨s");
+      toast.success(t('supplierUpdated'));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la mise Ã  jour");
+      toast.error(error.response?.data?.message || t('supplierUpdateError'));
     }
   };
 
@@ -138,9 +140,9 @@ const Fournisseurs = () => {
     try {
       await api.delete(`/fournisseurs/${id}`);
       setSuppliers(prev => prev.filter(s => s.id !== id));
-      toast.success("Fournisseur supprimÃ©");
+      toast.success(t('supplierDeleted'));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Erreur lors de la suppression");
+      toast.error(error.response?.data?.message || t('supplierDeleteError'));
     }
   };
 
@@ -153,7 +155,7 @@ const Fournisseurs = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 className="title-xl">Gestion <span className="text-gradient">Fournisseurs</span></h1>
+          <h1 className="title-xl">{t('suppliersMgmtPrefix')} <span className="text-gradient">{t('suppliers')}</span></h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>GÃ©rez vos partenaires et approvisionnements.</p>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>

@@ -19,8 +19,10 @@ import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
 import { exportToExcel } from '../utils/exportUtils';
 import { toast } from 'sonner';
+import { useTranslation } from '../hooks/useTranslation';
 
 const StockHistory = () => {
+    const { t } = useTranslation();
     const { currency } = useAuthStore();
     const [movements, setMovements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ const StockHistory = () => {
             
             setMovements(movementsList);
         } catch (error) {
-            toast.error("Erreur lors du chargement de l'historique");
+            toast.error(t('stockHistoryLoadError'));
         } finally {
             setLoading(false);
         }
@@ -90,7 +92,7 @@ const StockHistory = () => {
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h1 className="title-xl">Mouvements de <span className="text-gradient">Stock</span></h1>
+                    <h1 className="title-xl">{t('stockHistoryTitle')} <span className="text-gradient">{t('stockHistoryGradient')}</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Traçabilité complète de vos entrées et sorties de marchandises.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>

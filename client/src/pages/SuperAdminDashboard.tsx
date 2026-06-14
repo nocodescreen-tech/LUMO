@@ -1,3 +1,4 @@
+import { useTranslation } from '../hooks/useTranslation';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -17,6 +18,7 @@ import Logo from '../components/layout/Logo';
 import { BUSINESS_TYPES } from '../constants/businessTypes';
 
 const SuperAdminDashboard = () => {
+  const { t } = useTranslation();
     const { currency, exchangeRate, language } = useAuthStore();
     const safeExchangeRate = Number(exchangeRate) > 0 ? Number(exchangeRate) : 2800;
     const [users, setUsers] = useState<any[]>([]);
@@ -93,7 +95,7 @@ const SuperAdminDashboard = () => {
             if (portal) setIsRegistrationEnabled(portal.value === 'true');
 
         } catch (error) {
-            toast.error("Échec de la récupération des données plateforme");
+            toast.error(t('checdelarcupratMsg'));
         } finally {
             setLoading(false);
         }
@@ -106,7 +108,7 @@ const SuperAdminDashboard = () => {
             setIsMaintenanceMode(newValue);
             toast.success(newValue ? "Mode maintenance activé" : "Mode maintenance désactivé");
         } catch (error) {
-            toast.error("Erreur lors du basculement");
+            toast.error(t('ErreurlorsdubasMsg'));
         }
     };
 
@@ -117,7 +119,7 @@ const SuperAdminDashboard = () => {
             setIsRegistrationEnabled(newValue);
             toast.success(newValue ? "Inscriptions autorisées" : "Inscriptions fermées");
         } catch (error) {
-            toast.error("Erreur lors du basculement");
+            toast.error(t('ErreurlorsdubasMsg'));
         }
     };
 
@@ -145,7 +147,7 @@ const SuperAdminDashboard = () => {
             if (body) setNewsBody(body.value);
             if (logo) setNewsLogo(logo.value);
         } catch (error) {
-            toast.error("Échec de la récupération des données newsletter");
+            toast.error(t('checdelarcupratMsg'));
         }
     };
 
@@ -157,7 +159,7 @@ const SuperAdminDashboard = () => {
                 api.post('/superadmin/settings', { key: 'newsletter_body', value: newsBody }),
                 api.post('/superadmin/settings', { key: 'newsletter_logo', value: newsLogo })
             ]);
-            toast.success("Personnalisation enregistrée !");
+            toast.success(t('PersonnalisatioMsg'));
         } catch (error) {
             toast.error("Échec de l'enregistrement");
         } finally {
@@ -185,20 +187,20 @@ const SuperAdminDashboard = () => {
     const validateUser = async (id: number) => {
         try {
             await api.put(`/superadmin/users/${id}/validate`);
-            toast.success("Utilisateur validé avec succès");
+            toast.success(t('UtilisateurvaliMsg'));
             fetchData();
         } catch (error) {
-            toast.error("Erreur lors de la validation");
+            toast.error(t('ErreurlorsdelavMsg'));
         }
     };
 
     const verifyEmail = async (id: number) => {
         try {
             await api.put(`/superadmin/users/${id}/verify`);
-            toast.success("Email vérifié manuellement");
+            toast.success(t('EmailvrifimanueMsg'));
             fetchData();
         } catch (error) {
-            toast.error("Erreur lors de la vérification");
+            toast.error(t('ErreurlorsdelavMsg'));
         }
     };
 
@@ -208,7 +210,7 @@ const SuperAdminDashboard = () => {
             toast.success(data.message);
             fetchData();
         } catch (error) {
-            toast.error("Erreur lors de la suspension");
+            toast.error(t('ErreurlorsdelasMsg'));
         }
     };
 
@@ -241,10 +243,10 @@ const SuperAdminDashboard = () => {
             onConfirm: async () => {
                 try {
                     await api.delete(`/superadmin/users/${id}`);
-                    toast.success("Utilisateur supprimé définitivement");
+                    toast.success(t('UtilisateursuppMsg'));
                     fetchData();
                 } catch (error: any) {
-                    toast.error(error.response?.data?.message || "Erreur lors de la suppression");
+                    toast.error(error.response?.data?.message || t('ErreurlorsdelasMsg'));
                 }
             }
         });
@@ -252,7 +254,7 @@ const SuperAdminDashboard = () => {
 
     const handleSendNotification = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!notifTitre || !notifMessage) return toast.error("Champs requis manquants");
+        if (!notifTitre || !notifMessage) return toast.error(t('ChampsrequismanMsg'));
 
         setSendingNotif(true);
         try {
@@ -261,11 +263,11 @@ const SuperAdminDashboard = () => {
                 message: notifMessage,
                 type: notifType
             });
-            toast.success("Diffusion système effectuée avec succès");
+            toast.success(t('DiffusionsystmeMsg'));
             setNotifTitre('');
             setNotifMessage('');
         } catch (error) {
-            toast.error("Échec de la diffusion");
+            toast.error(t('checdeladiffusiMsg'));
         } finally {
             setSendingNotif(false);
         }

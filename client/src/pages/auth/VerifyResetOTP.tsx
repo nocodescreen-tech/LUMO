@@ -6,11 +6,13 @@ import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/useAuthStore';
 import Logo from '../../components/layout/Logo';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const VerifyResetOTP = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { theme, setTheme } = useAuthStore();
+    const { t } = useTranslation();
     const email = location.state?.email;
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -37,22 +39,22 @@ const VerifyResetOTP = () => {
     const handleVerify = async (e: React.FormEvent) => {
         e.preventDefault();
         const verificationCode = code.join('');
-        if (verificationCode.length < 6) return toast.error('Veuillez entrer le code complet');
+        if (verificationCode.length < 6) return toast.error(t('enterFullCode'));
 
         setLoading(true);
         try {
             // Adding a clear timeout-aware request
             const response = await api.post('/auth/verify-reset-code', { email, code: verificationCode });
-            toast.success('Code vérifié ! Vous pouvez maintenant changer votre mot de passe.');
+            toast.success(t('codeVerified'));
             navigate('/reset-password', { state: { email, code: verificationCode } });
         } catch (error: any) {
             console.error('OTP Verification Error:', error);
             if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-                toast.error("Le serveur met trop de temps à répondre (Timeout). Veuillez réessayer.");
+                toast.error(t('serverTimeout'));
             } else if (!error.response) {
-                toast.error("Erreur réseau : Impossible de contacter le serveur.");
+                toast.error(t('networkError'));
             } else {
-                toast.error(error.response?.data?.message || 'Code invalide ou expiré');
+                toast.error(error.response?.data?.message || t('invalidOrExpiredCode'));
             }
         } finally {
             setLoading(false);
@@ -62,9 +64,9 @@ const VerifyResetOTP = () => {
     const handleResend = async () => {
         try {
             await api.post('/auth/forgot-password', { email });
-            toast.success('Un nouveau code vous a été envoyé.');
+            toast.success(t('newCodeSent'));
         } catch (error: any) {
-            toast.error('Erreur lors de l’envoi du code');
+            toast.error(t('codeResendError'));
         }
     };
 

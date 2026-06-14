@@ -1,3 +1,4 @@
+import { useTranslation } from '../../hooks/useTranslation';
 import React from 'react';
 import Modal from './Modal';
 import { AlertTriangle, Check } from 'lucide-react';
@@ -23,6 +24,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     cancelText = "Annuler",
     type = 'danger'
 }) => {
+    const { t } = useTranslation();
+    const finalConfirmText = confirmText || t('confirmBtn');
+    const finalCancelText = cancelText || t('cancelBtn');
     const isDanger = type === 'danger';
     
     return (
@@ -55,7 +59,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                         onMouseOver={e => e.currentTarget.style.background = 'var(--border)'}
                         onMouseOut={e => e.currentTarget.style.background = 'var(--bg-main)'}
                     >
-                        {cancelText}
+                        {finalCancelText}
                     </button>
                     <button 
                         onClick={() => { onConfirm(); onClose(); }}
@@ -74,7 +78,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                         onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                         onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
                     >
-                        {confirmText}
+                        {finalConfirmText}
                     </button>
                 </div>
             </div>

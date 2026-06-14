@@ -4,9 +4,15 @@ const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
-const REFUNDED_STATUSES = ['Remboursee', 'Rembours?e'];
+const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
   REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
+const normalizeCurrency = (currency) => {
+  const normalized = String(currency || '').toUpperCase();
+  if (normalized === 'FC') return 'CDF';
+  return normalized === 'USD' ? 'USD' : 'CDF';
+};
+
 const safeParseArticles = (articles) => {
   if (Array.isArray(articles)) return articles;
   if (typeof articles === 'string') {
@@ -19,6 +25,7 @@ const safeParseArticles = (articles) => {
   }
   return [];
 };
+
 
 exports.getSales = async (req, res, next) => {
   try {
@@ -82,10 +89,11 @@ exports.createSale = async (req, res, next) => {
 
     // Récupérer le propriétaire pour la devise et le taux de change
     const owner = await require('../models/User').findByPk(userId, { transaction });
-    const shopCurrency = owner?.entreprise?.devise || 'CDF';
+    const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
     const finalRate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate);
     if (!Number.isFinite(finalRate) || finalRate <= 0) {
+      await transaction.rollback();
       return res.status(400).json({
         message: "Taux de change invalide. Configurez le taux dans Paramètres avant d'enregistrer une vente."
       });
@@ -195,7 +203,7 @@ exports.createSale = async (req, res, next) => {
         })
       : [];
 
-    const remise = req.body.remise || 0;
+    const remise = 0;
     profitNormalized -= remise;
 
     // Arrondi à 2 décimales — toutes les valeurs sont déjà en CDF
@@ -237,7 +245,7 @@ exports.createSale = async (req, res, next) => {
       clientInfo: clientInfo || { nom: 'Client de passage', email: '' },
       devise: saleCurrency,
       tauxChange: finalRate,
-      devisePaiement: devisePaiement || devise || 'USD',
+      devisePaiement: devisePaiement || saleCurrency,
       montantRecu: montantRecu || montantTotal,
       sellerId: req.user.id
     }, { transaction });
@@ -252,7 +260,7 @@ exports.createSale = async (req, res, next) => {
     if (resolvedClientId && isCredit) {
       const dbClient = await Client.findByPk(resolvedClientId, { transaction });
       const owner = await require('../models/User').findByPk(userId);
-      const shopCurrency = owner?.entreprise?.devise || 'CDF';
+      const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
       
       let amountToAdd = Number(montantTotal - remise);
       const effectiveDevise = devise || 'USD';
@@ -330,7 +338,7 @@ exports.deleteSale = async (req, res, next) => {
         if (client) {
           // Réduire la dette du client en convertissant dans la devise de la boutique
           const owner = await require('../models/User').findByPk(sale.userId, { transaction });
-          const shopCurrency = owner?.entreprise?.devise || 'CDF';
+          const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
           if (!Number.isFinite(rate) || rate <= 0) {
@@ -483,7 +491,7 @@ exports.refundSale = async (req, res, next) => {
         if (client) {
           // Convertir le montant dans la devise de la boutique avant de réduire la dette
           const owner = await require('../models/User').findByPk(sale.userId, { transaction });
-          const shopCurrency = owner?.entreprise?.devise || 'CDF';
+          const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
           if (!Number.isFinite(rate) || rate <= 0) {

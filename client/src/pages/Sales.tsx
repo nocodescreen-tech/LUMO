@@ -27,6 +27,7 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
@@ -58,6 +59,7 @@ interface Sale {
 
 const Sales = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { currency, user, exchangeRate } = useAuthStore();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ const Sales = () => {
             
             setSales(salesList);
         } catch (error) {
-            toast.error("Impossible de charger l'historique");
+            toast.error(t('salesLoadError'));
         } finally {
             setLoading(false);
         }
@@ -140,27 +142,27 @@ const Sales = () => {
 
 
     const handlePrint = (sale: any) => {
-        toast("Génération de la facture...");
+        toast.success(t('printInvoiceToast'));
         generateInvoice(sale, user);
     };
 
     const handlePrintTicket = (sale: any) => {
-        toast("Génération du ticket...");
+        toast.success(t('printReceiptToast'));
         generateTicket(sale, user);
     };
 
     const deleteSale = async (id: number) => {
         setConfirmModal({
             isOpen: true,
-            title: "Supprimer Transaction",
-            message: "Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible et affectera vos rapports financiers.",
+            title: t('deleteSaleTitle'),
+            message: t('deleteSaleMessage'),
             onConfirm: async () => {
                 try {
                     await api.delete(`/sales/${id}`);
-                    toast.success("Transaction supprimée");
+                    toast.success(t('saleDeleted'));
                     fetchSales();
                 } catch (error) {
-                    toast.error("Échec de la suppression");
+                    toast.error(t('deleteFailed'));
                 }
             }
         });
@@ -169,16 +171,16 @@ const Sales = () => {
     const handleAllDelete = async () => {
         setConfirmModal({
             isOpen: true,
-            title: "SUPPRESSION TOTALE",
-            message: "ATTENTION : Voulez-vous vraiment supprimer TOUT l'historique des ventes ? Cette action est irréversible et les stocks seront restitués.",
+            title: t('deleteAllSalesTitle'),
+            message: t('deleteAllSalesMessage'),
             onConfirm: async () => {
                 try {
                     setLoading(true);
                     await api.delete('/sales/all');
-                    toast.success("Historique des ventes vidé avec succès !");
+                    toast.success(t('salesHistoryCleared'));
                     fetchSales();
                 } catch (error: any) {
-                    toast.error(error.response?.data?.message || "Échec de la suppression massive");
+                    toast.error(error.response?.data?.message || t('deleteAllFailed'));
                 } finally {
                     setLoading(false);
                 }
@@ -190,37 +192,36 @@ const Sales = () => {
 
         setConfirmModal({
             isOpen: true,
-            title: "Rembourser Vente",
-            message: `Confirmez-vous le remboursement de la vente #${sale.id} ? Le stock sera réintégré et le montant marqué comme remboursé.`,
+            title: t('refundSaleTitle'),
+            message: t('refundSaleMessage'),
             onConfirm: async () => {
                 try {
                     await api.post(`/sales/${sale.id}/refund`);
-                    toast.success("Vente remboursée avec succès !");
+                    toast.success(t('saleRefunded'));
                     fetchSales();
                 } catch (error: any) {
-                    toast.error(error.response?.data?.message || "Échec du remboursement");
+                    toast.error(error.response?.data?.message || t('refundFailed'));
                 }
             }
         });
     };
 
     const handleExportExcel = () => {
-        if (sales.length === 0) return toast.error("Aucune donnée à exporter");
+        if (sales.length === 0) return toast.error(t('noDataToExport'));
         
         const rows = filteredSales.map(s => ({
-            "ID": s.id,
-            "Client": s.clientInfo?.nom || 'Client de passage',
-            "Date": new Date(s.createdAt).toLocaleDateString(),
-            "Méthode Paiement": s.methodePaiement,
-            "Nb Articles": s.articles?.length || 0,
-            "Montant (Original)": `${s.montantTotal} ${s.devise}`,
-            "Montant (Normalisé)": `${getNormalizedAmount(s)} ${currency}`,
-            "Remise": s.remise || 0,
-            "Taux": s.tauxChange || exchangeRate
+            [t('salesExcelReference')]: s.id,
+            [t('salesExcelCustomer')]: s.clientInfo?.nom || t('walkInCustomer'),
+            [t('date')]: new Date(s.createdAt).toLocaleDateString(),
+            [t('salesExcelPaymentMethod')]: s.methodePaiement,
+            [t('salesExcelItems')]: s.articles?.length || 0,
+            [t('salesExcelOriginalAmount')]: `${s.montantTotal} ${s.devise}`,
+            [t('salesExcelNormalizedAmount')]: `${getNormalizedAmount(s)} ${currency}`,
+            [t('salesExcelRate')]: s.tauxChange || exchangeRate
         }));
 
-        exportToExcel(rows, `Rapport_Ventes_${currency}`);
-        toast.success("Exportation Excel réussie");
+        exportToExcel(rows, `${t('salesReportFilePrefix')}_${currency}`);
+        toast.success(t('excelExportSuccess'));
     };
 
     const filteredSales = sales.filter(s => {
@@ -259,7 +260,7 @@ const Sales = () => {
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
                 <Loader2 size={40} color="var(--primary)" />
             </motion.div>
-            <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Chargement des transactions...</p>
+            <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{t('loadingTransactions')}</p>
         </div>
     );
 
@@ -267,16 +268,16 @@ const Sales = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
             <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
                 <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                    <h1 className="title-xl">Flux des <span className="text-gradient">Ventes</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Suivi analytique de toutes vos transactions commerciales.</p>
+                    <h1 className="title-xl">{t('salesTitle')} <span className="text-gradient">{t('sales')}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('salesSubtitle')}</p>
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
-                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> Rapports</button>
-                    <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> Excel</button>
+                    <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> {t('reports')}</button>
+                    <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> {t('excel')}</button>
                     {(user?.role === 'admin' || user?.role === 'superadmin') && (
-                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> Vider</button>
+                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> {t('empty')}</button>
                     )}
-                    <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> Nouvelle Vente</button>
+                    <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> {t('newSale')}</button>
                 </div>
             </div>
 
@@ -288,7 +289,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
                             <TrendingUp size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>CHIFFRE D'AFFAIRES</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('revenue')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 900 }}>{currency}</span>
@@ -301,7 +302,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
                             <DollarSign size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>PANIER MOYEN</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('averageBasket')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {Math.round(reportStats.averageValue).toLocaleString()} <span style={{ fontSize: '1rem', color: '#10b981', fontWeight: 900 }}>{currency}</span>
@@ -314,10 +315,10 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
                             <PieChart size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>TRANSACTIONS</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('transactionsLabel')}</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
-                        {reportStats.count} <span style={{ fontSize: '1rem', color: '#f59e0b', fontWeight: 900 }}>Factures</span>
+                        {reportStats.count} <span style={{ fontSize: '1rem', color: '#f59e0b', fontWeight: 900 }}>{t('invoices')}</span>
                     </div>
                 </div>
             </div>
@@ -328,7 +329,7 @@ const Sales = () => {
                         <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
                         <input 
                           type="text" 
-                          placeholder="Rechercher par référence ou client..." 
+                          placeholder={t('searchSale')}
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }} 
@@ -351,7 +352,7 @@ const Sales = () => {
                                 transition: 'all 0.3s'
                             }}
                         >
-                           <Filter size={18} /> {showFilters ? 'Masquer Filtres' : 'Filtres'}
+                            <Filter size={18} /> {showFilters ? t('hideFilters') : t('filters')}
                         </button>
                     </div>
                 </div>
@@ -366,7 +367,7 @@ const Sales = () => {
                             style={{ overflow: 'hidden', paddingBottom: '32px', display: 'flex', gap: '20px', borderBottom: '1.5px solid var(--border)', marginBottom: '32px' }}
                         >
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>DATE</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('date')}</label>
                                 <input 
                                     type="date" 
                                     value={filterDate}
@@ -375,15 +376,15 @@ const Sales = () => {
                                 />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>MÉTHODE</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('method')}</label>
                                 <select 
                                     value={filterMethod}
                                     onChange={(e) => setFilterMethod(e.target.value)}
                                     style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
                                 >
-                                    <option value="">Toutes</option>
-                                    <option value="Espèces">Espèces</option>
-                                    <option value="Crédit">Crédit</option>
+                                    <option value="">{t('all')}</option>
+                                    <option value="Espèces">{t('cashPayment')}</option>
+                                    <option value="Crédit">{t('creditPayment')}</option>
                                 </select>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -391,7 +392,7 @@ const Sales = () => {
                                     onClick={() => { setFilterDate(''); setFilterMethod(''); }}
                                     style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', fontWeight: 800, cursor: 'pointer' }}
                                 >
-                                    RAZ
+                                    {t('reset')}
                                 </button>
                             </div>
                         </motion.div>
@@ -402,10 +403,10 @@ const Sales = () => {
                     <table style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Référence / Client</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Date & Méthode</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>Vendeur</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>Montant Total</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('referenceClient')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('dateMethod')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('seller')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>{t('totalAmount')}</th>
                                 <th style={{ padding: '16px 24px' }}></th>
                             </tr>
                         </thead>
@@ -428,7 +429,7 @@ const Sales = () => {
                                                 #{sale.id?.toString().slice(-6).toUpperCase()}
                                                 <ArrowUpRight size={14} style={{ opacity: 0.4 }} />
                                             </div>
-                                            <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || 'Client de passage'}</div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || t('walkInCustomer')}</div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -452,7 +453,7 @@ const Sales = () => {
                                                 <RefreshCcw size={14} /> {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
                                             </div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
-                                                {sale.articles?.length || 0} articles · <span style={{ color: sale.statut === 'Remboursée' ? '#ef4444' : '#10b981' }}>{sale.statut || 'Payé'}</span>
+                                                {sale.articles?.length || 0} {t('articles')} · <span style={{ color: sale.statut === 'Remboursée' ? '#ef4444' : '#10b981' }}>{sale.statut || t('paid')}</span>
                                             </div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
@@ -479,7 +480,7 @@ const Sales = () => {
                                                                 onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
-                                                                <Eye size={16} color="var(--primary)" /> Détails complets
+                                                                <Eye size={16} color="var(--primary)" /> {t('details')}
                                                             </button>
                                                             <button 
                                                                 onClick={() => { handlePrint(sale); setActionMenuId(null); }}
@@ -487,7 +488,7 @@ const Sales = () => {
                                                                 onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
-                                                                <Printer size={16} color="var(--primary)" /> Imprimer Facture
+                                                                <Printer size={16} color="var(--primary)" /> {t('printInvoice')}
                                                             </button>
                                                             <button 
                                                                 onClick={() => { handlePrintTicket(sale); setActionMenuId(null); }}
@@ -495,7 +496,7 @@ const Sales = () => {
                                                                 onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
-                                                                <Zap size={16} color="#f59e0b" /> Ticket de Caisse
+                                                                <Zap size={16} color="#f59e0b" /> {t('receipt')}
                                                             </button>
                                                             {sale.statut !== 'Remboursée' && (
                                                                 <button 
@@ -504,7 +505,7 @@ const Sales = () => {
                                                                     onMouseOver={e => e.currentTarget.style.background = 'var(--secondary-glow)'}
                                                                     onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                                 >
-                                                                    <RotateCcw size={16} /> Rembourser
+                                                                    <RotateCcw size={16} /> {t('refund')}
                                                                 </button>
                                                             )}
                                                             <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
@@ -514,7 +515,7 @@ const Sales = () => {
                                                                 onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
-                                                                <Trash2 size={16} /> Supprimer Vente
+                                                                <Trash2 size={16} /> {t('deleteSale')}
                                                             </button>
                                                         </motion.div>
                                                     )}
@@ -530,8 +531,8 @@ const Sales = () => {
                     {!filteredSales.length && !loading && (
                         <div style={{ textAlign: 'center', padding: '100px 0', opacity: 0.5 }}>
                             <Package size={80} style={{ margin: '0 auto 24px' }} />
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Aucune transaction trouvée</h3>
-                            <p style={{ fontWeight: 600 }}>Ajustez vos filtres ou lancez une recherche différente.</p>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{t('noTransactions')}</h3>
+                            <p style={{ fontWeight: 600 }}>{t('adjustFilters')}</p>
                         </div>
                     )}
                 </div>
@@ -544,7 +545,7 @@ const Sales = () => {
                             disabled={currentPage === 1}
                             style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
                         >
-                            Précédent
+                            {t('previous')}
                         </button>
                         {[...Array(totalPages)].map((_, i) => (
                             <button 
@@ -568,13 +569,13 @@ const Sales = () => {
                             disabled={currentPage === totalPages}
                             style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
                         >
-                            Suivant
+                            {t('next')}
                         </button>
                     </div>
                 )}
 
                 <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                    Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, filteredSales.length)} sur {filteredSales.length} transactions
+                    {t('showingRangeStart')} {indexOfFirstItem + 1} {t('to')} {Math.min(indexOfLastItem, filteredSales.length)} {t('of')} {filteredSales.length} {t('transactionsCount')}
                 </div>
             </div>
 
@@ -582,8 +583,8 @@ const Sales = () => {
             <Modal
                 isOpen={showDetailsModal}
                 onClose={() => setShowDetailsModal(false)}
-                title={`Vente #${selectedSale?.id?.toString().slice(-6).toUpperCase()}`}
-                subtitle="Détails complets de la transaction commerciale."
+                title={`${t('sale')} #${selectedSale?.id?.toString().slice(-6).toUpperCase()}`}
+                subtitle={t('details')}
                 icon={ShoppingBag}
                 maxWidth="700px"
             >
@@ -591,11 +592,11 @@ const Sales = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', background: 'var(--bg-main)', borderRadius: '20px' }}>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Client</p>
-                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.clientInfo?.nom || 'Client de passage'}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('customer')}</p>
+                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.clientInfo?.nom || t('walkInCustomer')}</p>
                             </div>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Méthode</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('method')}</p>
                                 <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.methodePaiement}</p>
                             </div>
                             <div>
@@ -603,7 +604,7 @@ const Sales = () => {
                                 <p style={{ fontWeight: 800 }}>{new Date(selectedSale.createdAt).toLocaleString('fr-FR', { hour12: false })}</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('totalAmount')}</p>
                                 {(() => {
                                     const fx = getSaleDisplayAmounts(selectedSale);
                                     return (
@@ -621,7 +622,7 @@ const Sales = () => {
                         </div>
 
                         <div>
-                            <h4 style={{ marginBottom: '16px' }}>Articles ({selectedSale.articles?.length || 0})</h4>
+                            <h4 style={{ marginBottom: '16px' }}>{t('articles')} ({selectedSale.articles?.length || 0})</h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {selectedSale.articles?.map((art: any, idx: number) => (
                                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', borderRadius: '14px', border: '1.5px solid var(--border)' }}>
@@ -637,17 +638,17 @@ const Sales = () => {
 
                         <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
                             <button 
-                                onClick={() => handlePrint(selectedSale)}
+                                onClick={() => handlePrintTicket(selectedSale)}
                                 className="btn-premium primary" 
                                 style={{ flex: 1 }}
                             >
-                                <Printer size={18} /> Imprimer Reçu
+                                <Printer size={18} /> {t('printReceipt')}
                             </button>
                             <button 
                                 onClick={() => setShowDetailsModal(false)}
                                 className="btn-premium secondary"
                             >
-                                Fermer
+                                {t('close')}
                             </button>
                         </div>
                     </div>
@@ -658,8 +659,8 @@ const Sales = () => {
             <Modal
                 isOpen={showReportModal}
                 onClose={() => setShowReportModal(false)}
-                title="Bilan Financier Réel"
-                subtitle="Analyse basée sur les transactions filtrées actuellement."
+                title={t('financialReportTitle')}
+                subtitle={t('analysisBasedOnFiltered')}
                 icon={PieChart}
                 maxWidth="600px"
             >
@@ -669,20 +670,20 @@ const Sales = () => {
                           <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                              <TrendingUp size={20} />
                           </div>
-                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Chiffre d'Affaires</p>
+                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('revenue')}</p>
                           <h3 style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
                        </div>
                        <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid var(--border)' }}>
                              <ShoppingBag size={20} />
                           </div>
-                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Transactions</p>
+                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('transactionsLabel')}</p>
                           <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>{reportStats.count}</h3>
                        </div>
                     </div>
 
                     <div className="premium-card" style={{ padding: '24px' }}>
-                        <h4 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><DollarSign size={18} /> Répartition par Mode de Paiement</h4>
+                        <h4 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><DollarSign size={18} /> {t('paymentMethodSplit')}</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             {Object.entries(reportStats.methodSplit).map(([method, amount]: [string, any]) => (
                                 <div key={method}>
@@ -700,17 +701,17 @@ const Sales = () => {
                                 </div>
                             ))}
                             {Object.keys(reportStats.methodSplit).length === 0 && (
-                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>Aucune donnée disponible</p>
+                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>{t('noDataAvailable')}</p>
                             )}
                         </div>
                     </div>
 
                     <div style={{ textAlign: 'center', padding: '20px', background: 'var(--bg-main)', borderRadius: '20px', border: '1px dashed var(--border)' }}>
-                        <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Moyenne par panier: <span style={{ color: 'var(--text-main)' }}>{reportStats.averageValue.toLocaleString()} {currency}</span></p>
+                        <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{t('averageBasket')}: <span style={{ color: 'var(--text-main)' }}>{reportStats.averageValue.toLocaleString()} {currency}</span></p>
                     </div>
 
                     <button className="btn-premium primary" style={{ width: '100%' }} onClick={() => setShowReportModal(false)}>
-                        Fermer le Rapport
+                        {t('closeReport')}
                     </button>
                 </div>
             </Modal>

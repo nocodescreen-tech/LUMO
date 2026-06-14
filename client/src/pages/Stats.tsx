@@ -9,16 +9,19 @@ import {
     BarChart3
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import { exportToExcel } from '../utils/exportUtils';
 import { generateMonthlyReport } from '../utils/printHelpers';
 import { useCurrency, getDisplayAmount } from '../utils/currencyHelpers';
+import { toast } from 'sonner';
 
 const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
 
 const Stats = () => {
     const { user } = useAuthStore();
+    const { t, language } = useTranslation();
     const { displayCurrency, exchangeRate, convert, format } = useCurrency();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -42,7 +45,7 @@ const Stats = () => {
                 }
                 setData(rawData);
             })
-            .catch(err => console.error(err))
+            .catch(() => toast.error(t('statsLoadError')))
             .finally(() => setLoading(false));
     }, [period]);
 
@@ -64,8 +67,8 @@ const Stats = () => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h1 className="title-xl">Analytiques <span className="text-gradient">Avancées</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Rapports détaillés depuis vos vraies données.</p>
+                    <h1 className="title-xl"><span className="text-gradient">{t('statsTitle')}</span></h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('statsSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <select 
@@ -74,28 +77,29 @@ const Stats = () => {
                         className="glass" 
                         style={{ padding: '10px 16px', borderRadius: '14px', fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', cursor: 'pointer' }}
                     >
-                        <option value="today">Aujourd'hui</option>
-                        <option value="7d">7 derniers jours</option>
-                        <option value="30d">30 derniers jours</option>
-                        <option value="1y">12 derniers mois</option>
+                        <option value="today">{t('today')}</option>
+                        <option value="7d">{t('last7Days')}</option>
+                        <option value="30d">{t('last30Days')}</option>
+                        <option value="1y">{t('last12Months')}</option>
                     </select>
                     <button 
                         onClick={() => {
                        if (!data) return;
-                       const exportData = [
-                         { Section: `Ventes (${displayCurrency})` },
-                         ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), Revenus: convert(s.revenue, 'CDF') })),
-                         { Section: '' },
-                         { Section: 'Stock Par Catégorie' },
-                         ...(data.stockByCategory || []).map((s: any) => ({ Categorie: s.label, Stock: s.value })),
-                         { Section: '' },
-                         { Section: `Produits les plus vendus (${displayCurrency})` },
-                         ...(data.topProducts || []).map((p: any) => ({ Produit: p.nom, Quantite: p.quantite, Revenu: convert(p.revenu, 'CDF') })),
-                         { Section: '' },
-                         { Section: `Revenus Mensuels (6 mois) - ${displayCurrency}` },
-                         ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ Mois: label, Total: convert(data.monthlyRevenue.values[idx] || 0, 'CDF') }))
-                       ];
-                       exportToExcel(exportData, 'Statistiques_Avancees_Report');
+                        const isEn = language === 'en';
+                        const exportData = [
+                          { Section: isEn ? `Sales (${displayCurrency})` : `Ventes (${displayCurrency})` },
+                          ...(data.periodData || []).map((s: any) => ({ Date: new Date(s.date).toLocaleDateString(), [isEn ? 'Revenue' : 'Revenus']: s.revenue })),
+                          { Section: '' },
+                          { Section: isEn ? 'Stock By Category' : 'Stock Par Catégorie' },
+                          ...(data.stockByCategory || []).map((s: any) => ({ [isEn ? 'Category' : 'Categorie']: s.label, [isEn ? 'Stock' : 'Stock']: s.value })),
+                          { Section: '' },
+                          { Section: isEn ? `Top Products (${displayCurrency})` : `Produits les plus vendus (${displayCurrency})` },
+                          ...(data.topProducts || []).map((p: any) => ({ [isEn ? 'Product' : 'Produit']: p.nom, [isEn ? 'Quantity' : 'Quantite']: p.quantite, [isEn ? 'Revenue' : 'Revenu']: p.revenu })),
+                          { Section: '' },
+                          { Section: isEn ? `Monthly Revenue (6 months) - ${displayCurrency}` : `Revenus Mensuels (6 mois) - ${displayCurrency}` },
+                          ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ [isEn ? 'Month' : 'Mois']: label, [isEn ? 'Total' : 'Total']: data.monthlyRevenue.values[idx] || 0 }))
+                        ];
+                        exportToExcel(exportData, isEn ? 'Advanced_Statistics_Report' : 'Statistiques_Avancees_Report');
                         }}
                         className="btn-premium"
                         style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}
@@ -105,17 +109,14 @@ const Stats = () => {
                     <button 
                         onClick={() => {
                           if (!data) return;
-                          const labelsMap: any = {
-                            'today': "Aujourd'hui",
-                            '7d': '7 derniers jours',
-                            '30d': '30 derniers jours',
-                            '1y': '12 derniers mois'
-                          };
+                          const labelsMap: any = language === 'en'
+                            ? { 'today': 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days', '1y': 'Last 12 months' }
+                            : { 'today': t('today'), '7d': t('last7days'), '30d': t('last30days'), '1y': t('last12months') };
                           generateMonthlyReport(data, { ...user, preferences: { currency: displayCurrency } }, labelsMap[period]);
                         }}
                         className="btn-premium primary"
                     >
-                        <BarChart3 size={18} /> Générer Bilan (PDF)
+                        <BarChart3 size={18} /> {t('generateMonthlyReport')}
                     </button>
                 </div>
             </div>
@@ -135,11 +136,11 @@ const Stats = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                                        {period === 'today' ? "Performance d'aujourd'hui" : period === '30d' ? 'Performance des 30 derniers jours' : period === '1y' ? 'Performance de l\'année' : 'Performance des 7 derniers jours'}
+                                        {period === 'today' ? t('performanceToday') : period === '30d' ? t('performance30d') : period === '1y' ? t('performanceYear') : t('performance7d')}
                                     </h3>
                                     <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div> Revenus
+                                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div> {t('revenueLabel')}
                                         </div>
 
                                     </div>
@@ -161,7 +162,7 @@ const Stats = () => {
                                 ) : (
                                     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                         <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                        <p style={{ fontWeight: 700 }}>Aucune donnée sur cette période</p>
+                                        <p style={{ fontWeight: 700 }}>{t('noDataPeriod')}</p>
                                     </div>
                                 )}
                             </div>
@@ -171,15 +172,15 @@ const Stats = () => {
                         <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Stock par catégorie</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Répartition des unités</p>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('stockByCategory')}</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('stockDistribution')}</p>
                                 </div>
                                 <Package size={20} color="var(--success)" />
                             </div>
                             {stockData.length === 0 ? (
                                 <div style={{ height: '220px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                     <Package size={48} style={{ opacity: 0.15 }} />
-                                    <p style={{ fontWeight: 700 }}>Aucun produit</p>
+                                    <p style={{ fontWeight: 700 }}>{t('noProducts')}</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -189,7 +190,7 @@ const Stats = () => {
                                             <div key={i}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                                     <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{cat.label}</span>
-                                                    <span style={{ fontWeight: 800, fontSize: '0.85rem', color: COLORS[i % COLORS.length] }}>{cat.value} unités · {pct}%</span>
+                                                    <span style={{ fontWeight: 800, fontSize: '0.85rem', color: COLORS[i % COLORS.length] }}>{cat.value} {t('units')} · {pct}%</span>
                                                 </div>
                                                 <div style={{ height: '8px', borderRadius: '99px', backgroundColor: 'var(--bg-main)', overflow: 'hidden' }}>
                                                     <motion.div
@@ -214,15 +215,15 @@ const Stats = () => {
                         <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                                 <div>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Top Produits</h3>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Les plus vendus</p>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('topProducts')}</h3>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('bestSellers')}</p>
                                 </div>
                                 <TrendingUp size={20} color="var(--primary)" />
                             </div>
                             {(!data?.topProducts || data.topProducts.length === 0) ? (
                                 <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                     <Package size={48} style={{ opacity: 0.15 }} />
-                                    <p style={{ fontWeight: 700 }}>Aucune donnée</p>
+                                    <p style={{ fontWeight: 700 }}>{t('noData')}</p>
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -233,7 +234,7 @@ const Stats = () => {
                                             </div>
                                             <div style={{ flex: 1 }}>
                                                 <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{p.nom}</h4>
-                                                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} unités vendues</p>
+                                                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.quantite} {t('unitsSold')}</p>
                                             </div>
                                             <div style={{ fontWeight: 900, color: 'var(--text-main)', textAlign: 'right' }}>
                                                 <div>{getDisplayAmount(p.revenu, 'CDF', displayCurrency, exchangeRate).main}</div>
@@ -251,8 +252,8 @@ const Stats = () => {
                     <div className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <div>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Revenu des 6 derniers mois</h3>
-                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Chiffre d'affaires mensuel en {displayCurrency}</p>
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{t('monthlyRevenue')}</h3>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>{t('monthlyRevenueSubtitle')} {displayCurrency}</p>
                             </div>
                             <TrendingUp size={20} color="var(--warning)" />
                         </div>
@@ -260,7 +261,7 @@ const Stats = () => {
                         {monthlyValues.every((v: number) => v === 0) ? (
                             <div style={{ height: '250px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                                 <BarChart3 size={48} style={{ opacity: 0.15 }} />
-                                <p style={{ fontWeight: 700 }}>Aucune vente enregistrée</p>
+                                <p style={{ fontWeight: 700 }}>{t('noSalesRecorded')}</p>
                             </div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>

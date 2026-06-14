@@ -1,3 +1,4 @@
+import { useTranslation } from '../hooks/useTranslation';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import {
@@ -33,8 +34,10 @@ const i18n: Record<string, Record<string, string>> = {
     showcase_title: 'Une interface',
     showcase_title2: 'pensée pour la performance',
     showcase_sub: "Chaque module est optimisé pour vous faire gagner du temps et de l'argent.",
+    showcase_eyebrow: 'En Détail',
     feat_title: 'Tout ce dont vous avez besoin',
     feat_sub: 'Un écosystème complet pour piloter votre commerce au quotidien.',
+    features_eyebrow: 'Modules',
     feat1_title: 'Caisse (POS) Rapide',
     feat1_desc: 'Terminal de vente ultra-réactif, multi-devises, avec panier, gestion des retours et impression de reçus.',
     feat2_title: 'Dashboard Intelligent',
@@ -43,19 +46,23 @@ const i18n: Record<string, Record<string, string>> = {
     feat3_desc: 'Suivi précis des stocks, alertes de rupture, gestion des fournisseurs et calcul automatique des marges.',
     feat4_title: 'Multi-Devises',
     feat4_desc: 'Travaillez en USD, CDF avec des conversions instantanées et des rapports multi-monnaies.',
-    feat5_title: 'Analytics Avancées',
+    feat5_title: 'Analyses Avancées',
     feat5_desc: 'Rapports détaillés sur vos ventes, exports Excel et analyses par catégorie sur 7 ou 30 jours.',
     feat6_title: 'Sécurisé & Fiable',
     feat6_desc: 'Données chiffrées, sauvegardes automatiques et contrôle des accès par rôle utilisateur.',
     ai_badge: 'Intelligence Artificielle',
-    ai_title: "Analyzé par l'IA, décidé par vous.",
+    ai_title: "Analysé par l'IA, décidé par vous.",
     ai_sub: "L'assistant Lumo analyse vos données et vous propose des insights actionnables pour maximiser votre rentabilité.",
     ai_p1: "Prédictions de ventes basées sur vos historiques",
-    ai_p2: "Alertes de stock intelligent avant rupture",
+    ai_p2: "Alertes de stock intelligentes avant rupture",
     ai_p3: "Rapports automatiques exportables en Excel",
     ai_p4: "Analyse de la rentabilité produit et marge",
+    ai_quote: '"Vos ventes de la semaine ont augmenté de 18%. Le produit Casque X-5 est en rupture imminente — commandez 30 unités pour maintenir la dynamique."',
+    ai_chip_revenue: '+18% CA',
+    ai_chip_stock: 'Stock critique',
+    ai_chip_report: 'Rapport prêt',
     cta_title: 'Prêt à transformer votre business ?',
-    cta_sub: "Rejoignez des commercants qui font confiance à LUMO chaque jour. Configuration en moins de 5 minutes.",
+    cta_sub: "Rejoignez des commerçants qui font confiance à LUMO chaque jour. Configuration en moins de 5 minutes.",
     cta_btn: 'Créer mon compte',
     news_title: 'Restez à jour',
     news_sub: 'Recevez nos nouveautés, tutoriels et mises à jour directement dans votre boîte mail.',
@@ -73,18 +80,21 @@ const i18n: Record<string, Record<string, string>> = {
     footer_c2: 'Contact',
     footer_c3: 'Confidentialité',
     footer_c4: 'Conditions d\'utilisation',
-    footer_copy: 'All rights reserved.',
+    footer_copy: 'Tous droits réservés.',
     trusted_by: 'Ils nous font confiance au quotidien',
     testi_title: 'Ce que disent nos clients',
     testi_sub: 'Rejoignez la révolution LUMO avec des centaines d\'entrepreneurs satisfaits.',
     faq_title: 'Questions Fréquentes',
     faq_sub: 'Tout ce que vous devez savoir sur LUMO.',
+    faq_eyebrow: 'FAQ',
     vs_title: 'LUMO vs Gestion Classique',
     vs_sub: 'Pourquoi passer à la nouvelle génération ?',
+    vs_eyebrow: 'Comparaison',
     vs_lumo: 'Avec LUMO',
     vs_classic: 'Gestion Classique',
     hiw_title: 'Comment ça marche ?',
-    hiw_sub: 'De l\'inscription à la première vente en moins de 5 minutes.',
+    hiw_sub: "De l'inscription à la première vente en moins de 5 minutes.",
+    hiw_eyebrow: 'Processus rapide',
     hiw_step1: '1. Inscription rapide',
     hiw_step1_desc: 'Créez votre compte en quelques clics sans carte de crédit.',
     hiw_step2: '2. Ajout des produits',
@@ -96,6 +106,8 @@ const i18n: Record<string, Record<string, string>> = {
     mobile_feat1: 'Suivi des ventes en temps réel',
     mobile_feat2: 'Alertes de stock sur mobile',
     mobile_feat3: 'Mode caisse tactile optimisé',
+    mobile_notification_label: 'NOTIFICATION',
+    mobile_notification_text: 'Nouvelle vente ! +450.00$',
     contact_title: 'Une question ? Parlez-nous',
     contact_sub: 'Notre équipe de support est là pour vous accompagner dans la digitalisation de votre commerce.',
     contact_email: 'Email de support',
@@ -112,6 +124,8 @@ const i18n: Record<string, Record<string, string>> = {
     team_badge: "L'Équipe",
     team_title: 'Les visages derrière LUMO',
     team_sub: 'Une équipe passionnée dédiée à la réussite des commerçants africains.',
+    team_role_1: 'Architecte Principal & Fondateur',
+    team_role_2: 'Testeur UI',
     contact_name: 'Nom',
     contact_email_label: 'Email',
     contact_message: 'Message',
@@ -119,7 +133,7 @@ const i18n: Record<string, Record<string, string>> = {
     contact_ph_email: 'votre@email.com',
     contact_ph_message: 'Comment pouvons-nous vous aider ?',
     contact_send: 'Envoyer le message',
-    cookie_text: "Nous utilisons des cookies pour améliorer votre expérience et analyser notre trafic.",
+    cookie_banner_text: "Nous utilisons des cookies pour améliorer votre expérience et analyser notre trafic.",
     cookie_accept: "Accepter",
     multi_empire_title: 'Un empire, un seul écran',
     multi_empire_sub: 'Gérez toutes vos succursales sans effort. Stock synchronisé, transferts inter-boutiques instantanés et rapports de revenus combinés en temps réel.',
@@ -139,7 +153,55 @@ const i18n: Record<string, Record<string, string>> = {
     testi_role3: 'Entrepreneure',
     testi_text1: "Depuis que j'utilise LUMO, je ne perds plus de temps à faire mes comptes manuellement. L'IA me dit même quand recommander mes produits phares !",
     testi_text2: "La gestion multi-devises est incroyable. Les conversions se font en temps réel, fini les erreurs de caisse entre francs congolais et dollars.",
-    testi_text3: "Une interface magnifique, rapide et très intuitive. J'ai formé mes caissiers en moins de 15 minutes. Un vrai game-changer.",
+    testi_text3: "Une interface magnifique, rapide et très intuitive. J'ai formé mes caissiers en moins de 15 minutes. Une vraie révolution.",
+    mobile_eyebrow: 'Mobile',
+    cookie_accept_btn: "Accepter",
+    vs_col_feature: 'Fonctionnalité',
+    chat_online: 'En ligne',
+    chat_placeholder: 'Posez une question...',
+    chat_greeting: "Bonjour ! Je suis LUMO. Comment puis-je vous aider aujourd'hui ?",
+    chat_error: 'Erreur de connexion avec LUMO.',
+    contact_success: 'Message envoyé avec succès !',
+    contact_error: "Erreur lors de l'envoi.",
+    contact_fields_required: 'Veuillez remplir tous les champs.',
+    contact_sending: 'Envoi...',
+    roi_eyebrow: 'Calculateur ROI',
+    footer_close: 'Fermer',
+    footer_brand_desc: 'La plateforme de gestion commerciale tout-en-un, conçue pour les entrepreneurs ambitieux.',
+    footer_secure_data: 'Données sécurisées & chiffrées',
+    faq_q1: 'Puis-je utiliser LUMO sans connexion internet ?',
+    faq_a1: 'Oui ! Notre application possède un mode hors-ligne. Vous pouvez continuer à vendre, et les données se synchroniseront automatiquement dès que la connexion sera rétablie.',
+    faq_q2: 'Comment fonctionne la gestion multi-devises ?',
+    faq_a2: "Vous définissez votre taux de change. Lors d'une vente, vous pouvez encaisser en Francs Congolais ou en Dollars, et le système calcule automatiquement le rendu de la monnaie et met à jour votre caisse.",
+    faq_q3: 'Mes données sont-elles sécurisées ?',
+    faq_a3: 'Absolument. Vos données sont chiffrées et nous effectuons des sauvegardes automatiques plusieurs fois par jour sur des serveurs sécurisés.',
+    faq_q4: 'Ai-je besoin de matériel spécial ?',
+    faq_a4: "Non, LUMO fonctionne sur n'importe quel ordinateur, tablette ou smartphone. Nous supportons également la majorité des lecteurs de codes-barres et imprimantes thermiques Bluetooth/USB.",
+    showcase_dash_title: 'Pleine visibilité sur votre activité.',
+    showcase_dash_desc: 'Gardez un œil sur votre chiffre d\'affaires, vos marges et votre croissance en temps réel. Des graphiques clairs et une interface épurée pour prendre les meilleures décisions sans stress.',
+    showcase_dash_li1: 'Suivi financier en temps réel',
+    showcase_dash_li2: 'Indicateurs clés de performance (KPI)',
+    showcase_dash_li3: 'Comparaison et évolution des périodes',
+    showcase_stock_title: 'Gestion d\'inventaire intelligente.',
+    showcase_stock_desc: 'Ne perdez plus le fil de votre stock. Suivez vos niveaux précisément, recevez des alertes automatiques avant les ruptures, et gérez vos approvisionnements chez vos fournisseurs en quelques clics.',
+    showcase_stock_li1: 'Alertes préventives de stock bas',
+    showcase_stock_li2: 'Calcul de marge bénéficiaire exact',
+    showcase_stock_li3: 'Historique complet des mouvements',
+    showcase_pos_title: 'Point de Vente Ultra-Rapide.',
+    showcase_pos_desc: 'Conçu pour la fluidité au comptoir physique. Traitez vos ventes en devises multiples, encaissez en scanning de codes-barres et imprimez vos factures thermiques instantanément.',
+    showcase_pos_li1: 'Prise en charge intégrale des scanners',
+    showcase_pos_li2: 'Paiement mixte et Multi-devises',
+    showcase_pos_li3: 'Génération de tickets rapide',
+    showcase_analytics_title: 'Des données brutes aux décisions.',
+    showcase_analytics_desc: 'Extrayez tout le potentiel de votre boutique. Exportez vos données vers Excel, visualisez quels produits performent le mieux, et suivez l\'efficacité de chaque vendeur dans votre équipe.',
+    showcase_analytics_li1: 'Exports Excel natifs en 1 clic',
+    showcase_analytics_li2: 'Identification des produits stars',
+    showcase_analytics_li3: 'Classement des performances vendeurs',
+    security_title: 'Sécurité Avancée',
+    security_desc: 'Nous prenons la sécurité de vos données au sérieux. Tout est chiffré, scellé et sauvegardé automatiquement. Aucun compromis.',
+    security_li1: 'Chiffrement AES-256 de bout en bout',
+    security_li2: 'Sauvegardes automatiques sans perte',
+    security_li3: 'Protection Rate Limiting anti-bruteforce',
   },
   en: {
     nav_features: 'Features',
@@ -159,8 +221,10 @@ const i18n: Record<string, Record<string, string>> = {
     showcase_title: 'An interface',
     showcase_title2: 'built for performance',
     showcase_sub: "Every module is optimized to save you time and money.",
+    showcase_eyebrow: 'In detail',
     feat_title: 'Everything you need',
     feat_sub: 'A complete ecosystem to manage your business every day.',
+    features_eyebrow: 'Modules',
     feat1_title: 'Fast POS',
     feat1_desc: 'Ultra-responsive sales terminal, multi-currency, with cart, returns management and receipt printing.',
     feat2_title: 'Smart Dashboard',
@@ -205,12 +269,15 @@ const i18n: Record<string, Record<string, string>> = {
     testi_sub: 'Join the LUMO revolution with hundreds of satisfied entrepreneurs.',
     faq_title: 'Frequently Asked Questions',
     faq_sub: 'Everything you need to know about LUMO.',
+    faq_eyebrow: 'FAQ',
     vs_title: 'LUMO vs Classic Management',
     vs_sub: 'Why switch to the next generation?',
+    vs_eyebrow: 'Comparison',
     vs_lumo: 'With LUMO',
     vs_classic: 'Classic Management',
     hiw_title: 'How does it work?',
     hiw_sub: 'From sign up to your first sale in less than 5 minutes.',
+    hiw_eyebrow: 'Fast process',
     hiw_step1: '1. Quick Registration',
     hiw_step1_desc: 'Create your account in a few clicks, no credit card required.',
     hiw_step2: '2. Add Products',
@@ -222,6 +289,8 @@ const i18n: Record<string, Record<string, string>> = {
     mobile_feat1: 'Real-time sales tracking',
     mobile_feat2: 'Mobile low-stock alerts',
     mobile_feat3: 'Optimized touch POS mode',
+    mobile_notification_label: 'NOTIFICATION',
+    mobile_notification_text: 'New sale! +450.00$',
     contact_title: 'Have a question? Talk to us',
     contact_sub: 'Our support team is here to help you digitize your business.',
     contact_email: 'Support Email',
@@ -237,7 +306,9 @@ const i18n: Record<string, Record<string, string>> = {
     roi_cta: 'Start saving time now',
     team_badge: 'The Team',
     team_title: 'The faces behind LUMO',
-    team_sub: 'A passionate team dedicated to African merchants success.',
+    team_sub: 'A passionate team dedicated to the success of African merchants.',
+    team_role_1: 'Lead Architect & Founder',
+    team_role_2: 'UI Tester',
     contact_name: 'Name',
     contact_email_label: 'Email',
     contact_message: 'Message',
@@ -245,7 +316,7 @@ const i18n: Record<string, Record<string, string>> = {
     contact_ph_email: 'your@email.com',
     contact_ph_message: 'How can we help you?',
     contact_send: 'Send message',
-    cookie_text: "We use cookies to enhance your experience and analyze our traffic.",
+    cookie_banner_text: "We use cookies to enhance your experience and analyze our traffic.",
     cookie_accept: "Accept",
     multi_empire_title: 'One empire, one screen',
     multi_empire_sub: 'Manage all your branches effortlessly. Synchronized stock, instant inter-store transfers, and combined real-time revenue reports.',
@@ -266,6 +337,54 @@ const i18n: Record<string, Record<string, string>> = {
     testi_text1: "Since using LUMO, I no longer waste time doing my accounts manually. The AI even tells me when to reorder my best-selling products!",
     testi_text2: "The multi-currency management is amazing. Conversions happen in real-time, no more cash desk errors between francs and dollars.",
     testi_text3: "A beautiful, fast, and very intuitive interface. I trained my cashiers in less than 15 minutes. A real game-changer.",
+    mobile_eyebrow: 'Mobile',
+    cookie_accept_btn: "Accept",
+    vs_col_feature: 'Feature',
+    chat_online: 'Online',
+    chat_placeholder: 'Ask a question...',
+    chat_greeting: 'Hello! I am LUMO. How can I help you today?',
+    chat_error: 'Connection error with LUMO.',
+    contact_success: 'Message sent successfully!',
+    contact_error: 'Error sending message.',
+    contact_fields_required: 'Please fill all fields.',
+    contact_sending: 'Sending...',
+    roi_eyebrow: 'ROI Calculator',
+    footer_close: 'Close',
+    footer_brand_desc: 'The all-in-one business management platform, built for ambitious entrepreneurs.',
+    footer_secure_data: 'Secured & encrypted data',
+    faq_q1: 'Can I use LUMO without internet?',
+    faq_a1: 'Yes! Our app has an offline mode. You can keep selling, and data will sync automatically once connection is back.',
+    faq_q2: 'How does multi-currency management work?',
+    faq_a2: 'You set your exchange rate. During a sale, you can checkout in Congolese Francs or Dollars, and the system automatically calculates change and updates your cash.',
+    faq_q3: 'Is my data secure?',
+    faq_a3: 'Absolutely. Your data is encrypted and we perform automatic backups several times a day on secure servers.',
+    faq_q4: 'Do I need special hardware?',
+    faq_a4: 'No, LUMO works on any computer, tablet or smartphone. We also support most barcode scanners and Bluetooth/USB thermal printers.',
+    showcase_dash_title: 'Full visibility on your business.',
+    showcase_dash_desc: 'Keep an eye on your revenue, margins, and growth in real time. Clear charts and a clean interface to make the best decisions stress-free.',
+    showcase_dash_li1: 'Real-time financial tracking',
+    showcase_dash_li2: 'Key Performance Indicators (KPI)',
+    showcase_dash_li3: 'Period evolution and comparison',
+    showcase_stock_title: 'Smart Inventory Management.',
+    showcase_stock_desc: 'Never lose track of your stock. Track levels accurately, receive automatic alerts before shortages, and manage supplier restocks in a few clicks.',
+    showcase_stock_li1: 'Preventive low stock alerts',
+    showcase_stock_li2: 'Exact profit margin calculation',
+    showcase_stock_li3: 'Complete movement history',
+    showcase_pos_title: 'Lightning-Fast Point of Sale.',
+    showcase_pos_desc: 'Built for physical counter fluidity. Process sales in multiple currencies, checkout with barcode scanning and print thermal receipts instantly.',
+    showcase_pos_li1: 'Full barcode scanner support',
+    showcase_pos_li2: 'Mixed and Multi-currency payments',
+    showcase_pos_li3: 'Fast receipt generation',
+    showcase_analytics_title: 'From raw data to decisions.',
+    showcase_analytics_desc: 'Extract full potential from your store. Export your data to Excel, view which products perform best, and track the efficiency of each salesman.',
+    showcase_analytics_li1: '1-click native Excel exports',
+    showcase_analytics_li2: 'Star products identification',
+    showcase_analytics_li3: 'Staff performance leaderboard',
+    security_title: 'Advanced Security',
+    security_desc: 'We take your data security seriously. Everything is encrypted, sealed, and automatically backed up. No compromises.',
+    security_li1: 'AES-256 end-to-end encryption',
+    security_li2: 'Zero-loss automatic backups',
+    security_li3: 'Anti-bruteforce Rate Limiting protection',
   }
 };
 
@@ -349,16 +468,16 @@ export default function Landing() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactForm.nom || !contactForm.email || !contactForm.message) {
-      toast.error(language === 'fr' ? 'Veuillez remplir tous les champs.' : 'Please fill all fields.');
+      toast.error(L.contact_fields_required);
       return;
     }
     setSendingContact(true);
     try {
       await api.post('/contact', contactForm);
-      toast.success(language === 'fr' ? 'Message envoyé avec succès !' : 'Message sent successfully!');
+      toast.success(L.contact_success);
       setContactForm({ nom: '', email: '', message: '' });
     } catch (err) {
-      toast.error(language === 'fr' ? "Erreur lors de l'envoi." : "Error sending message.");
+      toast.error(L.contact_error);
     } finally {
       setSendingContact(false);
     }
@@ -392,7 +511,7 @@ export default function Landing() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
-    { role: 'assistant', content: language === 'fr' ? 'Bonjour ! Je suis LUMO. Comment puis-je vous aider aujourd\'hui ?' : 'Hello! I am LUMO. How can I help you today?' }
+    { role: 'assistant', content: L.chat_greeting }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -441,7 +560,7 @@ export default function Landing() {
         }
       }
     } catch (error) {
-      toast.error("Erreur de connexion avec LUMO.");
+      toast.error(L.chat_error);
     } finally {
       setIsTyping(false);
     }
@@ -450,6 +569,15 @@ export default function Landing() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  useEffect(() => {
+    setChatMessages(prev => {
+      if (prev.length === 1 && prev[0].role === 'assistant') {
+        return [{ role: 'assistant', content: L.chat_greeting }];
+      }
+      return prev;
+    });
+  }, [language]);
 
   // --- Cookie Banner State ---
   const [showCookie, setShowCookie] = useState(!localStorage.getItem('lumo_cookies_accepted'));
@@ -564,7 +692,7 @@ export default function Landing() {
               <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 500 }}>{footerModal.content}</p>
               <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="lp-btn-primary" onClick={() => setFooterModal({ ...footerModal, open: false })}>
-                  {language === 'fr' ? 'Fermer' : 'Close'}
+                  {L.footer_close}
                 </button>
               </div>
             </motion.div>
@@ -787,7 +915,7 @@ export default function Landing() {
       {/* ── SHOWCASE / BIG FEATURES ─────────────────────────── */}
       <section id="showcase" style={{ padding: '120px 6%', display: 'flex', flexDirection: 'column', gap: '120px' }}>
         <div style={{ textAlign: 'center', marginBottom: -20 }}>
-          <span className="lp-section-eyebrow">En Détail</span>
+          <span className="lp-section-eyebrow">{L.showcase_eyebrow}</span>
           <h2 className="lp-section-title">
             {L.showcase_title} <span style={{ color: 'var(--primary)' }}>{L.showcase_title2}</span>
           </h2>
@@ -799,15 +927,15 @@ export default function Landing() {
           <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
             <span className="lp-feature-eyebrow" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.2)' }}>{L.eyebrow_dashboard}</span>
             <h2 className="lp-split-title">
-              {language === 'fr' ? 'Pleine visibilité sur votre activité.' : 'Full visibility on your business.'}
+              {L.showcase_dash_title}
             </h2>
             <p className="lp-split-desc">
-              {language === 'fr' ? 'Gardez un œil sur votre chiffre d\'affaires, vos marges et votre croissance en temps réel. Des graphiques clairs et une interface épurée pour prendre les meilleures décisions sans stress.' : 'Keep an eye on your revenue, margins, and growth in real time. Clear charts and a clean interface to make the best decisions stress-free.'}
+              {L.showcase_dash_desc}
             </p>
             <ul className="lp-split-list">
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {language === 'fr' ? 'Suivi financier en temps réel' : 'Real-time financial tracking'}</li>
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {language === 'fr' ? 'Indicateurs clés de performance (KPI)' : 'Key Performance Indicators (KPI)'}</li>
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {language === 'fr' ? 'Comparaison et évolution des périodes' : 'Period evolution and comparison'}</li>
+              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li1}</li>
+              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li2}</li>
+              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li3}</li>
             </ul>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
@@ -825,15 +953,15 @@ export default function Landing() {
           <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
             <span className="lp-feature-eyebrow" style={{ color: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.2)' }}>{L.eyebrow_stock}</span>
             <h2 className="lp-split-title">
-              {language === 'fr' ? 'Gestion d\'inventaire intelligente.' : 'Smart Inventory Management.'}
+              {L.showcase_stock_title}
             </h2>
             <p className="lp-split-desc">
-              {language === 'fr' ? 'Ne perdez plus le fil de votre stock. Suivez vos niveaux précisément, recevez des alertes automatiques avant les ruptures, et gérez vos approvisionnements chez vos fournisseurs en quelques clics.' : 'Never lose track of your stock. Track levels accurately, receive automatic alerts before shortages, and manage supplier restocks in a few clicks.'}
+              {L.showcase_stock_desc}
             </p>
             <ul className="lp-split-list">
-              <li><CheckCircle2 color="#10b981" size={20} /> {language === 'fr' ? 'Alertes préventives de stock bas' : 'Preventive low stock alerts'}</li>
-              <li><CheckCircle2 color="#10b981" size={20} /> {language === 'fr' ? 'Calcul de marge bénéficiaire exact' : 'Exact profit margin calculation'}</li>
-              <li><CheckCircle2 color="#10b981" size={20} /> {language === 'fr' ? 'Historique complet des mouvements' : 'Complete movement history'}</li>
+              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li1}</li>
+              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li2}</li>
+              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li3}</li>
             </ul>
           </motion.div>
         </div>
@@ -843,15 +971,15 @@ export default function Landing() {
           <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
             <span className="lp-feature-eyebrow" style={{ color: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.2)' }}>{L.eyebrow_pos}</span>
             <h2 className="lp-split-title">
-              {language === 'fr' ? 'Point de Vente Ultra-Rapide.' : 'Lightning-Fast Point of Sale.'}
+              {L.showcase_pos_title}
             </h2>
             <p className="lp-split-desc">
-              {language === 'fr' ? 'Conçu pour la fluidité au comptoir physique. Traitez vos ventes en devises multiples, encaissez en scanning de codes-barres et imprimez vos factures thermiques instantanément.' : 'Built for physical counter fluidity. Process sales in multiple currencies, checkout with barcode scanning and print thermal receipts instantly.'}
+              {L.showcase_pos_desc}
             </p>
             <ul className="lp-split-list">
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {language === 'fr' ? 'Prise en charge intégrale des scanners' : 'Full barcode scanner support'}</li>
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {language === 'fr' ? 'Paiement mixte et Multi-devises' : 'Mixed and Multi-currency payments'}</li>
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {language === 'fr' ? 'Génération de tickets rapide' : 'Fast receipt generation'}</li>
+              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li1}</li>
+              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li2}</li>
+              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li3}</li>
             </ul>
           </motion.div><motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
             <div className="lp-glass-overlay"></div>
@@ -868,15 +996,15 @@ export default function Landing() {
           <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
             <span className="lp-feature-eyebrow" style={{ color: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.2)' }}>{L.eyebrow_analytics}</span>
             <h2 className="lp-split-title">
-              {language === 'fr' ? 'Des données brutes aux décisions.' : 'From raw data to decisions.'}
+              {L.showcase_analytics_title}
             </h2>
             <p className="lp-split-desc">
-              {language === 'fr' ? 'Extrayez tout le potentiel de votre boutique. Exportez vos données vers Excel, visualisez quels produits performent le mieux, et suivez l\'efficacité de chaque vendeur dans votre équipe.' : 'Extract full potential from your store. Export your data to Excel, view which products perform best, and track the efficiency of each salesman.'}
+              {L.showcase_analytics_desc}
             </p>
             <ul className="lp-split-list">
-              <li><CheckCircle2 color="#a855f7" size={20} /> {language === 'fr' ? 'Exports Excel natifs en 1 clic' : '1-click native Excel exports'}</li>
-              <li><CheckCircle2 color="#a855f7" size={20} /> {language === 'fr' ? 'Identification des produits stars' : 'Star products identification'}</li>
-              <li><CheckCircle2 color="#a855f7" size={20} /> {language === 'fr' ? 'Classement des performances vendeurs' : 'Staff performance leaderboard'}</li>
+              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li1}</li>
+              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li2}</li>
+              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li3}</li>
             </ul>
           </motion.div>
         </div>
@@ -885,7 +1013,7 @@ export default function Landing() {
       {/* ── FEATURES ──────────────────────────────────────────── */}
       <section id="features" style={{ padding: '100px 6%', background: isDark ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.012)' }}>
         <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <span className="lp-section-eyebrow">Modules</span>
+          <span className="lp-section-eyebrow">{L.features_eyebrow}</span>
           <h2 className="lp-section-title">{L.feat_title}</h2>
           <p className="lp-section-sub">{L.feat_sub}</p>
         </div>
@@ -908,7 +1036,7 @@ export default function Landing() {
       {/* ── HOW IT WORKS ─────────────────────────────────────── */}
       <section style={{ padding: '100px 6%', background: 'var(--bg-main)' }}>
         <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <span className="lp-section-eyebrow">Digitalisation</span>
+          <span className="lp-section-eyebrow">{L.hiw_eyebrow}</span>
           <h2 className="lp-section-title">{L.hiw_title}</h2>
           <p className="lp-section-sub">{L.hiw_sub}</p>
         </div>
@@ -1030,16 +1158,14 @@ export default function Landing() {
               <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#a855f7' }}>LUMO AIO</span>
             </div>
             <p style={{ fontStyle: 'italic', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.65, marginBottom: 20 }}>
-              {language === 'fr'
-                ? '"Vos ventes de la semaine ont augmenté de 18%. Le produit Casque X-5 est en rupture imminente — commandez 30 unités pour maintenir la dynamique."'
-                : '"Your weekly sales increased by 18%. Product Headset X-5 is nearly out of stock — order 30 units to maintain momentum."'}
+              {L.ai_quote}
             </p>
             {/* Fake chips */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
                 { label: '+18% CA', c: '#10b981' },
-                { label: language === 'fr' ? 'Stock critique' : 'Low stock', c: '#ef4444' },
-                { label: language === 'fr' ? 'Rapport prêt' : 'Report ready', c: '#6366f1' },
+                { label: L.ai_chip_stock, c: '#ef4444' },
+                { label: L.ai_chip_report, c: '#6366f1' },
               ].map(chip => (
                 <span key={chip.label} style={{
                   padding: '4px 12px', borderRadius: 99,
@@ -1062,7 +1188,7 @@ export default function Landing() {
           borderRadius: 40, padding: '80px 60px', border: '1px solid var(--border)'
         }}>
           <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }}>
-            <span className="lp-section-eyebrow" style={{ color: '#10b981', borderColor: 'rgba(168,85,247,0.3)', background: 'rgba(16,185,129,0.08)' }}>Mobile</span>
+            <span className="lp-section-eyebrow" style={{ color: '#10b981', borderColor: 'rgba(168,85,247,0.3)', background: 'rgba(16,185,129,0.08)' }}>{L.mobile_eyebrow}</span>
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 950, marginBottom: 24, color: 'var(--text-main)', lineHeight: 1.1 }}>
               {L.mobile_title}
             </h2>
@@ -1095,8 +1221,8 @@ export default function Landing() {
               <div style={{ position: 'absolute', top: 0, width: '40%', height: 25, background: '#333', left: '30%', borderBottomLeftRadius: 15, borderBottomRightRadius: 15 }} />
               <img src="/dashboard_mobile.png" alt="Dashboard LUMO" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
               <div style={{ position: 'absolute', bottom: 40, left: 20, right: 20, background: 'rgba(0,0,0,0.8)', padding: 15, borderRadius: 15, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 900, marginBottom: 4 }}>NOTIFICATION</div>
-                <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 600 }}>Nouvelle vente ! +450.00$</div>
+                <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 900, marginBottom: 4 }}>{L.mobile_notification_label}</div>
+                <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 600 }}>{L.mobile_notification_text}</div>
               </div>
             </div>
             {/* Background glow */}
@@ -1116,18 +1242,16 @@ export default function Landing() {
               <ShieldCheck size={36} color="#ef4444" />
             </div>
             <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 950, marginBottom: 24, color: 'var(--text-main)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
-              {language === 'fr' ? 'Sécurité Avancée' : 'Advanced Security'}
+              {L.security_title}
             </h2>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 32, fontWeight: 500, maxWidth: 500 }}>
-              {language === 'fr'
-                ? 'Nous prenons la sécurité de vos données au sérieux. Tout est chiffré, scellé et sauvegardé automatiquement. Aucun compromis.'
-                : 'We take your data security seriously. Everything is encrypted, sealed, and automatically backed up. No compromises.'}
+              {L.security_desc}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {[
-                language === 'fr' ? 'Chiffrement AES-256 de bout en bout' : 'AES-256 end-to-end encryption',
-                language === 'fr' ? 'Sauvegardes automatiques sans perte' : 'Zero-loss automatic backups',
-                language === 'fr' ? 'Protection Rate Limiting anti-bruteforce' : 'Anti-bruteforce Rate Limiting protection',
+                L.security_li1,
+                L.security_li2,
+                L.security_li3,
               ].map(text => (
                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ background: '#ef444420', padding: 6, borderRadius: '50%' }}>
@@ -1175,7 +1299,7 @@ export default function Landing() {
       {/* ── COMPARISON TABLE ──────────────────────────────────── */}
       <section style={{ padding: '100px 6%', background: 'var(--bg-main)' }}>
         <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <span className="lp-section-eyebrow">Comparaison</span>
+          <span className="lp-section-eyebrow">{L.vs_eyebrow}</span>
           <h2 className="lp-section-title">{L.vs_title}</h2>
           <p className="lp-section-sub">{L.vs_sub}</p>
         </div>
@@ -1183,19 +1307,19 @@ export default function Landing() {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
             <thead>
               <tr>
-                <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>Fonctionnalité</th>
+                <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>{L.vs_col_feature}</th>
                 <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', background: 'rgba(99,102,241,0.05)', color: 'var(--primary)', borderRadius: '16px 16px 0 0', textAlign: 'center' }}>{L.vs_lumo}</th>
                 <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', color: 'var(--text-main)', textAlign: 'center' }}>{L.vs_classic}</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ['Synchronisation Temps Réel', true, false],
-                ['Support Multi-Devises (USD/CDF)', true, false],
-                ['Assistant IA Intégré', true, false],
-                ['Interface Moderne & Rapide', true, false],
-                ['Accès Multi-Boutiques', true, true],
-                ['Mode Hors-Ligne', true, false],
+                [L.vs_row1, true, false],
+                [L.vs_row2, true, false],
+                [L.vs_row3, true, false],
+                [L.vs_row4, true, false],
+                [L.vs_row5, true, true],
+                [L.vs_row6, true, false],
               ].map((row, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '20px', fontWeight: 600, color: 'var(--text-main)' }}>{row[0]}</td>
@@ -1248,16 +1372,16 @@ export default function Landing() {
       {/* ── FAQ ───────────────────────────────────────────────── */}
       <section style={{ padding: '80px 6% 120px', maxWidth: 800, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <span className="lp-section-eyebrow">FAQ</span>
+          <span className="lp-section-eyebrow">{L.faq_eyebrow}</span>
           <h2 className="lp-section-title">{L.faq_title}</h2>
           <p className="lp-section-sub">{L.faq_sub}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {[
-            { q: language === 'fr' ? 'Puis-je utiliser LUMO sans connexion internet ?' : 'Can I use LUMO without internet?', a: language === 'fr' ? 'Oui ! Notre application possède un mode hors-ligne. Vous pouvez continuer à vendre, et les données se synchroniseront automatiquement dès que la connexion sera rétablie.' : 'Yes! Our app has an offline mode. You can keep selling, and data will sync automatically once connection is back.' },
-            { q: language === 'fr' ? 'Comment fonctionne la gestion multi-devises ?' : 'How does multi-currency management work?', a: language === 'fr' ? 'Vous définissez votre taux de change. Lors d\'une vente, vous pouvez encaisser en Francs Congolais ou en Dollars, et le système calcule automatiquement le rendu de la monnaie et met à jour votre caisse.' : 'You set your exchange rate. During a sale, you can checkout in Congolese Francs or Dollars, and the system automatically calculates change and updates your cash.' },
-            { q: language === 'fr' ? 'Mes données sont-elles sécurisées ?' : 'Is my data secure?', a: language === 'fr' ? 'Absolument. Vos données sont chiffrées et nous effectuons des sauvegardes automatiques plusieurs fois par jour sur des serveurs sécurisés.' : 'Absolutely. Your data is encrypted and we perform automatic backups several times a day on secure servers.' },
-            { q: language === 'fr' ? 'Ai-je besoin de matériel spécial ?' : 'Do I need special hardware?', a: language === 'fr' ? 'Non, LUMO fonctionne sur n\'importe quel ordinateur, tablette ou smartphone. Nous supportons également la majorité des lecteurs de codes-barres et imprimantes thermiques Bluetooth/USB.' : 'No, LUMO works on any computer, tablet or smartphone. We also support most barcode scanners and Bluetooth/USB thermal printers.' }
+            { q: L.faq_q1, a: L.faq_a1 },
+            { q: L.faq_q2, a: L.faq_a2 },
+            { q: L.faq_q3, a: L.faq_a3 },
+            { q: L.faq_q4, a: L.faq_a4 }
           ].map((faq, i) => (
             <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-card)', overflow: 'hidden' }}>
               <button onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)} style={{ width: '100%', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, fontSize: '1.05rem', textAlign: 'left' }}>
@@ -1282,7 +1406,7 @@ export default function Landing() {
       <section id="calculator" style={{ padding: '100px 6%', background: isDark ? 'rgba(99,102,241,0.03)' : 'rgba(99,102,241,0.02)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
           <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }}>
-            <span className="lp-section-eyebrow">{language === 'fr' ? 'Calculateur ROI' : 'ROI Calculator'}</span>
+            <span className="lp-section-eyebrow">{L.roi_eyebrow}</span>
             <h2 className="lp-section-title" style={{ textAlign: 'left', margin: '0 0 20px' }}>
               {L.roi_title}
             </h2>
@@ -1345,8 +1469,8 @@ export default function Landing() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
           {[
-            { name: 'René Des.', role: 'Lead Architect & Founder', img: '/team/rene.jpg' },
-            { name: 'Mardoché Nl.', role: 'Tester Ui', img: '/team/sarah.png' },
+            { name: 'René Des.', role: L.team_role_1, img: '/team/rene.jpg' },
+            { name: 'Mardoché Nl.', role: L.team_role_2, img: '/team/sarah.png' },
           ].map((m, i) => (
             <motion.div key={i} whileHover={{ y: -10 }} style={{ textAlign: 'center' }}>
               <div style={{ width: 180, height: 180, borderRadius: '30% 70% 70% 30% / 30% 30% 70% 70%', overflow: 'hidden', margin: '0 auto 24px', border: '4px solid var(--primary)' }}>
@@ -1447,7 +1571,7 @@ export default function Landing() {
                   opacity: sendingContact ? 0.7 : 1
                 }}
               >
-                {sendingContact ? (language === 'fr' ? 'Envoi...' : 'Sending...') : L.contact_send}
+                {sendingContact ? L.contact_sending : L.contact_send}
               </button>
             </form>
           </div>
@@ -1512,9 +1636,7 @@ export default function Landing() {
           <div>
             <Logo size={36} />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.65, marginTop: 18, fontWeight: 500, maxWidth: 320 }}>
-              {language === 'fr'
-                ? 'La plateforme de gestion commerciale tout-en-un, conçue pour les entrepreneurs ambitieux.'
-                : 'The all-in-one business management platform, built for ambitious entrepreneurs.'}
+              {L.footer_brand_desc}
             </p>
           </div>
 
@@ -1600,7 +1722,7 @@ export default function Landing() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Lock size={12} color="var(--text-muted)" />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.83rem', fontWeight: 600 }}>
-              {language === 'fr' ? 'Données sécurisées & chiffrées' : 'Secured & encrypted data'}
+              {L.footer_secure_data}
             </span>
           </div>
         </div>
@@ -1629,7 +1751,7 @@ export default function Landing() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>LUMO Assistant</div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{language === 'fr' ? 'En ligne' : 'Online'}</div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{L.chat_online}</div>
                   </div>
                 </div>
                 <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20} /></button>
@@ -1667,7 +1789,7 @@ export default function Landing() {
                   <input
                     type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-                    placeholder={language === 'fr' ? 'Posez une question...' : 'Ask a question...'}
+                    placeholder={L.chat_placeholder}
                     style={{ width: '100%', padding: '12px 48px 12px 16px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none' }}
                   />
                   <button onClick={handleSendChat} style={{ position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: 8, background: 'var(--primary)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -1707,13 +1829,11 @@ export default function Landing() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ background: 'var(--primary)15', padding: 10, borderRadius: 12 }}><ShieldCheck size={24} color="var(--primary)" /></div>
               <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.4 }}>
-                {language === 'fr'
-                  ? 'Nous utilisons des cookies pour améliorer votre expérience sur LUMO.'
-                  : 'We use cookies to improve your experience on LUMO.'}
+                {L.cookie_banner_text}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button className="lp-btn-primary" onClick={acceptCookies}>{language === 'fr' ? 'Accepter' : 'Accept'}</button>
+              <button className="lp-btn-primary" onClick={acceptCookies}>{L.cookie_accept_btn}</button>
             </div>
           </motion.div>
         )}
@@ -1912,5 +2032,3 @@ export default function Landing() {
     </div>
   );
 }
-
-

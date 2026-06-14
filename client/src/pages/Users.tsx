@@ -9,50 +9,51 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
+import { useTranslation } from '../hooks/useTranslation';
 
 // All available modules with sub-permissions
 const ALL_MODULES = [
   {
-    id: 'pos', label: 'Point de Vente', icon: ShoppingCart, color: '#6366f1',
+    id: 'pos', labelKey: 'settingsModulePOS', icon: ShoppingCart, color: '#6366f1',
     subs: [
-      { id: 'pos', label: 'Accès POS (vente)' },
-      { id: 'sales.add', label: 'Créer une vente' },
-      { id: 'sales.refund', label: 'Rembourser une vente' },
+      { id: 'pos', labelKey: 'usersPermPosAccess' },
+      { id: 'sales.add', labelKey: 'usersPermCreateSale' },
+      { id: 'sales.refund', labelKey: 'settingsModuleRefundSale' },
     ]
   },
   {
-    id: 'products', label: 'Produits & Stock', icon: Package, color: '#8b5cf6',
+    id: 'products', labelKey: 'settingsModuleProducts', icon: Package, color: '#8b5cf6',
     subs: [
-      { id: 'products', label: 'Voir les produits' },
-      { id: 'products.add', label: 'Ajouter un produit' },
-      { id: 'products.edit', label: 'Modifier un produit' },
-      { id: 'products.delete', label: 'Supprimer un produit' },
+      { id: 'products', labelKey: 'usersPermViewProducts' },
+      { id: 'products.add', labelKey: 'settingsModuleAddProducts' },
+      { id: 'products.edit', labelKey: 'settingsModuleEditProducts' },
+      { id: 'products.delete', labelKey: 'settingsModuleDeleteProducts' },
     ]
   },
 
   {
-    id: 'clients', label: 'Clients', icon: UsersIcon, color: '#10b981',
+    id: 'clients', labelKey: 'settingsModuleClients', icon: UsersIcon, color: '#10b981',
     subs: [
-      { id: 'clients', label: 'Voir les clients' },
-      { id: 'clients.add', label: 'Ajouter un client' },
+      { id: 'clients', labelKey: 'usersPermViewClients' },
+      { id: 'clients.add', labelKey: 'settingsModuleAddClient' },
     ]
   },
   {
-    id: 'cash', label: 'Trésorerie', icon: Wallet, color: '#f59e0b',
+    id: 'cash', labelKey: 'usersModuleTreasury', icon: Wallet, color: '#f59e0b',
     subs: [
-      { id: 'cash', label: 'Accès Caisse (ouverture/clôture)' },
+      { id: 'cash', labelKey: 'usersPermCashAccess' },
     ]
   },
   {
-    id: 'sales', label: 'Historique Ventes', icon: BarChart2, color: '#06b6d4',
+    id: 'sales', labelKey: 'settingsModuleSales', icon: BarChart2, color: '#06b6d4',
     subs: [
-      { id: 'sales', label: 'Voir historique ventes' },
+      { id: 'sales', labelKey: 'usersPermViewSales' },
     ]
   },
   {
-    id: 'stats', label: 'Statistiques', icon: BarChart2, color: '#a855f7',
+    id: 'stats', labelKey: 'settingsModuleStats', icon: BarChart2, color: '#a855f7',
     subs: [
-      { id: 'stats', label: 'Voir les statistiques' },
+      { id: 'stats', labelKey: 'usersPermViewStats' },
     ]
   },
 ];
@@ -65,6 +66,7 @@ const ROLE_PRESETS: Record<string, string[]> = {
 const emptyUser = { nom: '', email: '', motDePasse: '', telephone: '', role: 'caissier' };
 
 const PermissionPanel = ({ permissions, onChange }: { permissions: string[], onChange: (p: string[]) => void }) => {
+  const { t } = useTranslation();
   const toggle = (id: string) => {
     onChange(permissions.includes(id) ? permissions.filter(p => p !== id) : [...permissions, id]);
   };
@@ -92,7 +94,7 @@ const PermissionPanel = ({ permissions, onChange }: { permissions: string[], onC
               <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: mod.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <mod.icon size={16} color={mod.color} />
               </div>
-              <span style={{ fontWeight: 900, fontSize: '0.9rem', flex: 1 }}>{mod.label}</span>
+              <span style={{ fontWeight: 900, fontSize: '0.9rem', flex: 1 }}>{t(mod.labelKey)}</span>
               <div style={{ width: '20px', height: '20px', borderRadius: '6px', border: `2px solid ${allChecked ? mod.color : 'var(--border)'}`, background: allChecked ? mod.color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {allChecked && <Check size={12} color="white" />}
               </div>
@@ -108,7 +110,7 @@ const PermissionPanel = ({ permissions, onChange }: { permissions: string[], onC
                       onClick={() => toggle(sub.id)}
                       style={{ padding: '6px 12px', borderRadius: '10px', border: `1px solid ${active ? mod.color : 'var(--border)'}`, background: active ? mod.color + '22' : 'transparent', color: active ? mod.color : 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
                     >
-                      {sub.label}
+                      {t(sub.labelKey)}
                     </button>
                   );
                 })}
@@ -122,6 +124,7 @@ const PermissionPanel = ({ permissions, onChange }: { permissions: string[], onC
 };
 
 const Users = () => {
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,7 +145,7 @@ const Users = () => {
       if (d.success && d.data) list = Array.isArray(d.data) ? d.data : d.data.data || [];
       else list = Array.isArray(d) ? d : d.data || [];
       setUsers(list);
-    } catch { toast.error("Échec du chargement"); }
+    } catch { toast.error(t('usersLoadError')); }
     finally { setLoading(false); }
   };
 
@@ -157,13 +160,13 @@ const Users = () => {
     e.preventDefault();
     try {
       await api.post('/subusers', { ...newUser, permissions: newPerms });
-      toast.success(`${newUser.nom} ajouté avec succès !`);
+      toast.success(t('userAddedNamed').replace('{name}', newUser.nom));
       setShowAddModal(false);
       setNewUser({ ...emptyUser });
       setNewPerms(ROLE_PRESETS.caissier);
       fetchUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'ajout");
+      toast.error(err.response?.data?.message || t('userAddError'));
     }
   };
 
@@ -171,10 +174,10 @@ const Users = () => {
     e.preventDefault();
     try {
       await api.put(`/subusers/${selectedUser.id}`, { ...selectedUser, permissions: editPerms });
-      toast.success("Membre mis à jour !");
+      toast.success(t('userUpdated'));
       setShowEditModal(false);
       fetchUsers();
-    } catch { toast.error("Erreur de modification"); }
+    } catch { toast.error(t('userUpdateError')); }
   };
 
   const handleDeleteUser = (id: number, name: string) => {
@@ -182,8 +185,8 @@ const Users = () => {
       isOpen: true, title: "Supprimer Membre",
       message: `Supprimer définitivement l'accès pour ${name} ?`,
       onConfirm: async () => {
-        try { await api.delete(`/subusers/${id}`); toast.success("Membre retiré."); fetchUsers(); }
-        catch (err: any) { toast.error(err.response?.data?.message || "Echec de la suppression"); }
+        try { await api.delete(`/subusers/${id}`); toast.success(t('userDeleted')); fetchUsers(); }
+        catch (err: any) { toast.error(err.response?.data?.message || t('userDeleteError')); }
       }
     });
   };
@@ -191,9 +194,9 @@ const Users = () => {
   const toggleSuspension = async (u: any) => {
     try {
       await api.put(`/subusers/${u.id}`, { isSuspended: !u.isSuspended });
-      toast.success(u.isSuspended ? "Compte réactivé !" : "Compte suspendu !");
+      toast.success(u.isSuspended ? t('accountReactivated') : t('accountSuspended'));
       fetchUsers();
-    } catch { toast.error("Erreur"); }
+    } catch { toast.error(t('genericError')); }
   };
 
   const openEdit = (u: any) => {
@@ -217,16 +220,16 @@ const Users = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 900, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
-            <ShieldCheck size={14} /> Gestion d'Équipe & Rôles
+            <ShieldCheck size={14} /> {t('usersTeamBadge')}
           </div>
           <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
-            Membres de <span className="text-gradient">l'Équipe</span>
+            {t('usersTeamTitle')} <span className="text-gradient">{t('usersTeamGradient')}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '4px' }}>Gérez les accès et les permissions de chaque collaborateur.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '4px' }}>{t('usersTeamSubtitle')}</p>
         </div>
         <button onClick={() => { setShowAddModal(true); setNewUser({ ...emptyUser }); setNewPerms(ROLE_PRESETS.caissier); }}
           style={{ padding: '16px 32px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 950, cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', fontSize: '1rem' }}>
-          <UserPlus size={22} /> Nouveau Membre
+          <UserPlus size={22} /> {t('usersNewMember')}
         </button>
       </div>
 
@@ -234,7 +237,7 @@ const Users = () => {
       <div className="glass" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={20} style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input type="text" placeholder="Rechercher par nom ou email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          <input type="text" placeholder={t('usersSearchPlaceholder')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
             style={{ ...inputStyle, paddingLeft: '52px' }} />
         </div>
         <button onClick={fetchUsers} className="glass btn-hover" style={{ width: '52px', height: '52px', borderRadius: '16px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
@@ -315,8 +318,8 @@ const Users = () => {
             <div>
               <label style={labelStyle}>Rôle / Niveau d'accès</label>
               <select value={newUser.role} onChange={e => handleRoleChange(e.target.value)} style={inputStyle}>
-                <option value="caissier">Caissier (Ventes)</option>
-                <option value="manager">Manager (Gestion complète)</option>
+                <option value="caissier">{t('usersRoleCashierSales')}</option>
+                <option value="manager">{t('usersRoleManager')}</option>
               </select>
             </div>
           </div>
@@ -356,7 +359,7 @@ const Users = () => {
             <div>
               <label style={labelStyle}>Rôle</label>
               <select value={selectedUser.role} onChange={e => { setSelectedUser({ ...selectedUser, role: e.target.value }); setEditPerms(ROLE_PRESETS[e.target.value] || []); }} style={inputStyle}>
-                <option value="caissier">Caissier</option>
+                <option value="caissier">{t('usersRoleCashier')}</option>
                 <option value="manager">Manager</option>
               </select>
             </div>

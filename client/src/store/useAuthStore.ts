@@ -8,6 +8,15 @@ const normalizeCurrency = (raw: string | undefined | null): 'USD' | 'CDF' => {
   return 'CDF';
 };
 
+const normalizeModules = (mods: string[] = []) => {
+  const set = new Set(mods);
+  if (set.has('analytics')) {
+    set.delete('analytics');
+    set.add('stats');
+  }
+  return Array.from(set);
+};
+
 interface EntrepriseInfo {
   nom?: string;
   devise?: string;
@@ -186,9 +195,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Fix: if server returns empty [], prefer localStorage to avoid erasing toggled modules
       const serverModules = prefs.enabledModules;
       const localModules = JSON.parse(localStorage.getItem('enabledModules') || '[]');
-      const modules = (Array.isArray(serverModules) && serverModules.length > 0)
+      const modules = normalizeModules((Array.isArray(serverModules) && serverModules.length > 0)
         ? serverModules
-        : (localModules.length > 0 ? localModules : (serverModules || []));
+        : (localModules.length > 0 ? localModules : (serverModules || [])));
       const rate = Number(prefs.exchangeRate || parseFloat(localStorage.getItem('exchangeRate') || '0'));
 
       // Update localStorage with latest server data (including nom changes)
