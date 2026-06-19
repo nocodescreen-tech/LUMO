@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, X, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
+import { Send, Bot, Loader2, Sparkles, X, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api/axios';
+import useAuthStore from '../../store/useAuthStore';
 
 const AIChat = () => {
     const [messages, setMessages] = useState<{role: 'user' | 'ai', content: string}[]>([]);
@@ -42,11 +43,7 @@ const AIChat = () => {
         setLoading(true);
 
         try {
-            const auth = localStorage.getItem('lumo-auth');
-            let token = '';
-            if (auth) {
-               token = JSON.parse(auth).token;
-            }
+            const token = useAuthStore.getState().token || '';
 
             const response = await fetch(`${(import.meta as any).env.VITE_API_BASE_URL || '/api'}/ai/chat`, {
                 method: 'POST',
