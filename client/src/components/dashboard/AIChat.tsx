@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, Loader2, Sparkles, X, MessageSquare, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api/axios';
-import useAuthStore from '../../store/useAuthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const AIChat = () => {
-    const [messages, setMessages] = useState<{role: 'user' | 'ai', content: string}[]>([]);
+    const [messages, setMessages] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
@@ -87,13 +87,13 @@ const AIChat = () => {
                                     newMsgs[newMsgs.length - 1] = { role: 'ai', content: aiText };
                                     return newMsgs;
                                 });
-                            } catch(e) {}
+                            } catch (e) { }
                         }
                     }
                 }
             }
         } catch (error: any) {
-            const msg = error.message?.includes('Clé') 
+            const msg = error.message?.includes('Clé')
                 ? "⚙️ L'IA n'est pas configurée. Ajoutez DEEPSEEK_API_KEY dans votre fichier .env."
                 : "Désolé, je rencontre une petite difficulté technique. Réessayez.";
             setMessages(prev => {
@@ -110,15 +110,15 @@ const AIChat = () => {
         <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1100 }}>
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="shadow-2xl"
-                        style={{ 
-                            width: isExpanded ? '600px' : '380px', 
-                            height: isExpanded ? '700px' : '520px', 
-                            borderRadius: '28px', 
+                        style={{
+                            width: isExpanded ? '600px' : '380px',
+                            height: isExpanded ? '700px' : '520px',
+                            borderRadius: '28px',
                             border: '1px solid var(--border)',
                             backgroundColor: 'var(--bg-card)',
                             display: 'flex',
@@ -159,7 +159,7 @@ const AIChat = () => {
                                 </div>
                             )}
                             {messages.map((m, i) => (
-                                <div key={i} style={{ 
+                                <div key={i} style={{
                                     alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
                                     maxWidth: '85%',
                                     padding: '14px 18px',
@@ -185,14 +185,14 @@ const AIChat = () => {
 
                         {/* Input Area */}
                         <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px', backgroundColor: '#1A1A28', flexShrink: 0 }}>
-                            <input 
+                            <input
                                 type="text"
                                 placeholder="Posez votre question..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#232333', color: '#e2e8f0', outline: 'none', fontSize: '0.9rem', fontWeight: 500 }}
                             />
-                            <button 
+                            <button
                                 type="submit"
                                 disabled={loading || !input.trim()}
                                 style={{ width: '44px', height: '44px', borderRadius: '14px', border: 'none', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.2s', flexShrink: 0 }}
@@ -204,25 +204,25 @@ const AIChat = () => {
                 )}
             </AnimatePresence>
 
-            <motion.button 
+            <motion.button
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
                     setIsOpen(!isOpen);
                     if (!isOpen) setHasUnread(false);
                 }}
-                style={{ 
-                    width: '64px', height: '64px', borderRadius: '22px', 
-                    background: 'var(--grad-primary)', color: 'white', 
-                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                style={{
+                    width: '64px', height: '64px', borderRadius: '22px',
+                    background: 'var(--grad-primary)', color: 'white',
+                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', boxShadow: '0 15px 30px -10px rgba(99, 102, 241, 0.6)',
                     position: 'relative'
                 }}
             >
                 {hasUnread && !isOpen && (
-                    <div style={{ 
-                        position: 'absolute', top: '-4px', right: '-4px', 
-                        width: '20px', height: '20px', backgroundColor: '#ef4444', 
+                    <div style={{
+                        position: 'absolute', top: '-4px', right: '-4px',
+                        width: '20px', height: '20px', backgroundColor: '#ef4444',
                         border: '3px solid white', borderRadius: '50%',
                         boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
                     }}></div>
