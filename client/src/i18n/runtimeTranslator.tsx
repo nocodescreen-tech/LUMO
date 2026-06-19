@@ -374,6 +374,12 @@ export const useRuntimeTranslator = () => {
   const language = useAuthStore((state) => state.language);
 
   useEffect(() => {
+    // Only translate when language is English (FR→EN).
+    // When language is French, the UI is already in French and the enToFr
+    // dictionary can incorrectly translate English-looking French words
+    // (e.g. "Stock" → "Mouvements de" via the stockHistoryTitle key collision).
+    if (language !== 'en') return;
+
     const apply = () => translateNode(document.body, language);
     apply();
 

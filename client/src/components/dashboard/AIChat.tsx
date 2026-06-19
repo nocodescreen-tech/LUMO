@@ -64,14 +64,21 @@ const AIChat = () => {
             let aiText = '';
 
             if (reader) {
+                let buffer = '';
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    
+                    // keep the last line in the buffer because it might be incomplete
+                    buffer = lines.pop() || '';
+
                     for (const line of lines) {
+                        if (line.trim() === '') continue;
                         if (line.startsWith('data: ')) {
-                            const dataStr = line.slice(6);
+                            const dataStr = line.slice(6).trim();
                             if (dataStr === '[DONE]') {
                                 break;
                             }
@@ -87,7 +94,9 @@ const AIChat = () => {
                                     newMsgs[newMsgs.length - 1] = { role: 'ai', content: aiText };
                                     return newMsgs;
                                 });
-                            } catch (e) { }
+                            } catch (e) {
+                                console.error("Parse error on chunk:", dataStr, e);
+                            }
                         }
                     }
                 }

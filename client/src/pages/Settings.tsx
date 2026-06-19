@@ -180,8 +180,8 @@ const TwoFASection = () => {
             <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{t('twoFactorAuth')}</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
-                ? 'Activée - Code Google Authenticator requis à chaque connexion'
-                : 'Désactivée - Activez pour protéger votre compte avec Google Authenticator (TOTP)'}
+                ? t('twoFactorEnabledDesc')
+                : t('twoFactorDisabledDesc')}
             </p>
           </div>
         </div>
@@ -196,7 +196,7 @@ const TwoFASection = () => {
             opacity: loading2FA ? 0.6 : 1
           }}
         >
-          {loading2FA ? 'En cours...' : is2FAEnabled ? 'Désactiver' : 'Activer'}
+          {loading2FA ? t('inProgress') : is2FAEnabled ? t('deactivateBtn') : t('activateBtn')}
         </button>
       </div>
 
@@ -1442,8 +1442,8 @@ const Settings = () => {
             {activeTab === 'security' && (
               <motion.div key="security" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Coffre-Fort & Accès</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Renforcez la sécurité de votre compte administrateur.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('vaultAccess')}</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('vaultAccessDesc')}</p>
                 </div>
 
                 {/* 2FA Toggle */}
@@ -1451,12 +1451,12 @@ const Settings = () => {
 
                 <div style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Modifier Mot de Passe</label>
+                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>{t('changePassword')}</label>
                     <div style={{ position: 'relative' }}>
                       <Key size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Nouveau mot de passe (8+ car.)"
+                        placeholder={t('passwordPlaceholder')}
                         value={profileData.motDePasse}
                         maxLength={100}
                         onChange={(e) => setProfileData({ ...profileData, motDePasse: e.target.value })}
@@ -1492,12 +1492,12 @@ const Settings = () => {
                     )}
                   </div>
                   <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: '1.5' }}>
-                    ⚠️ Les modifications de mot de passe sont irréversibles. Assurez-vous d'avoir noté votre nouvelle clé d'accès.
+                    <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('passwordWarning')}</p>
                   </div>
 
                   <div style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1.5px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Save size={20} color="var(--primary)" /> Gestion des Données
+                      <Save size={20} color="var(--primary)" /> {t('dataManagement')}
                     </h3>
 
                     <div style={{
@@ -1515,11 +1515,11 @@ const Settings = () => {
                           <Clock size={24} />
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontWeight: 900, fontSize: '1rem' }}>Sauvegarde Automatique (Cron)</p>
+                          <p style={{ margin: 0, fontWeight: 900, fontSize: '1rem' }}>{t('autoBackupTitle')}</p>
                           <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                             {autoBackupEnabled
-                              ? 'Activée - Sauvegarde quotidienne à minuit.'
-                              : 'Désactivée - Les données ne sont pas sauvegardées.'}
+                              ? t('autoBackupEnabled')
+                              : t('autoBackupDisabled')}
                           </p>
                         </div>
                       </div>
@@ -1560,7 +1560,7 @@ const Settings = () => {
                       >
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                           <Clock size={18} style={{ color: 'var(--primary)' }} />
-                          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Heure de la sauvegarde quotidienne</span>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{t('dailyBackupTime')}</span>
                         </div>
                         <input
                           type="time"
@@ -1594,7 +1594,7 @@ const Settings = () => {
                         }}
                       >
                         {backupLoading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                        Télécharger (JSON)
+                        {t('downloadJson')}
                       </motion.button>
 
                       <motion.button
@@ -1611,18 +1611,17 @@ const Settings = () => {
                         }}
                       >
                         {emailBackupLoading ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-                        Envoyer par e-mail
+                        {t('sendByEmail')}
                       </motion.button>
                     </div>
 
                     {/* Section Restauration */}
                     <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1.5px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <RefreshCcw size={20} color="var(--secondary)" /> Restauration des données
+                        <RefreshCcw size={20} color="var(--secondary)" /> {t('restoreData')}
                       </h3>
                       <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
-                        Importez un fichier de sauvegarde JSON pour restaurer vos listes de produits, clients et ventes.
-                        Note: Les doublons seront ignorés.
+                        {t('restoreDataDesc')}
                       </p>
 
                       <div style={{ position: 'relative' }}>
@@ -1645,7 +1644,7 @@ const Settings = () => {
                           }}
                         >
                           <Upload size={32} color="var(--text-muted)" />
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>Cliquez pour choisir un fichier JSON</span>
+                          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{t('clickToChooseJSON')}</span>
                         </motion.button>
                       </div>
 

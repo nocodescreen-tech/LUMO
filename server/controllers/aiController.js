@@ -31,19 +31,19 @@ const MODEL = process.env.AI_MODEL || (process.env.AI_PROVIDER === "ollama" ? "l
 const buildLumoKnowledge = async (userId, user) => {
     // 1. Récupérer toutes les données en parallèle pour la performance
     const [products, sales, staffPayments, clients, fournisseurs, purchases, globalSettings] = await Promise.all([
-        Product.findAll({ where: { userId } }),
-        Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']] }),
-        StaffPayment.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']] }),
-        Client.findAll({ where: { userId }, order: [['nom', 'ASC']] }),
-        Fournisseur.findAll({ where: { userId }, order: [['entreprise', 'ASC']] }),
-        Purchase.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']] }),
+        Product.findAll({ where: { userId }, attributes: ['nom', 'stock', 'stockAlerte', 'prixVente', 'prix', 'devise'] }),
+        Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']], attributes: ['montantTotal', 'createdAt', 'modePaiement'] }),
+        StaffPayment.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']], attributes: ['amount', 'devise', 'type'] }),
+        Client.findAll({ where: { userId }, order: [['nom', 'ASC']], attributes: ['nom', 'telephone', 'detteTotale'] }),
+        Fournisseur.findAll({ where: { userId }, order: [['entreprise', 'ASC']], attributes: ['entreprise', 'nom', 'telephone'] }),
+        Purchase.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']], attributes: ['montantTotal'] }),
         GlobalSetting.findAll()
     ]);
 
     // 2. Traitement des données
-    const totalStock = products.reduce((acc, p) => acc + (p.stock || 0), 0);
-    const lowStockProducts = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
-    const totalRevenueSales = sales.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
+    const totalStock = products.reduce((acc, p) => acc + parseInt(p.stock || 0, 10), 0);
+    const lowStockProducts = products.filter(p => parseInt(p.stock || 0, 10) <= parseInt(p.stockAlerte || 5, 10));
+    const totalRevenueSales = sales.reduce((acc, s) => acc + parseFloat(s.montantTotal || 0), 0);
     const totalDebtClients = clients.reduce((acc, c) => acc + parseFloat(c.detteTotale || 0), 0);
     const totalStaffExpenses = staffPayments.reduce((acc, sp) => acc + parseFloat(sp.amount || 0), 0);
 

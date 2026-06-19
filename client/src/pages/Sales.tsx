@@ -99,8 +99,8 @@ const Sales = () => {
         const rate = Number(sale?.tauxChange || exchangeRate);
         const altCurrency = saleCurrency === 'USD' ? 'CDF' : 'USD';
 
-        // Backend stores montantTotal in shop currency; rebuild original amount in sale currency
-        const originalAmount = convertAmount(storedAmount, shopCurrency, saleCurrency, rate);
+        // The backend stores montantTotal directly in the saleCurrency. No need to reconstruct it from shopCurrency.
+        const originalAmount = storedAmount;
         const convertedAmount = convertAmount(originalAmount, saleCurrency, altCurrency, rate);
         const displayCurrencyAmount = convertAmount(originalAmount, saleCurrency, currency, rate);
 
