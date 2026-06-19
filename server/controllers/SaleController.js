@@ -155,12 +155,7 @@ exports.createSale = async (req, res, next) => {
     const computedTotalSaleCurrency = Array.isArray(items) ? items.reduce((acc, it) => acc + (Number(it.prixUnitaire ?? it.prix ?? 0) * Number(it.quantite || 0)), 0) : 0;
     const safeMontantTotal = Number.isFinite(computedTotalSaleCurrency) && computedTotalSaleCurrency > 0 ? computedTotalSaleCurrency : Number(montantTotal);
 
-    let montantTotalNormalized = safeMontantTotal;
-    if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-      montantTotalNormalized = Math.round(montantTotalNormalized * finalRate);
-    } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-      montantTotalNormalized = Math.round((montantTotalNormalized / finalRate) * 100) / 100;
-    }
+    const montantTotalNormalized = safeMontantTotal;
 
     // Normaliser prixUnitaire en CDF avant calcul du profitNet
     const articles = Array.isArray(items)
