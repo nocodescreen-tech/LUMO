@@ -9,16 +9,10 @@ import { useAuthStore } from '../store/useAuthStore';
  * Format a number with appropriate precision based on magnitude
  */
 const formatSmart = (num: number): string => {
-  const abs = Math.abs(num);
-  if (abs >= 1_000_000_000) {
-    return (num / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'B';
-  } else if (abs >= 1_000_000) {
-    return (num / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
-  } else if (abs >= 1_000) {
-    return (num / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'K';
-  } else {
-    return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  }
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 };
 
 /**
