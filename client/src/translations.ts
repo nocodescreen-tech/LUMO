@@ -11,6 +11,11 @@ export const translations: Record<string, Record<string, string>> = {
     activities: 'Activites',
     stats: 'Statistiques',
     settings: 'Parametres',
+    stockHistoryNav: 'Historique Stock',
+    cashNav: 'Trésorerie',
+    adminPlatform: 'Admin Platform',
+    globalSettings: 'Paramètres Globaux',
+    auditLogs: 'Audit Logs',
     logout: 'Deconnexion',
     search: 'Rechercher...',
     save: 'Enregistrer les modifications',
@@ -775,12 +780,7 @@ export const translations: Record<string, Record<string, string>> = {
     'currentTheme': 'Thème actuel',
     'midnightDark': 'Nuit Profonde',
     'zenLight': 'Zen Lumineux',
-    'teamManagement': "Gestion de l'équipe",
-    'teamSubtitle': 'Gérez les accès de vos collaborateurs',
-    'addMemberBtn': 'Ajouter un membre',
-    'noTeamMembers': 'Aucun collaborateur trouvé.',
-    'memberDeleted': 'Membre supprimé avec succès',
-    'memberDeleteError': 'Erreur lors de la suppression',
+
   },
   en: {
     dashboard: 'Dashboard',
@@ -1557,12 +1557,7 @@ export const translations: Record<string, Record<string, string>> = {
     'currentTheme': 'Current Theme',
     'midnightDark': 'Midnight Dark',
     'zenLight': 'Zen Light',
-    'teamManagement': 'Team Management',
-    'teamSubtitle': 'Manage your team members accesses',
-    'addMemberBtn': 'Add a member',
-    'noTeamMembers': 'No team members found.',
-    'memberDeleted': 'Member deleted successfully',
-    'memberDeleteError': 'Error deleting member',
+
   
     passwordRequirements: 'Password must be between 8 and 100 characters long, containing at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#).',}
 };
