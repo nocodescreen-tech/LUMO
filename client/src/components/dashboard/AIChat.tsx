@@ -181,7 +181,15 @@ const AIChat = () => {
                                     fontWeight: 500,
                                     boxShadow: m.role === 'user' ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
                                 }}>
-                                    {m.content}
+                                    {m.content.split(/(\*\*.*?\*\*|\n)/g).map((part, idx) => {
+                                        if (part === '\n') {
+                                            return <br key={idx} />;
+                                        }
+                                        if (part.startsWith('**') && part.endsWith('**')) {
+                                            return <strong key={idx}>{part.slice(2, -2)}</strong>;
+                                        }
+                                        return <span key={idx}>{part}</span>;
+                                    })}
                                 </div>
                             ))}
                             {loading && messages[messages.length - 1]?.role === 'user' && (
