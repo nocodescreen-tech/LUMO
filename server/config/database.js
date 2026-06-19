@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 const config = require('./index');
 
-const isRailway = !!config.databaseUrl;
+const isRailway = config.databaseUrl && (config.databaseUrl.startsWith('postgres://') || config.databaseUrl.startsWith('postgresql://'));
 const isTest = process.env.NODE_ENV === 'test' || !!process.env.JEST_WORKER_ID;
 const forceSsl = process.env.DB_SSL === 'true';
 const useSsl = !isTest && (isRailway || forceSsl);
