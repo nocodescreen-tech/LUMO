@@ -126,7 +126,7 @@ const TwoFASection = () => {
   const handleActivate2FA = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.length !== 6) {
-      toast.error(t('VeuillezentreruMsg'));
+      toast.error(t('twoFACodeError'));
       return;
     }
     setActivating(true);
@@ -266,6 +266,60 @@ const TwoFASection = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      ), document.body)}
+
+      {/* TOTP Disable Modal */}
+      {showDisableModal && createPortal((
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            style={{ width: '100%', maxWidth: '400px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.5)' }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>
+                <ShieldCheck size={32} />
+              </div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: '0 0 8px' }}>{t('twoFADisable')}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
+                {t('twoFADisablePasswordPrompt')}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <input
+                type="password"
+                placeholder={t('currentPassword')}
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                style={{
+                  padding: '16px', borderRadius: '16px', border: '2px solid var(--border)',
+                  backgroundColor: 'var(--bg-main)', color: 'var(--text-main)',
+                  fontSize: '1rem', fontWeight: 700, width: '100%',
+                  outline: 'none', boxSizing: 'border-box'
+                }}
+                autoFocus
+              />
+              
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowDisableModal(false); setDisablePassword(''); }}
+                  style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  {t('cancelBtn')}
+                </button>
+                <button
+                  onClick={handleDisable2FA}
+                  disabled={loading2FA || !disablePassword}
+                  style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 800, cursor: loading2FA || !disablePassword ? 'not-allowed' : 'pointer', opacity: loading2FA || !disablePassword ? 0.6 : 1 }}
+                >
+                  {loading2FA ? t('verifying') : t('confirmBtn')}
+                </button>
+              </div>
+            </div>
           </motion.div>
         </div>
       ), document.body)}
@@ -443,11 +497,11 @@ const TeamSection = () => {
     if (!confirmDelete.id) return;
     try {
       await api.delete(`/subusers/${confirmDelete.id}`);
-      toast.success(t('MembresupprimMsg'));
+      toast.success(t('memberDeleted'));
       setConfirmDelete({ isOpen: false, id: null, name: '' });
       fetchSubUsers();
     } catch (err) {
-      toast.error(t('ErreurlorsdelasMsg'));
+      toast.error(t('memberDeleteError'));
     }
   };
 
@@ -473,7 +527,7 @@ const TeamSection = () => {
         staffId: selectedStaff.id,
         ...paymentData
       });
-      toast.success(t('PaiementenregisMsg'));
+      toast.success(t('paymentRecorded'));
       setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
       openPaymentModal(selectedStaff); // Refresh list
     } catch (err) {
@@ -486,14 +540,14 @@ const TeamSection = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('teamManagement')}</h2>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Créez et gérez les accès pour vos vendeurs et gestionnaires.</p>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('teamSubtitle')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-premium primary"
           style={{ padding: '12px 24px' }}
         >
-          + Ajouter un membre
+          {t('addMemberBtn')}
         </button>
       </div>
 
@@ -505,7 +559,7 @@ const TeamSection = () => {
         ) : subUsers.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '24px' }}>
             <Users size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Aucun membre dans votre équipe pour le moment.</p>
+            <p style={{ fontWeight: 800, color: 'var(--text-muted)' }}>{t('noTeamMembers')}</p>
           </div>
         ) : subUsers.map(u => (
           <motion.div
@@ -531,7 +585,7 @@ const TeamSection = () => {
                 <button
                   onClick={() => openPaymentModal(u)}
                   style={{ background: 'var(--primary-glow)', border: 'none', color: 'var(--primary)', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
-                  title="Gérer les paiements"
+                  title={t('managePayments')}
                 >
                   <Wallet size={18} />
                 </button>
@@ -857,7 +911,7 @@ const Settings = () => {
       const updated = resData.success && resData.data ? resData.data : resData;
 
       updateUser(updated);
-      toast.success(t('PhotodeprofilmiMsg'));
+      toast.success(t('profilePhotoUpdated'));
     } catch (error: any) {
       console.error("Upload Error:", error);
       toast.error(error.response?.data?.message || "Échec de l'upload de l'image.");
@@ -934,7 +988,7 @@ const Settings = () => {
       setProfileData(prev => ({ ...prev, motDePasse: '' }));
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
-      toast.success(t('ParamtresenregiMsg'));
+      toast.success(t('settingsSaved'));
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erreur lors de l'enregistrement");
     } finally {
@@ -960,9 +1014,9 @@ const Settings = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success(t('SauvegardetlchaMsg'));
+      toast.success(t('backupDownloaded'));
     } catch (error) {
-      toast.error(t('ErreurlorsdelagMsg'));
+      toast.error(t('backupGenerateError'));
     } finally {
       setBackupLoading(false);
     }
@@ -993,7 +1047,7 @@ const Settings = () => {
         const response = await api.post('/backup/preview', content);
         setRestorePreview({ ...response.data, rawData: content });
       } catch (error) {
-        toast.error(t('FichierinvalideMsg'));
+        toast.error(t('invalidBackupFile'));
       }
     };
     reader.readAsText(file);
@@ -1017,12 +1071,12 @@ const Settings = () => {
   };
 
   const allTabs = [
-    { id: 'profile', label: 'Mon Profil', icon: UserIcon, color: 'var(--primary)' },
-    { id: 'business', label: 'Mon Enseigne', icon: Store, color: 'var(--secondary)' },
-    { id: 'appearance', label: 'Interface', icon: Palette, color: '#f59e0b' },
-    { id: 'modules', label: 'Modules & IA', icon: Cpu, color: '#ef4444', adminOnly: true },
-    { id: 'team', label: 'Mon Équipe', icon: Users, color: '#10b981', adminOnly: true },
-    { id: 'security', label: 'Sécurité', icon: ShieldCheck, color: '#6366f1', adminOnly: true },
+    { id: 'profile', label: t('myProfile'), icon: UserIcon, color: 'var(--primary)' },
+    { id: 'business', label: t('myBusiness'), icon: Store, color: 'var(--secondary)' },
+    { id: 'appearance', label: t('interface'), icon: Palette, color: '#f59e0b' },
+    { id: 'modules', label: t('modulesAI'), icon: Cpu, color: '#ef4444', adminOnly: true },
+    { id: 'team', label: t('myTeam'), icon: Users, color: '#10b981', adminOnly: true },
+    { id: 'security', label: t('security'), icon: ShieldCheck, color: '#6366f1', adminOnly: true },
   ];
 
   const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
@@ -1041,8 +1095,8 @@ const Settings = () => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>Paramètres <span style={{ color: 'var(--primary)', opacity: 0.5 }}>Système</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>Contrôlez chaque aspect de votre plateforme LUMO.</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>{t('settingsSystem').split(' ')[0]} <span style={{ color: 'var(--primary)', opacity: 0.5 }}>{t('settingsSystem').split(' ').slice(1).join(' ')}</span></h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('settingsSubtitle')}</p>
         </div>
         <button
           onClick={() => setShowLogoutConfirm(true)}
@@ -1097,8 +1151,8 @@ const Settings = () => {
             {activeTab === 'profile' && (
               <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>Identité Personnelle</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Gérez votre avatar et vos informations de contact professionnelles.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0', letterSpacing: '-0.03em' }}>{t('personalIdentity')}</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('personalIdentitySubtitle')}</p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '32px', padding: '24px', background: 'var(--bg-main)', borderRadius: '24px', border: '1.5px solid var(--border)' }}>
@@ -1127,7 +1181,7 @@ const Settings = () => {
                     <h3 style={{ margin: '0 0 6px 0', fontSize: '1.3rem', fontWeight: '900' }}>{user?.nom}</h3>
                     <p style={{ margin: '0 0 12px 0', color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 600 }}>ID Membre: #{user?.id}</p>
                     <button onClick={() => fileInputRef.current?.click()} className="btn-premium primary" style={{ padding: '10px 20px', fontSize: '0.85rem' }}>
-                      Mettre à jour la photo
+                      {t('updatePhoto')}
                     </button>
                   </div>
                 </div>
@@ -1197,8 +1251,8 @@ const Settings = () => {
             {activeTab === 'business' && (
               <motion.div key="business" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Configuration Enseigne</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Ces informations apparaîtront sur vos factures et rapports d'activité.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('businessConfig')}</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('businessConfigSubtitle')}</p>
                 </div>
 
                 <div style={{ padding: '24px', borderRadius: '24px', background: 'var(--secondary-glow)', border: '1.5px solid var(--secondary)', display: 'flex', alignItems: 'center', gap: '18px', position: 'relative' }}>
@@ -1221,14 +1275,14 @@ const Settings = () => {
                     disabled={uploadingLogo}
                     style={{ position: 'absolute', right: '24px', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem' }}
                   >
-                    <Camera size={16} /> Changer Logo
+                    <Camera size={16} /> {t('changeLogo')}
                   </button>
                 </div>
 
                 <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                  <InputField label="Nom Commercial" icon={Store} value={profileData.entreprise.nom} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, nom: e.target.value } })} placeholder="Ex: Boutique Elite" />
+                  <InputField label={t('commercialName')} icon={Store} value={profileData.entreprise.nom} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, nom: e.target.value } })} placeholder="Ex: Boutique Elite" />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>Devise de Travail</label>
+                    <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-muted)', marginLeft: '4px' }}>{t('workCurrency')}</label>
                     <div style={{ position: 'relative' }}>
                       <Coins size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
                       <select
@@ -1258,7 +1312,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
-                    <InputField label="Adresse Physique" icon={MapPin} value={profileData.entreprise.adresse} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, adresse: e.target.value } })} placeholder="Numéro, Rue, Ville, Pays" />
+                    <InputField label={t('physicalAddress')} icon={MapPin} value={profileData.entreprise.adresse} onChange={(e: any) => setProfileData({ ...profileData, entreprise: { ...profileData.entreprise, adresse: e.target.value } })} placeholder="Numéro, Rue, Ville, Pays" />
                   </div>
                 </div>
               </motion.div>
@@ -1268,8 +1322,8 @@ const Settings = () => {
             {activeTab === 'appearance' && (
               <motion.div key="appearance" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Expérience Visuelle</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Personnalisez l'apparence du système selon vos préférences de travail.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('visualExperience')}</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('visualExperienceSubtitle')}</p>
                 </div>
 
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1278,8 +1332,8 @@ const Settings = () => {
                       <Palette size={24} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>Mode Sombre / Clair</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Thème actuel: {theme === 'dark' ? 'Minuit / Sombre' : 'Zen / Clair'}</p>
+                      <p style={{ fontWeight: '900', margin: 0 }}>{t('darkModeClair')}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{t('currentTheme')}: {theme === 'dark' ? t('midnightDark') : t('zenLight')}</p>
                     </div>
                   </div>
                   <div
@@ -1296,8 +1350,8 @@ const Settings = () => {
                       <Globe size={24} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>Langue du Système</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>Traduction complète de l'interface.</p>
+                      <p style={{ fontWeight: '900', margin: 0 }}>{t('systemLanguage')}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{t('systemLanguageDesc')}</p>
                     </div>
                   </div>
                   <select
@@ -1316,9 +1370,9 @@ const Settings = () => {
                       <Bell size={24} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>Son des Notifications</p>
+                      <p style={{ fontWeight: '900', margin: 0 }}>{t('notificationSound')}</p>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
-                        {notificationSoundEnabled ? 'Un son "cling" est joué lors des nouvelles notifications.' : 'Les notifications restent visuelles uniquement (sans son).'}
+                        {notificationSoundEnabled ? t('notificationSoundEnabled') : t('notificationSoundDisabled')}
                       </p>
                     </div>
                   </div>
@@ -1343,18 +1397,17 @@ const Settings = () => {
             {activeTab === 'modules' && (
               <motion.div key="modules" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>Hub de Modules</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>Activez des modules supplémentaires pour votre commerce.</p>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('moduleHub')}</h2>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('moduleHubSubtitle')}</p>
                 </div>
 
                 {[
-                  { id: 'ai', label: 'Intelligence Artificielle', desc: 'Analyses DeepSeek AI et prévisions de vente.', icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
-                  { id: 'suppliers', label: 'Gestion Fournisseurs', desc: 'Stocks et créances fournisseurs.', icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
-                  { id: 'debts', label: 'Crédit Client', desc: 'Suivi des impayés et relances.', icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
-                  { id: 'analytics', label: 'Dashboard Avancé', desc: 'Rapports graphiques et KPI exports.', icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
-                  { id: 'cash', label: 'Gestion de Caisse', desc: 'Sessions de caisse et rapports de clôture.', icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
-
-                  { id: 'barcode', label: 'Scanner Code-barres', desc: 'Support caméra mobile et scanners USB.', icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
+                  { id: 'ai', label: t('moduleAI'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
+                  { id: 'suppliers', label: t('moduleSuppliers'), desc: t('moduleSuppliersDesc'), icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
+                  { id: 'debts', label: t('moduleDebts'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
+                  { id: 'analytics', label: t('moduleAnalytics'), desc: t('moduleAnalyticsDesc'), icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
+                  { id: 'cash', label: t('moduleCash'), desc: t('moduleCashDesc'), icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
+                  { id: 'barcode', label: t('moduleBarcode'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
                     key={mod.id}
@@ -1708,7 +1761,7 @@ const Settings = () => {
               }}
             >
               {saving ? <Loader2 size={20} className="animate-spin" /> : savedSuccess ? <CheckCircle size={20} /> : <Save size={20} />}
-              {saving ? 'Synchronisation...' : savedSuccess ? 'Modifications Appliquées' : 'Sauvegarder les changements'}
+              {saving ? t('syncing') : savedSuccess ? t('changesApplied') : t('saveChanges')}
             </motion.button>
           </div>
         </div>
@@ -1717,8 +1770,8 @@ const Settings = () => {
       <Modal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
-        title="Se déconnecter ?"
-        subtitle="Confirmez-vous vouloir mettre fin à votre session actuelle ?"
+        title={t('logout') + ' ?'}
+        subtitle={t('logoutConfirm')}
         icon={LogOut}
         maxWidth="450px"
       >
@@ -1735,7 +1788,7 @@ const Settings = () => {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
             }}
           >
-            <LogOut size={18} /> Oui, me déconnecter
+            <LogOut size={18} /> {t('yesLogout')}
           </button>
           <button
             onClick={() => setShowLogoutConfirm(false)}
@@ -1744,7 +1797,7 @@ const Settings = () => {
               background: 'transparent', color: 'var(--text-main)', fontWeight: '700', fontSize: '1rem', cursor: 'pointer'
             }}
           >
-            Annuler
+            {t('cancelBtn')}
           </button>
         </div>
       </Modal>

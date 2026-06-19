@@ -20,8 +20,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     onConfirm,
     title,
     message,
-    confirmText = "Confirmer",
-    cancelText = "Annuler",
+    confirmText,
+    cancelText,
     type = 'danger'
 }) => {
     const { t } = useTranslation();
