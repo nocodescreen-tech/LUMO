@@ -327,19 +327,21 @@ const POS = () => {
         }
     };
 
-    const getSaleTotal = () => {
-        const totalInGlobal = getTotal();
-        if (saleCurrency === currency) return totalInGlobal;
-        if (currency === 'USD' && saleCurrency === 'CDF' && exchangeRate) return Math.round(totalInGlobal * exchangeRate);
-        if (currency === 'CDF' && saleCurrency === 'USD' && exchangeRate) return Math.round((totalInGlobal / exchangeRate) * 100) / 100;
-        return totalInGlobal;
+    const getCartItemPriceInSaleCurrency = (item: any) => {
+        const rawPrice = item.prixOriginal || item.prix || 0;
+        const deviseOrigin = item.deviseOriginal || currency;
+        if (deviseOrigin === saleCurrency) return rawPrice;
+        if (deviseOrigin === 'USD' && saleCurrency === 'CDF' && exchangeRate) return Math.round(rawPrice * exchangeRate);
+        if (deviseOrigin === 'CDF' && saleCurrency === 'USD' && exchangeRate) return Math.round((rawPrice / exchangeRate) * 100) / 100;
+        return rawPrice;
     };
 
-    const displayCartItemPrice = (itemPrice: number) => {
-        if (saleCurrency === currency) return `${Number(itemPrice).toLocaleString()} ${currency}`;
-        if (currency === 'USD' && saleCurrency === 'CDF' && exchangeRate) return `${Math.round(itemPrice * exchangeRate).toLocaleString()} CDF`;
-        if (currency === 'CDF' && saleCurrency === 'USD' && exchangeRate) return `${(Math.round((itemPrice / exchangeRate) * 100) / 100).toLocaleString()} USD`;
-        return `${Number(itemPrice).toLocaleString()} ${saleCurrency}`;
+    const getSaleTotal = () => {
+        return cart.reduce((acc, item) => acc + (getCartItemPriceInSaleCurrency(item) * item.quantite), 0);
+    };
+
+    const displayCartItemPrice = (item: any) => {
+        return `${Number(getCartItemPriceInSaleCurrency(item)).toLocaleString()} ${saleCurrency}`;
     };
 
     const handleCheckout = () => {
@@ -355,26 +357,22 @@ const POS = () => {
         setClientEmail(finalClientEmail);
         
         const saleTotal = getSaleTotal();
-        const toSaleCurrency = (amountInGlobalCurrency: number) => {
-            if (saleCurrency === currency) return amountInGlobalCurrency;
-            if (currency === 'USD' && saleCurrency === 'CDF' && exchangeRate) return Math.round(amountInGlobalCurrency * exchangeRate * 100) / 100;
-            if (currency === 'CDF' && saleCurrency === 'USD' && exchangeRate) return Math.round((amountInGlobalCurrency / exchangeRate) * 100) / 100;
-            return amountInGlobalCurrency;
-        };
         const salePayload = {
-            items: cart.map(item => ({
-                id: item.id,
-                nom: item.nom,
-                prix: toSaleCurrency(item.prix),
-                prixUnitaire: toSaleCurrency(item.prix),
+            items: cart.map(item => {
+                const itemSalePrice = getCartItemPriceInSaleCurrency(item);
+                return {
+                    id: item.id,
+                    nom: item.nom,
+                    prix: itemSalePrice,
+                    prixUnitaire: itemSalePrice,
                 prixAchat: item.prixAchat || 0,
                 deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                 quantite: item.quantite,
                 metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
                     acc[v.nom] = v.valeur;
                     return acc;
-                }, {})
-            })),
+                };
+            }),
             montantTotal: saleTotal,
             devise: saleCurrency || currency || 'USD',
             tauxChange: Number(exchangeRate) || 2800,
@@ -608,7 +606,7 @@ toast.info(syncMsg);
                                         )}
                                         <div>
                                             <p style={{ fontWeight: 900, color: 'var(--primary)', margin: 0, fontSize: '0.9rem' }}>
-                                                {displayCartItemPrice(Number(item.prix || 0))}
+                                                {displayCartItemPrice(item)}
                                             </p>
                                         </div>
                                     </div>

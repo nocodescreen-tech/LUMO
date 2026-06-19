@@ -686,7 +686,6 @@ export const translations: Record<string, Record<string, string>> = {
     clickChooseJSON: 'Cliquez pour choisir un fichier JSON',
     // Aliases pour Settings.tsx
     autoBackupTitle: 'Sauvegarde Automatique (Cron)',
-    autoBackupDesc: 'Désactivée - Les données ne sont pas sauvegardées.',
     downloadJson: 'Télécharger (JSON)',
     restoreData: 'Restauration des données',
     backupPreview: 'Aperçu de la sauvegarde',
@@ -849,7 +848,6 @@ export const translations: Record<string, Record<string, string>> = {
     clickChooseJSON: 'Click to choose a JSON file',
     // Aliases for Settings.tsx
     autoBackupTitle: 'Automatic Backup (Cron)',
-    autoBackupDesc: 'Disabled - Data is not backed up.',
     downloadJson: 'Download (JSON)',
     restoreData: 'Data Restoration',
 

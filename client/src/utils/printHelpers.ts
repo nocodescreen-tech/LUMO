@@ -87,7 +87,8 @@ export const generateInvoice = (data: any, user: any = null) => {
     const saleCurrency = normalizeCurrency(data?.devise || data?.currency || shopCurrency);
     const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
     const storedTotal = Number(data?.montantTotal || data?.total || 0);
-    const displayTotal = normalizeAmount(storedTotal, shopCurrency, saleCurrency, rate);
+    // storedTotal is already in saleCurrency (data.devise). No need to normalize it from shopCurrency!
+    const displayTotal = storedTotal;
 
     const invoiceData: InvoiceData = {
       ...data,
@@ -264,7 +265,8 @@ export const generateTicket = (data: any, user: any = null) => {
     const saleCurrency = normalizeCurrency(data?.devise || data?.currency || shopCurrency);
     const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
     const storedTotal = Number(data?.montantTotal || data?.total || 0);
-    const displayTotal = normalizeAmount(storedTotal, shopCurrency, saleCurrency, rate);
+    // storedTotal is already in saleCurrency (data.devise). No need to normalize it from shopCurrency!
+    const displayTotal = storedTotal;
 
     const ticketData = {
       ...data,
