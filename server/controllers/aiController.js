@@ -41,9 +41,30 @@ const buildLumoKnowledge = async (userId, user) => {
     ]);
 
     // 2. Traitement des données
+    // Taux de change : priorité aux préférences de l'utilisateur connecté
+    const exchangeRate = user.preferences?.exchangeRate 
+        || user.entreprise?.exchangeRate 
+        || 2800;
+    const shopName = user.entreprise?.nom || 'votre boutique';
+    const shopCurrency = user.entreprise?.devise || 'CDF';
+
     const totalStock = products.reduce((acc, p) => acc + parseInt(p.stock || 0, 10), 0);
     const lowStockProducts = products.filter(p => parseInt(p.stock || 0, 10) <= parseInt(p.stockAlerte || 5, 10));
-    const totalRevenueSales = sales.reduce((acc, s) => acc + parseFloat(s.montantTotal || 0), 0);
+
+    // CA par devise (important : montantTotal est dans la devise de la vente)
+    const salesByCurrency = {};
+    sales.forEach(s => {
+        const dev = (s.devise || 'CDF').toUpperCase();
+        salesByCurrency[dev] = (salesByCurrency[dev] || 0) + parseFloat(s.montantTotal || 0);
+    });
+    const caText = Object.entries(salesByCurrency)
+        .map(([dev, total]) => `${total.toLocaleString()} ${dev}`)
+        .join(' + ') || '0 CDF';
+    // CA total converti en CDF pour référence
+    const totalRevenueCDF = Object.entries(salesByCurrency).reduce((acc, [dev, total]) => {
+        return acc + (dev === 'USD' ? total * exchangeRate : total);
+    }, 0);
+
     const totalDebtClients = clients.reduce((acc, c) => acc + parseFloat(c.detteTotale || 0), 0);
     const totalStaffExpenses = staffPayments.reduce((acc, sp) => acc + parseFloat(sp.amount || 0), 0);
 
@@ -78,12 +99,6 @@ const buildLumoKnowledge = async (userId, user) => {
 
 
 
-    // Paramètres globaux
-    const settingsMap = {};
-    globalSettings.forEach(s => { settingsMap[s.key] = s.value; });
-    const exchangeRate = settingsMap['exchange_rate'] || settingsMap['tauxChange'] || '2800';
-    const shopName = settingsMap['shop_name'] || settingsMap['nomBoutique'] || user.entreprise?.nom || 'votre boutique';
-
     const staffExpensesText = staffPayments.length > 0
         ? staffPayments.slice(0, 5).map(sp => `  - Paiement: ${sp.amount} ${sp.devise} (${sp.type})`).join('\n')
         : '  Aucun paiement de personnel récent.';
@@ -91,7 +106,8 @@ const buildLumoKnowledge = async (userId, user) => {
     // 3. Construire le systemInstruction complet
     const systemInstruction = `Tu es LUMO, l'assistant IA intégré de la plateforme LUMO Pro.
 Tu as accès en temps réel à TOUTES les données de la boutique "${shopName}".
-Utilisateur connecté : ${user.nom || user.name || 'Administrateur'} | Rôle : ${user.role || 'admin'} | Activité : ${user.typeActivite || 'Commerce général'}.
+Utilisateur connecté : ${user.nom || user.name || 'Administrateur'} | Rôle : ${user.role || 'admin'} | Activité : ${user.typeActivite || 'Commerce général'} | Devise principale : ${shopCurrency}.
+⚠️ IMPORTANT : Les montants des ventes sont TOUJOURS dans la devise de la vente (USD ou CDF). Ne mélange JAMAIS ces devises. Utilise le taux de change 1 USD = ${exchangeRate} CDF fourni par l'utilisateur pour les conversions.
 
 ━━━━━━━━━━ 📦 INVENTAIRE COMPLET ━━━━━━━━━━
 Total produits : ${products.length} articles | Total unités en stock : ${totalStock.toLocaleString()}
@@ -117,8 +133,8 @@ ${staffExpensesText}
 ${fournisseursList || '  Aucun fournisseur enregistré.'}
 
 ━━━━━━━━━━ 💰 FINANCES RÉCENTES ━━━━━━━━━━
-CA (${sales.length} dernières ventes) : ${totalRevenueSales.toLocaleString()} FC
-Taux de change : 1 USD = ${exchangeRate} CDF
+CA (${sales.length} dernières ventes) : ${caText} ≈ ${totalRevenueCDF.toLocaleString()} CDF total
+Taux de change configuré par l'utilisateur : 1 USD = ${exchangeRate} CDF
 
 Détail des dernières ventes :
 ${recentSalesList || '  Aucune vente récente.'}
