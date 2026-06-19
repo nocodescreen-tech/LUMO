@@ -1469,11 +1469,11 @@ const Settings = () => {
                     {profileData.motDePasse && (
                       <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {[
-                          { label: '8+ Caract.', met: profileData.motDePasse.length >= 8 },
-                          { label: 'Maj.', met: /[A-Z]/.test(profileData.motDePasse) },
-                          { label: 'Min.', met: /[a-z]/.test(profileData.motDePasse) },
-                          { label: 'Chiffre', met: /\d/.test(profileData.motDePasse) },
-                          { label: 'Symbole', met: /[@$!%*?&#]/.test(profileData.motDePasse) },
+                          { label: t('pwdReq8Chars'), met: profileData.motDePasse.length >= 8 },
+                          { label: t('pwdReqUpper'), met: /[A-Z]/.test(profileData.motDePasse) },
+                          { label: t('pwdReqLower'), met: /[a-z]/.test(profileData.motDePasse) },
+                          { label: t('pwdReqDigit'), met: /\d/.test(profileData.motDePasse) },
+                          { label: t('pwdReqSymbol'), met: /[@$!%*?&#]/.test(profileData.motDePasse) },
                         ].map((req, idx) => (
                           <span key={idx} style={{
                             fontSize: '0.7rem',
