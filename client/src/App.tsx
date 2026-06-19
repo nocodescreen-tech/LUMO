@@ -50,7 +50,7 @@ const LoadingFallback = () => (
 
 const App = () => {
   const { token, checkAuth, theme, user } = useAuthStore();
-  useRuntimeTranslator();
+  // useRuntimeTranslator(); // Disabled due to severe collision bugs (e.g., "Stock" -> "Mouvements de")
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
