@@ -540,14 +540,14 @@ const TeamSection = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('teamManagement')}</h2>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('teamSubtitle')}</p>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('teamManagementDesc')}</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-premium primary"
           style={{ padding: '12px 24px' }}
         >
-          {t('addMemberBtn')}
+          {t('addMember')}
         </button>
       </div>
 
