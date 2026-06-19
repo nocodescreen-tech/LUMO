@@ -31,8 +31,8 @@ const MODEL = process.env.AI_MODEL || (process.env.AI_PROVIDER === "ollama" ? "l
 const buildLumoKnowledge = async (userId, user) => {
     // 1. Récupérer toutes les données en parallèle pour la performance
     const [products, sales, staffPayments, clients, fournisseurs, purchases, globalSettings] = await Promise.all([
-        Product.findAll({ where: { userId }, attributes: ['nom', 'stock', 'stockAlerte', 'prixVente', 'prix', 'devise'] }),
-        Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']], attributes: ['montantTotal', 'createdAt', 'modePaiement'] }),
+        Product.findAll({ where: { userId }, attributes: ['nom', 'stock', 'stockAlerte', 'prix', 'prixAchat', 'devise'] }),
+        Sale.findAll({ where: { userId }, limit: 30, order: [['createdAt', 'DESC']], attributes: ['montantTotal', 'createdAt', 'methodePaiement', 'devise'] }),
         StaffPayment.findAll({ where: { userId }, limit: 20, order: [['createdAt', 'DESC']], attributes: ['amount', 'devise', 'type'] }),
         Client.findAll({ where: { userId }, order: [['nom', 'ASC']], attributes: ['nom', 'telephone', 'detteTotale'] }),
         Fournisseur.findAll({ where: { userId }, order: [['entreprise', 'ASC']], attributes: ['entreprise', 'nom', 'telephone'] }),
@@ -51,7 +51,7 @@ const buildLumoKnowledge = async (userId, user) => {
     const topProductsByStock = [...products]
         .sort((a, b) => (b.stock || 0) - (a.stock || 0))
         .slice(0, 10)
-        .map(p => `${p.nom} (stock: ${p.stock}, prix: ${p.prixVente || p.prix || 'N/A'} ${p.devise || 'CDF'})`)
+        .map(p => `${p.nom} (stock: ${p.stock}, prix: ${p.prix || 'N/A'} ${p.devise || 'CDF'})`)
         .join('\n  ');
 
     // Formatage produits en alerte
@@ -73,7 +73,7 @@ const buildLumoKnowledge = async (userId, user) => {
     // Ventes récentes
     const recentSalesList = sales.slice(0, 10).map(s => {
         const date = new Date(s.createdAt).toLocaleDateString('fr-FR');
-        return `  - ${date}: ${(s.montantTotal || 0).toLocaleString()} FC${s.modePaiement ? ` (${s.modePaiement})` : ''}`;
+        return `  - ${date}: ${(s.montantTotal || 0).toLocaleString()} ${s.devise || 'FC'}${s.methodePaiement ? ` (${s.methodePaiement})` : ''}`;
     }).join('\n');
 
 
