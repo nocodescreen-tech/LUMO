@@ -112,7 +112,7 @@ const Stats = () => {
                           const labelsMap: any = language === 'en'
                             ? { 'today': 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days', '1y': 'Last 12 months' }
                             : { 'today': t('today'), '7d': t('last7days'), '30d': t('last30days'), '1y': t('last12months') };
-                          generateMonthlyReport(data, { ...user, preferences: { currency: displayCurrency } }, labelsMap[period]);
+                          generateMonthlyReport(data, { ...user, preferences: { ...(user?.preferences || {}), currency: displayCurrency } }, labelsMap[period]);
                         }}
                         className="btn-premium primary"
                     >

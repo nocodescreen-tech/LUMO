@@ -371,9 +371,10 @@ const POS = () => {
                 metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
                     acc[v.nom] = v.valeur;
                     return acc;
-                };
-            }),
-            montantTotal: saleTotal,
+                }, {})
+            };
+        }),
+        montantTotal: saleTotal,
             devise: saleCurrency || currency || 'USD',
             tauxChange: Number(exchangeRate) || 2800,
             methodePaiement: paymentMethod || 'Espèces',
