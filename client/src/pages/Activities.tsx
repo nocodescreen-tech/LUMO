@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import {
     Activity,
@@ -140,34 +140,36 @@ const Activities = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
-                        <Database size={14} /> Audit & Traçabilité
+                        <Database size={14} /> {t('activitiesAuditBadge')}
                     </div>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>Journal d'<span className="text-gradient">Activités</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Historique complet des actions effectuées sur votre instance LUMO.</p>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
+                        {t('activitiesTitlePrefix')}<span className="text-gradient">{t('activitiesTitleSuffix')}</span>
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('activitiesSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button
                         onClick={() => {
                             const rows = filtered.map(a => ({
-                                "Description": a.description,
-                                "Type": a.type,
-                                "Module": a.module || 'Système',
-                                "Utilisateur": a.userNom || 'Système',
-                                "Date": new Date(a.createdAt).toLocaleString()
+                                [t('exportColDescription') || 'Description']: a.description,
+                                [t('exportColType') || 'Type']: a.type,
+                                [t('exportColModule') || 'Module']: a.module || t('systemLabel'),
+                                [t('exportColUser') || 'Utilisateur']: a.userNom || t('systemUserLabel'),
+                                [t('exportColDate') || 'Date']: new Date(a.createdAt).toLocaleString()
                             }));
                             exportToExcel(rows, 'Activites_Report');
                         }}
                         className="btn-hover"
                         style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
                     >
-                        <Download size={22} /> Rapport
+                        <Download size={22} /> {t('report')}
                     </button>
                     <button
                         onClick={fetchActivities}
                         className="btn-hover primary-glow"
                         style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
                     >
-                        <RefreshCw size={22} className={loading ? 'animate-spin' : ''} /> Actualiser
+                        <RefreshCw size={22} className={loading ? 'animate-spin' : ''} /> {t('refresh')}
                     </button>
                 </div>
             </div>
@@ -178,7 +180,7 @@ const Activities = () => {
                     <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
                         type="text"
-                        placeholder="Filtrer par module, action ou mot-clé..."
+                        placeholder={t('activitiesSearchPlaceholder')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ width: '100%', padding: '16px 16px 16px 60px', borderRadius: '18px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', fontWeight: '700' }}
@@ -203,7 +205,7 @@ const Activities = () => {
                                 boxShadow: filter === f ? '0 8px 16px -4px var(--primary-glow)' : 'none'
                             }}
                         >
-                            {f === 'ALL' ? 'Toutes' : f}
+                            {f === 'ALL' ? t('all') : f}
                         </button>
                     ))}
                     <div style={{ width: '1px', background: 'var(--border)', margin: '0 8px' }}></div>
@@ -239,8 +241,8 @@ const Activities = () => {
                 ) : filtered.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '120px' }}>
                         <Database size={100} style={{ margin: '0 auto 32px', opacity: 0.1, color: 'var(--text-muted)' }} />
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: '950' }}>Aucun enregistrement</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: '600' }}>Aucun log ne correspond à vos critères de filtrage actuels.</p>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: '950' }}>{t('noData')}</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: '600' }}>{t('activitiesNoMatch')}</p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
@@ -264,7 +266,7 @@ const Activities = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <p style={{ fontWeight: '1000', fontSize: '1.2rem', margin: 0, color: '#0f172a' }}>{a.description}</p>
                                             <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border)', fontSize: '0.7rem', fontWeight: '950', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                {a.module || 'Système'}
+                                                {a.module || t('systemLabel')}
                                             </div>
                                         </div>
                                         <span style={{ fontSize: '0.95rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '950' }}>
@@ -275,9 +277,9 @@ const Activities = () => {
                                         <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
                                             <User size={14} color="var(--text-muted)" />
                                         </div>
-                                        <span style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '900' }}>{a.userNom || 'Utilisateur Système'}</span>
+                                        <span style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '900' }}>{a.userNom || t('systemUserLabel')}</span>
                                         <ChevronRight size={14} style={{ opacity: 0.2 }} />
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.5, fontWeight: '600' }}>ID Action: #{a.id}</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.5, fontWeight: '600' }}>{t('activitiesActionIdPrefix') || 'ID Action'}: #{a.id}</span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -291,7 +293,7 @@ const Activities = () => {
                                     disabled={currentPage === 1}
                                     style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
                                 >
-                                    Précédent
+                                    {t('previous')}
                                 </button>
                                 {[...Array(totalPages)].map((_, i) => {
                                     const pageNum = i + 1;
@@ -322,13 +324,13 @@ const Activities = () => {
                                     disabled={currentPage === totalPages}
                                     style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
                                 >
-                                    Suivant
+                                    {t('next')}
                                 </button>
                             </div>
                         )}
                         
                          <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                              Affichage de {(currentPage - 1) * itemsPerPage + 1} à {Math.min(currentPage * itemsPerPage, totalItems)} sur {totalItems} événements
+                              {t('showingRangeStart')} {(currentPage - 1) * itemsPerPage + 1} {t('to')} {Math.min(currentPage * itemsPerPage, totalItems)} {t('of')} {totalItems} {t('activitiesEvents')}
                          </div>
                     </div>
                 )}

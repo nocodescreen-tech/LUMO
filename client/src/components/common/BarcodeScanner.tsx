@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { BrowserMultiFormatReader, NotFoundException, ChecksumException, FormatException } from '@zxing/library';
 import { Camera, X, Usb, RefreshCw, CheckCircle2, AlertCircle, Zap, SwitchCamera, Keyboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from '../../hooks/useTranslation';
 
 /**
  * PROFIL DU MODULE DE SCAN :
@@ -16,6 +17,7 @@ interface BarcodeScannerProps {
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) => {
+    const { t } = useTranslation();
     const videoRef = useRef<HTMLVideoElement>(null);
     const readerRef = useRef<BrowserMultiFormatReader | null>(null);
     const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
@@ -62,7 +64,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
 
             if (videoDevices.length === 0) {
                 setStatus('error');
-                setErrorMsg('Aucune caméra trouvée sur cet appareil.');
+                setErrorMsg(t('noCameraFound'));
                 return;
             }
 
@@ -108,14 +110,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
             console.error('Erreur Camera Scanner:', err);
             setStatus('error');
             if (err.message === 'PERMISSION_REFUSEE') {
-                setErrorMsg('L\'accès à la caméra a été refusé. Veuillez l\'autoriser dans les réglages de votre navigateur.');
+                setErrorMsg(t('cameraPermissionDenied'));
             } else if (err.name === 'NotReadableError') {
-                setErrorMsg('La caméra est déjà utilisée par une autre application.');
+                setErrorMsg(t('cameraInUse'));
             } else {
-                setErrorMsg(`Erreur système : ${err.message || 'Impossible de démarrer le scanner.'}`);
+                setErrorMsg(t('scannerSystemError').replace('{message}', err.message || t('scannerStartError')));
             }
         }
-    }, [selectedCamera, onDetected]);
+    }, [selectedCamera, onDetected, t]);
 
     useEffect(() => {
         if (tab === 'camera') {
@@ -209,8 +211,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                             <Zap size={24} fill="var(--primary)" />
                         </div>
                         <div>
-                            <h2 style={{ fontWeight: 900, fontSize: '1.3rem', margin: 0 }}>Scan de Produit</h2>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>Réel • Caméra ou USB</p>
+                            <h2 style={{ fontWeight: 900, fontSize: '1.3rem', margin: 0 }}>{t('productScan')}</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>{t('realCameraUsb')}</p>
                         </div>
                     </div>
                     <button onClick={onClose} style={{ background: 'var(--bg-main)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '10px', borderRadius: '12px' }}>
@@ -221,9 +223,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                 {/* Sélecteur de mode */}
                 <div style={{ display: 'flex', gap: '6px', background: 'var(--bg-main)', borderRadius: '16px', padding: '6px', marginBottom: '24px', border: '1px solid var(--border)' }}>
                     {[
-                        { id: 'camera', label: 'Caméra', icon: Camera },
-                        { id: 'usb', label: 'USB', icon: Usb },
-                        { id: 'manual', label: 'Manuel', icon: Keyboard }
+                        { id: 'camera', label: t('cameraMode'), icon: Camera },
+                        { id: 'usb', label: t('usbMode'), icon: Usb },
+                        { id: 'manual', label: t('manualMode'), icon: Keyboard }
                     ].map((m) => (
                         <button 
                             key={m.id} 
@@ -275,7 +277,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                             <div style={{ marginTop: '16px', padding: '16px', borderRadius: '16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', textAlign: 'center' }}>
                                 <AlertCircle size={32} color="#ef4444" style={{ margin: '0 auto 12px' }} />
                                 <p style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 700, margin: 0 }}>{errorMsg}</p>
-                                <button onClick={initCamera} style={{ marginTop: '12px', padding: '8px 20px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 800, cursor: 'pointer' }}>Réessayer</button>
+                                <button onClick={initCamera} style={{ marginTop: '12px', padding: '8px 20px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 800, cursor: 'pointer' }}>{t('retry')}</button>
                             </div>
                         )}
 
@@ -293,10 +295,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                         <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
                             <Usb size={40} />
                         </div>
-                        <h3 style={{ fontWeight: 800, margin: '0 0 12px' }}>Prêt pour Scanner USB</h3>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>Branchez votre lecteur et scannez directement le produit.</p>
+                        <h3 style={{ fontWeight: 800, margin: '0 0 12px' }}>{t('usbScannerReady')}</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>{t('usbScannerInstruction')}</p>
                         
-                        <input id="usb-trap" autoFocus readOnly value={usbBuffer} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px dashed var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', fontSize: '1.2rem', fontWeight: 900, textAlign: 'center', outline: 'none' }} placeholder="En attente du scan..." />
+                        <input id="usb-trap" autoFocus readOnly value={usbBuffer} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px dashed var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', fontSize: '1.2rem', fontWeight: 900, textAlign: 'center', outline: 'none' }} placeholder={t('waitingForScan')} />
                     </div>
                 )}
 
@@ -304,25 +306,25 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                 {tab === 'manual' && (
                     <form onSubmit={handleManualSubmit} style={{ padding: '10px 0' }}>
                         <div style={{ marginBottom: '24px' }}>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>Code-barres ou SKU</label>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px', textTransform: 'uppercase' }}>{t('barcodeSKU')}</label>
                             <input 
                                 autoFocus
                                 type="text" 
                                 value={manualCode} 
                                 onChange={e => setManualCode(e.target.value)} 
-                                placeholder="Entrez le code manuellement..." 
+                                placeholder={t('manualCodePlaceholder')} 
                                 style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 700, outline: 'none' }}
                             />
                         </div>
                         <button type="submit" disabled={manualCode.length < 3} style={{ width: '100%', padding: '16px', borderRadius: '16px', border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 900, fontSize: '1rem', cursor: 'pointer', opacity: manualCode.length < 3 ? 0.5 : 1 }}>
-                            Rechercher Produit
+                            {t('searchProductButton')}
                         </button>
                     </form>
                 )}
 
                 {/* Footer Tip */}
                 <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(99,102,241,0.05)', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    💡 <strong>Astuce :</strong> Le scanner USB fonctionne aussi en arrière-plan sans ouvrir ce menu.
+                    {t('scannerTip')}
                 </div>
             </motion.div>
         </div>
