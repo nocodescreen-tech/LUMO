@@ -775,7 +775,7 @@ export const translations: Record<string, Record<string, string>> = {
     'currentTheme': 'Thème actuel',
     'midnightDark': 'Nuit Profonde',
     'zenLight': 'Zen Lumineux',
-    'teamManagement': 'Gestion de l\\'équipe',
+    'teamManagement': "Gestion de l'équipe",
     'teamSubtitle': 'Gérez les accès de vos collaborateurs',
     'addMemberBtn': 'Ajouter un membre',
     'noTeamMembers': 'Aucun collaborateur trouvé.',
