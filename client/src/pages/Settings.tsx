@@ -1323,7 +1323,7 @@ const Settings = () => {
               <motion.div key="appearance" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('visualExperience')}</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('visualExperienceSubtitle')}</p>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('visualExperienceDesc')}</p>
                 </div>
 
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1332,7 +1332,7 @@ const Settings = () => {
                       <Palette size={24} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>{t('darkModeClair')}</p>
+                      <p style={{ fontWeight: '900', margin: 0 }}>{t('darkLightMode')}</p>
                       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{t('currentTheme')}: {theme === 'dark' ? t('midnightDark') : t('zenLight')}</p>
                     </div>
                   </div>
@@ -1351,7 +1351,7 @@ const Settings = () => {
                     </div>
                     <div>
                       <p style={{ fontWeight: '900', margin: 0 }}>{t('systemLanguage')}</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{t('systemLanguageDesc')}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{t('fullTranslation')}</p>
                     </div>
                   </div>
                   <select
@@ -1371,9 +1371,7 @@ const Settings = () => {
                     </div>
                     <div>
                       <p style={{ fontWeight: '900', margin: 0 }}>{t('notificationSound')}</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
-                        {notificationSoundEnabled ? t('notificationSoundEnabled') : t('notificationSoundDisabled')}
-                      </p>
+                        {notificationSoundEnabled ? t('soundEnabledDesc') : t('soundDisabledDesc')}
                     </div>
                   </div>
                   <div
@@ -1398,16 +1396,16 @@ const Settings = () => {
               <motion.div key="modules" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '900', margin: '0 0 8px 0' }}>{t('moduleHub')}</h2>
-                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('moduleHubSubtitle')}</p>
+                  <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500 }}>{t('moduleHubDesc')}</p>
                 </div>
 
                 {[
-                  { id: 'ai', label: t('moduleAI'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
-                  { id: 'suppliers', label: t('moduleSuppliers'), desc: t('moduleSuppliersDesc'), icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
-                  { id: 'debts', label: t('moduleDebts'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
-                  { id: 'analytics', label: t('moduleAnalytics'), desc: t('moduleAnalyticsDesc'), icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
-                  { id: 'cash', label: t('moduleCash'), desc: t('moduleCashDesc'), icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
-                  { id: 'barcode', label: t('moduleBarcode'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
+                  { id: 'ai', label: t('moduleAILabel'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
+                  { id: 'suppliers', label: t('moduleSuppliersLabel'), desc: t('moduleSuppliersDesc'), icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
+                  { id: 'debts', label: t('moduleDebtsLabel'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
+                  { id: 'analytics', label: t('moduleStatsLabel'), desc: t('moduleStatsDesc'), icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
+                  { id: 'cash', label: t('moduleCashLabel'), desc: t('moduleCashDesc'), icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
+                  { id: 'barcode', label: t('moduleBarcodeLabel'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
                     key={mod.id}
@@ -1771,7 +1769,7 @@ const Settings = () => {
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
         title={t('logout') + ' ?'}
-        subtitle={t('logoutConfirm')}
+        subtitle={t('logoutConfirmMessage')}
         icon={LogOut}
         maxWidth="450px"
       >
