@@ -344,7 +344,21 @@ const getAIInsights = async (req, res, next) => {
         const user = await User.findByPk(userId);
         const { systemInstruction, products, sales } = await buildLumoKnowledge(userId, user);
 
-        const totalRevenue = sales.reduce((acc, s) => acc + (s.montantTotal || 0), 0);
+        // ✅ FIX : Calcul du CA par devise (comme buildLumoKnowledge le fait déjà)
+        const exchangeRate = user.preferences?.exchangeRate || user.entreprise?.exchangeRate || 2800;
+        const shopCurrency = (user.entreprise?.devise || 'CDF').toUpperCase();
+        const salesByCurrency = {};
+        sales.forEach(s => {
+            const dev = (s.devise || shopCurrency).toUpperCase();
+            salesByCurrency[dev] = (salesByCurrency[dev] || 0) + parseFloat(s.montantTotal || 0);
+        });
+        const caText = Object.entries(salesByCurrency)
+            .map(([dev, total]) => `${total.toLocaleString()} ${dev}`)
+            .join(' + ') || `0 ${shopCurrency}`;
+        const totalRevenueCDF = Object.entries(salesByCurrency).reduce((acc, [dev, total]) => {
+            return acc + (dev === 'USD' ? total * exchangeRate : total);
+        }, 0);
+
         const lowStock = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
         
         const productStats = {};
@@ -361,11 +375,13 @@ const getAIInsights = async (req, res, next) => {
 
 RÉSUMÉ :
 - ${products.length} produits, ${lowStock.length} en stock critique.
-- CA: ${totalRevenue.toLocaleString()} FC.
+- CA (par devise réelle) : ${caText} ≈ ${totalRevenueCDF.toLocaleString()} CDF au taux 1 USD = ${exchangeRate} CDF.
+- ATTENTION : Les montants sont dans leur devise d'origine. Ne mélange JAMAIS USD et CDF.
+- Devise principale boutique : ${shopCurrency}.
 - Top produits: ${topProducts.join(', ') || 'Données insuffisantes'}.
 
-Génère exactement ce JSON (sans markdown) :
-{"suggestions":[{"type":"stock"|"sales"|"pricing","title":"Titre court","desc":"Description précise","impact":"Ex: +15% de CA"}],"analysis":"Résumé stratégique global"}`;
+Génère exactement ce JSON (sans markdown). Pour les montants dans "desc", précise TOUJOURS la devise (USD ou CDF) :
+{"suggestions":[{"type":"stock"|"sales"|"pricing","title":"Titre court","desc":"Description précise avec devise explicite","impact":"Ex: +15% de CA"}],"analysis":"Résumé stratégique global"}`;
 
         const response = await client.chat.completions.create({
             model: MODEL,
@@ -386,13 +402,21 @@ Génère exactement ce JSON (sans markdown) :
     } catch (error) {
         console.error("AI Insights Error:", error.message);
         const productsCount = await Product.count({ where: { userId: req.user.id } });
-        const sales = await Sale.findAll({ where: { userId: req.user.id }, limit: 10 });
-        const revenue = sales.reduce((acc, s) => acc + s.montantTotal, 0);
+        const sales = await Sale.findAll({ where: { userId: req.user.id }, limit: 10, attributes: ['montantTotal', 'devise'] });
+        // ✅ FIX : Afficher la devise correcte dans le fallback aussi
+        const salesByCurrencyFallback = {};
+        sales.forEach(s => {
+            const dev = (s.devise || 'CDF').toUpperCase();
+            salesByCurrencyFallback[dev] = (salesByCurrencyFallback[dev] || 0) + parseFloat(s.montantTotal || 0);
+        });
+        const caFallback = Object.entries(salesByCurrencyFallback)
+            .map(([dev, total]) => `${total.toLocaleString()} ${dev}`)
+            .join(' + ') || '0 CDF';
 
         res.json({
             suggestions: [
                 { type: "stock", title: "Gestion des Alertes", desc: "Vérifiez vos produits en stock critique.", impact: "Évite les ruptures" },
-                { type: "sales", title: "Focus Performance", desc: `CA récent de ${revenue.toLocaleString()} FC.`, impact: "Optimisation" },
+                { type: "sales", title: "Focus Performance", desc: `CA récent : ${caFallback}.`, impact: "Optimisation" },
                 { type: "pricing", title: "Analyse Stratégique", desc: `Commerce avec ${productsCount} produits enregistrés.`, impact: "Cohérence prix" }
             ],
             analysis: "Le moteur LUMO est en cours de recalibrage. Les données affichées sont basées sur vos statistiques actuelles."
