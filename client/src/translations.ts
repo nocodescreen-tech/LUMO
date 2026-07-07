@@ -798,6 +798,9 @@ export const translations: Record<string, Record<string, string>> = {
     'currentTheme': 'Thème actuel',
     'midnightDark': 'Nuit Profonde',
     'zenLight': 'Zen Lumineux',
+    markAllRead: 'Tout marquer comme lu',
+    noNotifications: 'Aucune notification',
+    stopSupport: 'Quitter le support',
 
   },
   en: {
@@ -1596,5 +1599,9 @@ export const translations: Record<string, Record<string, string>> = {
     'zenLight': 'Zen Light',
 
   
-    passwordRequirements: 'Password must be between 8 and 100 characters long, containing at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#).',}
+    passwordRequirements: 'Password must be between 8 and 100 characters long, containing at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&#).',
+    markAllRead: 'Mark all as read',
+    noNotifications: 'No notifications',
+    stopSupport: 'Exit support',
+  }
 };

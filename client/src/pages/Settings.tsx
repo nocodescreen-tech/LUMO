@@ -1103,7 +1103,7 @@ const Settings = () => {
           className="btn-premium"
           style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}
         >
-          <LogOut size={16} /> Quitter la session
+          <LogOut size={16} /> {t('endSession')}
         </button>
       </div>
 

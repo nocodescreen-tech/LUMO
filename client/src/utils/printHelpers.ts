@@ -633,14 +633,6 @@ export const generateCashSessionReport = (session: any, user: any) => {
               </div>
             </div>
 
-            <div class="diff-box" style="background: ${diff === 0 ? '#f0fdf4' : diff > 0 ? '#f0f9ff' : '#fef2f2'}; color: ${diff === 0 ? '#166534' : diff > 0 ? '#0369a1' : '#991b1b'};">
-              ${t(lang, 'ÉCART DE CAISSE', 'CASH VARIANCE')}: ${diff > 0 ? '+' : ''}${Number(diff || 0).toLocaleString()} ${currency} 
-              <span style="font-weight: normal; font-size: 13px;">(≈ ${formatAltAmount(getAltAmount(Number(diff || 0)), altCurrency)})</span>
-              <div style="font-size: 12px; font-weight: 600; margin-top: 4px;">
-                ${diff === 0 ? t(lang, 'Caisse parfaitement équilibrée', 'Cash perfectly balanced') : diff > 0 ? t(lang, 'Excédent de caisse', 'Cash surplus') : t(lang, 'Déficit de caisse', 'Cash deficit')}
-              </div>
-            </div>
-
             ${session?.note ? `
               <div style="margin-top: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;">
                 <p style="color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">${t(lang, 'Notes de session', 'Session notes')}</p>

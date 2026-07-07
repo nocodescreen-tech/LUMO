@@ -146,7 +146,7 @@ const Topbar = () => {
                             letterSpacing: '0.05em'
                         }}
                     >
-                        <UserX size={18} /> Quitter le support
+                        <UserX size={18} /> {t('stopSupport')}
                     </motion.button>
                 )}
 
@@ -254,13 +254,13 @@ const Topbar = () => {
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
-                                    <h4 style={{ margin: 0, fontWeight: '800' }}>{t.notifications}</h4>
+                                    <h4 style={{ margin: 0, fontWeight: '800' }}>{t('notifications')}</h4>
                                     {unreadCount > 0 && (
                                         <span 
                                             onClick={markAllRead}
                                             style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer' }}
                                         >
-                                            Tout marquer lu
+                                            {t('markAllRead')}
                                         </span>
                                     )}
                                 </div>
@@ -288,7 +288,7 @@ const Topbar = () => {
                                         ))
                                     ) : (
                                         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                            Aucune notification
+                                            {t('noNotifications')}
                                         </div>
                                     )}
                                 </div>
@@ -375,7 +375,7 @@ const Topbar = () => {
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <Settings size={18} />
-                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.settings}</span>
+                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t('settings')}</span>
                                 </div>
                                 <div 
                                     onClick={() => { logout(); navigate('/login'); }}
@@ -384,7 +384,7 @@ const Topbar = () => {
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <LogOut size={18} />
-                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.logout}</span>
+                                    <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t('logout')}</span>
                                 </div>
                             </motion.div>
                         )}
