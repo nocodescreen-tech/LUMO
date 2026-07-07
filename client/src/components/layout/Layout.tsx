@@ -152,9 +152,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const navItems = [
         ...(user?.role === 'superadmin'
             ? [
-                { name: 'Admin Platform', icon: ShieldCheck, path: '/superadmin', group: 'PLATFORM' },
-                { name: 'Paramètres Globaux', icon: Settings, path: '/settings', group: 'PLATFORM' },
-                { name: 'Audit Logs', icon: Activity, path: '/activities', group: 'PLATFORM' },
+                { name: t.adminPlatform || 'Admin Platform', icon: ShieldCheck, path: '/superadmin', group: 'PLATFORM' },
+                { name: t.globalSettings || 'Global Settings', icon: Settings, path: '/settings', group: 'PLATFORM' },
+                { name: t.auditLogs || 'Audit Logs', icon: Activity, path: '/activities', group: 'PLATFORM' },
             ]
             : []),
         { name: t.dashboard, icon: LayoutDashboard, path: '/', group: 'STORE' },
@@ -163,9 +163,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
         { name: t.purchases, icon: ShoppingBag, path: '/purchases', group: 'STORE' },
-        { name: 'Historique Stock', icon: History, path: '/stock-history', group: 'STORE' },
+        { name: t.stockHistoryNav || 'Stock History', icon: History, path: '/stock-history', group: 'STORE' },
         { name: t.stats, icon: BarChart3, path: '/stats', group: 'STORE' },
-        ...(enabledModules.includes('cash') ? [{ name: 'Trésorerie', icon: Wallet, path: '/cash', group: 'STORE' }] : []),
+        ...(enabledModules.includes('cash') ? [{ name: t.cashNav || 'Treasury', icon: Wallet, path: '/cash', group: 'STORE' }] : []),
         ...(enabledModules.includes('suppliers') ? [{ name: t.suppliers, icon: Truck, path: '/fournisseurs', group: 'STORE' }] : []),
         ...(enabledModules.includes('debts') ? [{ name: t.debts, icon: CreditCard, path: '/dettes', group: 'STORE' }] : []),
         ...(user?.role !== 'superadmin' ? [{ name: t.activities, icon: Activity, path: '/activities', group: 'STORE' }] : []),
@@ -190,8 +190,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <Modal
                 isOpen={showLogoutConfirm}
                 onClose={() => setShowLogoutConfirm(false)}
-                title="Déconnexion"
-                subtitle="Êtes-vous sûr de vouloir vous déconnecter ? Vous devrez vous reconnecter pour accéder à vos données."
+                title={t.logout || 'Logout'}
+                subtitle={t.logoutConfirmMessage || 'Are you sure you want to log out?'}
                 icon={LogOut}
                 maxWidth="450px"
             >
@@ -218,7 +218,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             gap: '10px'
                         }}
                     >
-                        <LogOut size={18} /> Oui, se déconnecter
+                        <LogOut size={18} /> {t.logoutConfirmYes || 'Yes, log out'}
                     </button>
                     <button
                         onClick={() => setShowLogoutConfirm(false)}
@@ -234,7 +234,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             cursor: 'pointer'
                         }}
                     >
-                        Annuler
+                        {t.cancel || 'Cancel'}
                     </button>
                 </div>
             </Modal>
@@ -346,7 +346,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', marginBottom: '16px' }}
                     >
                         <LogOut size={22} />
-                        {isSidebarOpen && <span>Déconnexion</span>}
+                        {isSidebarOpen && <span>{t.logout || 'Logout'}</span>}
                     </button>
 
                     <div style={{ padding: isSidebarOpen ? '12px' : '8px', borderRadius: '16px', backgroundColor: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid var(--border)', justifyContent: isSidebarOpen ? 'flex-start' : 'center' }}>
@@ -414,7 +414,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
                             <input
                                 type="text"
-                                placeholder="Naviguer vers..."
+                                placeholder={t.search || 'Navigate to...'}
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(e.target.value.length > 0); }}
                                 onFocus={() => searchQuery.length > 0 && setShowSearchResults(true)}
@@ -554,7 +554,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                         fontSize: '0.85rem',
                                         zIndex: 9999
                                     }}>
-                                        Aucun résultat pour « {searchQuery} »
+                                        {t.noData || 'No results'} « {searchQuery} »
                                     </div>
                                 );
                             })()}
@@ -580,7 +580,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         {!isOnline && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 900, background: 'rgba(239, 68, 68, 0.1)', padding: '8px 12px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 1s infinite' }} />
-                                HORS-LIGNE
+                                {t.offlineLabel || 'OFFLINE'}
                             </div>
                         )}
 
@@ -629,7 +629,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div className="hidden-mobile" style={{ textAlign: 'right' }}>
                                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>{user?.nom?.split(' ')[0] || 'Admin'}</div>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>{new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}</div>
                             </div>
                             <div className="flex-center" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', padding: '2px', overflow: 'hidden', background: 'var(--bg-card)' }}>
                                 <img src={getAvatarUrl()} alt="" style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }} />
