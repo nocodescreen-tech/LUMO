@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Wallet, CreditCard, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface DashboardAlertsProps {
   lowStockCount?: number;
@@ -13,6 +14,7 @@ interface DashboardAlertsProps {
 
 const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal = 0, expiringProductsCount = 0, expiringProducts = [] }: DashboardAlertsProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   if (lowStockCount === 0 && debtsTotal === 0 && expiringProductsCount === 0) return null;
 
@@ -39,11 +41,13 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
             <AlertTriangle size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>Stock Critique ({lowStockCount})</h4>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>
+              {t('criticalStockTitle').replace('{count}', lowStockCount.toString())}
+            </h4>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
               {lowStockProducts.length > 0 
-                ? `Articles : ${lowStockProducts.map(p => p.nom).join(', ')}...`
-                : 'Certains articles sont presque épuisés.'}
+                ? t('criticalStockArticles').replace('{list}', lowStockProducts.map(p => p.nom).join(', '))
+                : t('criticalStockDesc')}
             </p>
           </div>
           <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
@@ -71,11 +75,13 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
             <AlertTriangle size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#ef4444', fontSize: '1.1rem' }}>Produits Périmés/Expirant ({expiringProductsCount})</h4>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#ef4444', fontSize: '1.1rem' }}>
+              {t('expiredProductsTitle').replace('{count}', expiringProductsCount.toString())}
+            </h4>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
               {expiringProducts.length > 0 
-                ? `À vérifier: ${expiringProducts.slice(0, 3).map(p => p.nom).join(', ')}...`
-                : 'Certains produits arrivent à expiration.'}
+                ? t('expiredProductsCheck').replace('{list}', expiringProducts.slice(0, 3).map(p => p.nom).join(', '))
+                : t('expiredProductsDesc')}
             </p>
           </div>
           <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
@@ -104,8 +110,12 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
             <CreditCard size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#6366f1', fontSize: '1.1rem' }}>Dettes à Recouvrer</h4>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>Total: {debtsTotal.toLocaleString()} CDF à encaisser.</p>
+            <h4 style={{ margin: 0, fontWeight: '900', color: '#6366f1', fontSize: '1.1rem' }}>
+              {t('debtsToCollectTitle')}
+            </h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
+              {t('debtsToCollectDesc').replace('{amount}', debtsTotal.toLocaleString())}
+            </p>
           </div>
           <ChevronRight size={20} style={{ opacity: 0.4, color: 'var(--text-main)' }} />
         </motion.div>

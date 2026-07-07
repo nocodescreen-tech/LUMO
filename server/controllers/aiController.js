@@ -320,7 +320,7 @@ Je peux GUIDER l'utilisateur pour effectuer ces actions dans l'application :
 - Pour guider l'utilisateur dans l'app, dis EXACTEMENT où cliquer (menu > section > bouton).
 - Quand l'utilisateur veut faire une action, guide-le étape par étape.
 - Si l'utilisateur demande "comment faire X", donne un guide numéroté clair.
-- Réponds en français, de façon concise et professionnelle.
+- Réponds TOUJOURS en ${user.preferences?.language === 'en' ? 'anglais (English)' : 'français (French)'}, de façon concise et professionnelle.
 - Si l'info n'est pas disponible dans le contexte, dis-le clairement.`;
 
     return { systemInstruction, products, sales, clients, fournisseurs };
@@ -333,9 +333,10 @@ const getAIInsights = async (req, res, next) => {
     try {
         const client = getClient();
         const userId = req.user.id;
+        const lang = (req.query.lang || 'fr').toLowerCase();
         
-        // 1. Tenter de récupérer le cache Redis
-        const cacheKey = `ai:insights:${userId}`;
+        // 1. Tenter de récupérer le cache Redis (incluant la langue)
+        const cacheKey = `ai:insights:${userId}:${lang}`;
         const cachedData = await redis.get(cacheKey);
         if (cachedData) {
             return res.json(JSON.parse(cachedData));
@@ -371,7 +372,21 @@ const getAIInsights = async (req, res, next) => {
             .sort(([,a], [,b]) => b - a).slice(0, 3)
             .map(([name, qty]) => `${name} (${qty} vendus)`);
 
-        const prompt = `Analyse les données de ce commerce et fournis 3 suggestions tactiques concrètes.
+        let prompt;
+        if (lang === 'en') {
+            prompt = `Analyze the data of this business and provide 3 concrete tactical suggestions.
+
+SUMMARY:
+- ${products.length} products, ${lowStock.length} in critical stock.
+- Revenue (by real currency): ${caText} ≈ ${totalRevenueCDF.toLocaleString()} CDF at the rate 1 USD = ${exchangeRate} CDF.
+- WARNING: Amounts are in their original currency. NEVER mix USD and CDF.
+- Main shop currency: ${shopCurrency}.
+- Top products: ${topProducts.join(', ') || 'Insufficient data'}.
+
+Generate exactly this JSON (without markdown). For amounts in "desc", ALWAYS specify the currency (USD or CDF):
+{"suggestions":[{"type":"stock"|"sales"|"pricing","title":"Short title","desc":"Precise description with explicit currency","impact":"E.g.: +15% Revenue"}],"analysis":"Global strategic summary"}`;
+        } else {
+            prompt = `Analyse les données de ce commerce et fournis 3 suggestions tactiques concrètes.
 
 RÉSUMÉ :
 - ${products.length} produits, ${lowStock.length} en stock critique.
@@ -382,6 +397,7 @@ RÉSUMÉ :
 
 Génère exactement ce JSON (sans markdown). Pour les montants dans "desc", précise TOUJOURS la devise (USD ou CDF) :
 {"suggestions":[{"type":"stock"|"sales"|"pricing","title":"Titre court","desc":"Description précise avec devise explicite","impact":"Ex: +15% de CA"}],"analysis":"Résumé stratégique global"}`;
+        }
 
         const response = await client.chat.completions.create({
             model: MODEL,
@@ -413,14 +429,26 @@ Génère exactement ce JSON (sans markdown). Pour les montants dans "desc", pré
             .map(([dev, total]) => `${total.toLocaleString()} ${dev}`)
             .join(' + ') || '0 CDF';
 
-        res.json({
-            suggestions: [
-                { type: "stock", title: "Gestion des Alertes", desc: "Vérifiez vos produits en stock critique.", impact: "Évite les ruptures" },
-                { type: "sales", title: "Focus Performance", desc: `CA récent : ${caFallback}.`, impact: "Optimisation" },
-                { type: "pricing", title: "Analyse Stratégique", desc: `Commerce avec ${productsCount} produits enregistrés.`, impact: "Cohérence prix" }
-            ],
-            analysis: "Le moteur LUMO est en cours de recalibrage. Les données affichées sont basées sur vos statistiques actuelles."
-        });
+        const lang = (req.query.lang || 'fr').toLowerCase();
+        if (lang === 'en') {
+            res.json({
+                suggestions: [
+                    { type: "stock", title: "Alerts Management", desc: "Check your critical stock products.", impact: "Avoid stockouts" },
+                    { type: "sales", title: "Performance Focus", desc: `Recent revenue: ${caFallback}.`, impact: "Optimization" },
+                    { type: "pricing", title: "Strategic Analysis", desc: `Store with ${productsCount} registered products.`, impact: "Pricing consistency" }
+                ],
+                analysis: "The LUMO engine is currently recalibrating. The displayed data is based on your current statistics."
+            });
+        } else {
+            res.json({
+                suggestions: [
+                    { type: "stock", title: "Gestion des Alertes", desc: "Vérifiez vos produits en stock critique.", impact: "Évite les ruptures" },
+                    { type: "sales", title: "Focus Performance", desc: `CA récent : ${caFallback}.`, impact: "Optimisation" },
+                    { type: "pricing", title: "Analyse Stratégique", desc: `Commerce avec ${productsCount} produits enregistrés.`, impact: "Cohérence prix" }
+                ],
+                analysis: "Le moteur LUMO est en cours de recalibrage. Les données affichées sont basées sur vos statistiques actuelles."
+            });
+        }
     }
 };
 

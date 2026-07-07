@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import api from '../../api/axios';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const AISuggestions = () => {
+    const { t, language } = useTranslation();
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [analysis, setAnalysis] = useState('');
     const [loading, setLoading] = useState(true);
@@ -11,7 +13,7 @@ const AISuggestions = () => {
     useEffect(() => {
         const fetchSuggestions = async () => {
             try {
-                const { data } = await api.get('/ai/insights');
+                const { data } = await api.get(`/ai/insights?lang=${language}`);
                 setAnalysis(data.analysis || '');
                 
                 const typeMap: any = {
@@ -35,22 +37,30 @@ const AISuggestions = () => {
             }
         };
         fetchSuggestions();
-    }, []);
+    }, [language]);
 
     if (loading) return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <Sparkles size={40} className="animate-pulse" style={{ color: 'var(--primary)', marginBottom: '16px' }} />
-                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Analyse prédictive en cours...</p>
+                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('aiLoading') || 'Analyse prédictive en cours...'}</p>
             </div>
         </div>
     );
+
+    const getBadgeLabel = (type: string) => {
+        const upper = type.toUpperCase();
+        if (upper === 'STOCK') return t('stockBadge') || 'STOCK';
+        if (upper === 'SALES') return t('salesBadge') || 'VENTES';
+        if (upper === 'PRICING') return t('pricingBadge') || 'PRIX';
+        return upper;
+    };
 
     return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '1.4rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Sparkles size={24} color="var(--primary)" /> LUMO AIO Insights
+                    <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO AIO Insights'}
                 </h3>
             </div>
 
@@ -95,7 +105,7 @@ const AISuggestions = () => {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                         <h4 style={{ fontWeight: '800', margin: 0 }}>{s.title}</h4>
                                         <span style={{ fontSize: '0.75rem', fontWeight: '900', color: s.color, backgroundColor: `${s.color}10`, padding: '4px 8px', borderRadius: '8px' }}>
-                                            {s.type.toUpperCase()}
+                                            {getBadgeLabel(s.type)}
                                         </span>
                                     </div>
                                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 12px 0', lineHeight: '1.4' }}>{s.desc}</p>
@@ -105,14 +115,17 @@ const AISuggestions = () => {
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 import('sonner').then(({ toast }) => {
-                                                    toast.success(`Action IA : ${s.title} lancée avec succès !`, {
-                                                        description: "L'assistant prépare les modifications stratégiques..."
+                                                    const launchedText = t('aiActionLaunched') || 'Action IA :';
+                                                    const successText = t('aiActionSuccess') || 'lancée avec succès !';
+                                                    const prepText = t('aiActionPreparing') || "L'assistant prépare les modifications stratégiques...";
+                                                    toast.success(`${launchedText} "${s.title}" ${successText}`, {
+                                                        description: prepText
                                                     });
                                                 });
                                             }}
                                             style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
                                         >
-                                            Appliquer <ArrowRight size={14} />
+                                            {t('apply') || 'Appliquer'} <ArrowRight size={14} />
                                         </button>
                                     </div>
                                 </div>
