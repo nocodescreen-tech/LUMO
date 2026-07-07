@@ -1364,29 +1364,7 @@ const Settings = () => {
                   </select>
                 </div>
 
-                <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-                    <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: notificationSoundEnabled ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: notificationSoundEnabled ? '#10b981' : 'var(--text-muted)' }}>
-                      <Bell size={24} />
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: '900', margin: 0 }}>{t('notificationSound')}</p>
-                        {notificationSoundEnabled ? t('soundEnabledDesc') : t('soundDisabledDesc')}
-                    </div>
-                  </div>
-                  <div
-                    onClick={() => {
-                      const newVal = !notificationSoundEnabled;
-                      setNotificationSoundEnabled(newVal);
-                      if (user) {
-                        useAuthStore.getState().syncPreferencesToServer({ notificationSoundEnabled: newVal });
-                      }
-                    }}
-                    style={{ width: '60px', height: '32px', backgroundColor: notificationSoundEnabled ? 'var(--success)' : 'var(--border-strong)', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'all 0.4s' }}
-                  >
-                    <motion.div animate={{ x: notificationSoundEnabled ? 30 : 2 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} style={{ width: '26px', height: '26px', backgroundColor: 'white', borderRadius: '50%', position: 'absolute', top: '3px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }} />
-                  </div>
-                </div>
+
 
               </motion.div>
             )}
