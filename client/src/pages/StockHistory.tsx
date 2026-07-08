@@ -22,8 +22,18 @@ import { toast } from 'sonner';
 import { useTranslation } from '../hooks/useTranslation';
 
 const StockHistory = () => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const { currency } = useAuthStore();
+    
+    const translateReason = (reason: string) => {
+        if (!reason) return '';
+        const lower = reason.toLowerCase();
+        if (lower.includes('vente') || lower.includes('sale')) return t('reasonSale');
+        if (lower.includes('ajustement') || lower.includes('adjustment')) return t('reasonAdjustment');
+        if (lower.includes('suppression masse') || lower.includes('bulk')) return t('reasonBulkDelete');
+        return reason;
+    };
+
     const [movements, setMovements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -93,7 +103,7 @@ const StockHistory = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl">{t('stockHistoryTitle')} <span className="text-gradient">{t('stockHistoryGradient')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Traçabilité complète de vos entrées et sorties de marchandises.</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('stockHistoryDesc')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button 
@@ -112,10 +122,10 @@ const StockHistory = () => {
                         className="btn-premium"
                         style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}
                     >
-                        <Download size={18} /> Exporter Excel
+                        <Download size={18} /> {t('exportExcel')}
                     </button>
                     <button onClick={fetchMovements} className="btn-premium primary">
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Actualiser
+                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> {t('refresh')}
                     </button>
                 </div>
             </div>
@@ -126,7 +136,7 @@ const StockHistory = () => {
                     <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input 
                         type="text" 
-                        placeholder="Rechercher un produit ou une raison..."
+                        placeholder={t('searchProductOrReason')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ width: '100%', padding: '14px 14px 14px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700 }}
@@ -134,22 +144,22 @@ const StockHistory = () => {
                 </div>
                 
                 <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-main)', padding: '4px', borderRadius: '14px', border: '1.5px solid var(--border)' }}>
-                    {['ALL', 'ENTREE', 'SORTIE', 'AJUSTEMENT'].map(t => (
+                    {['ALL', 'ENTREE', 'SORTIE', 'AJUSTEMENT'].map(tVal => (
                         <button
-                            key={t}
-                            onClick={() => setTypeFilter(t)}
+                            key={tVal}
+                            onClick={() => setTypeFilter(tVal)}
                             style={{
                                 padding: '8px 16px',
                                 borderRadius: '10px',
                                 border: 'none',
-                                background: typeFilter === t ? 'var(--primary)' : 'transparent',
-                                color: typeFilter === t ? 'white' : 'var(--text-muted)',
+                                background: typeFilter === tVal ? 'var(--primary)' : 'transparent',
+                                color: typeFilter === tVal ? 'white' : 'var(--text-muted)',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 fontSize: '0.85rem'
                             }}
                         >
-                            {t === 'ALL' ? 'Tout' : t}
+                            {tVal === 'ALL' ? t('all') : tVal === 'ENTREE' ? t('entry') : tVal === 'SORTIE' ? t('exit') : tVal === 'AJUSTEMENT' ? t('adjustment') : tVal}
                         </button>
                     ))}
                 </div>
@@ -175,11 +185,11 @@ const StockHistory = () => {
                     <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                                <th style={{ padding: '0 24px' }}>Date & Produit</th>
-                                <th style={{ padding: '0 24px' }}>Mouvement</th>
-                                <th style={{ padding: '0 24px' }}>Ancien Stock</th>
-                                <th style={{ padding: '0 24px' }}>Nouveau Stock</th>
-                                <th style={{ padding: '0 24px' }}>Raison / Note</th>
+                                <th style={{ padding: '0 24px' }}>{t('dateAndProduct')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('movement')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('previousStock')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('newStock')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('reasonNote')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -194,7 +204,7 @@ const StockHistory = () => {
                                     <tr>
                                         <td colSpan={5} style={{ textAlign: 'center', padding: '100px' }}>
                                             <Package size={60} style={{ margin: '0 auto 20px', opacity: 0.1 }} />
-                                            <h3 style={{ fontWeight: 800, opacity: 0.5 }}>Aucun mouvement trouvé</h3>
+                                            <h3 style={{ fontWeight: 800, opacity: 0.5 }}>{t('noMovementFound')}</h3>
                                         </td>
                                     </tr>
                                 ) : currentItems.map((m, i) => (
@@ -211,9 +221,9 @@ const StockHistory = () => {
                                                     {m.product?.image ? <img src={m.product.image} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} /> : <Package size={20} style={{ opacity: 0.3 }} />}
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 800, fontSize: '1rem' }}>{m.product?.nom || 'Produit supprimé'}</div>
+                                                    <div style={{ fontWeight: 800, fontSize: '1rem' }}>{m.product?.nom || t('deletedProduct')}</div>
                                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                        <Calendar size={12} /> {new Date(m.createdAt).toLocaleString('fr-FR', { hour12: false })}
+                                                        <Calendar size={12} /> {new Date(m.createdAt).toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', { hour12: false })}
                                                     </div>
                                                 </div>
                                             </div>
@@ -243,7 +253,7 @@ const StockHistory = () => {
                                                 fontWeight: 800,
                                                 color: 'var(--text-muted)'
                                             }}>
-                                                {m.raison}
+                                                {translateReason(m.raison)}
                                             </div>
                                         </td>
                                     </motion.tr>
@@ -256,11 +266,11 @@ const StockHistory = () => {
                 {/* Pagination */}
                 {totalPages > 1 && (
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
-                        <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className="btn-premium" style={{ opacity: currentPage === 1 ? 0.5 : 1 }}>Précédent</button>
+                        <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className="btn-premium" style={{ opacity: currentPage === 1 ? 0.5 : 1 }}>{t('previous')}</button>
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '0 16px', fontWeight: 800 }}>
-                            Page {currentPage} sur {totalPages}
+                            {t('pagePrefix')} {currentPage} {t('ofSuffix')} {totalPages}
                         </div>
-                        <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className="btn-premium" style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}>Suivant</button>
+                        <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className="btn-premium" style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}>{t('next')}</button>
                     </div>
                 )}
             </div>

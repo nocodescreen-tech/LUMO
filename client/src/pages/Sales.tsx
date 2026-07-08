@@ -435,7 +435,7 @@ const Sales = () => {
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
                                                 <Calendar size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleDateString()}
                                             </div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement}</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement === 'Dette' || sale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : sale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : sale.methodePaiement}</div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -597,10 +597,10 @@ const Sales = () => {
                             </div>
                             <div>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('method')}</p>
-                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.methodePaiement}</p>
+                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.methodePaiement === 'Dette' || selectedSale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : selectedSale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : selectedSale.methodePaiement}</p>
                             </div>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Date</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</p>
                                 <p style={{ fontWeight: 800 }}>{new Date(selectedSale.createdAt).toLocaleString('fr-FR', { hour12: false })}</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
@@ -688,7 +688,7 @@ const Sales = () => {
                             {Object.entries(reportStats.methodSplit).map(([method, amount]: [string, any]) => (
                                 <div key={method}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: 800 }}>
-                                        <span>{method}</span>
+                                        <span>{method === 'Dette' || method === 'Crédit' ? (t('debt') || 'Dette') : method === 'Espèces' ? (t('cash') || 'Espèces') : method}</span>
                                         <span>{amount.toLocaleString()} {currency}</span>
                                     </div>
                                     <div style={{ height: '8px', background: 'var(--bg-main)', borderRadius: '10px', overflow: 'hidden' }}>

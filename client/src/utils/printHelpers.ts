@@ -38,7 +38,7 @@ const isRefundedSale = (data: any) => {
 };
 
 const getPrintLanguage = (user: any = null): Lang => {
-  const lang = user?.preferences?.language;
+  const lang = user?.preferences?.language || localStorage.getItem('language');
   return lang === 'en' ? 'en' : 'fr';
 };
 
@@ -552,7 +552,17 @@ export const generateCashSessionReport = (session: any, user: any) => {
     const currency = normalizeCurrency(user?.preferences?.currency || user?.entreprise?.devise || 'CDF');
     const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
     const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
-    const getAltAmount = (amount: number) => normalizeAmount(amount, currency, altCurrency, exchangeRate);
+    const shopCurrency = normalizeCurrency(user?.entreprise?.devise || 'CDF');
+
+    const formatMain = (amount: number) => {
+      const converted = normalizeAmount(amount, shopCurrency, currency, exchangeRate);
+      return formatAmount(converted, currency);
+    };
+
+    const formatSub = (amount: number) => {
+      const converted = normalizeAmount(amount, shopCurrency, altCurrency, exchangeRate);
+      return formatAltAmount(converted, altCurrency);
+    };
 
     const printWindow = openPrintWindow(
       lang,
@@ -561,7 +571,7 @@ export const generateCashSessionReport = (session: any, user: any) => {
     );
     if (!printWindow) return;
 
-    const diff = Number(session?.closingBalance) - Number(session?.expectedBalance);
+    const diff = Number(session?.closingBalance || 0) - Number(session?.expectedBalance || 0);
     const logo = user?.entreprise?.logo;
 
     const html = `
@@ -607,31 +617,38 @@ export const generateCashSessionReport = (session: any, user: any) => {
             <div class="stat-grid">
               <div class="stat-card">
                 <div class="stat-label">${t(lang, 'Fond Initial', 'Opening Balance')}</div>
-                <div class="stat-value">${formatAmount(Number(session?.openingBalance || 0), currency)}</div>
-                <div class="stat-sub">≈ ${formatAltAmount(getAltAmount(Number(session?.openingBalance || 0)), altCurrency)}</div>
+                <div class="stat-value">${formatMain(Number(session?.openingBalance || 0))}</div>
+                <div class="stat-sub">≈ ${formatSub(Number(session?.openingBalance || 0))}</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">${t(lang, 'Ventes (+)', 'Sales (+)')}</div>
-                <div class="stat-value" style="color: #10b981;">${formatAmount(Number(session?.totalSales || 0), currency)}</div>
-                <div class="stat-sub">≈ ${formatAltAmount(getAltAmount(Number(session?.totalSales || 0)), altCurrency)}</div>
+                <div class="stat-value" style="color: #10b981;">${formatMain(Number(session?.totalSales || 0))}</div>
+                <div class="stat-sub">≈ ${formatSub(Number(session?.totalSales || 0))}</div>
               </div>
-
             </div>
 
             <div class="detail-row">
               <span>${t(lang, 'Solde Théorique (Attendu)', 'Expected Balance')}</span>
               <div style="text-align: right;">
-                <div>${formatAmount(Number(session?.expectedBalance || 0), currency)}</div>
-                <div style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-top: 2px;">≈ ${formatAltAmount(getAltAmount(Number(session?.expectedBalance || 0)), altCurrency)}</div>
+                <div>${formatMain(Number(session?.expectedBalance || 0))}</div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-top: 2px;">≈ ${formatSub(Number(session?.expectedBalance || 0))}</div>
               </div>
             </div>
             <div class="detail-row">
               <span>${t(lang, 'Solde Réel (Compté)', 'Counted Balance')}</span>
               <div style="text-align: right;">
-                <div>${formatAmount(Number(session?.closingBalance || 0), currency)}</div>
-                <div style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-top: 2px;">≈ ${formatAltAmount(getAltAmount(Number(session?.closingBalance || 0)), altCurrency)}</div>
+                <div>${formatMain(Number(session?.closingBalance || 0))}</div>
+                <div style="font-size: 11px; color: #94a3b8; font-weight: normal; margin-top: 2px;">≈ ${formatSub(Number(session?.closingBalance || 0))}</div>
               </div>
             </div>
+
+             ${session?.status === 'CLOSED' || session?.closingTime ? `
+               <div class="diff-box" style="background: ${diff === 0 ? '#e6f4ea' : '#fce8e6'}; color: ${diff === 0 ? '#137333' : '#c5221f'}; margin-top: 20px; padding: 16px; border-radius: 12px; text-align: center; font-weight: 800;">
+                 ${diff === 0 
+                   ? t(lang, 'Session équilibrée (aucun écart)', 'Session balanced (no variance)') 
+                   : `${t(lang, 'Écart de caisse :', 'Cash variance:')} ${formatMain(diff)} (≈ ${formatSub(diff)})`}
+               </div>
+             ` : ''}
 
             ${session?.note ? `
               <div style="margin-top: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;">

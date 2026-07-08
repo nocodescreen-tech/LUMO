@@ -282,9 +282,9 @@ const Dettes = () => {
       {/* ── Stats Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         {[
-          { label: 'Total des Dettes', value: totalDebtConverted, icon: AlertCircle, color: 'var(--danger)' },
-          { label: 'Débiteurs Urgents', value: urgentCount, icon: Clock, color: 'var(--warning)', unit: ' clients', noFormat: true },
-          { label: 'Créances Normales', value: normalCount, icon: CheckCircle2, color: 'var(--success)', unit: ' clients', noFormat: true },
+          { label: t('totalDebtsLabel'), value: totalDebtConverted, icon: AlertCircle, color: 'var(--danger)' },
+          { label: t('urgentDebtors'), value: urgentCount, icon: Clock, color: 'var(--warning)', unit: t('clientsUnit'), noFormat: true },
+          { label: t('normalReceivables'), value: normalCount, icon: CheckCircle2, color: 'var(--success)', unit: t('clientsUnit'), noFormat: true },
         ].map((s, i) => (
           <motion.div
             key={i}
@@ -334,7 +334,7 @@ const Dettes = () => {
             <Search size={16} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Rechercher un client, téléphone..."
+              placeholder={t('searchDebtorPlaceholder')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ width: '100%', padding: '13px 13px 13px 46px', borderRadius: '16px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '0.95rem', fontFamily: 'inherit' }}
@@ -354,7 +354,7 @@ const Dettes = () => {
               style={{ gap: '8px' }}
             >
               <Filter size={16} />
-              {filterStatus === 'all' ? 'Tous' : filterStatus === 'urgent' ? 'Urgent' : filterStatus === 'normal' ? 'Normal' : 'Réglés'}
+              {filterStatus === 'all' ? t('all') : filterStatus === 'urgent' ? t('urgent') : filterStatus === 'normal' ? t('normal') : t('settled')}
               <ChevronDown size={14} style={{ transform: showFilter ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
             </button>
             <AnimatePresence>
@@ -367,9 +367,9 @@ const Dettes = () => {
                   style={{ position: 'absolute', right: 0, top: '52px', width: '180px', borderRadius: '16px', padding: '8px', zIndex: 100, border: '1px solid var(--border)' }}
                 >
                   {[
-                    { id: 'all', label: 'Tous les clients' },
-                    { id: 'urgent', label: `🔴 Urgent (> ${urgentLimit.toLocaleString()} ${currency})` },
-                    { id: 'normal', label: `🟡 Normal (≤ ${urgentLimit.toLocaleString()} ${currency})` },
+                    { id: 'all', label: t('allClientsFilter') },
+                    { id: 'urgent', label: `🔴 ${t('urgent')} (> ${urgentLimit.toLocaleString()} ${currency})` },
+                    { id: 'normal', label: `🟡 ${t('normal')} (≤ ${urgentLimit.toLocaleString()} ${currency})` },
                   ].map(f => (
                     <div
                       key={f.id}
@@ -396,7 +396,7 @@ const Dettes = () => {
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <CreditCard size={48} style={{ opacity: 0.15, marginBottom: '16px', display: 'block', margin: '0 auto 16px' }} />
             <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.05rem' }}>
-              {searchTerm ? `Aucun résultat pour « ${searchTerm} »` : 'Aucune dette en cours 🎉'}
+              {searchTerm ? t('noResultsFor').replace('{search}', searchTerm) : t('noActiveDebts')}
             </p>
           </div>
         ) : (
@@ -468,7 +468,7 @@ const Dettes = () => {
                         style={{ padding: '9px 18px', fontSize: '0.87rem', borderRadius: '12px' }}
                         onClick={() => { setSettleModal({ open: true, client: debt }); setSettleAmount(''); }}
                       >
-                        <DollarSign size={15} /> Régler
+                        <DollarSign size={15} /> {t('settleBtn')}
                       </motion.button>
 
                       <button
@@ -502,7 +502,7 @@ const Dettes = () => {
               disabled={currentPage === 1}
               style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
             >
-              Précédent
+              {t('previous')}
             </button>
             {[...Array(totalPages)].map((_, i) => (
               <button
@@ -526,7 +526,7 @@ const Dettes = () => {
               disabled={currentPage === totalPages}
               style={{ padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
             >
-              Suivant
+              {t('next')}
             </button>
           </div>
         )}
@@ -534,7 +534,7 @@ const Dettes = () => {
         {/* Count label */}
         {!loading && filtered.length > 0 && (
           <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-            {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filtered.length)} sur {filtered.length} débiteur{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
+            {t('showingDebtorsPrefix')} {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filtered.length)} {t('ofSuffix')} {filtered.length} {t('debtorsLabel')}
           </div>
         )}
       </div>
@@ -572,19 +572,19 @@ const Dettes = () => {
 
               {[
                 {
-                  icon: DollarSign, label: 'Régler la dette', color: 'var(--success)',
+                  icon: DollarSign, label: t('settleDebtAction'), color: 'var(--success)',
                   action: () => { setSettleModal({ open: true, client: activeClient }); setSettleAmount(''); setActionMenu(p => ({ ...p, open: false })); }
                 },
                 {
-                  icon: Send, label: 'Envoyer un rappel', color: 'var(--info)',
+                  icon: Send, label: t('sendReminderAction'), color: 'var(--info)',
                   action: () => handleReminder(activeClient)
                 },
                 {
-                  icon: Pencil, label: 'Modifier le client', color: 'var(--primary)',
+                  icon: Pencil, label: t('editClientAction'), color: 'var(--primary)',
                   action: () => { navigate('/clients'); setActionMenu(p => ({ ...p, open: false })); }
                 },
                 {
-                  icon: Trash2, label: 'Supprimer client', color: 'var(--danger)',
+                  icon: Trash2, label: t('deleteClientAction'), color: 'var(--danger)',
                   action: () => { navigate('/clients'); setActionMenu(p => ({ ...p, open: false })); }
                 },
               ].map((item, i) => (
@@ -649,16 +649,16 @@ const Dettes = () => {
               </div>
 
               <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '6px', color: 'var(--text-main)' }}>
-                Régler la dette
+                {t('settleDebtTitle')}
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '28px', fontWeight: 500 }}>
-                Client : <strong style={{ color: 'var(--text-main)' }}>{settleModal.client.nom}</strong><br />
-                Solde restant : <strong style={{ color: 'var(--danger)' }}>{format(convertAmount(settleModal.client.detteTotale))}</strong>
+                {t('clientLabel')} <strong style={{ color: 'var(--text-main)' }}>{settleModal.client.nom}</strong><br />
+                {t('remainingBalanceLabel')} <strong style={{ color: 'var(--danger)' }}>{format(convertAmount(settleModal.client.detteTotale))}</strong>
               </p>
 
               {/* Amount input */}
               <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Montant à régler
+                {t('amountToSettleLabel')}
               </label>
               <div style={{ position: 'relative', marginBottom: '24px' }}>
                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 800, fontSize: '0.95rem' }}>
@@ -689,7 +689,7 @@ const Dettes = () => {
               {/* Quick amounts */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '28px', flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Tout', val: convertAmount(settleModal.client.detteTotale) },
+                  { label: t('all'), val: convertAmount(settleModal.client.detteTotale) },
                   { label: '75%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.75 * 100) / 100 },
                   { label: '50%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.5 * 100) / 100 },
                   { label: '25%', val: Math.round(convertAmount(settleModal.client.detteTotale) * 0.25 * 100) / 100 },
@@ -717,7 +717,7 @@ const Dettes = () => {
                   className="btn-premium secondary"
                   style={{ flex: 1 }}
                 >
-                  Annuler
+                  {t('cancel')}
                 </button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -728,9 +728,9 @@ const Dettes = () => {
                   style={{ flex: 2, opacity: settleLoading || !settleAmount ? 0.6 : 1 }}
                 >
                   {settleLoading ? (
-                    <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Traitement...</>
+                    <><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> {t('processing')}</>
                   ) : (
-                    <><CheckCircle2 size={16} /> Confirmer le règlement</>
+                    <><CheckCircle2 size={16} /> {t('confirmSettlement')}</>
                   )}
                 </motion.button>
               </div>

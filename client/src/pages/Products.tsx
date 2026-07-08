@@ -628,7 +628,7 @@ const Products = () => {
                 fontSize: '1rem'
               }}
             >
-              <Plus size={22} /> Nouveau Produit
+              <Plus size={22} /> {t('newProduct') || 'Nouveau Produit'}
             </button>
           )}
         </div>
@@ -640,13 +640,13 @@ const Products = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                <th style={{ padding: '28px 32px' }}>Référence Produit</th>
-                <th style={{ padding: '28px 32px' }}>Catégorie</th>
-                {isPharmacy && <th style={{ padding: '28px 32px' }}>Péremption</th>}
-                <th style={{ padding: '28px 32px' }}>Prix Unitaire</th>
-                <th style={{ padding: '28px 32px' }}>Niveau de Stock</th>
-                <th style={{ padding: '28px 32px' }}>Statut</th>
-                <th style={{ padding: '28px 32px', textAlign: 'right' }}>Actions</th>
+                <th style={{ padding: '28px 32px' }}>{t('productReference') || 'Référence Produit'}</th>
+                <th style={{ padding: '28px 32px' }}>{t('category') || 'Catégorie'}</th>
+                {isPharmacy && <th style={{ padding: '28px 32px' }}>{t('expiration') || 'Péremption'}</th>}
+                <th style={{ padding: '28px 32px' }}>{t('unitPrice') || 'Prix Unitaire'}</th>
+                <th style={{ padding: '28px 32px' }}>{t('stockLevel') || 'Niveau de Stock'}</th>
+                <th style={{ padding: '28px 32px' }}>{t('status') || 'Statut'}</th>
+                <th style={{ padding: '28px 32px', textAlign: 'right' }}>{t('actions') || 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
@@ -657,8 +657,8 @@ const Products = () => {
               ) : currentItems.length === 0 ? (
                 <tr><td colSpan={isPharmacy ? 7 : 6} style={{ padding: '100px', textAlign: 'center' }}>
                   <Package size={80} style={{ opacity: 0.1, marginBottom: '24px', margin: '0 auto' }} />
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: '950', color: 'var(--text-muted)' }}>Inventaire vide</h3>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Aucun produit ne correspond à votre recherche.</p>
+                  <h3 style={{ fontSize: '1.4rem', fontWeight: '950', color: 'var(--text-muted)' }}>{t('emptyInventory') || 'Inventaire vide'}</h3>
+                  <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('noProductsMatchSearch') || 'Aucun produit ne correspond à votre recherche.'}</p>
                 </td></tr>
               ) : currentItems.map((p: any) => (
                 <motion.tr
@@ -725,7 +725,7 @@ const Products = () => {
                         border: `1px solid ${p.stock < (p.stockAlerte || 5) ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                       }}>
                         <span style={{ fontWeight: '950', fontSize: '1.2rem', color: p.stock < (p.stockAlerte || 5) ? '#ef4444' : '#10b981' }}>{p.stock}</span>
-                        <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '800', opacity: 0.5 }}>unités</span>
+                        <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '800', opacity: 0.5 }}>{t('units') || 'unités'}</span>
                       </div>
                       {p.stock < (p.stockAlerte || 5) && <AlertTriangle size={20} color="#ef4444" className="animate-pulse" />}
                     </div>
@@ -742,7 +742,7 @@ const Products = () => {
                       border: '1px solid currentColor',
                       letterSpacing: '0.05em'
                     }}>
-                      {p.stock > 0 ? 'Disponible' : 'En Rupture'}
+                      {p.stock > 0 ? (t('available') || 'Disponible') : (t('outOfStock') || 'En Rupture')}
                     </div>
                   </td>
                   <td style={{ padding: '28px 32px', textAlign: 'right', position: 'relative' }}>
@@ -751,7 +751,7 @@ const Products = () => {
                         onClick={() => { setSelectedProduct(p); fetchProductHistory(p.id); }}
                         className="glass btn-hover"
                         style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Historique du stock"
+                        title={t('stockHistoryNav') || 'Historique du stock'}
                       >
                         <Activity size={20} />
                       </button>

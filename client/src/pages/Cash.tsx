@@ -175,7 +175,7 @@ const Cash = () => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {currentSession ? (
                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button onClick={() => generateCashSessionReport(currentSession, { ...useAuthStore.getState().user, preferences: { currency } })} className="btn-premium secondary" style={{ background: 'var(--bg-card)' }}>
+                            <button onClick={() => generateCashSessionReport(currentSession, { ...user, preferences: { ...user?.preferences, currency } })} className="btn-premium secondary" style={{ background: 'var(--bg-card)' }}>
                                 <Printer size={18} /> {t('printReport')}
                             </button>
                             <button onClick={() => setShowCloseModal(true)} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
@@ -216,19 +216,19 @@ const Cash = () => {
                                 color: 'white',
                                 textTransform: 'uppercase'
                             }}>
-                                {currentSession ? 'Caisse Ouverte' : 'Caisse Fermée'}
+                                {currentSession ? t('cashOpened') : t('cashClosed')}
                             </span>
                             {currentSession && (
                                 <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.9rem' }}>
-                                    Depuis le {new Date(currentSession.openingTime).toLocaleString()}
+                                    {t('sincePrefix')} {new Date(currentSession.openingTime).toLocaleString()}
                                 </span>
                             )}
                         </div>
                         <h2 style={{ fontSize: '2.5rem', fontWeight: 950, margin: 0 }}>
                             {currentSession ? (
-                                <>{formatAmt(Number(currentSession.openingBalance))} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}><br/>(Fond initial)</span></>
+                                <>{formatAmt(Number(currentSession.openingBalance))} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}><br/>({t('initialFund')})</span></>
                             ) : (
-                                "Prêt pour une nouvelle session ?"
+                                t('readyNewSession')
                             )}
                         </h2>
                     </div>
@@ -249,7 +249,7 @@ const Cash = () => {
                                 <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)' }}>
                                     <TrendingUp size={20} />
                                 </div>
-                                <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>VENTES DU JOUR</span>
+                                <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('dailySalesCaps')}</span>
                             </div>
                             <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>{formatAmt(Number(currentSession.totalSales || 0))}</h3>
                         </div>
@@ -259,7 +259,7 @@ const Cash = () => {
                                 <div style={{ padding: '10px', borderRadius: '12px', background: 'var(--primary-glow)' }}>
                                     <Calculator size={20} />
                                 </div>
-                                <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>SOLDE THÉORIQUE</span>
+                                <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('theoreticalBalanceCaps')}</span>
                             </div>
                             <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>
                                 {formatAmt(Number(currentSession.openingBalance) + Number(currentSession.totalSales || 0))}
@@ -273,19 +273,19 @@ const Cash = () => {
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
                     <History size={24} color="var(--primary)" />
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 950, margin: 0 }}>Historique des Sessions</h3>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 950, margin: 0 }}>{t('sessionsHistory')}</h3>
                 </div>
                 
                 <div className="table-responsive">
                     <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                                <th style={{ padding: '0 24px' }}>Ouverture / Fermeture</th>
-                                <th style={{ padding: '0 24px' }}>Fond Initial</th>
-                                <th style={{ padding: '0 24px' }}>Ventes</th>
-                                <th style={{ padding: '0 24px' }}>Solde Final</th>
-                                <th style={{ padding: '0 24px' }}>Écart</th>
-                                <th style={{ padding: '0 24px', textAlign: 'right' }}>Actions</th>
+                                <th style={{ padding: '0 24px' }}>{t('openingClosing')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('initialFund')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('sales')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('finalBalance')}</th>
+                                <th style={{ padding: '0 24px' }}>{t('variance')}</th>
+                                <th style={{ padding: '0 24px', textAlign: 'right' }}>{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -302,7 +302,7 @@ const Cash = () => {
                                         <td style={{ padding: '20px 24px', borderRadius: '16px 0 0 16px' }}>
                                             <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{new Date(s.openingTime).toLocaleDateString()}</div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                                {new Date(s.openingTime).toLocaleTimeString()} - {s.closingTime ? new Date(s.closingTime).toLocaleTimeString() : 'En cours'}
+                                                {new Date(s.openingTime).toLocaleTimeString()} - {s.closingTime ? new Date(s.closingTime).toLocaleTimeString() : t('inProgress')}
                                             </div>
                                         </td>
                                         <td style={{ padding: '20px 24px', fontWeight: 700 }}>{formatAmt(Number(s.openingBalance))}</td>
@@ -323,12 +323,12 @@ const Cash = () => {
                                                     {diff > 0 ? `+${formatAmtStr(diff)}` : formatAmtStr(diff)}
                                                 </span>
                                             ) : (
-                                                <span style={{ color: 'var(--primary)', fontWeight: 800 }}>SESSION ACTIVE</span>
+                                                <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{t('sessionActive')}</span>
                                             )}
                                         </td>
                                         <td style={{ padding: '20px 24px', textAlign: 'right', borderRadius: '0 16px 16px 0', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                             <button 
-                                                onClick={() => generateCashSessionReport(s, { ...useAuthStore.getState().user, preferences: { currency } })}
+                                                onClick={() => generateCashSessionReport(s, { ...user, preferences: { ...user?.preferences, currency } })}
                                                 style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '8px' }}
                                                 title={t('printReport')}
                                             >
@@ -337,7 +337,7 @@ const Cash = () => {
                                             <button 
                                                 onClick={() => setConfirmDelete({ isOpen: true, id: s.id })}
                                                 style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}
-                                                title="Supprimer la session"
+                                                title={t('deleteSession')}
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -355,13 +355,13 @@ const Cash = () => {
                 isOpen={showOpenModal}
                 onClose={() => setShowOpenModal(false)}
                 title={t('openCash')}
-                subtitle="Définissez le montant initial présent dans le tiroir-caisse."
+                subtitle={t('openCashSubtitle')}
                 icon={Unlock}
             >
                 <form onSubmit={handleOpenSession} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>MONTANT EN USD</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>{t('amountUSD')}</label>
                             <div style={{ position: 'relative' }}>
                                 <DollarSign size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                 <input 
@@ -374,7 +374,7 @@ const Cash = () => {
                             </div>
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>MONTANT EN CDF</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>{t('amountCDF')}</label>
                             <div style={{ position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 800 }}>FC</span>
                                 <input 
@@ -389,7 +389,7 @@ const Cash = () => {
                     </div>
 {(formData.openingBalanceUSD || formData.openingBalanceCDF) && (
                          <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
+                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>{t('totalCalculated')}</div>
                              <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
                                  {formatAmt((shopCurrency === 'CDF' ? normalizeAmount(Number(formData.openingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate) : Number(formData.openingBalanceUSD) || 0) + 
                                            (shopCurrency === 'CDF' ? Number(formData.openingBalanceCDF) || 0 : normalizeAmount(Number(formData.openingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
@@ -397,16 +397,16 @@ const Cash = () => {
                          </div>
                      )}
                     <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>NOTE PARTICULIÈRE (OPTIONNEL)</label>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>{t('particularNoteOptional')}</label>
                         <textarea 
                             value={formData.note}
                             onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                            placeholder="Ex: Changement de shift, billets de 100 uniquement..."
+                            placeholder={t('notePlaceholder')}
                             style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', minHeight: '100px', resize: 'none', fontWeight: 600 }}
                         />
                     </div>
                     <button type="submit" className="btn-premium primary" style={{ width: '100%', padding: '20px' }}>
-                        Confirmer l'Ouverture
+                        {t('confirmOpening')}
                     </button>
                 </form>
             </Modal>
@@ -416,13 +416,13 @@ const Cash = () => {
                 isOpen={showCloseModal}
                 onClose={() => setShowCloseModal(false)}
                 title={t('closeCash')}
-                subtitle="Vérifiez le solde et fermez la session de travail."
+                subtitle={t('closeCashSubtitle')}
                 icon={Lock}
             >
                 <form onSubmit={handleCloseSession} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ padding: '20px', borderRadius: '20px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Solde Théorique attendu :</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{t('theoreticalBalanceExpected')}</span>
                             <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '1.2rem' }}>
                                 {formatAmt(Number(currentSession?.openingBalance) + Number(currentSession?.totalSales || 0))}
                             </span>
@@ -431,7 +431,7 @@ const Cash = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>MONTANT EN USD</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>{t('amountUSD')}</label>
                             <div style={{ position: 'relative' }}>
                                 <DollarSign size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                 <input 
@@ -444,7 +444,7 @@ const Cash = () => {
                             </div>
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>MONTANT EN CDF</label>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', marginBottom: '8px' }}>{t('amountCDF')}</label>
                             <div style={{ position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 800 }}>FC</span>
                                 <input 
@@ -459,7 +459,7 @@ const Cash = () => {
                     </div>
 {(formData.closingBalanceUSD || formData.closingBalanceCDF) && (
                          <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>TOTAL CALCULÉ</div>
+                             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>{t('totalCalculated')}</div>
                              <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>
                                  {formatAmt((shopCurrency === 'CDF' ? normalizeAmount(Number(formData.closingBalanceUSD) || 0, 'USD', 'CDF', exchangeRate) : Number(formData.closingBalanceUSD) || 0) + 
                                            (shopCurrency === 'CDF' ? Number(formData.closingBalanceCDF) || 0 : normalizeAmount(Number(formData.closingBalanceCDF) || 0, 'CDF', 'USD', exchangeRate)))}
@@ -467,7 +467,7 @@ const Cash = () => {
                          </div>
                      )}
                     <button type="submit" className="btn-premium primary" style={{ width: '100%', padding: '20px', background: '#ef4444', boxShadow: '0 20px 40px -10px rgba(239, 68, 68, 0.3)' }}>
-                        Confirmer la Clôture
+                        {t('confirmClosing')}
                     </button>
                 </form>
             </Modal>
@@ -476,8 +476,8 @@ const Cash = () => {
                 isOpen={confirmDelete.isOpen}
                 onClose={() => setConfirmDelete({ isOpen: false, id: null })}
                 onConfirm={handleDeleteSession}
-                title="Supprimer la Session"
-                message="Êtes-vous sûr de vouloir supprimer définitivement cette session de caisse ? Cette action est irréversible."
+                title={t('deleteSessionTitle')}
+                message={t('deleteSessionMsg')}
             />
         </div>
     );

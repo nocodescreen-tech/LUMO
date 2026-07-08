@@ -235,24 +235,28 @@ const Purchases = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>FACTURE / FOURNISSEUR</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>DESCRIPTION</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>DATE</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>ARTICLES</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>STATUT</th>
-                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'right' }}>MONTANT TOTAL</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('invoiceSupplierHeader')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('description')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('date')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('items')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('status')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'right' }}>{t('totalAmount')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentItems.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                        Aucun achat trouvé.
+                                        {t('noPurchasesFoundMsg')}
                                     </td>
                                 </tr>
                             ) : currentItems.map((purchase) => {
                                 const fourName = fournisseurs.find(f => f.id === purchase.fournisseurId)?.nom || t('unknownSupplier');
                                 const st = getStatusStyle(purchase.statut);
+                                const localizedStatus = purchase.statut === 'En attente' ? (t('statusPending') || 'En attente') :
+                                                        purchase.statut === 'Expédié' ? (t('statusShipping') || 'En livraison') :
+                                                        purchase.statut === 'Reçu' ? (t('statusReceived') || 'Reçu en stock') :
+                                                        purchase.statut || t('unknown');
                                 return (
                                     <motion.tr 
                                         key={purchase.id} 
@@ -279,7 +283,7 @@ const Purchases = () => {
                                         </td>
                                         <td style={{ padding: '16px' }}>
                                             <span style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: st.bg, color: st.color }}>
-                                                {purchase.statut || 'Inconnu'}
+                                                {localizedStatus}
                                             </span>
                                         </td>
                                         <td style={{ padding: '16px', textAlign: 'right', fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{purchase.montantTotal?.toLocaleString() || 0} {purchase.devise || currency}</td>
@@ -293,7 +297,10 @@ const Purchases = () => {
                 {/* Pagination Controls */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
-                        Affichage de <span style={{ color: 'var(--text-main)' }}>{indexOfFirstItem + 1}</span> à <span style={{ color: 'var(--text-main)' }}>{Math.min(indexOfLastItem, filteredPurchases.length)}</span> sur <span style={{ color: 'var(--text-main)' }}>{filteredPurchases.length}</span> achats
+                        {t('showingPurchases')
+                          .replace('{start}', (indexOfFirstItem + 1).toString())
+                          .replace('{end}', Math.min(indexOfLastItem, filteredPurchases.length).toString())
+                          .replace('{total}', filteredPurchases.length.toString())}
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <button 
@@ -301,7 +308,7 @@ const Purchases = () => {
                             disabled={currentPage === 1}
                             style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
                         >
-                            Précédent
+                            {t('previous')}
                         </button>
                         {[...Array(totalPages)].map((_, i) => {
                             const pageNum = i + 1;
@@ -329,7 +336,7 @@ const Purchases = () => {
                             disabled={currentPage === totalPages}
                             style={{ padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
                         >
-                            Suivant
+                            {t('next')}
                         </button>
                     </div>
                 </div>
@@ -359,7 +366,7 @@ const Purchases = () => {
                             {/* ── Sticky Header ── */}
                             <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                                 <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <Package size={22} color="var(--primary)" /> Enregistrer un Achat
+                                    <Package size={22} color="var(--primary)" /> {t('registerPurchaseTitle')}
                                 </h2>
                                 <button onClick={() => setShowModal(false)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
                             </div>
@@ -370,7 +377,7 @@ const Purchases = () => {
 
                                 {/* Fournisseur */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fournisseur / Maison</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('supplierHouseLabel')}</label>
                                     <div style={{ position: 'relative' }}>
                                         <Truck size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                         <input
@@ -382,14 +389,14 @@ const Purchases = () => {
                                                 const match = fournisseurs.find(f => f.nom === val);
                                                 setFormData({ ...formData, fournisseurNom: val, fournisseurId: match ? match.id : null });
                                             }}
-                                            placeholder="Tapez ou sélectionnez..."
+                                            placeholder={t('typeOrSelectPlaceholder')}
                                             style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
                                         />
                                     </div>
                                     {showFournisseurSuggestions && (
                                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', maxHeight: '180px', overflowY: 'auto', zIndex: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
                                             {fournisseurs.filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase())).length === 0 ? (
-                                                <div style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>"{ formData.fournisseurNom }" — nouveau fournisseur</div>
+                                                <div style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>"{ formData.fournisseurNom }" — {t('newSupplierSuffix')}</div>
                                             ) : fournisseurs.filter(f => f.nom?.toLowerCase().includes(formData.fournisseurNom.toLowerCase())).map(f => (
                                                 <div key={f.id} onClick={() => { setFormData({ ...formData, fournisseurNom: f.nom, fournisseurId: f.id }); setShowFournisseurSuggestions(false); }}
                                                     style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontWeight: 600 }}
@@ -404,18 +411,18 @@ const Purchases = () => {
                                 {/* Facture + Statut */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>N° Facture</label>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('invoiceNumberLabel')}</label>
                                         <div style={{ position: 'relative' }}>
                                             <FileText size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                             <input required type="text" value={formData.numeroFacture} onChange={e => setFormData({ ...formData, numeroFacture: e.target.value })} placeholder="FAC-001" style={{ width: '100%', padding: '12px 12px 12px 36px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }} />
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Statut</label>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('status')}</label>
                                         <select value={formData.statut} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
-                                            <option value="En attente">En attente</option>
-                                            <option value="Expédié">En livraison</option>
-                                            <option value="Reçu">Reçu en stock</option>
+                                            <option value="En attente">{t('statusPending') || 'En attente'}</option>
+                                            <option value="Expédié">{t('statusShipping') || 'En livraison'}</option>
+                                            <option value="Reçu">{t('statusReceived') || 'Reçu en stock'}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -424,14 +431,14 @@ const Purchases = () => {
                                 <div style={{ background: 'var(--primary-glow)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(99,102,241,0.2)' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', alignItems: 'end' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Devise de la facture</label>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('invoiceCurrencyLabel')}</label>
                                             <select value={formData.devise} onChange={e => setFormData({ ...formData, devise: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700, appearance: 'none' }}>
                                                 <option value="USD">🇺🇸 USD — Dollar</option>
                                                 <option value="CDF">🇨🇩 CDF — Franc Congolais</option>
                                             </select>
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Taux : 1 USD =</label>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('exchangeRateShortLabel')}</label>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <input
                                                     type="number" min={1} value={exchangeRate}
@@ -446,7 +453,7 @@ const Purchases = () => {
 
                                 {/* Recherche produit */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ajouter des articles</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('addItemsLabel')}</label>
                                     <div style={{ position: 'relative' }}>
                                         <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                         <input
@@ -454,12 +461,12 @@ const Purchases = () => {
                                             onFocus={() => setShowProductSuggestions(true)}
                                             onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
                                             onChange={e => setProductSearch(e.target.value)}
-                                            placeholder="Rechercher un produit..."
+                                            placeholder={t('searchProductPlaceholder')}
                                             style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }}
                                         />
                                     </div>
                                     {showProductSuggestions && productSearch && (
-                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 21, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '4px', maxHeight: '180px', overflowY: 'auto', zIndex: 21, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
                                             {allProducts.filter(p => p.nom.toLowerCase().includes(productSearch.toLowerCase())).map(p => {
                                                 // Show price converted to selected invoice currency
                                                 const displayPrice = formData.devise === 'USD'
@@ -498,9 +505,9 @@ const Purchases = () => {
                                 {items.length > 0 && (
                                     <div style={{ background: 'var(--bg-main)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                         <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 70px 130px 32px', gap: '8px' }}>
-                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Article</span>
-                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>Qté</span>
-                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>Sous-total</span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('product')}</span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'center' }}>{t('qty')}</span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>{t('subtotal')}</span>
                                             <span></span>
                                         </div>
                                         {items.map((item: any, idx: number) => (
@@ -528,11 +535,11 @@ const Purchases = () => {
                                             return (
                                                 <div style={{ padding: '12px 14px', background: 'var(--primary-glow)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>
-                                                        <span>TOTAL AUTO :</span>
+                                                        <span>{t('totalAutoLabel')}</span>
                                                         <span>{totalBase.toLocaleString()} {formData.devise}</span>
                                                     </div>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                                        <span>≈ Équivalent {otherDevise} :</span>
+                                                        <span>{t('approxEquivalentLabel')} {otherDevise} :</span>
                                                         <span>{totalConverted.toLocaleString()} {otherDevise}</span>
                                                     </div>
                                                 </div>
@@ -543,24 +550,24 @@ const Purchases = () => {
 
                                 {/* Montant final */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Montant Final ({formData.devise})</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('finalAmountLabel')} ({formData.devise})</label>
                                     <input
                                         required type="number" value={formData.montantTotal}
                                         onChange={e => setFormData({ ...formData, montantTotal: e.target.value })}
-                                        placeholder="Montant total à payer..."
+                                        placeholder={t('totalAmountPlaceholder')}
                                         style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1.2rem', fontWeight: 800, boxSizing: 'border-box' }}
                                     />
                                     {items.length > 0 && (
                                         <button type="button"
                                             onClick={() => setFormData({ ...formData, montantTotal: items.reduce((acc: number, i: any) => acc + (i.quantite * i.prixAchat), 0).toString() })}
                                             style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer', textAlign: 'left', padding: 0 }}
-                                        >↑ Utiliser le total calculé</button>
+                                        >{t('useCalculatedTotalBtn')}</button>
                                     )}
                                 </div>
 
                                 {/* Description */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Description / Note</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('descriptionNoteLabel')}</label>
                                     <input required type="text" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Achat mensuel..." style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, boxSizing: 'border-box' }} />
                                 </div>
 
@@ -568,10 +575,11 @@ const Purchases = () => {
                             </div>
 
                             {/* ── Sticky Footer ── */}
+                            {/* ── Sticky Footer ── */}
                             <div style={{ padding: '16px 28px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0, background: 'var(--bg-card)' }}>
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>Annuler</button>
+                                <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>{t('cancel')}</button>
                                 <button form="purchase-form" type="submit" disabled={submitting} className="btn-premium primary" style={{ padding: '12px 28px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Enregistrer l'achat
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {t('registerPurchaseBtn')}
                                 </button>
                             </div>
 
@@ -587,29 +595,32 @@ const Purchases = () => {
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '32px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <FileText size={24} color="var(--primary)" /> Détails de l'Achat
+                                  <FileText size={24} color="var(--primary)" /> {t('purchaseDetailsTitle')}
                                 </h2>
                                 <button onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                                 <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Facture</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('invoice') || 'Facture'}</label>
                                     <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Fournisseur</label>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || 'Fournisseur Inconnu'}</div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('supplier') || 'Fournisseur'}</label>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || t('unknownSupplier')}</div>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Date</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</label>
                                     <div style={{ fontSize: '1rem', fontWeight: 600 }}>{new Date(selectedPurchase.createdAt).toLocaleString('fr-FR', { hour12: false })}</div>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Statut</label>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('status') || 'Statut'}</label>
                                     <div>
                                         <span style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, backgroundColor: getStatusStyle(selectedPurchase.statut).bg, color: getStatusStyle(selectedPurchase.statut).color }}>
-                                            {selectedPurchase.statut}
+                                            {selectedPurchase.statut === 'En attente' ? (t('statusPending') || 'En attente') :
+                                             selectedPurchase.statut === 'Expédié' ? (t('statusShipping') || 'En livraison') :
+                                             selectedPurchase.statut === 'Reçu' ? (t('statusReceived') || 'Reçu en stock') :
+                                             selectedPurchase.statut}
                                         </span>
                                     </div>
                                 </div>
@@ -617,16 +628,16 @@ const Purchases = () => {
 
                             <div style={{ marginBottom: '24px' }}>
                                 <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Package size={18} /> Articles Commandés
+                                    <Package size={18} /> {t('orderedItemsTitle')}
                                 </h3>
                                 <div style={{ background: 'var(--bg-main)', borderRadius: '16px', overflow: 'hidden' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
                                             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>ARTICLE</th>
-                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>QTÉ</th>
-                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>P.U.</th>
-                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>TOTAL</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('product')}</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>{t('qty')}</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>{t('unitPriceShort')}</th>
+                                                <th style={{ padding: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>{t('total')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -641,7 +652,7 @@ const Purchases = () => {
                                                 ))
                                             ) : (
                                                 <tr>
-                                                    <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>Aucun article détaillé.</td>
+                                                    <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>{t('noDetailedItemsMsg')}</td>
                                                 </tr>
                                             )}
                                         </tbody>
@@ -650,12 +661,12 @@ const Purchases = () => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>MONTANT TOTAL</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>{t('totalAmount')}</div>
                                 <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{selectedPurchase.montantTotal?.toLocaleString()} {currency}</div>
                             </div>
 
                             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
-                                <button onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>Fermer</button>
+                                <button onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>{t('close')}</button>
                             </div>
                         </motion.div>
                     </div>
