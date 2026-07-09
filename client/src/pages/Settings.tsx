@@ -1040,18 +1040,53 @@ const Settings = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isEncrypted = file.name.endsWith('.enc') || file.name.endsWith('.json.enc');
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const content = JSON.parse(event.target?.result as string);
+        let content;
+        if (isEncrypted) {
+          const dataUrl = event.target?.result as string;
+          const base64 = dataUrl.split(',')[1];
+          content = { encryptedData: base64 };
+        } else {
+          try {
+            content = JSON.parse(event.target?.result as string);
+          } catch (jsonErr) {
+            // Fallback: file might be encrypted but doesn't have the .enc extension
+            const binaryReader = new FileReader();
+            binaryReader.onload = async (binEvent) => {
+              try {
+                const binDataUrl = binEvent.target?.result as string;
+                const binBase64 = binDataUrl.split(',')[1];
+                const response = await api.post('/backup/preview', { encryptedData: binBase64 });
+                setRestorePreview({ ...response.data, rawData: { encryptedData: binBase64 } });
+              } catch (err: any) {
+                const errorMsg = err?.response?.data?.message || t('invalidBackupFile') || 'Fichier de sauvegarde invalide.';
+                toast.error(errorMsg);
+              }
+            };
+            binaryReader.readAsDataURL(file);
+            return;
+          }
+        }
+
         const response = await api.post('/backup/preview', content);
         setRestorePreview({ ...response.data, rawData: content });
-      } catch (error) {
-        toast.error(t('invalidBackupFile'));
+      } catch (error: any) {
+        const errorMsg = error?.response?.data?.message || t('invalidBackupFile') || 'Fichier de sauvegarde invalide.';
+        toast.error(errorMsg);
       }
     };
-    reader.readAsText(file);
+
+    if (isEncrypted) {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
+
 
   const confirmRestore = async () => {
     if (!restorePreview?.rawData) return;

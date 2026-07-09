@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const {
     Product, Sale, Client, Fournisseur, Purchase,
     StockMovement, CashSession, Activite, Notification, User, Feedback
@@ -5,6 +6,19 @@ const {
 const { sendEmail } = require('../utils/emailService');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
+
+const decryptBackupBuffer = (buffer) => {
+    const algorithm = 'aes-256-ctr';
+    const secretKey = (process.env.BACKUP_ENCRYPTION_KEY || '').padEnd(32, '0').slice(0, 32);
+    
+    const iv = buffer.subarray(0, 16);
+    const ciphertext = buffer.subarray(16);
+    
+    const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey), iv);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted;
+};
+
 
 /**
  * GET /api/backup/export
@@ -150,15 +164,27 @@ exports.exportEmailBackup = async (req, res, next) => {
  * Stratégie : upsert pour les produits et clients, skip les ventes pour éviter doublons.
  */
 exports.importBackup = async (req, res, next) => {
-    const t = await sequelize.transaction();
+    let t;
     try {
         const userId = req.user.id;
-        const backup = req.body;
+        let backup = req.body;
+
+        if (backup && backup.encryptedData) {
+            try {
+                const encryptedBuffer = Buffer.from(backup.encryptedData, 'base64');
+                const decryptedData = decryptBackupBuffer(encryptedBuffer);
+                backup = JSON.parse(decryptedData.toString('utf8'));
+            } catch (err) {
+                return res.status(400).json({ message: 'Fichier de sauvegarde chiffré invalide ou clé de déchiffrement incorrecte.' });
+            }
+        }
 
         // Validation de base du fichier
         if (!backup || !backup.version || !backup.data) {
             return res.status(400).json({ message: 'Fichier de sauvegarde invalide ou corrompu.' });
         }
+
+        t = await sequelize.transaction();
 
         const {
             products = [], clients = [], sales = [], fournisseurs = [],
@@ -313,7 +339,13 @@ exports.importBackup = async (req, res, next) => {
         });
 
     } catch (error) {
-        await t.rollback();
+        if (t) {
+            try {
+                await t.rollback();
+            } catch (rollbackError) {
+                console.error('Failed to rollback transaction:', rollbackError);
+            }
+        }
         console.error('Erreur Import Backup:', error);
         next(error);
     }
@@ -325,7 +357,17 @@ exports.importBackup = async (req, res, next) => {
  */
 exports.previewBackup = async (req, res, next) => {
     try {
-        const backup = req.body;
+        let backup = req.body;
+
+        if (backup && backup.encryptedData) {
+            try {
+                const encryptedBuffer = Buffer.from(backup.encryptedData, 'base64');
+                const decryptedData = decryptBackupBuffer(encryptedBuffer);
+                backup = JSON.parse(decryptedData.toString('utf8'));
+            } catch (err) {
+                return res.status(400).json({ message: 'Fichier de sauvegarde chiffré invalide ou clé de déchiffrement incorrecte.' });
+            }
+        }
 
         if (!backup || !backup.version || !backup.data) {
             return res.status(400).json({ message: 'Fichier de sauvegarde invalide.' });
