@@ -9,12 +9,8 @@ const normalizeCurrency = (raw: string | undefined | null): 'USD' | 'CDF' => {
 };
 
 const normalizeModules = (mods: string[] = []) => {
-  const set = new Set(mods);
-  if (set.has('analytics')) {
-    set.delete('analytics');
-    set.add('stats');
-  }
-  return Array.from(set);
+  // Keep module IDs as-is — no remapping needed
+  return Array.from(new Set(mods));
 };
 
 interface EntrepriseInfo {
@@ -22,6 +18,7 @@ interface EntrepriseInfo {
   devise?: string;
   adresse?: string;
   logo?: string;
+  telephone?: string;
 }
 
 interface UserPreferences {

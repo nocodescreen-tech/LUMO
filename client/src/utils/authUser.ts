@@ -17,6 +17,7 @@ export const normalizeAuthUser = (userData: any) => {
       devise: data.entreprise?.devise || 'CDF',
       adresse: data.entreprise?.adresse || '',
       logo: data.entreprise?.logo || '',
+      telephone: data.entreprise?.telephone || '',
     },
     preferences: {
       theme: data.preferences?.theme || 'light',

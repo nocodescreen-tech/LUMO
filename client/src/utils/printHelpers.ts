@@ -103,7 +103,10 @@ export const generateInvoice = (data: any, user: any = null) => {
       currency: saleCurrency,
       montantTotal: displayTotal,
       total: displayTotal,
-      entreprise: data?.entreprise || user?.entreprise,
+      entreprise: {
+        ...(data?.entreprise || user?.entreprise || {}),
+        telephone: data?.entreprise?.telephone || user?.entreprise?.telephone || user?.telephone || '',
+      },
     };
 
     const altCurrency = invoiceData.currency === 'CDF' ? 'USD' : 'CDF';

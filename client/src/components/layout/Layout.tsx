@@ -164,7 +164,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
         { name: t.purchases, icon: ShoppingBag, path: '/purchases', group: 'STORE' },
         { name: t.stockHistoryNav || 'Stock History', icon: History, path: '/stock-history', group: 'STORE' },
-        { name: t.stats, icon: BarChart3, path: '/stats', group: 'STORE' },
+        ...(enabledModules.includes('analytics') ? [{ name: t.stats, icon: BarChart3, path: '/stats', group: 'STORE' }] : []),
         ...(enabledModules.includes('cash') ? [{ name: t.cashNav || 'Treasury', icon: Wallet, path: '/cash', group: 'STORE' }] : []),
         ...(enabledModules.includes('suppliers') ? [{ name: t.suppliers, icon: Truck, path: '/fournisseurs', group: 'STORE' }] : []),
         ...(enabledModules.includes('debts') ? [{ name: t.debts, icon: CreditCard, path: '/dettes', group: 'STORE' }] : []),

@@ -354,7 +354,7 @@ const Dashboard = () => {
               </div>
            </motion.div>
 
-           <AISuggestions />
+           {enabledModules.includes('ai') && <AISuggestions />}
         </div>
       </div>
 
@@ -418,7 +418,7 @@ const Dashboard = () => {
         />
       </div>
 
-      <AIChat />
+      {enabledModules.includes('ai') && <AIChat />}
     </motion.div>
   );
 };
