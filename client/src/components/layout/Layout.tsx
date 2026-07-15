@@ -52,7 +52,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [searchQuery, setSearchQuery] = useState('');
@@ -186,58 +185,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             {/* Session Timeout Warning Modal */}
             <SessionTimeoutModal />
 
-            {/* Logout Confirmation Modal */}
-            <Modal
-                isOpen={showLogoutConfirm}
-                onClose={() => setShowLogoutConfirm(false)}
-                title={t.logout || 'Logout'}
-                subtitle={t.logoutConfirmMessage || 'Are you sure you want to log out?'}
-                icon={LogOut}
-                maxWidth="450px"
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
-                    <button
-                        onClick={() => {
-                            setShowLogoutConfirm(false);
-                            logout();
-                        }}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            borderRadius: '16px',
-                            border: 'none',
-                            background: 'var(--danger)',
-                            color: 'white',
-                            fontWeight: '800',
-                            fontSize: '1rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 8px 20px -6px rgba(239, 68, 68, 0.4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px'
-                        }}
-                    >
-                        <LogOut size={18} /> {t.logoutConfirmYes || 'Yes, log out'}
-                    </button>
-                    <button
-                        onClick={() => setShowLogoutConfirm(false)}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            borderRadius: '16px',
-                            border: '1.5px solid var(--border)',
-                            background: 'transparent',
-                            color: 'var(--text-main)',
-                            fontWeight: '700',
-                            fontSize: '1rem',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {t.cancel || 'Cancel'}
-                    </button>
-                </div>
-            </Modal>
 
             {/* Mobile overlay */}
             {isMobile && isSidebarOpen && (
@@ -341,7 +288,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
                 <div style={{ padding: isSidebarOpen ? '24px 16px' : '24px 12px', borderTop: '1px solid var(--border)' }}>
                     <button
-                        onClick={() => setShowLogoutConfirm(true)}
+                        onClick={() => { logout(); navigate('/login'); }}
                         className="nav-link"
                         style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', marginBottom: '16px' }}
                     >
