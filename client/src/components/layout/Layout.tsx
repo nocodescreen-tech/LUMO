@@ -52,6 +52,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [logoutLoading, setLogoutLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [searchQuery, setSearchQuery] = useState('');
@@ -185,6 +187,51 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             {/* Session Timeout Warning Modal */}
             <SessionTimeoutModal />
 
+            {/* Logout Confirmation Modal */}
+            <Modal
+                isOpen={showLogoutConfirm}
+                onClose={() => !logoutLoading && setShowLogoutConfirm(false)}
+                title={t.logout || 'Déconnexion'}
+                subtitle={t.logoutConfirmMessage || 'Voulez-vous vraiment vous déconnecter ?'}
+                icon={LogOut}
+                maxWidth="420px"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                    <button
+                        disabled={logoutLoading}
+                        onClick={async () => {
+                            setLogoutLoading(true);
+                            await logout();
+                            setLogoutLoading(false);
+                            setShowLogoutConfirm(false);
+                        }}
+                        style={{
+                            width: '100%', padding: '16px', borderRadius: '16px',
+                            border: 'none', background: 'var(--danger)', color: 'white',
+                            fontWeight: '800', fontSize: '1rem',
+                            cursor: logoutLoading ? 'not-allowed' : 'pointer',
+                            opacity: logoutLoading ? 0.7 : 1,
+                            boxShadow: '0 8px 20px -6px rgba(239, 68, 68, 0.4)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                        }}
+                    >
+                        <LogOut size={18} />
+                        {logoutLoading ? 'Déconnexion...' : (t.logoutConfirmYes || 'Oui, me déconnecter')}
+                    </button>
+                    <button
+                        disabled={logoutLoading}
+                        onClick={() => setShowLogoutConfirm(false)}
+                        style={{
+                            width: '100%', padding: '16px', borderRadius: '16px',
+                            border: '1.5px solid var(--border)', background: 'transparent',
+                            color: 'var(--text-main)', fontWeight: '700', fontSize: '1rem',
+                            cursor: logoutLoading ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {t.cancel || 'Annuler'}
+                    </button>
+                </div>
+            </Modal>
 
             {/* Mobile overlay */}
             {isMobile && isSidebarOpen && (
@@ -288,7 +335,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
                 <div style={{ padding: isSidebarOpen ? '24px 16px' : '24px 12px', borderTop: '1px solid var(--border)' }}>
                     <button
-                        onClick={() => { logout(); navigate('/login'); }}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="nav-link"
                         style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', marginBottom: '16px' }}
                     >
