@@ -5,7 +5,6 @@ import {
   Truck, 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Phone, 
   Mail, 
   MapPin, 
@@ -225,13 +224,10 @@ const Fournisseurs = () => {
                 className="premium-card"
                 style={{ padding: '24px', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
               >
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                      <Truck size={24} />
-                    </div>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><MoreHorizontal size={20} /></button>
+                 <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', marginBottom: '20px' }}>
+                   <Truck size={24} />
                  </div>
-                 
+
                  <div style={{ marginBottom: '20px' }}>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{supplier.nom}</h3>
                     <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase' }}>{supplier.categorie || 'IMPORTATEUR'}</span>
