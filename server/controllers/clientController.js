@@ -111,7 +111,8 @@ exports.sendReminder = async (req, res, next) => {
       return res.status(400).json({ message: 'Ce client n\'a aucune dette.' });
     }
 
-    const html = getDebtReminderTemplate(client.nom, client.detteTotale, 'CDF'); // ou utiliser la devise configurée
+    const userCurrency = req.user.preferences?.currency || req.user.entreprise?.devise || 'CDF';
+    const html = getDebtReminderTemplate(client.nom, client.detteTotale, userCurrency);
     
     await sendEmail({
       email: client.email,
