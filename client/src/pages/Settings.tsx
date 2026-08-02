@@ -978,11 +978,9 @@ const Settings = () => {
 
       await api.put('/auth/profile', payload);
 
-      // Force update enabledModules in localStorage + store BEFORE checkAuth
-      // to ensure the sidebar re-renders immediately with the correct modules
-      localStorage.setItem('enabledModules', JSON.stringify(enabledModules));
-
-      // Force-reload from server to guarantee UI reflects DB state
+      // SECURITY: no redundant localStorage preference keys. checkAuth() below
+      // re-fetches the user from the server and updates the store in memory,
+      // which re-renders the sidebar with the correct modules.
       await checkAuth(false);
 
       setProfileData(prev => ({ ...prev, motDePasse: '' }));

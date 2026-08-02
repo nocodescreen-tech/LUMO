@@ -3,25 +3,18 @@ import { useAuthStore } from '../store/useAuthStore';
 
 export const SESSION_EXPIRY_EVENT = 'lumo-session-expired';
 
-const encodeData = (data: any) => {
-  try {
-    const json = JSON.stringify(data);
-    // Use btoa safely with unescape/encodeURIComponent for UTF-8 support
-    return btoa(unescape(encodeURIComponent(json)));
-  } catch (e) {
-    return JSON.stringify(data);
-  }
+// SECURITY: access token is stored in a single dedicated key (no PII).
+const TOKEN_KEY = 'lumo-token';
+
+const getToken = (): string | null => {
+  return localStorage.getItem(TOKEN_KEY);
 };
 
-const decodeData = (encoded: string | null) => {
-  if (!encoded) return null;
-  try {
-    if (encoded.startsWith('{')) return JSON.parse(encoded);
-    // Use atob safely with decodeURIComponent/escape for UTF-8 support
-    const decoded = decodeURIComponent(escape(atob(encoded)));
-    return JSON.parse(decoded);
-  } catch (e) {
-    try { return JSON.parse(encoded); } catch(ee) { return null; }
+const setToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
   }
 };
 
@@ -32,13 +25,7 @@ const api = axios.create({
 
 // ─── Request Interceptor: attach access token & CSRF ──────────────────────────
 api.interceptors.request.use((config) => {
-  const auth = localStorage.getItem('lumo-auth');
-  const decoded = decodeData(auth);
-  let token = decoded ? decoded.token : null;
-  
-  if (!token) {
-    token = localStorage.getItem('token');
-  }
+  const token = getToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -97,24 +84,18 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const stored = localStorage.getItem('lumo-auth');
-      const decoded = decodeData(stored);
-      if (!decoded) throw new Error('No auth');
-      
-      const { refreshToken } = decoded;
-      if (!refreshToken) throw new Error('No refresh token');
-
-      // Call refresh endpoint with credentials (cookie) or body
+      // SECURITY: refresh token is stored in an httpOnly cookie (not accessible
+      // to JS). The refresh call relies on the cookie via withCredentials.
       const { data } = await axios.post(
         `${api.defaults.baseURL}/auth/refresh`,
-        { refreshToken },
+        {},
         { withCredentials: true }
       );
 
-      // Persist new tokens with safe encoding
-      const updated = { ...decoded, token: data.token, refreshToken: data.refreshToken };
-      localStorage.setItem('lumo-auth', encodeData(updated));
-      localStorage.setItem('token', data.token);
+      if (!data.token) throw new Error('No token returned');
+
+      // Persist only the new access token (no PII).
+      setToken(data.token);
 
       processQueue(null, data.token);
 

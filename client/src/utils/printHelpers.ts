@@ -38,7 +38,9 @@ const isRefundedSale = (data: any) => {
 };
 
 const getPrintLanguage = (user: any = null): Lang => {
-  const lang = user?.preferences?.language || localStorage.getItem('language');
+  // SECURITY: language preference comes from the in-memory user object only
+  // (no localStorage fallback — that key is no longer persisted).
+  const lang = user?.preferences?.language;
   return lang === 'en' ? 'en' : 'fr';
 };
 

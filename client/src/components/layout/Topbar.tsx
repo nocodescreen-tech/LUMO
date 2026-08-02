@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, UserCircle, Sun, Moon, LogOut, Settings, User, Check, Trash2, Sparkles, X, LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Wallet, CreditCard, Truck, Activity, UserX } from 'lucide-react';
-import { useAuthStore, encodeData, decodeData } from '../../store/useAuthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -22,17 +22,16 @@ const Topbar = () => {
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
 
-    const isImpersonating = !!localStorage.getItem('lumo-auth-superadmin');
+    const isImpersonating = !!localStorage.getItem('lumo-token-superadmin');
 
     const handleStopImpersonation = () => {
-        const superadminAuth = localStorage.getItem('lumo-auth-superadmin');
-        if (superadminAuth) {
-            localStorage.removeItem('lumo-auth-superadmin');
-            const data = decodeData(superadminAuth);
-            if (data && data.user && data.token) {
-                setAuth(data.user, data.token);
-                window.location.href = '/superadmin';
-            }
+        const superadminToken = localStorage.getItem('lumo-token-superadmin');
+        if (superadminToken) {
+            localStorage.removeItem('lumo-token-superadmin');
+            // SECURITY: restore only the access token; the user profile is
+            // re-fetched from the server on the next checkAuth().
+            localStorage.setItem('lumo-token', superadminToken);
+            window.location.href = '/superadmin';
         }
     };
 

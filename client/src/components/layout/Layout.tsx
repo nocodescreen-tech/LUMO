@@ -446,25 +446,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 // ── Catalogue complet de tous les éléments navigables ──
                                 const searchItems = [
                                     // Modules principaux
-                                    ...navItems.map(item => ({ ...item, category: 'Module' })),
+                                    ...navItems.map(item => ({ ...item, category: t.searchCategoryModule || 'Module' })),
                                     // Sous-sections des Paramètres
-                                    { name: 'Profil & Entreprise', icon: Settings, path: '/settings#profil', category: 'Paramètres' },
-                                    { name: 'Équipe & Utilisateurs', icon: Users, path: '/settings#equipe', category: 'Paramètres' },
-                                    { name: 'Notifications', icon: Bell, path: '/settings#notifications', category: 'Paramètres' },
-                                    { name: 'Sécurité & Mot de passe', icon: ShieldCheck, path: '/settings#securite', category: 'Paramètres' },
-                                    { name: 'Thème & Apparence', icon: Moon, path: '/settings#theme', category: 'Paramètres' },
-                                    { name: 'Devise & Taux de change', icon: DollarSign, path: '/settings#devise', category: 'Paramètres' },
-                                    { name: 'Modules & Intégrations', icon: Package, path: '/settings#modules', category: 'Paramètres' },
-                                    { name: 'Sauvegarde des données', icon: Settings, path: '/settings#backup', category: 'Paramètres' },
-                                    { name: 'Permissions & Rôles', icon: ShieldCheck, path: '/settings#permissions', category: 'Paramètres' },
-                                    { name: 'Réinitialisation / Danger Zone', icon: Settings, path: '/settings#danger', category: 'Paramètres' },
+                                    { name: t.searchProfilEntreprise || 'Profil & Entreprise', icon: Settings, path: '/settings#profil', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchEquipeUtilisateurs || 'Équipe & Utilisateurs', icon: Users, path: '/settings#equipe', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchNotifications || 'Notifications', icon: Bell, path: '/settings#notifications', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchSecurite || 'Sécurité & Mot de passe', icon: ShieldCheck, path: '/settings#securite', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchThemeApparence || 'Thème & Apparence', icon: Moon, path: '/settings#theme', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchDeviseTaux || 'Devise & Taux de change', icon: DollarSign, path: '/settings#devise', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchModulesIntegrations || 'Modules & Intégrations', icon: Package, path: '/settings#modules', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchSauvegarde || 'Sauvegarde des données', icon: Settings, path: '/settings#backup', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchPermissionsRoles || 'Permissions & Rôles', icon: ShieldCheck, path: '/settings#permissions', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchDangerZone || 'Réinitialisation / Danger Zone', icon: Settings, path: '/settings#danger', category: t.searchCategoryParametres || 'Paramètres' },
                                     // Raccourcis actions
-                                    { name: 'Nouvelle Vente (POS)', icon: ShoppingCart, path: '/pos', category: 'Action rapide' },
-                                    { name: 'Ajouter un Produit', icon: Package, path: '/products', category: 'Action rapide' },
-                                    { name: 'Ajouter un Client', icon: Users, path: '/clients', category: 'Action rapide' },
-                                    { name: 'Rapport Analytique', icon: BarChart3, path: '/stats', category: 'Action rapide' },
-                                    { name: 'Historique des Stocks', icon: History, path: '/stock-history', category: 'Action rapide' },
-                                    { name: 'Trésorerie / Caisse', icon: Wallet, path: '/cash', category: 'Action rapide' },
+                                    { name: t.searchNouvelleVente || 'Nouvelle Vente (POS)', icon: ShoppingCart, path: '/pos', category: t.searchCategoryActionRapide || 'Action rapide' },
+                                    { name: t.searchAjouterProduit || 'Ajouter un Produit', icon: Package, path: '/products', category: t.searchCategoryActionRapide || 'Action rapide' },
+                                    { name: t.searchAjouterClient || 'Ajouter un Client', icon: Users, path: '/clients', category: t.searchCategoryActionRapide || 'Action rapide' },
+                                    { name: t.searchRapportAnalytique || 'Rapport Analytique', icon: BarChart3, path: '/stats', category: t.searchCategoryActionRapide || 'Action rapide' },
+                                    { name: t.searchHistoriqueStocks || 'Historique des Stocks', icon: History, path: '/stock-history', category: t.searchCategoryActionRapide || 'Action rapide' },
+                                    { name: t.searchTresorerieCaisse || 'Trésorerie / Caisse', icon: Wallet, path: '/cash', category: t.searchCategoryActionRapide || 'Action rapide' },
                                 ];
 
                                 const q = searchQuery.toLowerCase();

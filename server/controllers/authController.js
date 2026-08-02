@@ -196,9 +196,9 @@ const loginAdmin = async (req, res, next) => {
       entreprise: user.entreprise,
       twoFactorEnabled: user.twoFactorEnabled,
       token: accessToken,
-      // On peut garder le refreshToken dans le JSON pour le mobile, 
-      // mais le web utilisera de préférence le cookie.
-      refreshToken, 
+      // SECURITY: refreshToken is NOT returned in the JSON body.
+      // It is only set as an httpOnly cookie (see res.cookie above),
+      // which is not accessible to JavaScript (XSS-safe).
       permissions: user.permissions,
     });
   } catch (error) {
@@ -258,7 +258,7 @@ const verify2FA = async (req, res, next) => {
       entreprise: user.entreprise,
       twoFactorEnabled: user.twoFactorEnabled,
       token: accessToken,
-      refreshToken,
+      // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
       permissions: user.permissions,
     });
   } catch (error) {
@@ -321,7 +321,8 @@ const refreshAccessToken = async (req, res, next) => {
     user.changed('activeSessions', true);
     await user.save({ hooks: false });
 
-    res.status(200).json({ token: accessToken, refreshToken: newRefreshToken });
+    // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
+    res.status(200).json({ token: accessToken });
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Session expirée, veuillez vous reconnecter', code: 'REFRESH_EXPIRED' });

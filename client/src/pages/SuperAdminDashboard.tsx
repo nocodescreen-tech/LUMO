@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { useAuthStore, encodeData, decodeData } from '../store/useAuthStore';
+import { useAuthStore } from '../store/useAuthStore';
 import Logo from '../components/layout/Logo';
 import { BUSINESS_TYPES } from '../constants/businessTypes';
 
@@ -219,10 +219,10 @@ const SuperAdminDashboard = () => {
             const { data } = await api.post(`/superadmin/users/${id}/impersonate`);
             toast.success(data.message);
             
-            // Backup the superadmin token to allow easy return
-            const currentAuth = localStorage.getItem('lumo-auth');
-            if (currentAuth) {
-                localStorage.setItem('lumo-auth-superadmin', currentAuth);
+            // SECURITY: backup ONLY the superadmin access token (no PII) to allow easy return
+            const currentToken = localStorage.getItem('lumo-token');
+            if (currentToken) {
+                localStorage.setItem('lumo-token-superadmin', currentToken);
             }
 
             useAuthStore.getState().setAuth(data.user, data.token);
