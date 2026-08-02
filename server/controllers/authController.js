@@ -171,13 +171,7 @@ const loginAdmin = async (req, res, next) => {
     const sessionId = crypto.randomBytes(16).toString('hex');
     const { accessToken, refreshToken } = generateToken(user.id, sessionId);
 
-    // Secure Refresh Token in Cookie
-    res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
-    });
+    setRefreshTokenCookie(res, refreshToken);
 
     // Manage concurrent sessions (limit to 5)
     let sessions = user.activeSessions || [];
@@ -250,6 +244,7 @@ const verify2FA = async (req, res, next) => {
     
     const sessionId = crypto.randomBytes(16).toString('hex');
     const { accessToken, refreshToken } = generateToken(user.id, sessionId);
+    setRefreshTokenCookie(res, refreshToken);
 
     // Manage sessions
     let sessions = user.activeSessions || [];
@@ -299,13 +294,7 @@ const refreshAccessToken = async (req, res, next) => {
     const sessionId = decoded.sessionId;
     const { accessToken, refreshToken: newRefreshToken } = generateToken(user.id, sessionId);
 
-    // Rotation du Refresh Token dans le cookie
-    res.cookie('refreshToken', newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
-    });
+    setRefreshTokenCookie(res, newRefreshToken);
 
     // M6 Fix: Ne pas écraser activeSessions si le sessionId est le même,
     // mais on peut quand même mettre à jour les métadonnées (userAgent, IP)
@@ -451,9 +440,23 @@ const verifyEmail = async (req, res, next) => {
     user.isVerified = true;
     user.isAdminValidated = true; // Auto-validate once email is verified via OTP
     user.verificationCode = null;
-    await user.save();
 
-    const tokens = generateToken(user.id);
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    const tokens = generateToken(user.id, sessionId);
+    let sessions = user.activeSessions || [];
+    sessions.push({
+      sessionId,
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+      createdAt: new Date()
+    });
+    if (sessions.length > 5) sessions.shift();
+    user.activeSessions = sessions;
+    user.changed('activeSessions', true);
+    await user.save({ hooks: false });
+
+    setRefreshTokenCookie(res, tokens.refreshToken);
+
     res.status(200).json({
       id: user.id,
       nom: user.nom,
@@ -464,7 +467,6 @@ const verifyEmail = async (req, res, next) => {
       entreprise: user.entreprise,
       twoFactorEnabled: user.twoFactorEnabled,
       token: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
       message: 'Email vérifié avec succès'
     });
   } catch (error) {
