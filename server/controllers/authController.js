@@ -12,6 +12,15 @@ const qrcode = require('qrcode');
 // Deprecated local version replaced by utility
 const uploadAvatarToCloudinary = (buffer, mime) => uploadImage(buffer, 'avatars', mime);
 
+const setRefreshTokenCookie = (res, refreshToken) => {
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+  });
+};
+
 // @desc    Register a new user
 const registerAdmin = async (req, res, next) => {
   
@@ -92,6 +101,7 @@ const registerAdmin = async (req, res, next) => {
       if (isFirstUser) {
         user.activeSessions = [{ sessionId, createdAt: new Date() }];
         await user.save();
+        setRefreshTokenCookie(res, tokens.refreshToken);
       }
       res.status(201).json({
         id: user.id,
@@ -101,7 +111,6 @@ const registerAdmin = async (req, res, next) => {
         isAdminValidated: user.isAdminValidated,
         role: user.role,
         token: tokens ? tokens.accessToken : null,
-        refreshToken: tokens ? tokens.refreshToken : null,
         message: isFirstUser ? 'Compte SuperAdmin créé avec succès.' : 'Inscription réussie. Veuillez vérifier votre email et attendre la validation de l\'administrateur.'
       });
     }
