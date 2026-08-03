@@ -133,7 +133,8 @@ const loginAdmin = async (req, res, next) => {
     console.log(`[AUTH_PERF] DB FindUser: ${Date.now() - startTime}ms`);
 
     if (!user) {
-      return res.status(401).json({ message: "Aucun compte n'est associé à cet email" });
+      // SECURITY: message générique — ne pas révéler si l'email existe (anti-énumération)
+      return res.status(401).json({ message: "Email ou mot de passe incorrect" });
     }
 
     const passCheckStart = Date.now();
@@ -141,7 +142,8 @@ const loginAdmin = async (req, res, next) => {
     console.log(`[AUTH_PERF] Bcrypt Compare: ${Date.now() - passCheckStart}ms`);
 
     if (!isMatch) {
-      return res.status(401).json({ message: "Mot de passe incorrect" });
+      // SECURITY: même message que "email inconnu" — anti-énumération d'utilisateurs
+      return res.status(401).json({ message: "Email ou mot de passe incorrect" });
     }
 
     // Role check logic

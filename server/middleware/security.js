@@ -16,8 +16,28 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 const securityMiddleware = (app) => {
-    // Set security HTTP headers
-    app.use(helmet());
+    // Set security HTTP headers — helmet avec CSP explicite + HSTS
+    // (helmet() seul n'active PAS la CSP par défaut)
+    app.use(helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                // styles inline nécessaires (style={{}} + styled-components)
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:", "blob:", "https:"],
+                connectSrc: ["'self'", "https:"],
+                fontSrc: ["'self'", "data:", "https:"],
+                frameAncestors: ["'self'"],
+                upgradeInsecureRequests: [],
+            },
+        },
+        strictTransportSecurity: {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+        },
+    }));
 
     // Prevent XSS attacks
     app.use(xss());
@@ -108,20 +128,30 @@ const securityMiddleware = (app) => {
     });
     app.use('/api', apiLimiter);
 
-    // Strict auth limiter
+    // Strict auth limiter — login & forgot-password : 10 tentatives / 15 min / IP
+    // (brute-force protection ; 100 était trop laxiste)
     const authLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 100,
+        max: 10,
         standardHeaders: true,
         legacyHeaders: false,
-        message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
+        message: { message: 'Trop de tentatives. Réessayez dans 15 minutes.' },
     });
     app.use('/api/v1/auth/login', authLimiter);
     app.use('/api/auth/login', authLimiter);
-    app.use('/api/v1/auth/register', authLimiter);
-    app.use('/api/auth/register', authLimiter);
     app.use('/api/v1/auth/forgot-password', authLimiter);
     app.use('/api/auth/forgot-password', authLimiter);
+
+    // Registration limiter — 20 inscriptions / 15 min / IP (moins strict : cas d'usage légitime multiples)
+    const registerLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 20,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { message: 'Trop d\'inscriptions. Réessayez dans 15 minutes.' },
+    });
+    app.use('/api/v1/auth/register', registerLimiter);
+    app.use('/api/auth/register', registerLimiter);
 };
 
 module.exports = securityMiddleware;
