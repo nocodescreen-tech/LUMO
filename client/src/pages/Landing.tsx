@@ -6,7 +6,7 @@ import {
   Cpu, Globe, Loader2, Moon, Package, ShieldCheck,
   ShoppingCart, Sparkles, Sun, TrendingUp, Users, Zap,
   Menu, X, Star, DollarSign, Activity, Lock, ChevronUp, Check, MessageSquare, Smartphone, Mail, Phone, MapPin,
-  Facebook, Instagram, Linkedin, Twitter, Calculator, Heart, Send
+  Facebook, Instagram, Linkedin, Twitter, Calculator, Heart, Send, Bell
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -408,46 +408,36 @@ const useNewsletter = () => {
 };
 
 // ─── Animated Counter ─────────────────────────────────────────────────────────
-function AnimatedCounter({ value, duration = 2 }: { value: number, duration?: number }) {
+function AnimatedCounter({ value, duration = 2, decimals = 0 }: { value: number, duration?: number, decimals?: number }) {
   const [count, setCount] = useState(0);
-  const nodeRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    let start = 0;
-    const end = value;
-    if (start === end) return;
-
-    let totalMilSecDur = duration * 1000;
-    let incrementTime = (totalMilSecDur / end) * 2;
-
-    let timer = setInterval(() => {
-      start += Math.ceil(end / (totalMilSecDur / 50));
-      if (start >= end) {
-        start = end;
-        clearInterval(timer);
-      }
-      setCount(start);
-    }, 50);
-
-    return () => clearInterval(timer);
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / (duration * 1000), 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setCount(value * eased);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [value, duration]);
 
-  return <span ref={nodeRef}>{count}</span>;
+  return <span>{count.toFixed(decimals).replace('.', ',')}</span>;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component: Landing "Terre & Fleuve" ────────────────────────────────────
 export default function Landing() {
   const { theme, setTheme, language, setLanguage } = useAuthStore();
   const navigate = useNavigate();
   const L = i18n[language] || i18n.fr;
-
+  const isDark = theme === 'dark';
   const [menuOpen, setMenuOpen] = useState(false);
   const [email, setEmail] = useState('');
   const { status, subscribe } = useNewsletter();
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollY, scrollYProgress } = useScroll();
-  const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
-  const heroY = useTransform(scrollY, [0, 400], [0, -60]);
+  const { scrollYProgress } = useScroll();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ nom: '', email: '', message: '' });
@@ -464,6 +454,16 @@ export default function Landing() {
       lang: navigator.language || '',
     }).catch(() => { });
   }, []);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -483,31 +483,20 @@ export default function Landing() {
     }
   };
 
-  useEffect(() => {
-    return scrollY.onChange((latest) => {
-      setShowBackToTop(latest > 500);
-    });
-  }, [scrollY]);
-
-  // --- Real Logic for Savings Calculator ---
+  // --- Savings Calculator ---
   const [salesPerDay, setSalesPerDay] = useState(20);
   const [avgBasket, setAvgBasket] = useState(15000);
   const [timeSaved, setTimeSaved] = useState(0);
   const [moneySaved, setMoneySaved] = useState(0);
-
   useEffect(() => {
-    // Math: Manual management takes ~10 mins per sale (counting stock, entry, etc.)
-    // LUMO takes ~2 mins. Savings = 8 mins per sale.
     const minutesSaved = salesPerDay * 8;
     const monthlyHours = (minutesSaved * 26) / 60;
     setTimeSaved(Math.round(monthlyHours));
-
-    // Error reduction & automation savings estimated at 5% of turnover
     const monthlyTurnover = salesPerDay * avgBasket * 26;
     setMoneySaved(Math.round(monthlyTurnover * 0.05));
   }, [salesPerDay, avgBasket]);
 
-  // --- Real Logic for Chat Widget ---
+  // --- Chat Widget (IA) ---
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
@@ -515,25 +504,21 @@ export default function Landing() {
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
     const userMsg = chatInput;
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsTyping(true);
-
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/ai/public-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg })
       });
-
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let aiResponse = '';
-
       if (reader) {
         setChatMessages(prev => [...prev, { role: 'assistant', content: '' }]);
         while (true) {
@@ -565,11 +550,9 @@ export default function Landing() {
       setIsTyping(false);
     }
   };
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-
   useEffect(() => {
     setChatMessages(prev => {
       if (prev.length === 1 && prev[0].role === 'assistant') {
@@ -579,1456 +562,862 @@ export default function Landing() {
     });
   }, [language]);
 
-  // --- Cookie Banner State ---
+  // --- Cookie Banner ---
   const [showCookie, setShowCookie] = useState(!localStorage.getItem('lumo_cookies_accepted'));
   const acceptCookies = () => {
     localStorage.setItem('lumo_cookies_accepted', 'true');
     setShowCookie(false);
   };
 
-  // Modal State for Footer Links
+  // --- Footer Modal ---
   const [footerModal, setFooterModal] = useState<{ open: boolean; title: string; content: string }>({ open: false, title: '', content: '' });
-
   const handleFooterLink = (title: string, contentFr: string, contentEn: string) => {
-    setFooterModal({
-      open: true,
-      title,
-      content: language === 'fr' ? contentFr : contentEn
-    });
+    setFooterModal({ open: true, title, content: language === 'fr' ? contentFr : contentEn });
   };
-
-  // Update theme attribute whenever theme changes
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     await subscribe(email, language);
   };
-
   useEffect(() => {
-    if (status === 'ok') {
-      toast.success(L.news_success);
-      setEmail('');
-    }
-    if (status === 'error') {
-      toast.error(L.news_error);
-    }
+    if (status === 'ok') setEmail('');
   }, [status]);
 
   const features = [
-    { icon: ShoppingCart, color: '#6366f1', title: L.feat1_title, desc: L.feat1_desc },
-    { icon: BarChart3, color: '#3b82f6', title: L.feat2_title, desc: L.feat2_desc },
-    { icon: Package, color: '#10b981', title: L.feat3_title, desc: L.feat3_desc },
-    { icon: Globe, color: '#f59e0b', title: L.feat4_title, desc: L.feat4_desc },
-    { icon: TrendingUp, color: '#a855f7', title: L.feat5_title, desc: L.feat5_desc },
-    { icon: ShieldCheck, color: '#ef4444', title: L.feat6_title, desc: L.feat6_desc },
+    { icon: ShoppingCart, color: 'var(--fleuve)', title: L.feat1_title, desc: L.feat1_desc },
+    { icon: BarChart3, color: 'var(--terre)', title: L.feat2_title, desc: L.feat2_desc },
+    { icon: Package, color: 'var(--or)', title: L.feat3_title, desc: L.feat3_desc },
+    { icon: Globe, color: 'var(--fleuve)', title: L.feat4_title, desc: L.feat4_desc },
+    { icon: TrendingUp, color: 'var(--terre)', title: L.feat5_title, desc: L.feat5_desc },
+    { icon: ShieldCheck, color: 'var(--or)', title: L.feat6_title, desc: L.feat6_desc },
   ];
 
-  const stats = [
-    { value: '2 000+', label: L.stats_stores },
-    { value: '99.9%', label: L.stats_uptime },
-    { value: '24/7', label: L.stats_support },
-    { value: '2', label: L.stats_currencies },
+  const splits = [
+    { img: '/screen4.png', alt: 'Dashboard LUMO', eyebrow: L.eyebrow_dashboard, title: L.showcase_dash_title, desc: L.showcase_dash_desc, li: [L.showcase_dash_li1, L.showcase_dash_li2, L.showcase_dash_li3], reverse: false },
+    { img: '/screen2.png', alt: 'Stock LUMO', eyebrow: L.eyebrow_stock, title: L.showcase_stock_title, desc: L.showcase_stock_desc, li: [L.showcase_stock_li1, L.showcase_stock_li2, L.showcase_stock_li3], reverse: true },
+    { img: '/screen5.png', alt: 'POS LUMO', eyebrow: L.eyebrow_pos, title: L.showcase_pos_title, desc: L.showcase_pos_desc, li: [L.showcase_pos_li1, L.showcase_pos_li2, L.showcase_pos_li3], reverse: false },
+    { img: '/screen1.png', alt: 'Analytiques LUMO', eyebrow: L.eyebrow_analytics, title: L.showcase_analytics_title, desc: L.showcase_analytics_desc, li: [L.showcase_analytics_li1, L.showcase_analytics_li2, L.showcase_analytics_li3], reverse: true },
   ];
 
-  const isDark = theme === 'dark';
+  const steps = [
+    { n: '01', title: L.hiw_step1, desc: L.hiw_step1_desc },
+    { n: '02', title: L.hiw_step2, desc: L.hiw_step2_desc },
+    { n: '03', title: L.hiw_step3, desc: L.hiw_step3_desc },
+  ];
+
+  const testimonials = [
+    { text: L.testi_text1, role: L.testi_role1 },
+    { text: L.testi_text2, role: L.testi_role2 },
+    { text: L.testi_text3, role: L.testi_role3 },
+  ];
+
+  const team = [
+    { name: 'René Descartes', role: L.team_role_1, img: '/team/rene.jpg' },
+    { name: 'Jean Nz.', role: L.team_role_2, img: '/team/jean.png' },
+    { name: 'Mardoché Nl.', role: L.team_role_2, img: '/team/sarah.png' },
+  ];
+
+  const faqs = [
+    { q: L.faq_q1, a: L.faq_a1 },
+    { q: L.faq_q2, a: L.faq_a2 },
+    { q: L.faq_q3, a: L.faq_a3 },
+    { q: L.faq_q4, a: L.faq_a4 },
+  ];
+
+  const vsRows = [L.vs_row1, L.vs_row2, L.vs_row3, L.vs_row4, L.vs_row5, L.vs_row6];
 
   return (
-    <div className="hide-scrollbar" style={{
-      background: 'var(--bg-main)',
-      color: 'var(--text-main)',
-      fontFamily: "'Outfit', sans-serif",
-      minWidth: '1200px',
-      overflowX: 'auto',
-      minHeight: '100vh',
-    }}>
-      {/* Scroll Progress Bar */}
-      <motion.div
-        style={{
-          position: 'fixed', top: 0, left: 0, right: 0, height: 4,
-          background: 'var(--primary)', transformOrigin: '0%', scaleX: scrollYProgress,
-          zIndex: 1000
-        }}
-      />
+    <div className="lp-root">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap');
+        .lp-root {
+          --bg: #F5EFE3; --surface: #FCF8F0; --ink: #1C1710; --muted: #6E6352;
+          --fleuve: #1F6F6B; --fleuve-deep: #17534F; --terre: #C4552D; --or: #D99A2B;
+          --line: rgba(28,23,16,0.14); --chip: rgba(31,111,107,0.10);
+          --shadow: 0 20px 60px -30px rgba(28,23,16,0.35);
+          background: var(--bg); color: var(--ink); min-height: 100vh;
+          font-family: 'Space Grotesk', system-ui, sans-serif;
+          --font-serif: 'Fraunces', Georgia, serif; --font-mono: 'JetBrains Mono', monospace;
+          overflow-x: clip;
+          transition: background .3s, color .3s;
+        }
+        .lp-root[data-theme='dark'],
+        html[data-theme='dark'] .lp-root {
+          --bg: #151009; --surface: #211A10; --ink: #EDE3CE; --muted: #A99B7E;
+          --fleuve: #3E9C94; --fleuve-deep: #2C7A73; --terre: #D9744A; --or: #E0A93D;
+          --line: rgba(237,227,206,0.16); --chip: rgba(62,156,148,0.14);
+          --shadow: 0 24px 70px -30px rgba(0,0,0,0.6);
+        }
+        * { box-sizing: border-box; }
+        .lp-root .lp-container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+        .lp-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--fleuve); font-weight: 600; display: inline-flex; align-items: center; gap: 10px; }
+        .lp-eyebrow::before { content: ''; width: 26px; height: 1px; background: var(--fleuve); display: inline-block; }
+        .lp-title { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; font-size: clamp(2rem, 4.6vw, 3.4rem); margin: 14px 0 16px; }
+        .lp-title em { font-style: italic; color: var(--terre); }
+        .lp-sub { color: var(--muted); font-size: 1.02rem; line-height: 1.7; max-width: 640px; }
+        .lp-band { padding: 96px 0; }
+        .lp-stripes { background-image: repeating-linear-gradient(45deg, transparent 0 10px, rgba(31,111,107,0.05) 10px 11px); }
+        .lp-stripes-terre { background-image: repeating-linear-gradient(-45deg, transparent 0 10px, rgba(196,85,45,0.06) 10px 11px); }
+        .lp-btn { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: .04em; padding: 15px 26px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: all .25s; text-decoration: none; }
+        .lp-btn-fleuve { background: var(--fleuve); color: #F5EFE3; box-shadow: 0 12px 30px -12px rgba(31,111,107,0.55); }
+        .lp-btn-fleuve:hover { background: var(--fleuve-deep); transform: translateY(-2px); }
+        .lp-btn-ghost { border-color: var(--line); color: var(--ink); background: transparent; }
+        .lp-btn-ghost:hover { border-color: var(--fleuve); color: var(--fleuve); }
+        .lp-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+        .lp-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100; background: linear-gradient(90deg, var(--fleuve), var(--terre)); transform-origin: 0 50%; }
+        /* Nav */
+        .lp-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 90; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+        .lp-nav-inner { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+        .lp-nav-links { display: flex; align-items: center; gap: 30px; }
+        .lp-nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+        .lp-nav-links a:hover { color: var(--fleuve); }
+        .lp-icon-btn { background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; transition: all .2s; font-size: 15px; }
+        .lp-icon-btn:hover { border-color: var(--fleuve); color: var(--fleuve); }
+        /* Hero */
+        .lp-hero { padding: 170px 0 60px; position: relative; }
+        .lp-badge { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--fleuve); border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 100px; }
+        .lp-hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 60px; align-items: center; }
+        .lp-hero h1 { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.03em; line-height: 1.02; font-size: clamp(2.7rem, 6vw, 4.6rem); margin: 26px 0 22px; }
+        .lp-hero h1 em { font-style: italic; color: var(--terre); }
+        .lp-hero .lp-hero-sub { color: var(--muted); font-size: 1.08rem; line-height: 1.75; max-width: 520px; }
+        .lp-hero-btns { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+        .lp-hero-stats { display: flex; gap: 42px; margin-top: 54px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 30px; }
+        .lp-hero-stat b { display: block; font-family: var(--font-serif); font-size: 1.9rem; font-weight: 600; color: var(--ink); }
+        .lp-hero-stat span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+        .lp-hero-visual { position: relative; }
+        .lp-frame { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; box-shadow: var(--shadow); }
+        .lp-frame img { width: 100%; display: block; border-radius: 8px; }
+        .lp-frame-bar { display: flex; gap: 6px; padding: 6px 8px 12px; }
+        .lp-frame-bar i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+        .lp-frame-bar i:nth-child(1) { background: var(--terre); } .lp-frame-bar i:nth-child(2) { background: var(--or); } .lp-frame-bar i:nth-child(3) { background: var(--fleuve); }
+        .lp-chip { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-family: var(--font-mono); font-size: 11px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 8px; color: var(--ink); }
+        .lp-chip b { color: var(--fleuve); font-size: 13px; }
+        .lp-chip-1 { top: 30px; left: -30px; animation: floatY 5s ease-in-out infinite; }
+        .lp-chip-2 { bottom: 40px; right: -26px; animation: floatY 6s ease-in-out infinite reverse; }
+        .lp-chip-2 b { color: var(--terre); }
+        @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+        /* Trusted marquee */
+        .lp-trusted { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 26px 0; overflow: hidden; }
+        .lp-trusted p { text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
+        .lp-marquee { display: flex; gap: 44px; width: max-content; animation: marquee 26s linear infinite; font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+        .lp-marquee span { display: inline-flex; align-items: center; gap: 44px; white-space: nowrap; }
+        .lp-marquee i { color: var(--or); font-style: normal; font-size: 9px; }
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        /* Showcase splits */
+        .lp-split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .lp-split.reverse .lp-split-text { order: 2; } .lp-split.reverse .lp-split-visual { order: 1; }
+        .lp-split-text h3 { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.6vw, 2.1rem); font-weight: 600; letter-spacing: -0.02em; margin: 14px 0 12px; }
+        .lp-split-text p { color: var(--muted); line-height: 1.7; }
+        .lp-check-list { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 12px; }
+        .lp-check-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 14.5px; color: var(--ink); }
+        .lp-check-list svg { color: var(--fleuve); flex-shrink: 0; margin-top: 2px; }
+        .lp-split-visual { position: relative; }
+        .lp-corner { position: absolute; width: 74px; height: 74px; border: 2px solid var(--terre); z-index: 2; pointer-events: none; }
+        .lp-corner-tl { top: -14px; left: -14px; border-right: 0; border-bottom: 0; }
+        .lp-corner-br { bottom: -14px; right: -14px; border-left: 0; border-top: 0; }
+        /* Features grid */
+        .lp-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 54px; }
+        .lp-feat { padding: 30px 26px; border-radius: 12px; transition: transform .25s, box-shadow .25s; }
+        .lp-feat:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+        .lp-feat-icon { width: 52px; height: 52px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 18px; }
+        .lp-feat h4 { font-family: var(--font-serif); font-size: 1.18rem; font-weight: 600; margin: 0 0 8px; }
+        .lp-feat p { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 0; }
+        /* Steps */
+        .lp-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 54px; counter-reset: step; }
+        .lp-step { padding: 30px 26px; border-radius: 12px; position: relative; }
+        .lp-step b { font-family: var(--font-mono); font-size: 12px; color: var(--fleuve); letter-spacing: .14em; }
+        .lp-step h4 { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; margin: 14px 0 8px; }
+        .lp-step p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 0; }
+        /* Multi-magasins band */
+        .lp-empire { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 64px; text-align: center; position: relative; overflow: hidden; }
+        .lp-empire::after { content: '◈'; position: absolute; right: 24px; bottom: -30px; font-size: 170px; color: var(--line); opacity: .5; font-family: var(--font-serif); }
+        .lp-empire h2 { font-family: var(--font-serif); font-size: clamp(1.8rem, 3.6vw, 2.8rem); font-weight: 600; letter-spacing: -0.02em; margin: 16px auto 14px; max-width: 760px; }
+        .lp-empire h2 em { font-style: italic; color: var(--terre); }
+        .lp-empire p { color: var(--muted); max-width: 620px; margin: 0 auto; line-height: 1.7; }
+        /* AI analytics */
+        .lp-ai { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .lp-ai-panel { padding: 34px; border-radius: 14px; position: relative; }
+        .lp-ai-quote { font-family: var(--font-serif); font-style: italic; font-size: 1.22rem; line-height: 1.6; margin: 18px 0 22px; }
+        .lp-ai-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+        .lp-ai-chip { font-family: var(--font-mono); font-size: 11px; padding: 7px 13px; border-radius: 100px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); color: var(--ink); }
+        .lp-ai-chip.green { background: var(--chip); border-color: rgba(31,111,107,0.25); color: var(--fleuve); }
+        .lp-ai-chip.terre { background: rgba(196,85,45,0.08); border-color: rgba(196,85,45,0.25); color: var(--terre); }
+        .lp-ai-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+        .lp-ai-list li { display: flex; gap: 14px; align-items: flex-start; font-size: 15px; color: var(--muted); line-height: 1.6; }
+        .lp-ai-list svg { color: var(--terre); flex-shrink: 0; margin-top: 3px; }
+        .lp-ai-list b { color: var(--ink); font-weight: 600; }
+        /* Mobile */
+        .lp-mobile { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 70px; align-items: center; }
+        .lp-phone { width: 270px; margin: 0 auto; border-radius: 36px; border: 8px solid var(--ink); background: var(--surface); overflow: hidden; box-shadow: var(--shadow); }
+        .lp-phone img { width: 100%; display: block; }
+        .lp-mobile-list { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 14px; }
+        .lp-mobile-list li { display: flex; align-items: center; gap: 13px; font-size: 15px; color: var(--ink); }
+        .lp-mobile-list svg { color: var(--fleuve); flex-shrink: 0; }
+        .lp-notif { margin-top: 26px; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; box-shadow: var(--shadow); max-width: 400px; }
+        .lp-notif .dot { width: 40px; height: 40px; border-radius: 10px; background: var(--chip); display: grid; place-items: center; color: var(--fleuve); flex-shrink: 0; }
+        .lp-notif b { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; color: var(--terre); margin-bottom: 3px; }
+        .lp-notif span { font-size: 13px; color: var(--muted); }
+        /* Security */
+        .lp-sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .lp-sec-card { padding: 40px; border-radius: 14px; position: relative; overflow: hidden; }
+        .lp-sec-card::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent 0 12px, rgba(237,227,206,0.04) 12px 13px); }
+        .lp-sec-card h3 { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 600; position: relative; }
+        .lp-sec-card .big { font-family: var(--font-mono); font-size: 3.4rem; font-weight: 600; color: var(--or); position: relative; }
+        .lp-sec-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+        .lp-sec-list li { display: flex; gap: 14px; color: var(--muted); font-size: 15px; line-height: 1.6; align-items: flex-start; }
+        .lp-sec-list svg { color: var(--or); flex-shrink: 0; margin-top: 3px; }
+        .lp-sec-list b { color: var(--ink); }
+        /* VS table */
+        .lp-vs { margin-top: 54px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+        .lp-vs-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; border-bottom: 1px solid var(--line); }
+        .lp-vs-row:last-child { border-bottom: 0; }
+        .lp-vs-row > div { padding: 18px 24px; font-size: 14.5px; display: flex; align-items: center; gap: 10px; }
+        .lp-vs-row.head { background: var(--ink); color: var(--bg); font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+        .lp-vs-row.head .ok { color: var(--or); }
+        .lp-vs-row .feat { color: var(--muted); }
+        .lp-vs-row .ok { color: var(--fleuve); font-weight: 600; }
+        .lp-vs-row .no { color: var(--muted); opacity: .45; }
+        /* Testimonials */
+        .lp-testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 54px; }
+        .lp-testi { padding: 30px 26px; border-radius: 12px; display: flex; flex-direction: column; gap: 18px; }
+        .lp-testi .stars { display: flex; gap: 3px; color: var(--or); }
+        .lp-testi p { color: var(--muted); font-size: 14.5px; line-height: 1.7; margin: 0; flex: 1; }
+        .lp-testi .who { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+        .lp-testi .who span { color: var(--muted); display: block; margin-top: 2px; font-size: 11px; }
+        /* Calculator */
+        .lp-calc { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 54px; margin-top: 54px; }
+        .lp-calc label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 10px; }
+        .lp-calc input[type=range] { width: 100%; accent-color: var(--fleuve); height: 26px; }
+        .lp-calc .val { font-family: var(--font-mono); font-size: 15px; color: var(--fleuve); font-weight: 600; }
+        .lp-result { border-top: 1px solid var(--line); padding-top: 26px; display: grid; gap: 16px; }
+        .lp-result .res { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+        .lp-result .res span { color: var(--muted); font-size: 14px; }
+        .lp-result .res b { font-family: var(--font-mono); font-size: 1.5rem; color: var(--terre); }
+        /* Team */
+        .lp-team-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 54px; text-align: center; }
+        .lp-team img { width: 150px; height: 150px; object-fit: cover; border-radius: 58% 42% 60% 40% / 50% 55% 45% 50%; border: 3px solid var(--terre); margin: 0 auto 20px; display: block; }
+        .lp-team h4 { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; margin: 0 0 4px; }
+        .lp-team p { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+        .lp-team .socials { display: flex; justify-content: center; gap: 10px; }
+        .lp-team .socials a { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--muted); transition: all .2s; }
+        .lp-team .socials a:hover { color: var(--fleuve); border-color: var(--fleuve); }
+        /* FAQ */
+        .lp-faq { max-width: 780px; margin: 54px auto 0; display: grid; gap: 12px; }
+        .lp-faq-item { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+        .lp-faq-q { width: 100%; background: none; border: 0; padding: 20px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; cursor: pointer; color: var(--ink); font-size: 15px; font-weight: 600; font-family: 'Space Grotesk', sans-serif; text-align: left; }
+        .lp-faq-q svg { color: var(--fleuve); flex-shrink: 0; transition: transform .3s; }
+        .lp-faq-item.open .lp-faq-q svg { transform: rotate(180deg); }
+        .lp-faq-a { color: var(--muted); font-size: 14.5px; line-height: 1.7; padding: 0 22px 20px; }
+        /* Contact */
+        .lp-contact-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 50px; margin-top: 54px; align-items: start; }
+        .lp-contact-info { display: grid; gap: 14px; }
+        .lp-contact-info .row { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14.5px; }
+        .lp-contact-info .row svg { color: var(--fleuve); }
+        .lp-form { display: grid; gap: 16px; padding: 34px; border-radius: 14px; }
+        .lp-form input, .lp-form textarea { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; color: var(--ink); font-family: 'Space Grotesk', sans-serif; font-size: 14.5px; transition: border-color .2s; }
+        .lp-form input:focus, .lp-form textarea:focus { outline: none; border-color: var(--fleuve); }
+        .lp-form input::placeholder, .lp-form textarea::placeholder { color: var(--muted); opacity: .7; }
+        .lp-form textarea { min-height: 130px; resize: vertical; }
+        /* CTA */
+        .lp-cta { background: linear-gradient(135deg, var(--fleuve-deep), var(--fleuve)); border-radius: 18px; padding: 80px 60px; text-align: center; color: #F5EFE3; position: relative; overflow: hidden; }
+        .lp-cta::before { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(45deg, transparent 0 14px, rgba(255,255,255,0.05) 14px 15px); }
+        .lp-cta h2 { font-family: var(--font-serif); font-size: clamp(2rem, 4.4vw, 3.2rem); font-weight: 600; letter-spacing: -0.02em; margin: 0 auto 16px; position: relative; max-width: 700px; }
+        .lp-cta p { opacity: .85; font-size: 1.02rem; max-width: 560px; margin: 0 auto 30px; position: relative; line-height: 1.7; }
+        .lp-cta .lp-btn { background: #F5EFE3; color: var(--fleuve-deep); position: relative; box-shadow: 0 16px 40px -16px rgba(0,0,0,0.5); }
+        .lp-cta .lp-btn:hover { transform: translateY(-2px); }
+        /* Footer */
+        .lp-footer { background: var(--ink); color: var(--bg); padding: 70px 0 34px; margin-top: 0; }
+        .lp-footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px; }
+        .lp-footer h5 { font-family: var(--font-mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--or); margin: 0 0 18px; }
+        .lp-footer p { opacity: .75; font-size: 13.5px; line-height: 1.7; margin: 14px 0 0; max-width: 300px; }
+        .lp-footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 11px; }
+        .lp-footer ul a { color: var(--bg); opacity: .75; text-decoration: none; font-size: 14px; cursor: pointer; transition: opacity .2s; background: none; border: 0; padding: 0; font-family: 'Space Grotesk', sans-serif; }
+        .lp-footer ul a:hover { opacity: 1; color: var(--or); }
+        .lp-footer-bottom { border-top: 1px solid rgba(245,239,227,0.14); margin-top: 50px; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .lp-footer-bottom span { font-family: var(--font-mono); font-size: 12px; opacity: .6; }
+        .lp-footer-bottom .secure { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; opacity: .85; }
+        .lp-footer-bottom .secure svg { color: var(--or); }
+        .lp-socials { display: flex; gap: 10px; }
+        .lp-socials a { width: 36px; height: 36px; border: 1px solid rgba(245,239,227,0.25); border-radius: 8px; display: grid; place-items: center; color: var(--bg); opacity: .8; transition: all .2s; }
+        .lp-socials a:hover { opacity: 1; border-color: var(--or); color: var(--or); transform: translateY(-2px); }
+        /* Chat */
+        .lp-chat-btn { position: fixed; bottom: 26px; right: 26px; width: 58px; height: 58px; border-radius: 50%; background: var(--fleuve); color: #F5EFE3; border: 0; cursor: pointer; display: grid; place-items: center; box-shadow: 0 16px 40px -12px rgba(31,111,107,0.6); z-index: 80; transition: transform .2s; }
+        .lp-chat-btn:hover { transform: scale(1.07); }
+        .lp-chat-panel { position: fixed; bottom: 96px; right: 26px; width: 360px; max-width: calc(100vw - 40px); height: 480px; max-height: calc(100vh - 130px); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 30px 80px -20px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; z-index: 81; }
+        .lp-chat-head { background: var(--fleuve); color: #F5EFE3; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; }
+        .lp-chat-head b { font-family: var(--font-serif); font-size: 1.05rem; }
+        .lp-chat-head span { font-size: 12px; opacity: .85; display: flex; align-items: center; gap: 7px; }
+        .lp-chat-head .live { width: 8px; height: 8px; border-radius: 50%; background: #7CE3B0; display: inline-block; }
+        .lp-chat-head button { background: none; border: 0; color: #F5EFE3; cursor: pointer; display: grid; place-items: center; }
+        .lp-chat-msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+        .lp-msg { max-width: 82%; padding: 11px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+        .lp-msg.user { align-self: flex-end; background: var(--fleuve); color: #F5EFE3; border-bottom-right-radius: 4px; }
+        .lp-msg.assistant { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-bottom-left-radius: 4px; }
+        .lp-chat-input { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--line); }
+        .lp-chat-input input { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; color: var(--ink); font-size: 13.5px; }
+        .lp-chat-input input:focus { outline: none; border-color: var(--fleuve); }
+        .lp-chat-input button { background: var(--fleuve); color: #F5EFE3; border: 0; border-radius: 8px; width: 44px; cursor: pointer; display: grid; place-items: center; }
+        /* Cookie */
+        .lp-cookie { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 18px; z-index: 95; max-width: min(640px, calc(100vw - 32px)); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); }
+        .lp-cookie span { font-size: 13px; line-height: 1.5; opacity: .9; }
+        .lp-cookie button { background: var(--or); color: var(--ink); border: 0; border-radius: 6px; padding: 10px 18px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        /* Back to top */
+        .lp-top { position: fixed; bottom: 26px; left: 26px; width: 46px; height: 46px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); color: var(--fleuve); cursor: pointer; display: grid; place-items: center; z-index: 80; box-shadow: var(--shadow); transition: all .25s; }
+        .lp-top:hover { background: var(--fleuve); color: #F5EFE3; }
+        /* Modal */
+        .lp-modal-overlay { position: fixed; inset: 0; background: rgba(21,16,9,0.55); backdrop-filter: blur(6px); z-index: 99; display: grid; place-items: center; padding: 20px; }
+        .lp-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 34px; max-width: 520px; width: 100%; position: relative; }
+        .lp-modal h3 { font-family: var(--font-serif); font-size: 1.4rem; margin: 0 0 14px; }
+        .lp-modal p { color: var(--muted); font-size: 14.5px; line-height: 1.7; }
+        .lp-modal .close { position: absolute; top: 16px; right: 16px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+        /* Newsletter */
+        .lp-news { display: flex; gap: 10px; margin-top: 18px; max-width: 420px; }
+        .lp-news input { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(245,239,227,0.2); border-radius: 8px; padding: 13px 16px; color: var(--bg); font-size: 14px; }
+        .lp-news input::placeholder { color: rgba(245,239,227,0.5); }
+        .lp-news input:focus { outline: none; border-color: var(--or); }
+        .lp-news button { background: var(--or); color: var(--ink); border: 0; border-radius: 8px; padding: 13px 22px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; cursor: pointer; }
+        .lp-news .news-msg { font-family: var(--font-mono); font-size: 12px; color: var(--or); margin-top: 10px; }
+        .lp-mobile-menu { position: fixed; inset: 0; background: var(--bg); z-index: 92; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+        .lp-mobile-menu a { color: var(--ink); text-decoration: none; font-family: var(--font-serif); font-size: 1.7rem; }
+        .lp-mobile-menu button { font-family: var(--font-mono); font-size: 13px; }
+        @media (max-width: 900px) {
+          .lp-hero-grid, .lp-split, .lp-ai, .lp-mobile, .lp-sec-grid, .lp-calc, .lp-contact-grid { grid-template-columns: 1fr; }
+          .lp-split.reverse .lp-split-text { order: 0; } .lp-split.reverse .lp-split-visual { order: 0; }
+          .lp-feat-grid, .lp-steps, .lp-testi-grid, .lp-team-grid { grid-template-columns: 1fr; }
+          .lp-band { padding: 64px 0; }
+          .lp-chip-1 { left: 6px; } .lp-chip-2 { right: 6px; }
+          .lp-empire { padding: 44px 26px; }
+          .lp-cta { padding: 60px 26px; }
+          .lp-footer-grid { grid-template-columns: 1fr 1fr; }
+          .lp-nav-links { display: none; }
+          .lp-nav-inner .lp-link { display: none; }
+          .lp-nav-inner .lp-btn-fleuve { padding: 10px 14px !important; font-size: 12px; }
+          .lp-nav-inner > div { gap: 8px !important; }
+          .lp-mobile-burger { display: grid !important; }
+        }
+        @media (max-width: 560px) { .lp-footer-grid { grid-template-columns: 1fr; } .lp-calc { padding: 30px 22px; } }
+      `}</style>
 
-      {/* Back to top button */}
-      <AnimatePresence>
-        {showBackToTop && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            style={{
-              position: 'fixed', bottom: 30, right: 30, zIndex: 999,
-              width: 50, height: 50, borderRadius: '50%',
-              background: 'var(--primary)', color: 'white',
-              border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 10px 25px rgba(99,102,241,0.4)'
-            }}
-          >
-            <ChevronUp size={24} />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Progress bar */}
+      <motion.div className="lp-progress" style={{ scaleX: scrollYProgress }} />
 
-      {/* Footer Info Modal */}
-      <AnimatePresence>
-        {footerModal.open && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setFooterModal({ ...footerModal, open: false })}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              style={{
-                position: 'relative', width: '100%', maxWidth: 500, background: 'var(--bg-card)',
-                borderRadius: 24, padding: 32, zIndex: 10, border: '1px solid var(--border)', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
-              }}>
-              <button onClick={() => setFooterModal({ ...footerModal, open: false })}
-                style={{ position: 'absolute', top: 20, right: 20, background: 'var(--bg-main)', border: 'none', width: 32, height: 32, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-main)' }}>
-                <X size={18} />
-              </button>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: 16 }}>{footerModal.title}</h3>
-              <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontWeight: 500 }}>{footerModal.content}</p>
-              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="lp-btn-primary" onClick={() => setFooterModal({ ...footerModal, open: false })}>
-                  {L.footer_close}
-                </button>
-              </div>
-            </motion.div>
+      {/* ── NAV ── */}
+      <nav className="lp-nav">
+        <div className="lp-container lp-nav-inner">
+          <Logo />
+          <div className="lp-nav-links">
+            <a href="#features">{L.nav_features}</a>
+            <a href="#showcase">{L.nav_demo}</a>
+            <a href="#multi-magasins">{L.footer_f2}</a>
+            <a href="#analytiques">{L.footer_f3}</a>
+            <a href="#securite">{L.footer_f4}</a>
           </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── NAV ───────────────────────────────────────────────── */}
-      <nav style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 6%', height: '68px',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        background: isDark ? 'rgba(10,10,15,0.85)' : 'rgba(255,255,255,0.88)',
-        borderBottom: '1px solid var(--border)',
-        transition: 'background 0.3s',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <Logo size={34} />
-        </div>
-
-        {/* Desktop links - Always visible */}
-        <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-          <a href="#features" className="lp-link">{L.nav_features}</a>
-          <a href="#showcase" className="lp-link">{L.nav_demo}</a>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Lang */}
-          <button className="lp-icon-btn" onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="lp-icon-btn" onClick={() => setLanguage(language === 'fr' ? 'en' : 'fr')} aria-label="Langue">
               {language === 'fr' ? 'EN' : 'FR'}
-            </span>
-          </button>
-          {/* Theme */}
-          <button className="lp-icon-btn" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-
-          <div className="lp-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="lp-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem' }}
-              onClick={() => navigate('/login')}>
-              {L.nav_login}
             </button>
-            <button className="lp-btn-primary" onClick={() => navigate('/register')}>
-              {L.nav_cta}
+            <button className="lp-icon-btn" onClick={() => setTheme(isDark ? 'light' : 'dark')} aria-label="Thème">
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button
+              onClick={() => navigate('/login')}
+              className="lp-link"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--muted)', fontFamily: 'Space Grotesk' }}
+            >{L.nav_login}</button>
+            <button className="lp-btn lp-btn-fleuve" style={{ padding: '11px 18px' }} onClick={() => navigate('/register')}>{L.nav_cta}</button>
+            <button className="lp-icon-btn lp-mobile-burger" style={{ display: 'none' }} onClick={() => setMenuOpen(true)} aria-label="Menu">
+              <Menu size={18} />
             </button>
           </div>
-
         </div>
       </nav>
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div className="lp-mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <a href="#features" onClick={() => setMenuOpen(false)}>{L.nav_features}</a>
+            <a href="#showcase" onClick={() => setMenuOpen(false)}>{L.nav_demo}</a>
+            <a href="#multi-magasins" onClick={() => setMenuOpen(false)}>{L.footer_f2}</a>
+            <a href="#analytiques" onClick={() => setMenuOpen(false)}>{L.footer_f3}</a>
+            <a href="#securite" onClick={() => setMenuOpen(false)}>{L.footer_f4}</a>
+            <button className="lp-btn lp-btn-fleuve" onClick={() => { setMenuOpen(false); navigate('/register'); }}>{L.nav_cta}</button>
+            <button className="lp-btn lp-btn-ghost" onClick={() => { setMenuOpen(false); navigate('/login'); }}>{L.nav_login}</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* ── HERO ── */}
+      <header className="lp-hero">
+        <div className="lp-container">
+          <div className="lp-hero-grid">
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: 'circOut' }}>
+              <span className="lp-badge"><Sparkles size={13} /> {L.hero_badge}</span>
+              <h1>{L.hero_title_1} <em>{L.hero_title_2}</em></h1>
+              <p className="lp-hero-sub">{L.hero_sub}</p>
+              <div className="lp-hero-btns">
+                <button className="lp-btn lp-btn-fleuve" onClick={() => navigate('/register')}>
+                  {L.hero_cta} <ArrowRight size={15} />
+                </button>
+                <button className="lp-btn lp-btn-ghost" onClick={() => document.getElementById('showcase')?.scrollIntoView({ behavior: 'smooth' })}>
+                  {L.hero_cta2}
+                </button>
+              </div>
+              <div className="lp-hero-stats">
+                <div className="lp-hero-stat"><b><AnimatedCounter value={500} />+</b><span>{L.stats_stores}</span></div>
+                <div className="lp-hero-stat"><b><AnimatedCounter value={99.9} decimals={1} />%</b><span>{L.stats_uptime}</span></div>
+                <div className="lp-hero-stat"><b><AnimatedCounter value={24} />/7</b><span>{L.stats_support}</span></div>
+                <div className="lp-hero-stat"><b><AnimatedCounter value={3} /></b><span>{L.stats_currencies}</span></div>
+              </div>
+            </motion.div>
+            <motion.div className="lp-hero-visual" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.15, ease: 'circOut' }}>
+              <div className="lp-frame">
+                <div className="lp-frame-bar"><i /><i /><i /></div>
+                <img src="/screen3.png" alt="Dashboard LUMO" />
+              </div>
+              <div className="lp-chip lp-chip-1"><TrendingUp size={14} /> <b>+18%</b> CA</div>
+              <div className="lp-chip lp-chip-2"><Package size={14} /> <b>Stock</b> critique</div>
+            </motion.div>
+          </div>
+        </div>
+      </header>
 
-
-      {/* ── HERO ──────────────────────────────────────────────── */}
-      <section ref={heroRef} style={{ position: 'relative', overflow: 'hidden', paddingTop: 140, paddingBottom: 80, textAlign: 'center' }}>
-        {/* BG glow */}
-        <div style={{
-          position: 'absolute', top: '-10%', left: '50%', transform: 'translateX(-50%)',
-          width: 900, height: 500,
-          background: 'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* FLOATING VISUALS */}
-        <motion.div animate={{ y: [-15, 15, -15], rotate: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-          style={{ position: 'absolute', top: '20%', left: '10%', zIndex: 0, opacity: 0.15 }}>
-          <ShoppingCart size={120} color="var(--primary)" />
-        </motion.div>
-
-        <motion.div animate={{ y: [20, -20, 20], rotate: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 8, ease: "easeInOut" }}
-          style={{ position: 'absolute', top: '15%', right: '12%', zIndex: 0, opacity: 0.15 }}>
-          <Package size={100} color="#10b981" />
-        </motion.div>
-
-        <motion.div animate={{ y: [-10, 10, -10], rotate: [0, 5, 0], scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-          style={{ position: 'absolute', bottom: '15%', left: '18%', zIndex: 0, opacity: 0.12 }}>
-          <BarChart3 size={90} color="#f59e0b" />
-        </motion.div>
-
-        <motion.div animate={{ y: [15, -15, 15], rotate: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
-          style={{ position: 'absolute', bottom: '25%', right: '15%', zIndex: 0, opacity: 0.12 }}>
-          <DollarSign size={80} color="#a855f7" />
-        </motion.div>
-
-        <motion.div
-          style={{ opacity: heroOpacity, y: heroY, position: 'relative', zIndex: 1 }}
-          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}
-        >
-          {/* Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
-            <span className="lp-badge">
-              <Sparkles size={13} style={{ marginRight: 6 }} />
-              {L.hero_badge}
+      {/* ── TRUSTED ── */}
+      <div className="lp-trusted">
+        <p>{L.trusted_by}</p>
+        <div className="lp-marquee">
+          {[0, 1].map((k) => (
+            <span key={k}>
+              {['Matadi', 'Boma', 'Kinshasa', 'Lubumbashi', 'Goma', 'Brazzaville', 'Pointe-Noire', 'Kikwit', 'Mbandaka', 'Bukavu'].map((city) => (
+                <span key={city}>{city.toUpperCase()} <i>◆</i></span>
+              ))}
             </span>
-          </div>
-
-          {/* Title */}
-          <h1 style={{
-            fontSize: 'clamp(2.6rem, 6.5vw, 4.8rem)',
-            fontWeight: 950, letterSpacing: '-0.04em', lineHeight: 1.08,
-            margin: '0 auto 20px auto', maxWidth: 840,
-            color: 'var(--text-main)'
-          }}>
-            {L.hero_title_1}<br />
-            <span style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #3b82f6 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>
-              {L.hero_title_2}
-            </span>
-          </h1>
-
-          {/* Sub */}
-          <p style={{
-            fontSize: 'clamp(1rem, 2vw, 1.2rem)', fontWeight: 500, color: 'var(--text-muted)',
-            maxWidth: 600, margin: '0 auto 40px auto', lineHeight: 1.65,
-          }}>
-            {L.hero_sub}
-          </p>
-
-          {/* CTA buttons */}
-          <div className="lp-hero-btns" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="lp-btn-primary lp-btn-lg" onClick={() => navigate('/register')}>
-              {L.hero_cta} <ArrowRight size={18} style={{ marginLeft: 8 }} />
-            </button>
-            <button className="lp-btn-ghost lp-btn-lg" onClick={() => { document.getElementById('showcase')?.scrollIntoView({ behavior: 'smooth' }); }}>
-              {L.hero_cta2}
-            </button>
-          </div>
-
-          {/* Scroll hint */}
-          <motion.div
-            animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}
-            style={{ marginTop: 60, display: 'flex', justifyContent: 'center', opacity: 0.4 }}
-          >
-            <ChevronDown size={24} />
-          </motion.div>
-        </motion.div>
-
-        {/* Trusted By */}
-        <div style={{ marginTop: 100, borderTop: '1px solid var(--border)', paddingTop: 40, width: '100%', maxWidth: 1000, margin: '100px auto 0' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 30 }}>
-            {L.trusted_by}
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 'clamp(20px, 6vw, 60px)', flexWrap: 'wrap', opacity: 0.6, filter: isDark ? 'grayscale(100%) invert(1)' : 'grayscale(100%)' }}>
-            <svg width="120" height="35" viewBox="0 0 120 35" fill="none"><path d="M10 17L20 7H30L20 17L30 27H20L10 17Z" fill="currentColor" /><text x="35" y="23" fontFamily="Arial" fontWeight="bold" fontSize="18" fill="currentColor">AcmeCorp</text></svg>
-            <svg width="110" height="35" viewBox="0 0 110 35" fill="none"><circle cx="15" cy="17" r="10" fill="currentColor" /><text x="30" y="23" fontFamily="Arial" fontWeight="bold" fontSize="18" fill="currentColor">GlobalTech</text></svg>
-            <svg width="100" height="35" viewBox="0 0 100 35" fill="none"><rect x="5" y="7" width="20" height="20" rx="4" fill="currentColor" /><text x="32" y="23" fontFamily="Arial" fontWeight="bold" fontSize="18" fill="currentColor">Nexus</text></svg>
-            <svg width="120" height="35" viewBox="0 0 120 35" fill="none"><path d="M15 5L25 25H5L15 5Z" fill="currentColor" /><text x="30" y="23" fontFamily="Arial" fontWeight="bold" fontSize="18" fill="currentColor">Vertex</text></svg>
-          </div>
-        </div>
-      </section>
-
-      {/* ── STATS RIBBON ──────────────────────────────────────── */}
-      <section style={{
-        padding: '40px 6%',
-        background: isDark
-          ? 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.06))'
-          : 'linear-gradient(135deg, rgba(99,102,241,0.04), rgba(168,85,247,0.03))',
-        borderTop: '1px solid var(--border)',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: 32 }}>
-          {stats.map((s, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)', fontWeight: 950, color: 'var(--primary)', letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {s.value.includes('+') || s.value.includes('%') ? (
-                  <>
-                    <AnimatedCounter value={parseInt(s.value.replace(/\D/g, ''))} />
-                    {s.value.replace(/[0-9\s]/g, '')}
-                  </>
-                ) : s.value}
-              </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted)', marginTop: 4 }}>
-                {s.label}
-              </div>
-            </motion.div>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* ── VIDEO / DEMO PREVIEW ────────────────────────────── */}
-      <section style={{ padding: '80px 6% 40px', display: 'flex', justifyContent: 'center' }}>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          style={{
-            width: '100%', maxWidth: 1000, borderRadius: 24, padding: 8,
-            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-            border: '1px solid var(--border)', position: 'relative'
-          }}
-        >
-          <div style={{
-            width: '100%', aspectRatio: '16/9', borderRadius: 16, overflow: 'hidden',
-            background: 'var(--bg-main)', position: 'relative',
-          }}>
-            <video
-              src="/demo-preview.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              controls
-              preload="metadata"
-              style={{
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                objectFit: 'cover',
-                background: 'var(--bg-main)'
-              }}
-            />
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ── SHOWCASE / BIG FEATURES ─────────────────────────── */}
-      <section id="showcase" style={{ padding: '120px 6%', display: 'flex', flexDirection: 'column', gap: '120px' }}>
-        <div style={{ textAlign: 'center', marginBottom: -20 }}>
-          <span className="lp-section-eyebrow">{L.showcase_eyebrow}</span>
-          <h2 className="lp-section-title">
-            {L.showcase_title} <span style={{ color: 'var(--primary)' }}>{L.showcase_title2}</span>
-          </h2>
-          <p className="lp-section-sub">{L.showcase_sub}</p>
-        </div>
-
-        {/* Feature 1 */}
-        <div className="lp-feature-split">
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
-            <span className="lp-feature-eyebrow" style={{ color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.2)' }}>{L.eyebrow_dashboard}</span>
-            <h2 className="lp-split-title">
-              {L.showcase_dash_title}
-            </h2>
-            <p className="lp-split-desc">
-              {L.showcase_dash_desc}
-            </p>
-            <ul className="lp-split-list">
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li1}</li>
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li2}</li>
-              <li><CheckCircle2 color="#3b82f6" size={20} /> {L.showcase_dash_li3}</li>
-            </ul>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
-            <div className="lp-glass-overlay"></div>
-            <img src="/screen3.png" alt="Dashboard LUMO" />
-          </motion.div>
-        </div>
-
-        {/* Feature 2: Reversed */}
-        <div className="lp-feature-split reverse">
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
-            <div className="lp-glass-overlay"></div>
-            <img src="/screen2.png" alt="Stock LUMO" />
-          </motion.div>
-          <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
-            <span className="lp-feature-eyebrow" style={{ color: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.2)' }}>{L.eyebrow_stock}</span>
-            <h2 className="lp-split-title">
-              {L.showcase_stock_title}
-            </h2>
-            <p className="lp-split-desc">
-              {L.showcase_stock_desc}
-            </p>
-            <ul className="lp-split-list">
-              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li1}</li>
-              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li2}</li>
-              <li><CheckCircle2 color="#10b981" size={20} /> {L.showcase_stock_li3}</li>
-            </ul>
-          </motion.div>
-        </div>
-
-        {/* Feature 3 */}
-        <div className="lp-feature-split">
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
-            <span className="lp-feature-eyebrow" style={{ color: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.2)' }}>{L.eyebrow_pos}</span>
-            <h2 className="lp-split-title">
-              {L.showcase_pos_title}
-            </h2>
-            <p className="lp-split-desc">
-              {L.showcase_pos_desc}
-            </p>
-            <ul className="lp-split-list">
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li1}</li>
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li2}</li>
-              <li><CheckCircle2 color="#f59e0b" size={20} /> {L.showcase_pos_li3}</li>
-            </ul>
-          </motion.div><motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
-            <div className="lp-glass-overlay"></div>
-            <img src="/screen5.png" alt="POS LUMO" />
-          </motion.div>
-        </div>
-
-        {/* Feature 4: Reversed */}
-        <div className="lp-feature-split reverse">
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-image">
-            <div className="lp-glass-overlay"></div>
-            <img src="/screen1.png" alt="Analytiques LUMO" />
-          </motion.div>
-          <motion.div initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }} className="lp-split-text">
-            <span className="lp-feature-eyebrow" style={{ color: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.2)' }}>{L.eyebrow_analytics}</span>
-            <h2 className="lp-split-title">
-              {L.showcase_analytics_title}
-            </h2>
-            <p className="lp-split-desc">
-              {L.showcase_analytics_desc}
-            </p>
-            <ul className="lp-split-list">
-              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li1}</li>
-              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li2}</li>
-              <li><CheckCircle2 color="#a855f7" size={20} /> {L.showcase_analytics_li3}</li>
-            </ul>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ──────────────────────────────────────────── */}
-      <section id="features" style={{ padding: '100px 6%', background: isDark ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.012)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <span className="lp-section-eyebrow">{L.features_eyebrow}</span>
-          <h2 className="lp-section-title">{L.feat_title}</h2>
-          <p className="lp-section-sub">{L.feat_sub}</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: 24 }}>
-          {features.map((f, i) => (
-            <motion.div key={i} className="lp-feature-card"
-              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -6 }}>
-              <div className="lp-feature-icon" style={{ background: `${f.color}18`, color: f.color }}>
-                <f.icon size={26} />
-              </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '16px 0 10px', color: 'var(--text-main)' }}>{f.title}</h3>
-              <p style={{ fontSize: '0.93rem', color: 'var(--text-muted)', lineHeight: 1.65, fontWeight: 500 }}>{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ─────────────────────────────────────── */}
-      <section style={{ padding: '100px 6%', background: 'var(--bg-main)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <span className="lp-section-eyebrow">{L.hiw_eyebrow}</span>
-          <h2 className="lp-section-title">{L.hiw_title}</h2>
-          <p className="lp-section-sub">{L.hiw_sub}</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 40, maxWidth: 1100, margin: '0 auto' }}>
-          {[
-            { title: L.hiw_step1, desc: L.hiw_step1_desc, icon: Zap, color: '#6366f1' },
-            { title: L.hiw_step2, desc: L.hiw_step2_desc, icon: Package, color: '#10b981' },
-            { title: L.hiw_step3, desc: L.hiw_step3_desc, icon: ShoppingCart, color: '#f59e0b' }
-          ].map((step, i) => (
-            <motion.div key={i}
-              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-              style={{ textAlign: 'center', padding: '0 20px' }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: 24, background: `${step.color}10`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
-                border: `1.5px solid ${step.color}20`
-              }}>
-                <step.icon size={32} color={step.color} />
-              </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: 12, color: 'var(--text-main)' }}>{step.title}</h3>
-              <p style={{ color: 'var(--text-muted)', lineHeight: 1.6, fontWeight: 500 }}>{step.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── MULTI-MAGASINS ────────────────────────────────────── */}
-      <section id="multi-magasins" style={{ padding: '100px 6%', position: 'relative' }}>
-        <div style={{
-          background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-          borderRadius: 40, border: '1.5px solid var(--border)',
-          overflow: 'hidden', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', padding: '80px 40px', textAlign: 'center',
-          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-          boxShadow: isDark ? '0 25px 50px -12px rgba(0,0,0,0.3)' : '0 25px 50px -12px rgba(0,0,0,0.06)'
-        }}>
-          <div style={{ width: 72, height: 72, borderRadius: 24, background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-            <Globe size={36} color="#3b82f6" />
-          </div>
-          <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3.2rem)', fontWeight: 950, marginBottom: 24, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-            {L.multi_empire_title}
-          </h2>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: 640, margin: '0 auto 48px', lineHeight: 1.6, fontWeight: 500 }}>
-            {L.multi_empire_sub}
-          </p>
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {[
-              { n: 'Kinshasa (HQ)', delay: 0 },
-              { n: 'Gombe Center', delay: 0.1 },
-              { n: 'Limete Store', delay: 0.2 }
-            ].map((ville, i) => (
-              <motion.div key={ville.n}
-                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: ville.delay }}
-                style={{
-                  background: 'var(--bg-main)', padding: '20px 32px', borderRadius: 20,
-                  border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16,
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
-                }}>
-                <div className="lp-pulse-dot" style={{ width: 12, height: 12, borderRadius: '50%', background: '#10b981' }} />
-                <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)' }}>{ville.n}</span>
+      {/* ── SHOWCASE ── */}
+      <section id="showcase" className="lp-band">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.showcase_eyebrow}</span>
+          <h2 className="lp-title">{L.showcase_title} <em>{L.showcase_title2}</em></h2>
+          <p className="lp-sub">{L.showcase_sub}</p>
+          <div style={{ display: 'grid', gap: 110, marginTop: 70 }}>
+            {splits.map((s, i) => (
+              <motion.div key={i} className={`lp-split ${s.reverse ? 'reverse' : ''}`}
+                initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.6, ease: 'circOut' }}>
+                <div className="lp-split-text">
+                  <span className="lp-eyebrow">{s.eyebrow}</span>
+                  <h3>{s.title}</h3>
+                  <p>{s.desc}</p>
+                  <ul className="lp-check-list">
+                    {s.li.map((item, j) => <li key={j}><CheckCircle2 size={18} /> {item}</li>)}
+                  </ul>
+                </div>
+                <div className="lp-split-visual">
+                  <span className="lp-corner lp-corner-tl" />
+                  <div className="lp-frame">
+                    <div className="lp-frame-bar"><i /><i /><i /></div>
+                    <img src={s.img} alt={s.alt} loading="lazy" />
+                  </div>
+                  <span className="lp-corner lp-corner-br" />
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── AI SECTION (ANALYTIQUES) ──────────────────────────── */}
-      <section id="analytiques" style={{ padding: '100px 6%' }}>
-        <div style={{
-          borderRadius: 32,
-          border: '1.5px solid var(--border)',
-          background: isDark
-            ? 'linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(168,85,247,0.05) 100%)'
-            : 'linear-gradient(135deg, rgba(99,102,241,0.04) 0%, rgba(168,85,247,0.03) 100%)',
-          padding: 'clamp(40px, 6vw, 72px)',
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center',
-        }}>
-          {/* Left */}
-          <div>
-            <span className="lp-section-eyebrow" style={{ color: '#a855f7', borderColor: 'rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.08)' }}>
-              {L.ai_badge}
-            </span>
-            <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 950, lineHeight: 1.15, margin: '18px 0 24px', color: 'var(--text-main)' }}>
-              {L.ai_title}
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1.7, marginBottom: 32, fontWeight: 500 }}>
-              {L.ai_sub}
-            </p>
-            <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[L.ai_p1, L.ai_p2, L.ai_p3, L.ai_p4].map((item, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.95rem' }}>
-                  <CheckCircle2 size={19} style={{ color: '#a855f7', flexShrink: 0 }} />
-                  {item}
-                </li>
-              ))}
-            </ul>
+      {/* ── FEATURES ── */}
+      <section id="features" className="lp-band lp-stripes">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.features_eyebrow}</span>
+          <h2 className="lp-title">{L.feat_title}</h2>
+          <p className="lp-sub">{L.feat_sub}</p>
+          <div className="lp-feat-grid">
+            {features.map((f, i) => (
+              <motion.div key={i} className="lp-card lp-feat"
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.06 }}>
+                <div className="lp-feat-icon" style={{ background: `color-mix(in srgb, ${f.color} 12%, transparent)`, color: f.color }}>
+                  <f.icon size={24} />
+                </div>
+                <h4>{f.title}</h4>
+                <p>{f.desc}</p>
+              </motion.div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          {/* Right – AI card mock */}
-          <motion.div initial={{ opacity: 0, scale: 0.94 }} whileInView={{ opacity: 1, scale: 1 }}
-            style={{
-              background: 'var(--bg-main)', borderRadius: 20,
-              border: '1.5px solid var(--border)',
-              padding: 28, boxShadow: isDark ? '0 20px 60px rgba(0,0,0,0.4)' : '0 20px 60px rgba(0,0,0,0.08)',
-            }}>
-            {/* Window chrome */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {['#ef4444', '#f59e0b', '#10b981'].map(c => (
-                <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
-              ))}
-              <div style={{ flex: 1, height: 10, borderRadius: 6, background: 'var(--border)', marginLeft: 8 }} />
-            </div>
-            {/* Label */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-              <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={13} color="white" />
-              </div>
-              <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#a855f7' }}>LUMO AIO</span>
-            </div>
-            <p style={{ fontStyle: 'italic', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.65, marginBottom: 20 }}>
-              {L.ai_quote}
-            </p>
-            {/* Fake chips */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[
-                { label: '+18% CA', c: '#10b981' },
-                { label: L.ai_chip_stock, c: '#ef4444' },
-                { label: L.ai_chip_report, c: '#6366f1' },
-              ].map(chip => (
-                <span key={chip.label} style={{
-                  padding: '4px 12px', borderRadius: 99,
-                  background: `${chip.c}18`, color: chip.c,
-                  fontWeight: 800, fontSize: '0.75rem',
-                }}>
-                  {chip.label}
-                </span>
-              ))}
-            </div>
+      {/* ── HOW IT WORKS ── */}
+      <section className="lp-band">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.hiw_eyebrow}</span>
+          <h2 className="lp-title">{L.hiw_title}</h2>
+          <p className="lp-sub">{L.hiw_sub}</p>
+          <div className="lp-steps">
+            {steps.map((s, i) => (
+              <motion.div key={i} className="lp-card lp-step"
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.08 }}>
+                <b>{s.n}</b>
+                <h4>{s.title}</h4>
+                <p>{s.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── MULTI-MAGASINS ── */}
+      <section id="multi-magasins" className="lp-band">
+        <div className="lp-container">
+          <motion.div className="lp-empire" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <span className="lp-eyebrow" style={{ position: 'relative' }}>{L.footer_f2}</span>
+            <h2>{L.multi_empire_title}</h2>
+            <p>{L.multi_empire_sub}</p>
           </motion.div>
         </div>
       </section>
 
-      {/* ── MOBILE SHOWCASE ──────────────────────────────────── */}
-      <section style={{ padding: '100px 6%', overflow: 'hidden' }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 80, alignItems: 'center',
-          background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)',
-          borderRadius: 40, padding: '80px 60px', border: '1px solid var(--border)'
-        }}>
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }}>
-            <span className="lp-section-eyebrow" style={{ color: '#10b981', borderColor: 'rgba(168,85,247,0.3)', background: 'rgba(16,185,129,0.08)' }}>{L.mobile_eyebrow}</span>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 950, marginBottom: 24, color: 'var(--text-main)', lineHeight: 1.1 }}>
-              {L.mobile_title}
-            </h2>
-            <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 40, fontWeight: 500 }}>
-              {L.mobile_sub}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {[L.mobile_feat1, L.mobile_feat2, L.mobile_feat3].map((feat, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ background: '#10b98120', padding: 8, borderRadius: 12 }}>
-                    <Smartphone size={20} color="#10b981" />
-                  </div>
-                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.05rem' }}>{feat}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 60, rotate: 5 }}
-            whileInView={{ opacity: 1, y: 0, rotate: -5 }}
-            style={{ position: 'relative' }}
-          >
-            {/* Phone Mockup visual */}
-            <div style={{
-              width: 280, height: 580, background: '#111', borderRadius: 45, margin: '0 auto',
-              border: '8px solid #333', boxShadow: '0 50px 100px -20px rgba(0,0,0,0.5)',
-              position: 'relative', overflow: 'hidden'
-            }}>
-              <div style={{ position: 'absolute', top: 0, width: '40%', height: 25, background: '#333', left: '30%', borderBottomLeftRadius: 15, borderBottomRightRadius: 15 }} />
-              <img src="/dashboard_mobile.png" alt="Dashboard LUMO" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
-              <div style={{ position: 'absolute', bottom: 40, left: 20, right: 20, background: 'rgba(0,0,0,0.8)', padding: 15, borderRadius: 15, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 900, marginBottom: 4 }}>{L.mobile_notification_label}</div>
-                <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: 600 }}>{L.mobile_notification_text}</div>
-              </div>
-            </div>
-            {/* Background glow */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, height: 400, background: 'rgba(16,185,129,0.15)', filter: 'blur(80px)', zIndex: -1 }} />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── SECURITY ──────────────────────────────────────────── */}
-      <section id="securite" style={{ padding: '100px 6%', background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 60, alignItems: 'center' }}>
-          <motion.div initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }}>
-            <div style={{
-              width: 72, height: 72, borderRadius: 20, background: '#ef444415',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32
-            }}>
-              <ShieldCheck size={36} color="#ef4444" />
-            </div>
-            <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 950, marginBottom: 24, color: 'var(--text-main)', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
-              {L.security_title}
-            </h2>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: 32, fontWeight: 500, maxWidth: 500 }}>
-              {L.security_desc}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {[
-                L.security_li1,
-                L.security_li2,
-                L.security_li3,
-              ].map(text => (
-                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ background: '#ef444420', padding: 6, borderRadius: '50%' }}>
-                    <Lock size={14} color="#ef4444" />
-                  </div>
-                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>{text}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Secure Vault Visual */}
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
-            style={{
-              position: 'relative', height: 440, borderRadius: 32,
-              background: isDark ? 'linear-gradient(135deg, #111827 0%, #000000 100%)' : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-              border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-              overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: isDark ? '0 30px 60px rgba(0,0,0,0.4)' : '0 30px 60px rgba(0,0,0,0.1)',
-            }}>
-            {/* Ambient Red Glow */}
-            <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', filter: 'blur(60px)' }} />
-
-            {/* Vault Rings */}
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
-              style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', border: '2px dashed rgba(239,68,68,0.3)' }} />
-            <motion.div animate={{ rotate: -360 }} transition={{ repeat: Infinity, duration: 18, ease: 'linear' }}
-              style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', border: '2px dashed rgba(239,68,68,0.5)' }} />
-
-            <motion.div whileHover={{ scale: 1.1 }}
-              style={{
-                width: 100, height: 100, borderRadius: '50%', background: isDark ? '#1f2937' : 'white',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10,
-                boxShadow: isDark ? '0 0 50px rgba(239,68,68,0.2)' : '0 20px 40px rgba(0,0,0,0.1)',
-                border: '1.5px solid var(--border)'
-              }}>
-              <ShieldCheck size={42} color="#ef4444" />
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-
-
-      {/* ── COMPARISON TABLE ──────────────────────────────────── */}
-      <section style={{ padding: '100px 6%', background: 'var(--bg-main)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <span className="lp-section-eyebrow">{L.vs_eyebrow}</span>
-          <h2 className="lp-section-title">{L.vs_title}</h2>
-          <p className="lp-section-sub">{L.vs_sub}</p>
-        </div>
-        <div style={{ maxWidth: 900, margin: '0 auto', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 600 }}>
-            <thead>
-              <tr>
-                <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', color: 'var(--text-muted)' }}>{L.vs_col_feature}</th>
-                <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', background: 'rgba(99,102,241,0.05)', color: 'var(--primary)', borderRadius: '16px 16px 0 0', textAlign: 'center' }}>{L.vs_lumo}</th>
-                <th style={{ padding: '20px', borderBottom: '2px solid var(--border)', color: 'var(--text-main)', textAlign: 'center' }}>{L.vs_classic}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                [L.vs_row1, true, false],
-                [L.vs_row2, true, false],
-                [L.vs_row3, true, false],
-                [L.vs_row4, true, false],
-                [L.vs_row5, true, true],
-                [L.vs_row6, true, false],
-              ].map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '20px', fontWeight: 600, color: 'var(--text-main)' }}>{row[0]}</td>
-                  <td style={{ padding: '20px', background: 'rgba(99,102,241,0.02)', textAlign: 'center' }}>
-                    {row[1] ? <Check size={24} color="#10b981" style={{ margin: '0 auto' }} /> : <X size={24} color="#ef4444" style={{ margin: '0 auto' }} />}
-                  </td>
-                  <td style={{ padding: '20px', textAlign: 'center' }}>
-                    {row[2] ? <Check size={24} color="#10b981" style={{ margin: '0 auto' }} /> : <X size={24} color="#ef4444" style={{ margin: '0 auto' }} />}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ── TESTIMONIALS ──────────────────────────────────────── */}
-      <section style={{ padding: '100px 6%', background: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <span className="lp-section-eyebrow">{L.testi_eyebrow}</span>
-          <h2 className="lp-section-title">{L.testi_title}</h2>
-          <p className="lp-section-sub">{L.testi_sub}</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 30, maxWidth: 1100, margin: '0 auto' }}>
-          {[
-            { name: 'Sarah M.', role: L.testi_role1, text: L.testi_text1, rating: 5 },
-            { name: 'David K.', role: L.testi_role2, text: L.testi_text2, rating: 5 },
-            { name: 'Amina T.', role: L.testi_role3, text: L.testi_text3, rating: 5 }
-          ].map((t, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-              style={{ background: 'var(--bg-card)', padding: 30, borderRadius: 20, border: '1px solid var(--border)', boxShadow: '0 10px 30px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-                {[...Array(t.rating)].map((_, j) => <Star key={j} size={18} fill="#f59e0b" color="#f59e0b" />)}
-              </div>
-              <p style={{ fontStyle: 'italic', color: 'var(--text-main)', marginBottom: 24, lineHeight: 1.6 }}>"{t.text}"</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  {t.name.charAt(0)}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t.role}</div>
-                </div>
+      {/* ── ANALYTIQUES / IA ── */}
+      <section id="analytiques" className="lp-band lp-stripes-terre">
+        <div className="lp-container">
+          <div className="lp-ai">
+            <motion.div className="lp-ai-panel lp-card" initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <span className="lp-eyebrow"><Cpu size={13} /> {L.ai_badge}</span>
+              <p className="lp-ai-quote">{L.ai_quote}</p>
+              <div className="lp-ai-chips">
+                <span className="lp-ai-chip green"><TrendingUp size={12} /> {L.ai_chip_revenue}</span>
+                <span className="lp-ai-chip terre"><Package size={12} /> {L.ai_chip_stock}</span>
+                <span className="lp-ai-chip"><Sparkles size={12} /> {L.ai_chip_report}</span>
               </div>
             </motion.div>
-          ))}
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <span className="lp-eyebrow">{L.eyebrow_analytics}</span>
+              <h2 className="lp-title">{L.ai_title}</h2>
+              <p className="lp-sub">{L.ai_sub}</p>
+              <ul className="lp-ai-list" style={{ marginTop: 28 }}>
+                <li><Zap size={18} /><span><b>{L.ai_p1}</b></span></li>
+                <li><Activity size={18} /><span><b>{L.ai_p2}</b></span></li>
+                <li><BarChart3 size={18} /><span><b>{L.ai_p3}</b></span></li>
+                <li><TrendingUp size={18} /><span><b>{L.ai_p4}</b></span></li>
+              </ul>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* ── FAQ ───────────────────────────────────────────────── */}
-      <section style={{ padding: '80px 6% 120px', maxWidth: 800, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <span className="lp-section-eyebrow">{L.faq_eyebrow}</span>
-          <h2 className="lp-section-title">{L.faq_title}</h2>
-          <p className="lp-section-sub">{L.faq_sub}</p>
+      {/* ── MOBILE ── */}
+      <section className="lp-band">
+        <div className="lp-container">
+          <div className="lp-mobile">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <span className="lp-eyebrow">{L.mobile_eyebrow}</span>
+              <h2 className="lp-title">{L.mobile_title}</h2>
+              <p className="lp-sub">{L.mobile_sub}</p>
+              <ul className="lp-mobile-list">
+                <li><Smartphone size={18} /> {L.mobile_feat1}</li>
+                <li><Bell size={18} /> {L.mobile_feat2}</li>
+                <li><Zap size={18} /> {L.mobile_feat3}</li>
+              </ul>
+              <div className="lp-notif">
+                <span className="dot"><Bell size={18} /></span>
+                <div><b>{L.mobile_notification_label}</b><span>{L.mobile_notification_text}</span></div>
+              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.1 }}>
+              <div className="lp-phone">
+                <img src="/dashboard_mobile.png" alt="LUMO mobile" loading="lazy" />
+              </div>
+            </motion.div>
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {[
-            { q: L.faq_q1, a: L.faq_a1 },
-            { q: L.faq_q2, a: L.faq_a2 },
-            { q: L.faq_q3, a: L.faq_a3 },
-            { q: L.faq_q4, a: L.faq_a4 }
-          ].map((faq, i) => (
-            <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-card)', overflow: 'hidden' }}>
-              <button onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)} style={{ width: '100%', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, fontSize: '1.05rem', textAlign: 'left' }}>
-                {faq.q}
-                <ChevronDown size={20} style={{ transform: openFaqIndex === i ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+      </section>
+
+      {/* ── SECURITE ── */}
+      <section id="securite" className="lp-band lp-stripes">
+        <div className="lp-container">
+          <div className="lp-sec-grid">
+            <motion.div className="lp-sec-card lp-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <span className="lp-eyebrow" style={{ position: 'relative' }}><Lock size={13} /> {L.footer_f4}</span>
+              <div className="big">99.9%</div>
+              <h3>{L.security_title}</h3>
+              <p className="lp-sub" style={{ position: 'relative', marginTop: 10 }}>{L.security_desc}</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
+              <ul className="lp-sec-list">
+                <li><ShieldCheck size={18} /><span><b>{L.security_li1}</b></span></li>
+                <li><Lock size={18} /><span><b>{L.security_li2}</b></span></li>
+                <li><CheckCircle2 size={18} /><span><b>{L.security_li3}</b></span></li>
+              </ul>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── VS ── */}
+      <section className="lp-band">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.vs_eyebrow}</span>
+          <h2 className="lp-title">{L.vs_title}</h2>
+          <p className="lp-sub">{L.vs_sub}</p>
+          <motion.div className="lp-vs" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <div className="lp-vs-row head">
+              <div>{L.vs_col_feature}</div>
+              <div className="ok">{L.vs_lumo}</div>
+              <div>{L.vs_classic}</div>
+            </div>
+            {vsRows.map((row, i) => (
+              <div className="lp-vs-row" key={i}>
+                <div className="feat">{row}</div>
+                <div className="ok"><Check size={15} /> {L.vs_lumo}</div>
+                <div className="no"><X size={15} /> {L.vs_classic}</div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section className="lp-band lp-stripes">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.testi_eyebrow}</span>
+          <h2 className="lp-title">{L.testi_title}</h2>
+          <p className="lp-sub">{L.testi_sub}</p>
+          <div className="lp-testi-grid">
+            {testimonials.map((t, i) => (
+              <motion.div key={i} className="lp-card lp-testi"
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.08 }}>
+                <div className="stars">{Array.from({ length: 5 }).map((_, s) => <Star key={s} size={14} fill="currentColor" />)}</div>
+                <p>« {t.text} »</p>
+                <div className="who">{t.role}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CALCULATOR ── */}
+      <section id="calculator" className="lp-band">
+        <div className="lp-container">
+          <span className="lp-eyebrow"><Calculator size={13} /> {L.roi_eyebrow}</span>
+          <h2 className="lp-title">{L.roi_title}</h2>
+          <p className="lp-sub">{L.roi_sub}</p>
+          <div className="lp-calc">
+            <div>
+              <label>{L.roi_sales_per_day} — <span className="val">{salesPerDay}</span></label>
+              <input type="range" min={5} max={100} value={salesPerDay} onChange={(e) => setSalesPerDay(Number(e.target.value))} />
+              <label style={{ marginTop: 26 }}>{L.roi_avg_basket} — <span className="val">{avgBasket.toLocaleString('fr-FR')} FC</span></label>
+              <input type="range" min={2000} max={100000} step={500} value={avgBasket} onChange={(e) => setAvgBasket(Number(e.target.value))} />
+            </div>
+            <div className="lp-result">
+              <div className="res"><span>{L.roi_time_saved}</span><b>{timeSaved} h/mois</b></div>
+              <div className="res"><span>{L.roi_money_saved}</span><b>{moneySaved.toLocaleString('fr-FR')} FC</b></div>
+              <button className="lp-btn lp-btn-fleuve" style={{ marginTop: 12, justifyContent: 'center' }} onClick={() => navigate('/register')}>
+                {L.roi_cta} <ArrowRight size={15} />
               </button>
-              <AnimatePresence>
-                {openFaqIndex === i && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
-                    <div style={{ padding: '0 24px 24px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                      {faq.a}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── SAVINGS CALCULATOR ────────────────────────────────── */}
-      <section id="calculator" style={{ padding: '100px 6%', background: isDark ? 'rgba(99,102,241,0.03)' : 'rgba(99,102,241,0.02)' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
-          <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }}>
-            <span className="lp-section-eyebrow">{L.roi_eyebrow}</span>
-            <h2 className="lp-section-title" style={{ textAlign: 'left', margin: '0 0 20px' }}>
-              {L.roi_title}
-            </h2>
-            <p className="lp-section-sub" style={{ textAlign: 'left', margin: '0 0 40px' }}>
-              {L.roi_sub}
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <label style={{ fontWeight: 800, fontSize: '0.95rem' }}>{L.roi_sales_per_day}</label>
-                  <span style={{ color: 'var(--primary)', fontWeight: 900 }}>{salesPerDay}</span>
-                </div>
-                <input type="range" min="1" max="200" value={salesPerDay} onChange={(e) => setSalesPerDay(parseInt(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--primary)' }} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <label style={{ fontWeight: 800, fontSize: '0.95rem' }}>{L.roi_avg_basket}</label>
-                  <span style={{ color: 'var(--primary)', fontWeight: 900 }}>{avgBasket.toLocaleString()} FC</span>
-                </div>
-                <input type="range" min="5000" max="500000" step="5000" value={avgBasket} onChange={(e) => setAvgBasket(parseInt(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--primary)' }} />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
-            style={{ background: 'var(--bg-card)', padding: 40, borderRadius: 32, border: '1.5px solid var(--border)', boxShadow: '0 20px 50px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'grid', gap: 24 }}>
-              <div style={{ padding: 24, borderRadius: 20, background: 'var(--bg-main)', border: '1.5px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <Activity size={20} color="#10b981" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)' }}>{L.roi_time_saved}</span>
-                </div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 950, color: 'var(--text-main)' }}>{timeSaved} <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>{L.roi_hours}</span></div>
-              </div>
-              <div style={{ padding: 24, borderRadius: 20, background: 'var(--bg-main)', border: '1.5px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <DollarSign size={20} color="#f59e0b" />
-                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)' }}>{L.roi_money_saved}</span>
-                </div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 950, color: 'var(--text-main)' }}>{moneySaved.toLocaleString()} <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>FC</span></div>
-              </div>
-            </div>
-            <button className="lp-btn-primary" style={{ width: '100%', marginTop: 32, padding: '18px', fontSize: '1rem' }} onClick={() => navigate('/register')}>
-              {L.roi_cta}
-            </button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── TEAM SECTION ───────────────────────────────────────── */}
-      <section id="team" style={{ padding: '100px 6%' }}>
-        <div style={{ textAlign: 'center', marginBottom: 72 }}>
-          <span className="lp-section-eyebrow">{L.team_badge}</span>
-          <h2 className="lp-section-title">{L.team_title}</h2>
-          <p className="lp-section-sub">{L.team_sub}</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 32, maxWidth: 1000, margin: '0 auto' }}>
-          {[
-            { name: 'René Des.', role: L.team_role_1, img: '/team/rene.jpg' },
-            { name: 'Mardoché Nl.', role: L.team_role_2, img: '/team/sarah.png' },
-          ].map((m, i) => (
-            <motion.div key={i} whileHover={{ y: -10 }} style={{ textAlign: 'center' }}>
-              <div style={{ width: 180, height: 180, borderRadius: '30% 70% 70% 30% / 30% 30% 70% 70%', overflow: 'hidden', margin: '0 auto 24px', border: '4px solid var(--primary)' }}>
-                <img src={m.img} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, marginBottom: 4 }}>{m.name}</h3>
-              <p style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem' }}>{m.role}</p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12 }}>
-                {i === 0 && <a href="https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Linkedin size={16} className="lp-footer-item" /></a>}
-                {i === 0 && <a href="https://x.com/rendevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Twitter size={16} className="lp-footer-item" /></a>}
-                {i === 0 && <a href="https://web.facebook.com/rcdevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Facebook size={16} className="lp-footer-item" /></a>}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── CONTACT ──────────────────────────────────────────── */}
-      <section id="contact" style={{ padding: '100px 6%', background: 'var(--bg-card)' }}>
-        <div style={{
-          maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 80,
-          background: 'var(--bg-main)', borderRadius: 40, border: '1px solid var(--border)',
-          overflow: 'hidden', boxShadow: '0 40px 100px -20px rgba(0,0,0,0.05)'
-        }}>
-          <div style={{ padding: '60px', background: 'var(--primary)', color: 'white' }}>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: 950, marginBottom: 20, letterSpacing: '-0.02em' }}>{L.contact_title}</h2>
-            <p style={{ fontSize: '1.1rem', opacity: 0.9, marginBottom: 48, lineHeight: 1.6 }}>{L.contact_sub}</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 14 }}><Mail size={24} /></div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', opacity: 0.7, fontWeight: 700, textTransform: 'uppercase' }}>{L.contact_email}</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>no.codescreen@gmail.com</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 14 }}><Phone size={24} /></div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', opacity: 0.7, fontWeight: 700, textTransform: 'uppercase' }}>{L.contact_phone}</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>+243 891 755 172</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 14 }}><MapPin size={24} /></div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', opacity: 0.7, fontWeight: 700, textTransform: 'uppercase' }}>{L.contact_location}</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>Matadi, RD Congo</div>
-                </div>
-              </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div style={{ padding: '60px' }}>
-            <form onSubmit={handleContactSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{L.contact_name}</label>
-                  <input
-                    type="text"
-                    required
-                    value={contactForm.nom}
-                    onChange={e => setContactForm({ ...contactForm, nom: e.target.value })}
-                    style={{ padding: '14px 18px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 600 }}
-                    placeholder={L.contact_ph_name}
-                  />
+      {/* ── TEAM ── */}
+      <section id="team" className="lp-band lp-stripes-terre">
+        <div className="lp-container">
+          <span className="lp-eyebrow"><Users size={13} /> {L.team_badge}</span>
+          <h2 className="lp-title">{L.team_title}</h2>
+          <p className="lp-sub">{L.team_sub}</p>
+          <div className="lp-team-grid">
+            {team.map((m, i) => (
+              <motion.div key={i} className="lp-team"
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.08 }}>
+                <img src={m.img} alt={m.name} loading="lazy" />
+                <h4>{m.name}</h4>
+                <p>{m.role}</p>
+                <div className="socials">
+                  <a href="https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" target="_blank" rel="noreferrer" aria-label="LinkedIn"><Linkedin size={14} /></a>
+                  <a href="https://x.com/rendevui" target="_blank" rel="noreferrer" aria-label="X"><Twitter size={14} /></a>
+                  <a href="https://web.facebook.com/rcdevui" target="_blank" rel="noreferrer" aria-label="Facebook"><Facebook size={14} /></a>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{L.contact_email_label}</label>
-                  <input
-                    type="email"
-                    required
-                    value={contactForm.email}
-                    onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
-                    style={{ padding: '14px 18px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 600 }}
-                    placeholder={L.contact_ph_email}
-                  />
-                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="lp-band">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.faq_eyebrow}</span>
+          <h2 className="lp-title" style={{ textAlign: 'center' }}>{L.faq_title}</h2>
+          <p className="lp-sub" style={{ margin: '0 auto', textAlign: 'center' }}>{L.faq_sub}</p>
+          <div className="lp-faq">
+            {faqs.map((f, i) => (
+              <div key={i} className={`lp-faq-item ${openFaqIndex === i ? 'open' : ''}`}>
+                <button className="lp-faq-q" onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}>
+                  {f.q} <ChevronDown size={18} />
+                </button>
+                {openFaqIndex === i && <div className="lp-faq-a">{f.a}</div>}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>{L.contact_message}</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={contactForm.message}
-                  onChange={e => setContactForm({ ...contactForm, message: e.target.value })}
-                  style={{ padding: '14px 18px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 600, resize: 'none' }}
-                  placeholder={L.contact_ph_message}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={sendingContact}
-                style={{
-                  background: 'var(--text-main)', color: 'var(--bg-main)', border: 'none',
-                  padding: '16px', borderRadius: 12, fontWeight: 900, fontSize: '1rem',
-                  cursor: sendingContact ? 'not-allowed' : 'pointer', transition: 'transform 0.2s',
-                  opacity: sendingContact ? 0.7 : 1
-                }}
-              >
-                {sendingContact ? L.contact_sending : L.contact_send}
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONTACT ── */}
+      <section id="contact" className="lp-band lp-stripes">
+        <div className="lp-container">
+          <span className="lp-eyebrow">{L.contact_sub}</span>
+          <h2 className="lp-title">{L.contact_title}</h2>
+          <div className="lp-contact-grid">
+            <div className="lp-contact-info">
+              <div className="row"><MapPin size={17} /> {L.contact_location}</div>
+              <div className="row"><Phone size={17} /> {L.contact_phone}</div>
+              <div className="row"><Mail size={17} /> {L.contact_email}</div>
+              <div className="row" style={{ alignItems: 'flex-start' }}><MessageSquare size={17} style={{ marginTop: 3 }} /> {L.contact_sub}</div>
+            </div>
+            <motion.form className="lp-form lp-card" onSubmit={handleContactSubmit} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+              <input placeholder={L.contact_ph_name} value={contactForm.nom} onChange={(e) => setContactForm({ ...contactForm, nom: e.target.value })} />
+              <input type="email" placeholder={L.contact_ph_email} value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+              <textarea placeholder={L.contact_ph_message} value={contactForm.message} onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })} />
+              <button type="submit" className="lp-btn lp-btn-fleuve" style={{ justifyContent: 'center' }} disabled={sendingContact}>
+                {sendingContact ? L.contact_sending : L.contact_send} {!sendingContact && <Send size={14} />}
               </button>
+            </motion.form>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="lp-band">
+        <div className="lp-container">
+          <motion.div className="lp-cta" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <h2>{L.cta_title}</h2>
+            <p>{L.cta_sub}</p>
+            <button className="lp-btn" onClick={() => navigate('/register')}>{L.cta_btn} <ArrowRight size={15} /></button>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── NEWSLETTER ── */}
+      <section className="lp-band" style={{ paddingTop: 0 }}>
+        <div className="lp-container">
+          <div style={{ textAlign: 'center' }}>
+            <h2 className="lp-title" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)' }}>{L.news_title}</h2>
+            <p className="lp-sub" style={{ margin: '0 auto' }}>{L.news_sub}</p>
+            <form className="lp-news" style={{ margin: '26px auto 0' }} onSubmit={handleSubscribe}>
+              <input type="email" placeholder={L.news_placeholder} value={email} onChange={(e) => setEmail(e.target.value)} />
+              <button type="submit">{L.news_btn}</button>
             </form>
+            {status === 'ok' && <div className="news-msg">{L.news_success}</div>}
+            {status === 'error' && <div className="news-msg" style={{ color: 'var(--terre)' }}>{L.news_error}</div>}
           </div>
         </div>
       </section>
 
-      {/* ── CTA BANNER ────────────────────────────────────────── */}
-      <section style={{ padding: '100px 6%' }}>
-        <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}
-          style={{
-            borderRadius: 32,
-            background: 'linear-gradient(135deg, rgba(123, 125, 245, 0.8) 0%, rgba(138, 102, 223, 0.8) 50%, rgba(168,85,247,0.8) 80%), url(https://res.cloudinary.com/dq8o5yenr/image/upload/v1778192954/dlbkn6gyzggzzqql8zq5.jpg)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            padding: 'clamp(48px, 7vw, 80px)',
-            textAlign: 'center',
-            boxShadow: '0 40px 80px -20px rgba(119, 121, 223, 0.38)',
-            position: 'relative', overflow: 'hidden',
-          }}>
-          {/* BG decoration */}
-          <div style={{
-            position: 'absolute', top: -60, right: -60, width: 300, height: 300,
-            borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none'
-          }} />
-          <div style={{
-            position: 'absolute', bottom: -80, left: -40, width: 250, height: 250,
-            borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none'
-          }} />
-
-          <Sparkles size={36} color="rgba(255,255,255,0.6)" style={{ marginBottom: 20 }} />
-          <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 950, color: 'white', marginBottom: 16, letterSpacing: '-0.02em' }}>
-            {L.cta_title}
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1.05rem', marginBottom: 40, fontWeight: 500, maxWidth: 520, margin: '0 auto 36px' }}>
-            {L.cta_sub}
-          </p>
-          <button
-            onClick={() => navigate('/register')}
-            style={{
-              padding: '16px 40px', borderRadius: 14, background: 'white',
-              color: '#6366f1', border: 'none', fontWeight: 900, cursor: 'pointer',
-              fontSize: '1rem', boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-              display: 'inline-flex', alignItems: 'center', gap: 10,
-              transition: 'all 0.25s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          >
-            {L.cta_btn} <ArrowRight size={18} />
-          </button>
-        </motion.div>
-      </section>
-
-      {/* ── FOOTER ────────────────────────────────────────────── */}
-      <footer style={{
-        borderTop: '1px solid var(--border)',
-        background: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.02)',
-        padding: '72px 6% 40px',
-      }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 1.6fr', gap: 48, marginBottom: 56, flexWrap: 'wrap' }}>
-          {/* Brand */}
-          <div>
-            <Logo size={36} />
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.65, marginTop: 18, fontWeight: 500, maxWidth: 320 }}>
-              {L.footer_brand_desc}
-            </p>
-          </div>
-
-          {/* Product */}
-          <div>
-            <h4 style={{ fontWeight: 800, marginBottom: 20, color: 'var(--text-main)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {L.footer_product}
-            </h4>
-            <ul className="lp-footer-list">
-              <li><a href="#features" className="lp-footer-item" style={{ textDecoration: 'none', display: 'block' }}>{L.footer_f1}</a></li>
-              <li><a href="#multi-magasins" className="lp-footer-item" style={{ textDecoration: 'none', display: 'block' }}>{L.footer_f2}</a></li>
-              <li><a href="#analytiques" className="lp-footer-item" style={{ textDecoration: 'none', display: 'block' }}>{L.footer_f3}</a></li>
-              <li><a href="#securite" className="lp-footer-item" style={{ textDecoration: 'none', display: 'block' }}>{L.footer_f4}</a></li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h4 style={{ fontWeight: 800, marginBottom: 20, color: 'var(--text-main)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {L.footer_company}
-            </h4>
-            <ul className="lp-footer-list">
-              <li className="lp-footer-item" onClick={() => handleFooterLink(L.footer_c1, 'LUMO a été créé pour simplifier le commerce physique et en ligne des petites et moyennes entreprises.', 'LUMO was created to simplify physical and online commerce for small and medium businesses.')}>{L.footer_c1}</li>
-              <li className="lp-footer-item" onClick={() => handleFooterLink(L.footer_c2, `Besoin d'aide ? Contactez-nous à no.codescreen@gmail.com ou au +243 00 000 000.`, `Need help? Contact us at no.codescreen@gmail.com or +243 00 000 000.`)}>{L.footer_c2}</li>
-              <li className="lp-footer-item" onClick={() => handleFooterLink(L.footer_c3, 'Nous ne revendons jamais vos informations. Découvrez comment nous sécurisons vos données.', 'We never sell your informations. Read how we keep your data safe.')}>{L.footer_c3}</li>
-              <li className="lp-footer-item" onClick={() => handleFooterLink(L.footer_c4, 'L’utilisation de LUMO est soumise à nos conditions générales d’utilisation.', 'The use of LUMO is bound by our general terms of service.')}>{L.footer_c4}</li>
-            </ul>
-          </div>
-
-          {/* Newsletter */}
-          <div>
-            <h4 style={{ fontWeight: 800, marginBottom: 10, color: 'var(--text-main)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {L.news_title}
-            </h4>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: 18, fontWeight: 500, lineHeight: 1.6 }}>
-              {L.news_sub}
-            </p>
-            <form onSubmit={handleSubscribe} style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="email" required value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder={L.news_placeholder}
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 12,
-                  background: 'var(--bg-main)', border: '1.5px solid var(--border)',
-                  color: 'var(--text-main)', outline: 'none', fontSize: '0.88rem', fontWeight: 600,
-                  transition: 'border 0.2s',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-              />
-              <button
-                type="submit" disabled={status === 'loading'}
-                style={{
-                  padding: '12px 18px', borderRadius: 12, background: 'var(--primary)',
-                  color: 'white', border: 'none', cursor: status === 'loading' ? 'not-allowed' : 'pointer',
-                  fontWeight: 800, fontSize: '0.88rem', opacity: status === 'loading' ? 0.7 : 1,
-                  display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                }}
-              >
-                {status === 'loading' ? <Loader2 size={16} className="lp-spin" /> : L.news_btn}
-              </button>
-            </form>
-            <div style={{ display: 'flex', gap: 16, marginTop: 24 }}>
-              <a href="https://web.facebook.com/rcdevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Facebook size={20} className="lp-footer-item" /></a>
-              <a href="https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Linkedin size={20} className="lp-footer-item" /></a>
-              <a href="https://x.com/rendevui" target="_blank" rel="noreferrer" style={{ color: 'inherit' }}><Twitter size={20} className="lp-footer-item" /></a>
+      {/* ── FOOTER ── */}
+      <footer className="lp-footer">
+        <div className="lp-container">
+          <div className="lp-footer-grid">
+            <div>
+              <Logo />
+              <p>{L.footer_brand_desc}</p>
+            </div>
+            <div>
+              <h5>{L.footer_product}</h5>
+              <ul>
+                <li><a onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>{L.footer_f1}</a></li>
+                <li><a onClick={() => document.getElementById('multi-magasins')?.scrollIntoView({ behavior: 'smooth' })}>{L.footer_f2}</a></li>
+                <li><a onClick={() => document.getElementById('analytiques')?.scrollIntoView({ behavior: 'smooth' })}>{L.footer_f3}</a></li>
+                <li><a onClick={() => document.getElementById('securite')?.scrollIntoView({ behavior: 'smooth' })}>{L.footer_f4}</a></li>
+              </ul>
+            </div>
+            <div>
+              <h5>{L.footer_company}</h5>
+              <ul>
+                <li><a onClick={() => handleFooterLink(L.footer_c1, 'LUMO est une plateforme de gestion commerciale pensée pour les entrepreneurs de la RDC et de l\'Afrique centrale.', 'LUMO is a business management platform built for entrepreneurs in the DRC and Central Africa.')}>{L.footer_c1}</a></li>
+                <li><a onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}>{L.footer_c2}</a></li>
+                <li><a onClick={() => handleFooterLink(L.footer_c3, 'Vos données sont chiffrées et ne sont jamais vendues à des tiers. Elles servent uniquement au fonctionnement de votre compte.', 'Your data is encrypted and never sold to third parties. It is only used to operate your account.')}>{L.footer_c3}</a></li>
+                <li><a onClick={() => handleFooterLink(L.footer_c4, 'En utilisant LUMO, vous acceptez nos conditions : utilisation responsable, données sécurisées, support réactif.', 'By using LUMO you agree to our terms: responsible use, secured data, responsive support.')}>{L.footer_c4}</a></li>
+              </ul>
+            </div>
+            <div>
+              <h5>Réseaux</h5>
+              <div className="lp-socials">
+                <a href="https://www.linkedin.com/in/ren%C3%A9-nzaku-1b7413408/" target="_blank" rel="noreferrer" aria-label="LinkedIn"><Linkedin size={16} /></a>
+                <a href="https://x.com/rendevui" target="_blank" rel="noreferrer" aria-label="X"><Twitter size={16} /></a>
+                <a href="https://web.facebook.com/rcdevui" target="_blank" rel="noreferrer" aria-label="Facebook"><Facebook size={16} /></a>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Bottom bar */}
-        <div style={{
-          paddingTop: 24, borderTop: '1px solid var(--border)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.83rem', fontWeight: 600 }}>
-              © {new Date().getFullYear()} LUMO AIO. {L.footer_copy}
-            </p>
-
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Lock size={12} color="var(--text-muted)" />
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.83rem', fontWeight: 600 }}>
-              {L.footer_secure_data}
-            </span>
+          <div className="lp-footer-bottom">
+            <span>© 2026 LUMO — {L.footer_copy}</span>
+            <span className="secure"><Lock size={13} /> {L.footer_secure_data}</span>
           </div>
         </div>
       </footer>
 
-      {/* ── CHAT WIDGET (LUMO AIO LIVE) ────────────────────────── */}
-      <div style={{ position: 'fixed', bottom: 30, right: 90, zIndex: 1000 }}>
-        <AnimatePresence>
-          {chatOpen && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 20, transformOrigin: 'bottom right' }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: 20 }}
-              style={{
-                position: 'absolute', bottom: 70, right: 0, width: 350, height: 450,
-                background: 'var(--bg-card)', borderRadius: 24, border: '1.5px solid var(--border)',
-                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden',
-                display: 'flex', flexDirection: 'column'
-              }}
-            >
-              {/* Header */}
-              <div style={{ background: 'var(--primary)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'white' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Sparkles size={18} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>LUMO Assistant</div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{L.chat_online}</div>
-                  </div>
-                </div>
-                <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={20} /></button>
-              </div>
-
-              {/* Messages */}
-              <div style={{ flex: 1, padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {chatMessages.map((m, i) => (
-                  <div key={i} style={{
-                    alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '85%',
-                    padding: '12px 16px',
-                    borderRadius: m.role === 'user' ? '18px 18px 2px 18px' : '18px 18px 18px 2px',
-                    background: m.role === 'user' ? 'var(--primary)' : 'var(--bg-main)',
-                    color: m.role === 'user' ? 'white' : 'var(--text-main)',
-                    fontSize: '0.9rem',
-                    fontWeight: 500,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    border: m.role === 'user' ? 'none' : '1px solid var(--border)'
-                  }}>
-                    {m.content}
-                  </div>
-                ))}
-                {isTyping && (
-                  <div style={{ alignSelf: 'flex-start', background: 'var(--bg-main)', padding: '12px 16px', borderRadius: '18px 18px 18px 2px', border: '1px solid var(--border)' }}>
-                    <Loader2 size={16} className="lp-spin" color="var(--primary)" />
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Input */}
-              <div style={{ padding: 16, borderTop: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text" value={chatInput} onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSendChat()}
-                    placeholder={L.chat_placeholder}
-                    style={{ width: '100%', padding: '12px 48px 12px 16px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none' }}
-                  />
-                  <button onClick={handleSendChat} style={{ position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: 8, background: 'var(--primary)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <Send size={16} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.button
-          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-          onClick={() => setChatOpen(!chatOpen)}
-          style={{
-            width: 60, height: 60, borderRadius: '50%', background: 'var(--primary)',
-            color: 'white', border: 'none', boxShadow: '0 10px 25px rgba(99,102,241,0.4)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}
-        >
-          <MessageSquare size={28} />
-        </motion.button>
-      </div>
-
-      {/* ── COOKIE BANNER ──────────────────────────────────────── */}
+      {/* ── CHAT ── */}
+      <button className="lp-chat-btn" onClick={() => setChatOpen(!chatOpen)} aria-label="Chat">
+        {chatOpen ? <X size={22} /> : <MessageSquare size={22} />}
+      </button>
       <AnimatePresence>
-        {showCookie && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-            style={{
-              position: 'fixed', bottom: 30, left: 30, right: 30, maxWidth: 600,
-              background: 'var(--bg-card)', padding: '20px 30px', borderRadius: 20,
-              border: '1.5px solid var(--border)', boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
-              zIndex: 2000, display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'space-between'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ background: 'var(--primary)15', padding: 10, borderRadius: 12 }}><ShieldCheck size={24} color="var(--primary)" /></div>
-              <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', lineHeight: 1.4 }}>
-                {L.cookie_banner_text}
-              </p>
+        {chatOpen && (
+          <motion.div className="lp-chat-panel" initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ duration: 0.25 }}>
+            <div className="lp-chat-head">
+              <b>LUMO Assistant</b>
+              <span><i className="live" /> {L.chat_online}</span>
+              <button onClick={() => setChatOpen(false)} aria-label="Fermer"><X size={17} /></button>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button className="lp-btn-primary" onClick={acceptCookies}>{L.cookie_accept_btn}</button>
+            <div className="lp-chat-msgs">
+              {chatMessages.map((m, i) => (
+                <div key={i} className={`lp-msg ${m.role}`}>{m.content}</div>
+              ))}
+              {isTyping && <div className="lp-msg assistant">…</div>}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="lp-chat-input">
+              <input
+                placeholder={L.chat_placeholder}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSendChat(); }}
+              />
+              <button onClick={handleSendChat} aria-label="Envoyer"><Send size={16} /></button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── GLOBAL STYLES ─────────────────────────────────────── */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+      {/* ── COOKIE ── */}
+      <AnimatePresence>
+        {showCookie && (
+          <motion.div className="lp-cookie" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}>
+            <span>{L.cookie_banner_text}</span>
+            <button onClick={acceptCookies}>{L.cookie_accept_btn}</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        .lp-link {
-          color: var(--text-muted); font-weight: 700; font-size: 0.88rem;
-          text-decoration: none; transition: color 0.2s;
-        }
-        .lp-link:hover { color: var(--primary); }
+      {/* ── BACK TO TOP ── */}
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button className="lp-top" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Haut de page">
+            <ChevronUp size={19} />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
-        .lp-icon-btn {
-          width: 36px; height: 36px; border-radius: 10px;
-          background: var(--bg-card); border: 1.5px solid var(--border);
-          color: var(--text-main); display: flex; align-items: center;
-          justify-content: center; cursor: pointer; transition: all 0.2s;
-        }
-        .lp-icon-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-        .lp-btn-primary {
-          padding: 10px 22px; border-radius: 12px; background: var(--primary);
-          color: white; border: none; font-weight: 800; cursor: pointer;
-          font-size: 0.88rem; line-height: 1; transition: all 0.25s;
-          display: inline-flex; align-items: center;
-        }
-        .lp-btn-primary:hover { box-shadow: 0 8px 24px rgba(99,102,241,0.4); transform: translateY(-2px); }
-
-        .lp-btn-ghost {
-          padding: 10px 22px; border-radius: 12px;
-          background: var(--bg-card); border: 1.5px solid var(--border);
-          color: var(--text-main); font-weight: 700; cursor: pointer;
-          font-size: 0.88rem; line-height: 1; transition: all 0.25s;
-          display: inline-flex; align-items: center;
-        }
-        .lp-btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
-
-        .lp-btn-lg { padding: 16px 34px; font-size: 1rem; border-radius: 14px; }
-
-        .lp-badge {
-          display: inline-flex; align-items: center;
-          padding: 7px 16px; border-radius: 99px;
-          background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
-          color: var(--primary); font-weight: 800; font-size: 0.78rem;
-          letter-spacing: 0.02em;
-        }
-
-        .lp-section-eyebrow {
-          display: inline-block; padding: 5px 14px; border-radius: 99px;
-          background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
-          color: var(--primary); font-weight: 800; font-size: 0.75rem;
-          letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 16px;
-        }
-
-        .lp-section-title {
-          font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 950;
-          letter-spacing: -0.03em; line-height: 1.15; color: var(--text-main);
-          margin: 0 auto 16px auto; max-width: 700px;
-        }
-
-        .lp-section-sub {
-          font-size: 1.05rem; color: var(--text-muted); font-weight: 500;
-          max-width: 560px; margin: 0 auto; line-height: 1.65;
-        }
-
-        /* ── RESPONSIVE SPLIT SHOWCASE ── */
-        .lp-feature-split {
-          display: flex;
-          align-items: center;
-          gap: 60px;
-        }
-
-        .lp-feature-split.reverse {
-          flex-direction: row-reverse;
-        }
-
-        .lp-split-text {
-          flex: 1;
-        }
-
-        .lp-split-image {
-          flex: 1.1;
-          border-radius: 28px;
-          overflow: hidden;
-          border: 1.5px solid var(--border);
-          box-shadow: 0 40px 80px -10px rgba(0,0,0,0.2);
-          transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-        }
-
-        .lp-split-image:hover {
-          transform: translateY(-8px) scale(1.02);
-          border-color: var(--primary);
-        }
-
-        .lp-split-image img {
-          width: 100%;
-          display: block;
-          object-fit: cover;
-        }
-
-        .lp-glass-overlay {
-          position: absolute; inset: 0; pointer-events: none;
-          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
-        }
-
-        .lp-feature-eyebrow {
-          display: inline-block; padding: 6px 18px; border-radius: 99px;
-          font-weight: 800; font-size: 0.8rem;
-          letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 24px;
-          border: 1px solid transparent;
-        }
-
-        .lp-split-title {
-          font-size: clamp(2rem, 3.5vw, 2.8rem);
-          font-weight: 950;
-          line-height: 1.15;
-          margin-bottom: 20px;
-          color: var(--text-main);
-          letter-spacing: -0.02em;
-        }
-
-        .lp-split-desc {
-          font-size: 1.1rem;
-          color: var(--text-muted);
-          line-height: 1.65;
-          margin-bottom: 36px;
-          font-weight: 500;
-        }
-
-        .lp-split-list {
-          list-style: none;
-          padding: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-        }
-
-        .lp-split-list li {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          font-weight: 700;
-          color: var(--text-main);
-          font-size: 1.05rem;
-        }
-
-        .lp-screen-card {
-          border-radius: 20px; overflow: hidden;
-          border: 1.5px solid var(--border);
-          box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-          transition: transform 0.3s, box-shadow 0.3s;
-          position: relative;
-        }
-        .lp-screen-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 20px 50px rgba(0,0,0,0.18);
-        }
-
-        .lp-screen-label {
-          position: absolute; top: 12px; left: 12px; z-index: 2;
-          padding: 4px 12px; border-radius: 99px;
-          background: rgba(10,10,20,0.7); backdrop-filter: blur(8px);
-          color: white; font-weight: 700; font-size: 0.75rem;
-        }
-
-        .lp-feature-card {
-          padding: 32px; border-radius: 20px;
-          background: var(--bg-card); border: 1.5px solid var(--border);
-          transition: all 0.3s; cursor: default;
-        }
-        .lp-feature-card:hover { border-color: var(--primary); box-shadow: 0 12px 40px rgba(99,102,241,0.12); }
-
-        .lp-feature-icon {
-          width: 52px; height: 52px; border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-        }
-
-        .lp-footer-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-        .lp-footer-item { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: color 0.2s; }
-        .lp-footer-item:hover { color: var(--primary); }
-
-        .lp-spin { animation: spin 0.9s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .lp-pulse-dot { animation: pulseDot 2s ease-in-out infinite; }
-        @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
-
-        html { scroll-behavior: smooth; }
-
-        /* Responsive overrides REMOVED to force desktop mode everywhere */
-      `}</style>
+      {/* ── FOOTER MODAL ── */}
+      <AnimatePresence>
+        {footerModal.open && (
+          <motion.div className="lp-modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setFooterModal({ ...footerModal, open: false })}>
+            <motion.div className="lp-modal" initial={{ scale: 0.94, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94, y: 16 }} onClick={(e) => e.stopPropagation()}>
+              <button className="close" onClick={() => setFooterModal({ ...footerModal, open: false })} aria-label="Fermer"><X size={18} /></button>
+              <h3>{footerModal.title}</h3>
+              <p>{footerModal.content}</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
