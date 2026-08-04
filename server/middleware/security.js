@@ -120,7 +120,11 @@ const securityMiddleware = (app) => {
         // leur propre mécanisme : refresh token HttpOnly, rate limits, OTP).
         // /auth/refresh notamment tourne au démarrage de l'app, AVANT que le
         // cookie XSRF-TOKEN soit établi — exiger CSRF ici casse la session.
-        if (req.path.startsWith('/auth/')) {
+        // NOTE : le path contient le préfixe /api (ex: /api/auth/login) donc
+        // on utilise includes() et pas startsWith().
+        const isAuthRoute = req.path.includes('/auth/');
+                          
+        if (isAuthRoute) {
             return next();
         }
         
