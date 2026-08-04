@@ -24,6 +24,7 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        maximumFileSizeToCacheInBytes: 4194304, // 4 MB — accommodates large assets like team/rene.png (3.21 MB)
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
