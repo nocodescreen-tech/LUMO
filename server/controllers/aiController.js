@@ -467,6 +467,8 @@ const getChatHistory = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Chat principal LUMO — avec connaissance complète de l'application
 // ─────────────────────────────────────────────────────────────────────────────
+const toolRegistry = require('../ai/toolRegistry');
+
 const chatAI = async (req, res, next) => {
     let client;
     let isOfflineMode = false;
@@ -522,19 +524,60 @@ const chatAI = async (req, res, next) => {
             return res.end();
         }
 
-        const response = await client.chat.completions.create({
+        const tools = toolRegistry.getAllSchemas();
+
+        let response = await client.chat.completions.create({
             model: MODEL,
             messages: chatHistory,
-            stream: true,
+            tools: tools.length > 0 ? tools : undefined,
+            stream: false, // False pour pouvoir intercepter facilement les tool_calls
         });
 
+        const responseMessage = response.choices[0].message;
         let fullResponse = "";
 
-        for await (const chunk of response) {
-            const text = chunk.choices[0]?.delta?.content || "";
-            if (text) {
-                fullResponse += text;
+        // Si l'IA décide d'appeler un outil (Function Calling)
+        if (responseMessage.tool_calls) {
+            chatHistory.push(responseMessage); // Ajouter l'intention d'appel à l'historique
+
+            for (const toolCall of responseMessage.tool_calls) {
+                const functionName = toolCall.function.name;
+                const args = JSON.parse(toolCall.function.arguments);
+                
+                // Exécuter l'action réelle sur la base de données
+                const result = await toolRegistry.execute(functionName, args, user);
+                
+                // Fournir le résultat à l'IA
+                chatHistory.push({
+                    role: "tool",
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify(result)
+                });
+            }
+
+            // Refaire l'appel pour obtenir la réponse finale (avec streaming cette fois)
+            const finalResponse = await client.chat.completions.create({
+                model: MODEL,
+                messages: chatHistory,
+                stream: true,
+            });
+
+            for await (const chunk of finalResponse) {
+                const text = chunk.choices[0]?.delta?.content || "";
+                if (text) {
+                    fullResponse += text;
+                    res.write(`data: ${JSON.stringify({ text })}\n\n`);
+                }
+            }
+        } else {
+            // Aucun outil appelé, c'est une réponse texte classique
+            fullResponse = responseMessage.content || "";
+            // Simuler le streaming pour le frontend
+            const words = fullResponse.split(' ');
+            for (let i = 0; i < words.length; i++) {
+                const text = words[i] + (i === words.length - 1 ? '' : ' ');
                 res.write(`data: ${JSON.stringify({ text })}\n\n`);
+                await new Promise(r => setTimeout(r, 20)); // Légère latence pour l'effet visuel
             }
         }
 
