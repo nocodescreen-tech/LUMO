@@ -116,14 +116,11 @@ const securityMiddleware = (app) => {
             return next();
         }
 
-        // Liste blanche pour les routes d'authentification
-        const isAuthRoute = req.path.includes('/auth/login') || 
-                           req.path.includes('/auth/register') || 
-                           req.path.includes('/auth/verify-email') ||
-                           req.path.includes('/auth/forgot-password') ||
-                           req.path.includes('/auth/reset-password');
-                           
-        if (isAuthRoute) {
+        // Liste blanche pour les routes d'authentification (protégées par
+        // leur propre mécanisme : refresh token HttpOnly, rate limits, OTP).
+        // /auth/refresh notamment tourne au démarrage de l'app, AVANT que le
+        // cookie XSRF-TOKEN soit établi — exiger CSRF ici casse la session.
+        if (req.path.startsWith('/auth/')) {
             return next();
         }
         
