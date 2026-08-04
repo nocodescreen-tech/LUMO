@@ -56,7 +56,10 @@ const AIChat = () => {
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || 'Erreur réseau');
+                const err: any = new Error(errData.message || `Erreur HTTP ${response.status}`);
+                err.status = response.status;
+                err.data = errData;
+                throw err;
             }
 
             const reader = response.body?.getReader();
@@ -102,9 +105,37 @@ const AIChat = () => {
                 }
             }
         } catch (error: any) {
-            const msg = error.message?.includes('Clé')
-                ? "⚙️ L'IA n'est pas configurée. Ajoutez DEEPSEEK_API_KEY dans votre fichier .env."
-                : "Désolé, je rencontre une petite difficulté technique. Réessayez.";
+            console.error("AIChat error:", {
+                message: error?.message,
+                status: error?.status,
+                data: error?.data,
+                error
+            });
+
+            const status = error?.status;
+            const serverMessage = error?.data?.message;
+            const rawMessage = error?.message || '';
+
+            let msg: string;
+
+            if (rawMessage.includes('Clé') || rawMessage.toUpperCase().includes('DEEPSEEK_API_KEY')) {
+                msg = "L'IA n'est pas configurée sur le serveur.";
+            } else if (status === 401 || status === 403) {
+                msg = "Authentification requise. Reconnectez-vous.";
+            } else if (status === 400) {
+                msg = "Requête invalide. Vérifiez votre message.";
+            } else if (status >= 500) {
+                msg = "Erreur serveur. L'équipe a été notifiée.";
+            } else if (error?.name === 'TypeError' || rawMessage.toLowerCase().includes('fetch') || rawMessage.toLowerCase().includes('network') || rawMessage.toLowerCase().includes('timeout')) {
+                msg = "Erreur réseau. Vérifiez votre connexion.";
+            } else {
+                msg = "Je rencontre une petite difficulté. Réessayez ou contactez le support.";
+            }
+
+            if (serverMessage) {
+                msg = `${msg} (${serverMessage})`;
+            }
+
             setMessages(prev => {
                 const newMsgs = [...prev];
                 newMsgs[newMsgs.length - 1] = { role: 'ai', content: msg };
@@ -125,8 +156,8 @@ const AIChat = () => {
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="shadow-2xl"
                         style={{
-                            width: isExpanded ? '600px' : '380px',
-                            height: isExpanded ? '700px' : '520px',
+                            width: isExpanded ? 'min(90vw, 600px)' : 'min(90vw, 380px)',
+                            height: isExpanded ? 'min(90vh, 700px)' : 'min(90vh, 520px)',
                             borderRadius: '28px',
                             border: '1px solid var(--border)',
                             backgroundColor: 'var(--bg-card)',

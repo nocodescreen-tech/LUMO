@@ -49,7 +49,7 @@ const LoadingFallback = () => (
 
 
 const App = () => {
-  const { token, checkAuth, theme, user } = useAuthStore();
+  const { token, checkAuth, theme, user, hydrating, hydrateFromRefresh } = useAuthStore();
   // useRuntimeTranslator(); // Disabled due to severe collision bugs (e.g., "Stock" -> "Mouvements de")
 
   useEffect(() => {
@@ -59,6 +59,18 @@ const App = () => {
   useEffect(() => {
     // Initialisation du CSRF au démarrage
     api.get('/csrf-token').catch(() => {});
+  }, []);
+
+  // Tentative unique de récupération de session au montage : si aucun token
+  // n'est présent en mémoire (ex: après un rafraîchissement de page), on essaie
+  // de récupérer une session valide via le refresh token (cookie httpOnly).
+  useEffect(() => {
+    if (token) {
+      useAuthStore.setState({ hydrating: false });
+    } else {
+      hydrateFromRefresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -73,6 +85,10 @@ const App = () => {
       return () => clearInterval(interval);
     }
   }, [token]);
+
+  if (hydrating) {
+    return <LoadingFallback />;
+  }
 
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
