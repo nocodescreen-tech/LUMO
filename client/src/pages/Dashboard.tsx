@@ -39,7 +39,7 @@ const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: an
     className="premium-card" 
     style={{
       flex: 1,
-      minWidth: '260px',
+      minWidth: 'min(260px, 100%)',
       display: 'flex',
       flexDirection: 'column',
       gap: '20px',
@@ -230,7 +230,7 @@ const Dashboard = () => {
              </span>
              <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>{t('updatedAt')} {new Date().toLocaleTimeString()}</span>
           </div>
-          <h1 className="title-xl" style={{ fontSize: '3.6rem', marginBottom: '16px', letterSpacing: '-0.06em' }}>
+          <h1 className="title-xl" style={{ fontSize: 'clamp(2rem, 8vw, 3.6rem)', marginBottom: '16px', letterSpacing: '-0.06em' }}>
             <span className="text-gradient">{t('highPerfDashboard')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
@@ -305,7 +305,7 @@ const Dashboard = () => {
       </div>
 
       {/* Main Grid: Charts & Activities */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+      <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="premium-card" style={{ padding: '24px', borderRadius: '24px', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -455,7 +455,7 @@ const Dashboard = () => {
       </div>
 
       {/* Widgets : Top produits + Taux de change + Vue d'ensemble */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: '24px' }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -480,7 +480,7 @@ const Dashboard = () => {
                 return (
                   <div key={i}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', gap: '10px' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                         <span style={{ color: 'var(--primary)', fontWeight: 900, marginRight: '8px' }}>#{i + 1}</span>{p.nom || 'Produit'}
                       </span>
                       <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{money.main}</span>

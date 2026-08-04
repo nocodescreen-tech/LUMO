@@ -156,8 +156,8 @@ const AIChat = () => {
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="shadow-2xl"
                         style={{
-                            width: isExpanded ? '600px' : '380px',
-                            height: isExpanded ? '700px' : '520px',
+                            width: isExpanded ? 'min(90vw, 600px)' : 'min(90vw, 380px)',
+                            height: isExpanded ? 'min(90vh, 700px)' : 'min(90vh, 520px)',
                             borderRadius: '28px',
                             border: '1px solid var(--border)',
                             backgroundColor: 'var(--bg-card)',
