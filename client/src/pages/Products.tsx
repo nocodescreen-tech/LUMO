@@ -509,43 +509,43 @@ const Products = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
             <Boxes size={14} /> {t('globalInventory')}
           </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
             {t('productsStock').split(' & ')[0]} & <span className="text-gradient">{t('productsStock').split(' & ')[1] || 'Stock'}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('inventoryDesc')}</p>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <div className="glass" style={{ padding: '16px 20px', borderRadius: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(79, 70, 229, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+          <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(79, 70, 229, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
               <Layers size={20} />
             </div>
             <div>
               <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('items')}</span>
-              <div style={{ fontSize: '1.1rem', fontWeight: '950' }}>{totalProducts}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)' }}>{totalProducts}</div>
             </div>
           </div>
 
-          <div className="glass" style={{ padding: '16px 20px', borderRadius: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '220px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+          <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '220px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
               <TrendingUp size={20} />
             </div>
             <div>
               <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('stockValueSale')}</span>
-              <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#10b981' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--success)' }}>
                 {allProducts.reduce((acc, p) => acc + (convertPrice(p.prix || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
               </div>
             </div>
           </div>
 
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
-            <div className="glass" style={{ padding: '16px 20px', borderRadius: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '220px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+            <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '220px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--warning)' }}>
                 <Package size={20} />
               </div>
               <div>
                 <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('totalCostPurchase')}</span>
-                <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#f59e0b' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--warning)' }}>
                   {allProducts.reduce((acc, p) => acc + (convertPrice(p.prixAchat || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
                 </div>
               </div>
@@ -553,13 +553,13 @@ const Products = () => {
           )}
 
           {lowStockCount > 0 && (
-            <div className="glass" style={{ padding: '16px 20px', borderRadius: '24px', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+            <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}>
                 <AlertTriangle size={20} />
               </div>
               <div>
                 <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Alertes Stock</span>
-                <div style={{ fontSize: '1.1rem', fontWeight: '950', color: '#ef4444' }}>{lowStockCount}</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--danger)' }}>{lowStockCount}</div>
               </div>
             </div>
           )}
@@ -567,7 +567,7 @@ const Products = () => {
       </div>
 
       {/* Control Bar */}
-      <div className="glass" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+      <div className="glass" style={{ padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
@@ -578,11 +578,11 @@ const Products = () => {
             style={{
               width: '100%',
               padding: '16px 16px 16px 60px',
-              borderRadius: '18px',
+              borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--border)',
               backgroundColor: 'var(--bg-main)',
               color: 'var(--text-main)',
-              fontWeight: '700',
+              fontWeight: '600',
               outline: 'none',
               fontSize: '1rem'
             }}
@@ -592,73 +592,73 @@ const Products = () => {
           <input type="file" ref={importInputRef} accept=".xlsx,.xls" onChange={handleImportExcel} style={{ display: 'none' }} />
           {(canDo('products.import') || canDo('products.add')) && (
           <>
-          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('downloadExcelTemplate')}>
-            <Download size={20} /> {t('template')}
+          <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }} title={t('downloadExcelTemplate')}>
+            <Download size={18} /> {t('template')}
           </button>
-          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }} title={t('importExcelFile')}>
-            <Upload size={20} /> {t('excel')}
+          <button onClick={() => importInputRef.current?.click()} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }} title={t('importExcelFile')}>
+            <Upload size={18} /> {t('excel')}
           </button>
-          <button onClick={() => setShowTextImportModal(true)} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-            <FileText size={20} /> {t('text')}
+          <button onClick={() => setShowTextImportModal(true)} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
+            <FileText size={18} /> {t('text')}
           </button>
           </>
           )}
           {(canDo('products.export') || canDo('products.add')) && (
-          <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '800' }}>
-            <Download size={20} /> {t('report')}
+          <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
+            <Download size={18} /> {t('report')}
           </button>
           )}
           {products.length > 0 && canDo('products.delete') && (
-            <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '56px', borderRadius: '18px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '800' }}>
-              <Trash2 size={20} /> {t('deleteAll')}
+            <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '600' }}>
+              <Trash2 size={18} /> {t('deleteAll')}
             </button>
           )}
-          <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '56px', height: '56px', borderRadius: '18px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
-            <RefreshCw size={20} />
+          <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
+            <RefreshCw size={18} />
           </button>
           {canDo('products.add') && (
             <button
               onClick={() => setShowAddModal(true)}
               style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '16px 36px', borderRadius: '18px',
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '0 32px', height: '48px', borderRadius: 'var(--radius-sm)',
                 backgroundColor: 'var(--primary)', color: 'white',
-                border: 'none', fontWeight: '950', cursor: 'pointer',
-                boxShadow: '0 20px 40px -10px var(--primary-glow)',
-                fontSize: '1rem'
+                border: 'none', fontWeight: '600', cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                fontSize: '0.95rem'
               }}
             >
-              <Plus size={22} /> {t('newProduct') || 'Nouveau Produit'}
+              <Plus size={20} /> {t('newProduct') || 'Nouveau Produit'}
             </button>
           )}
         </div>
       </div>
 
       {/* Table Section */}
-      <div className="glass" style={{ borderRadius: '40px', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.3)' }}>
+      <div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table className="table-products" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                <th style={{ padding: '28px 32px' }}>{t('productReference') || 'Référence Produit'}</th>
-                <th style={{ padding: '28px 32px' }}>{t('category') || 'Catégorie'}</th>
-                {isPharmacy && <th style={{ padding: '28px 32px' }}>{t('expiration') || 'Péremption'}</th>}
-                <th style={{ padding: '28px 32px' }}>{t('unitPrice') || 'Prix Unitaire'}</th>
-                <th style={{ padding: '28px 32px' }}>{t('stockLevel') || 'Niveau de Stock'}</th>
-                <th style={{ padding: '28px 32px' }}>{t('status') || 'Statut'}</th>
-                <th style={{ padding: '28px 32px', textAlign: 'right' }}>{t('actions') || 'Actions'}</th>
+                <th style={{ padding: '16px 24px' }}>{t('productReference') || 'Référence Produit'}</th>
+                <th style={{ padding: '16px 24px' }}>{t('category') || 'Catégorie'}</th>
+                {isPharmacy && <th style={{ padding: '16px 24px' }}>{t('expiration') || 'Péremption'}</th>}
+                <th style={{ padding: '16px 24px' }}>{t('unitPrice') || 'Prix Unitaire'}</th>
+                <th style={{ padding: '16px 24px' }}>{t('stockLevel') || 'Niveau de Stock'}</th>
+                <th style={{ padding: '16px 24px' }}>{t('status') || 'Statut'}</th>
+                <th style={{ padding: '16px 24px', textAlign: 'right' }}>{t('actions') || 'Actions'}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isPharmacy ? 7 : 6} style={{ padding: '120px', textAlign: 'center' }}>
-                  <Loader2 size={50} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto', opacity: 0.5 }} />
+                <tr><td colSpan={isPharmacy ? 7 : 6} style={{ padding: '60px', textAlign: 'center' }}>
+                  <Loader2 size={40} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto', opacity: 0.5 }} />
                 </td></tr>
               ) : currentItems.length === 0 ? (
-                <tr><td colSpan={isPharmacy ? 7 : 6} style={{ padding: '100px', textAlign: 'center' }}>
-                  <Package size={80} style={{ opacity: 0.1, marginBottom: '24px', margin: '0 auto' }} />
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: '950', color: 'var(--text-muted)' }}>{t('emptyInventory') || 'Inventaire vide'}</h3>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('noProductsMatchSearch') || 'Aucun produit ne correspond à votre recherche.'}</p>
+                <tr><td colSpan={isPharmacy ? 7 : 6} style={{ padding: '60px', textAlign: 'center' }}>
+                  <Package size={60} style={{ opacity: 0.1, marginBottom: '24px', margin: '0 auto', color: 'var(--text-muted)' }} />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text-muted)' }}>{t('emptyInventory') || 'Inventaire vide'}</h3>
+                  <p style={{ color: 'var(--text-muted)', fontWeight: '500', marginTop: '8px' }}>{t('noProductsMatchSearch') || 'Aucun produit ne correspond à votre recherche.'}</p>
                 </td></tr>
               ) : currentItems.map((p: any) => (
                 <motion.tr
@@ -669,9 +669,9 @@ const Products = () => {
                   style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.3s' }}
                   className="hover-row"
                 >
-                  <td style={{ padding: '28px 32px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '950', color: 'white', fontSize: '1.4rem', boxShadow: '0 10px 20px -5px var(--primary-glow)', overflow: 'hidden' }}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', background: 'var(--grad-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', color: 'white', fontSize: '1.2rem', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
                         {p.image ? (
                           <img src={p.image} alt={p.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -679,11 +679,11 @@ const Products = () => {
                         )}
                       </div>
                       <div>
-                        <div style={{ fontWeight: '900', color: 'var(--text-main)', fontSize: '1.1rem', letterSpacing: '-0.01em' }}>{p.nom}</div>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px' }}>REF: #{p.id.toString().padStart(5, '0')}</div>
+                        <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '1rem' }}>{p.nom}</div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>REF: #{p.id.toString().padStart(5, '0')}</div>
                           {p.codeBarre && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--primary-glow)', padding: '2px 8px', borderRadius: '6px', fontWeight: '900', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--primary-glow)', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Zap size={10} fill="var(--primary)" /> {p.codeBarre}
                             </div>
                           )}
@@ -691,53 +691,53 @@ const Products = () => {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '28px 32px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)', fontWeight: '800', fontSize: '0.95rem' }}>
-                      <Tag size={16} color="var(--primary)" /> {p.categorie}
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.9rem' }}>
+                      <Tag size={14} color="var(--primary)" /> {p.categorie}
                     </div>
                   </td>
                   {isPharmacy && (
-                    <td style={{ padding: '28px 32px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '0.95rem', color: (p.datePeremption && new Date(p.datePeremption) < new Date()) ? '#ef4444' : 'var(--text-main)' }}>
-                        <Calendar size={16} /> {p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : '—'}
+                    <td style={{ padding: '16px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '0.9rem', color: (p.datePeremption && new Date(p.datePeremption) < new Date()) ? 'var(--danger)' : 'var(--text-main)' }}>
+                        <Calendar size={14} /> {p.datePeremption ? new Date(p.datePeremption).toLocaleDateString() : '—'}
                         {p.datePeremption && new Date(p.datePeremption) < new Date() && <AlertCircle size={14} />}
                       </div>
                     </td>
                   )}
-                  <td style={{ padding: '28px 32px' }}>
-                    <div style={{ fontWeight: '950', fontSize: '1.2rem', color: 'var(--primary)' }}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--primary)' }}>
                       {convertPrice(p.prix || 0, p.devise || currency, currency).toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{currency}</span>
                     </div>
                     {p.devise && p.devise !== currency && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500' }}>
                         Orig: {p.prix?.toLocaleString()} {p.devise}
                       </div>
                     )}
                     {canDo('products.view_purchase_price') && (
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', marginTop: '2px' }}>Achat: {convertPrice(p.prixAchat || 0, p.devise || currency, currency).toLocaleString()} {currency}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500', marginTop: '4px' }}>Achat: {convertPrice(p.prixAchat || 0, p.devise || currency, currency).toLocaleString()} {currency}</div>
                     )}
                   </td>
-                  <td style={{ padding: '28px 32px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
-                        padding: '10px 18px', borderRadius: '14px',
+                        padding: '6px 12px', borderRadius: 'var(--radius-sm)',
                         backgroundColor: p.stock < (p.stockAlerte || 5) ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
                         border: `1px solid ${p.stock < (p.stockAlerte || 5) ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                       }}>
-                        <span style={{ fontWeight: '950', fontSize: '1.2rem', color: p.stock < (p.stockAlerte || 5) ? '#ef4444' : '#10b981' }}>{p.stock}</span>
-                        <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '800', opacity: 0.5 }}>{t('units') || 'unités'}</span>
+                        <span style={{ fontWeight: '700', fontSize: '1rem', color: p.stock < (p.stockAlerte || 5) ? 'var(--danger)' : 'var(--success)' }}>{p.stock}</span>
+                        <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '600', opacity: 0.7 }}>{t('units') || 'unités'}</span>
                       </div>
-                      {p.stock < (p.stockAlerte || 5) && <AlertTriangle size={20} color="#ef4444" className="animate-pulse" />}
+                      {p.stock < (p.stockAlerte || 5) && <AlertTriangle size={18} color="var(--danger)" className="animate-pulse" />}
                     </div>
                   </td>
-                  <td style={{ padding: '28px 32px' }}>
+                  <td style={{ padding: '16px 24px' }}>
                     <div style={{
-                      display: 'inline-flex', padding: '10px 20px',
+                      display: 'inline-flex', padding: '6px 12px',
                       borderRadius: '100px',
                       fontSize: '0.75rem',
-                      fontWeight: '950',
+                      fontWeight: '700',
                       backgroundColor: p.stock > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: p.stock > 0 ? '#10b981' : '#ef4444',
+                      color: p.stock > 0 ? 'var(--success)' : 'var(--danger)',
                       textTransform: 'uppercase',
                       border: '1px solid currentColor',
                       letterSpacing: '0.05em'
@@ -745,32 +745,32 @@ const Products = () => {
                       {p.stock > 0 ? (t('available') || 'Disponible') : (t('outOfStock') || 'En Rupture')}
                     </div>
                   </td>
-                  <td style={{ padding: '28px 32px', textAlign: 'right', position: 'relative' }}>
-                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <td style={{ padding: '16px 24px', textAlign: 'right', position: 'relative' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button
                         onClick={() => { setSelectedProduct(p); fetchProductHistory(p.id); }}
                         className="glass btn-hover"
-                        style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title={t('stockHistoryNav') || 'Historique du stock'}
                       >
-                        <Activity size={20} />
+                        <Activity size={18} />
                       </button>
                       {canDo('products.edit') && (
                         <button
                           onClick={() => { setSelectedProduct({ ...p, metadata: p.metadata || {} }); setShowEditModal(true); }}
                           className="glass btn-hover"
-                          style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
-                          <Edit size={20} />
+                          <Edit size={18} />
                         </button>
                       )}
                       {canDo('products.delete') && (
                         <button
                           onClick={() => handleDeleteProduct(p.id, p.nom)}
                           className="glass btn-hover"
-                          style={{ width: '48px', height: '48px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
-                          <Trash2 size={20} />
+                          <Trash2 size={18} />
                         </button>
                       )}
                     </div>
@@ -844,7 +844,7 @@ const Products = () => {
       >
         <form onSubmit={handleTextImport} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Liste de produits</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Liste de produits</label>
             <textarea
               required
               placeholder="Laptop HP&#10;JBL Boombox&#10;iPhone 15 Pro"
@@ -852,13 +852,13 @@ const Products = () => {
               onChange={(e) => setBulkText(e.target.value)}
               style={{
                 width: '100%',
-                padding: '20px',
-                borderRadius: '20px',
-                border: '1.5px solid var(--border)',
+                padding: '16px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)',
                 backgroundColor: 'var(--bg-main)',
                 color: 'var(--text-main)',
-                fontSize: '1rem',
-                fontWeight: '700',
+                fontSize: '0.95rem',
+                fontWeight: '500',
                 outline: 'none',
                 minHeight: '200px',
                 resize: 'vertical'
@@ -866,10 +866,10 @@ const Products = () => {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowTextImportModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>{t('cancelBtn')}</button>
-            <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Upload size={24} /> Importer {bulkText.split('\n').filter(l => l.trim().length > 0).length > 0 ? `(${bulkText.split('\n').filter(l => l.trim().length > 0).length})` : ''}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+            <button type="button" onClick={() => setShowTextImportModal(false)} className="btn-hover" style={{ padding: '12px 24px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem', borderRadius: 'var(--radius-sm)' }}>{t('cancelBtn')}</button>
+            <button type="submit" className="btn-hover" style={{ padding: '12px 32px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Upload size={18} /> Importer {bulkText.split('\n').filter(l => l.trim().length > 0).length > 0 ? `(${bulkText.split('\n').filter(l => l.trim().length > 0).length})` : ''}
             </button>
           </div>
         </form>
@@ -885,47 +885,47 @@ const Products = () => {
         maxWidth="800px"
         icon={PackageCheck}
       >
-        <form onSubmit={handleAddProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
+        <form onSubmit={handleAddProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Désignation / Nom de l'article</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Désignation / Nom de l'article</label>
               <div style={{ position: 'relative' }}>
-                <Package style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                <input required type="text" placeholder="ex: Laptop HP Spectre x360" value={newProduct.nom} onChange={(e) => setNewProduct({ ...newProduct, nom: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
+                <Package style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input required type="text" placeholder="ex: Laptop HP Spectre x360" value={newProduct.nom} onChange={(e) => setNewProduct({ ...newProduct, nom: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }} />
               </div>
             </div>
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Code-barres / SKU</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Code-barres / SKU</label>
               <div style={{ position: 'relative' }}>
-                <Activity style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                <input type="text" placeholder="Scannez ou saisissez le code..." value={newProduct.codeBarre} onChange={(e) => setNewProduct({ ...newProduct, codeBarre: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
+                <Activity style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="Scannez ou saisissez le code..." value={newProduct.codeBarre} onChange={(e) => setNewProduct({ ...newProduct, codeBarre: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }} />
               </div>
             </div>
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Image du Produit (Optionnel)</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Image du Produit (Optionnel)</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'var(--bg-main)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {imagePreview ? <img src={imagePreview || undefined} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={24} color="var(--text-muted)" />}
+              <div style={{ width: '72px', height: '72px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {imagePreview ? <img src={imagePreview || undefined} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={22} color="var(--text-muted)" />}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
-              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 20px', borderRadius: '14px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}>
+              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>
                 Choisir une image
               </button>
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Groupe / Catégorie</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Groupe / Catégorie</label>
             <div style={{ position: 'relative' }}>
-              <Tag style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-              <input list="categoryList" type="text" placeholder="ex: Electronique" value={newProduct.categorie} onChange={(e) => setNewProduct({ ...newProduct, categorie: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
+              <Tag style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={18} />
+              <input list="categoryList" type="text" placeholder="ex: Electronique" value={newProduct.categorie} onChange={(e) => setNewProduct({ ...newProduct, categorie: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Devise</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Devise</label>
             <div style={{ position: 'relative' }}>
               <select
                 value={newProduct.devise}
@@ -940,42 +940,42 @@ const Products = () => {
                     setTimeout(() => setConversionBanner(null), 4000);
                   }
                 }}
-                style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none', cursor: 'pointer' }}
+                style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none', appearance: 'none', cursor: 'pointer' }}
               >
                 <option value="CDF">Francs Congolais (CDF)</option>
                 <option value="USD">Dollars (USD)</option>
               </select>
             </div>
             {conversionBanner && showAddModal && (
-              <div style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '800' }}>
+              <div style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '12px', background: 'rgba(21,94,88,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '700' }}>
                 {conversionBanner}
               </div>
             )}
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock de départ</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Stock de départ</label>
             <div style={{ position: 'relative' }}>
-              <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.stock} onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <Boxes style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={18} />
+              <input type="number" required value={newProduct.stock} onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Seuil d'Alerte Stock</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Seuil d'Alerte Stock</label>
             <div style={{ position: 'relative' }}>
-              <AlertTriangle style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#f59e0b', opacity: 0.5 }} size={20} />
-              <input type="number" required value={newProduct.stockAlerte} onChange={(e) => setNewProduct({ ...newProduct, stockAlerte: parseInt(e.target.value) })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <AlertTriangle style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--warning)', opacity: 0.5 }} size={18} />
+              <input type="number" required value={newProduct.stockAlerte} onChange={(e) => setNewProduct({ ...newProduct, stockAlerte: parseInt(e.target.value) })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
             </div>
           </div>
 
-          <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: '24px', border: '1px dashed var(--primary)' }}>
+          <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px dashed var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <TrendingUp size={18} /> Système de Marge Automatique
               </h4>
               <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
                 <input type="checkbox" checked={calc.active} onChange={(e) => setCalc({ ...calc, active: e.target.checked })} style={{ width: '40px', height: '20px' }} />
               </label>
             </div>
@@ -983,42 +983,42 @@ const Products = () => {
             {calc.active && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Pièces / Carton (Lot)</label>
-                  <input type="number" value={calc.packSize} onChange={(e) => setCalc({ ...calc, packSize: parseFloat(e.target.value) || 1 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Pièces / Carton (Lot)</label>
+                  <input type="number" value={calc.packSize} onChange={(e) => setCalc({ ...calc, packSize: parseFloat(e.target.value) || 1 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Prix du Carton ({newProduct.devise})</label>
-                  <input type="number" value={calc.totalCost} onChange={(e) => setCalc({ ...calc, totalCost: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Prix du Carton ({newProduct.devise})</label>
+                  <input type="number" value={calc.totalCost} onChange={(e) => setCalc({ ...calc, totalCost: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
-                  <input type="number" value={calc.marginPct} onChange={(e) => setCalc({ ...calc, marginPct: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
+                  <input type="number" value={calc.marginPct} onChange={(e) => setCalc({ ...calc, marginPct: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                 </div>
               </div>
             )}
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', fontWeight: '600' }}>
-              L''activation de ce système calculera automatiquement votre P.A (Prix d''Achat Unitaire) et votre P.V (Prix de Vente) selon la marge définie.
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', fontWeight: '500' }}>
+              L'activation de ce système calculera automatiquement votre P.A (Prix d'Achat Unitaire) et votre P.V (Prix de Vente) selon la marge définie.
             </p>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({newProduct.devise})</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
-              <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixAchat) ? '' : newProduct.prixAchat} onChange={(e) => setNewProduct({ ...newProduct, prixAchat: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+              <TrendingDown style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--danger)', opacity: 0.5 }} size={18} />
+              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixAchat) ? '' : newProduct.prixAchat} onChange={(e) => setNewProduct({ ...newProduct, prixAchat: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: '700', outline: 'none' }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({newProduct.devise})</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
-              <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
-              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixVente) ? '' : newProduct.prixVente} onChange={(e) => setNewProduct({ ...newProduct, prixVente: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
+              <TrendingUp style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)', opacity: 0.5 }} size={18} />
+              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixVente) ? '' : newProduct.prixVente} onChange={(e) => setNewProduct({ ...newProduct, prixVente: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '1.1rem', fontWeight: '800', outline: 'none' }} />
             </div>
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Variantes (Taille, Couleur, etc.)</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Variantes (Taille, Couleur, etc.)</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {newProduct.variantes.map((v, i) => (
                 <div key={i} style={{ display: 'flex', gap: '10px' }}>
@@ -1026,36 +1026,36 @@ const Products = () => {
                     const newV = [...newProduct.variantes];
                     newV[i].nom = e.target.value;
                     setNewProduct({ ...newProduct, variantes: newV });
-                  }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                  }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                   <input placeholder="ex: Rouge" value={v.valeur} onChange={e => {
                     const newV = [...newProduct.variantes];
                     newV[i].valeur = e.target.value;
                     setNewProduct({ ...newProduct, variantes: newV });
-                  }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
-                  <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: newProduct.variantes.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><X size={18} /></button>
+                  }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
+                  <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: newProduct.variantes.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '800', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
+              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
             </div>
           </div>
 
           {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
             <div key={field.name}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
               <div style={{ position: 'relative' }}>
                 {field.type === 'select' ? (
                   <select
                     value={newProduct.metadata?.[field.name] || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
-                    style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none', appearance: 'none' }}
                   >
                     <option value="">{language === 'en' ? 'Select...' : 'Selectionnez...'}</option>
                     {field.options?.map((opt, idx) => <option key={opt} value={opt}>{getFieldOptionLabel(field, opt, idx)}</option>)}
                   </select>
                 ) : field.type === 'boolean' ? (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={!!newProduct.metadata?.[field.name]} onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
-                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={!!newProduct.metadata?.[field.name]} onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '18px', height: '18px' }} />
+                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
                   </label>
                 ) : (
                   <input
@@ -1064,17 +1064,17 @@ const Products = () => {
                     required={field.required}
                     value={newProduct.metadata?.[field.name] || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, metadata: { ...newProduct.metadata, [field.name]: e.target.value } })}
-                    style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }}
                   />
                 )}
               </div>
             </div>
           ))}
 
-          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowAddModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>Fermer</button>
-            <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Plus size={24} /> Créer l'Article
+          <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+            <button type="button" onClick={() => setShowAddModal(false)} className="btn-hover" style={{ padding: '12px 24px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', borderRadius: 'var(--radius-sm)' }}>Fermer</button>
+            <button type="submit" className="btn-hover" style={{ padding: '12px 32px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={20} /> Créer l'Article
             </button>
           </div>
         </form>
@@ -1098,41 +1098,41 @@ const Products = () => {
                   <Package style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
                   <input required type="text" value={selectedProduct.nom} onChange={(e) => setSelectedProduct({ ...selectedProduct, nom: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
                 </div>
-              </div>
+            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Code-barres / SKU</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Code-barres / SKU</label>
                 <div style={{ position: 'relative' }}>
-                  <Activity style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={22} />
-                  <input type="text" placeholder="Scannez ou saisissez le code..." value={selectedProduct.codeBarre || ''} onChange={(e) => setSelectedProduct({ ...selectedProduct, codeBarre: e.target.value })} style={{ width: '100%', padding: '20px 20px 20px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: '700', outline: 'none' }} />
+                  <Activity style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                  <input type="text" placeholder="Scannez ou saisissez le code..." value={selectedProduct.codeBarre || ''} onChange={(e) => setSelectedProduct({ ...selectedProduct, codeBarre: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }} />
                 </div>
               </div>
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Image du Produit</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Image du Produit</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ width: '80px', height: '80px', borderRadius: '16px', background: 'var(--bg-main)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {imagePreview ? <img src={imagePreview || undefined} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (
-                    selectedProduct.image ? <img src={selectedProduct.image || undefined} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={24} color="var(--text-muted)" />
+                    selectedProduct.image ? <img src={selectedProduct.image || undefined} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Upload size={22} color="var(--text-muted)" />
                   )}
                 </div>
                 <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
-                <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '12px 20px', borderRadius: '14px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer' }}>
+                <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', fontSize: '0.9rem' }}>
                   Modifier l'image
                 </button>
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Catégorie</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Catégorie</label>
               <div style={{ position: 'relative' }}>
-                <Tag style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                <input list="categoryList" type="text" value={selectedProduct.categorie} onChange={(e) => setSelectedProduct({ ...selectedProduct, categorie: e.target.value })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
+                <Tag style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={18} />
+                <input list="categoryList" type="text" value={selectedProduct.categorie} onChange={(e) => setSelectedProduct({ ...selectedProduct, categorie: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }} />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Devise</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Devise</label>
               <div style={{ position: 'relative' }}>
                 <select
                   value={selectedProduct.devise || currency}
@@ -1147,26 +1147,26 @@ const Products = () => {
                       setTimeout(() => setConversionBanner(null), 4000);
                     }
                   }}
-                  style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none', appearance: 'none', cursor: 'pointer' }}
                 >
                   <option value="CDF">Francs Congolais (CDF)</option>
                   <option value="USD">Dollars (USD)</option>
                 </select>
               </div>
               {conversionBanner && showEditModal && (
-                <div style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '12px', background: 'rgba(99,102,241,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '800' }}>
+                <div style={{ marginTop: '10px', padding: '10px 16px', borderRadius: '12px', background: 'rgba(21,94,88,0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '700' }}>
                   {conversionBanner}
                 </div>
               )}
             </div>
 
-            <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: '24px', border: '1px dashed var(--primary)' }}>
+            <div style={{ gridColumn: '1 / -1', background: 'var(--primary-glow)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px dashed var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <TrendingUp size={18} /> Système de Marge Automatique
                 </h4>
                 <label className="switch" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>{calc.active ? 'Activé' : 'Désactivé'}</span>
                   <input type="checkbox" checked={calc.active} onChange={(e) => setCalc({ ...calc, active: e.target.checked })} style={{ width: '40px', height: '20px' }} />
                 </label>
               </div>
@@ -1174,55 +1174,55 @@ const Products = () => {
               {calc.active && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Qté (ex: 12 pcs)</label>
-                    <input type="number" value={calc.packSize} onChange={(e) => setCalc({ ...calc, packSize: parseFloat(e.target.value) || 1 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Qté (ex: 12 pcs)</label>
+                    <input type="number" value={calc.packSize} onChange={(e) => setCalc({ ...calc, packSize: parseFloat(e.target.value) || 1 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Coût Total ({selectedProduct.devise || currency})</label>
-                    <input type="number" value={calc.totalCost} onChange={(e) => setCalc({ ...calc, totalCost: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Coût Total ({selectedProduct.devise || currency})</label>
+                    <input type="number" value={calc.totalCost} onChange={(e) => setCalc({ ...calc, totalCost: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
-                    <input type="number" value={calc.marginPct} onChange={(e) => setCalc({ ...calc, marginPct: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    <label style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Marge (%)</label>
+                    <input type="number" value={calc.marginPct} onChange={(e) => setCalc({ ...calc, marginPct: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                   </div>
                 </div>
               )}
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Stock Actuel</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Stock Actuel</label>
               <div style={{ position: 'relative' }}>
-                <Boxes style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.stock} onChange={(e) => setSelectedProduct({ ...selectedProduct, stock: parseInt(e.target.value) })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <Boxes style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={18} />
+                <input type="number" required value={selectedProduct.stock} onChange={(e) => setSelectedProduct({ ...selectedProduct, stock: parseInt(e.target.value) })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Seuil d'Alerte</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Seuil d'Alerte</label>
               <div style={{ position: 'relative' }}>
-                <AlertTriangle style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#f59e0b', opacity: 0.5 }} size={20} />
-                <input type="number" required value={selectedProduct.stockAlerte} onChange={(e) => setSelectedProduct({ ...selectedProduct, stockAlerte: parseInt(e.target.value) })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <AlertTriangle style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--warning)', opacity: 0.5 }} size={18} />
+                <input type="number" required value={selectedProduct.stockAlerte} onChange={(e) => setSelectedProduct({ ...selectedProduct, stockAlerte: parseInt(e.target.value) })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }} />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({selectedProduct?.devise || currency})</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix d'Achat ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
-                <TrendingDown style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#ef4444', opacity: 0.5 }} size={20} />
-                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prixAchat) ? '' : selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({ ...selectedProduct, prixAchat: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '950', outline: 'none' }} />
+                <TrendingDown style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--danger)', opacity: 0.5 }} size={18} />
+                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prixAchat) ? '' : selectedProduct.prixAchat} onChange={(e) => setSelectedProduct({ ...selectedProduct, prixAchat: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.05rem', fontWeight: '700', outline: 'none' }} />
               </div>
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({selectedProduct?.devise || currency})</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
-                <TrendingUp style={{ position: 'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', color: '#10b981', opacity: 0.5 }} size={20} />
-                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prix) ? '' : (selectedProduct.prix || '')} onChange={(e) => setSelectedProduct({ ...selectedProduct, prix: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '18px 18px 18px 52px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: '#10b981', fontSize: '1.4rem', fontWeight: '950', outline: 'none' }} />
+                <TrendingUp style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)', opacity: 0.5 }} size={18} />
+                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prix) ? '' : (selectedProduct.prix || '')} onChange={(e) => setSelectedProduct({ ...selectedProduct, prix: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '1.1rem', fontWeight: '800', outline: 'none' }} />
               </div>
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>Variantes</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Variantes</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(selectedProduct.variantes || []).map((v: any, i: number) => (
                   <div key={i} style={{ display: 'flex', gap: '10px' }}>
@@ -1230,36 +1230,36 @@ const Products = () => {
                       const newV = [...selectedProduct.variantes];
                       newV[i].nom = e.target.value;
                       setSelectedProduct({ ...selectedProduct, variantes: newV });
-                    }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
+                    }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                     <input placeholder="ex: XL" value={v.valeur} onChange={e => {
                       const newV = [...selectedProduct.variantes];
                       newV[i].valeur = e.target.value;
                       setSelectedProduct({ ...selectedProduct, variantes: newV });
-                    }} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700' }} />
-                    <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: selectedProduct.variantes.filter((_: any, idx: number) => idx !== i) })} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><X size={18} /></button>
+                    }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
+                    <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: selectedProduct.variantes.filter((_: any, idx: number) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                   </div>
                 ))}
-                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '800', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
+                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
               </div>
             </div>
 
             {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
               <div key={field.name}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{getFieldLabel(field)}</label>
                 <div style={{ position: 'relative' }}>
                   {field.type === 'select' ? (
                     <select
                       value={selectedProduct.metadata?.[field.name] || ''}
                       onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}
-                      style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none', appearance: 'none' }}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none', appearance: 'none' }}
                     >
                       <option value="">{language === 'en' ? 'Select...' : 'Selectionnez...'}</option>
                       {field.options?.map((opt, idx) => <option key={opt} value={opt}>{getFieldOptionLabel(field, opt, idx)}</option>)}
                     </select>
                   ) : field.type === 'boolean' ? (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={!!selectedProduct.metadata?.[field.name]} onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '20px', height: '20px' }} />
-                      <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!selectedProduct.metadata?.[field.name]} onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.checked } })} style={{ width: '18px', height: '18px' }} />
+                      <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{getFieldLabel(field)}</span>
                     </label>
                   ) : (
                     <input
@@ -1268,19 +1268,21 @@ const Products = () => {
                       required={field.required}
                       value={selectedProduct.metadata?.[field.name] || ''}
                       onChange={(e) => setSelectedProduct({ ...selectedProduct, metadata: { ...selectedProduct.metadata, [field.name]: e.target.value } })}
-                      style={{ width: '100%', padding: '18px 20px', borderRadius: '20px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700', outline: 'none' }}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600', outline: 'none' }}
                     />
                   )}
                 </div>
               </div>
             ))}
 
-            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '20px', marginTop: '16px' }}>
-              <button type="button" onClick={() => setShowEditModal(false)} className="btn-hover" style={{ padding: '18px 32px', border: 'none', background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', fontWeight: '800', cursor: 'pointer', fontSize: '1rem', borderRadius: '16px' }}>{t('cancelBtn')}</button>
-              <button type="submit" className="btn-hover" style={{ padding: '18px 48px', borderRadius: '20px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '950', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 20px 40px -10px var(--primary-glow)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Edit size={24} /> Sauvegarder
+            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+              <button type="button" onClick={() => setShowEditModal(false)} className="btn-hover" style={{ padding: '12px 24px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', borderRadius: 'var(--radius-sm)' }}>{t('cancelBtn')}</button>
+              <button type="submit" className="btn-hover" style={{ padding: '12px 32px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit size={20} /> Sauvegarder
               </button>
             </div>
+          </div>
+          </div>
           </form>
         )}
       </Modal>
@@ -1300,17 +1302,17 @@ const Products = () => {
           ) : (
             <>
               {productHistory.slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage).map((m, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: m.type === 'ENTREE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: m.type === 'ENTREE' ? '#10b981' : '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: m.type === 'ENTREE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: m.type === 'ENTREE' ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {m.type === 'ENTREE' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{m.type} - {m.quantite} pcs</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{m.raison} • {new Date(m.createdAt).toLocaleString()}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{m.type} - {m.quantite} pcs</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>{m.raison} • {new Date(m.createdAt).toLocaleString()}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800 }}>STOCK</div>
-                    <div style={{ fontWeight: 950, fontSize: '1.1rem' }}>{m.nouveauStock}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>STOCK</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{m.nouveauStock}</div>
                   </div>
                 </div>
               ))}
@@ -1320,15 +1322,15 @@ const Products = () => {
                   <button
                     onClick={() => setHistoryPage(historyPage - 1)}
                     disabled={historyPage === 1}
-                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: historyPage === 1 ? 'not-allowed' : 'pointer', opacity: historyPage === 1 ? 0.5 : 1, fontWeight: 700, fontSize: '0.8rem' }}
+                    style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: historyPage === 1 ? 'not-allowed' : 'pointer', opacity: historyPage === 1 ? 0.5 : 1, fontWeight: 600, fontSize: '0.8rem' }}
                   >
                     Précédent
                   </button>
-                  <span style={{ alignSelf: 'center', fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {historyPage} / {Math.ceil(productHistory.length / historyItemsPerPage)}</span>
+                  <span style={{ alignSelf: 'center', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Page {historyPage} / {Math.ceil(productHistory.length / historyItemsPerPage)}</span>
                   <button
                     onClick={() => setHistoryPage(historyPage + 1)}
                     disabled={historyPage === Math.ceil(productHistory.length / historyItemsPerPage)}
-                    style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: historyPage === Math.ceil(productHistory.length / historyItemsPerPage) ? 'not-allowed' : 'pointer', opacity: historyPage === Math.ceil(productHistory.length / historyItemsPerPage) ? 0.5 : 1, fontWeight: 700, fontSize: '0.8rem' }}
+                    style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: historyPage === Math.ceil(productHistory.length / historyItemsPerPage) ? 'not-allowed' : 'pointer', opacity: historyPage === Math.ceil(productHistory.length / historyItemsPerPage) ? 0.5 : 1, fontWeight: 600, fontSize: '0.8rem' }}
                   >
                     Suivant
                   </button>

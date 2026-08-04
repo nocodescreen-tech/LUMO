@@ -15,14 +15,17 @@ const {
 const { sequelize } = require('../config/database');
 const { sendResponse } = require('../utils/response');
 
+// ─── Rôles autorisés pour sous-utilisateurs ──────────────────────
+const VALID_ROLES = ['manager', 'caissier', 'vendeur', 'inventoriste', 'superviseur'];
+
 // Create a sub-user (cashier/manager)
 exports.createSubUser = async (req, res) => {
   try {
-    const { nom, email, motDePasse, role, telephone, permissions } = req.body;
+    const { nom, email, motDePasse, role, telephone, permissions, limits } = req.body;
 
-    // Only allow manager or caissier roles for sub-users
-    if (!['manager', 'caissier', 'vendeur'].includes(role)) {
-      return res.status(400).json({ message: 'Rôle invalide pour un sous-utilisateur' });
+    // Only allow valid roles for sub-users
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ message: 'Rôle invalide pour un sous-utilisateur. Rôles valides: ' + VALID_ROLES.join(', ') });
     }
 
     const userExists = await User.findOne({ where: { email } });
@@ -48,6 +51,7 @@ exports.createSubUser = async (req, res) => {
       role,
       telephone,
       permissions: finalPermissions,
+      limits: limits || {},
       parentId: req.tenantId, // Use the resolved tenantId from middleware
       entreprise: req.user.entreprise,
       typeActivite: req.user.typeActivite,
@@ -102,13 +106,18 @@ exports.updateSubUser = async (req, res) => {
       return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
     }
 
-    const { nom, email, role, telephone, isSuspended, permissions } = req.body;
+    const { nom, email, role, telephone, isSuspended, permissions, limits, suspendUntil, suspendReason } = req.body;
     
-    if (role && !['manager', 'caissier', 'vendeur'].includes(role)) {
-        return res.status(400).json({ message: 'Rôle invalide' });
+    if (role && !VALID_ROLES.includes(role)) {
+        return res.status(400).json({ message: 'Rôle invalide. Rôles valides: ' + VALID_ROLES.join(', ') });
     }
 
     let updateData = { nom, email, role, telephone, isSuspended };
+    
+    // Support suspension scheduling
+    if (suspendUntil !== undefined) updateData.suspendUntil = suspendUntil;
+    if (suspendReason !== undefined) updateData.suspendReason = suspendReason;
+    if (limits !== undefined) updateData.limits = limits;
 
     // Update permissions based on role if role changed and no custom permissions provided
     if (role && role !== subUser.role && (!permissions || permissions.length === 0)) {
@@ -123,6 +132,30 @@ exports.updateSubUser = async (req, res) => {
 
     await subUser.update(updateData);
     sendResponse(res, 200, subUser, 'Membre d’équipe mis à jour');
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get activity log for a specific sub-user
+exports.getSubUserActivity = async (req, res) => {
+  try {
+    const subUser = await User.findOne({
+      where: { id: req.params.id, parentId: req.user.tenantId }
+    });
+    if (!subUser) {
+      return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
+    }
+
+    const activities = await Activite.findAll({
+      where: { UserId: subUser.id },
+      order: [['createdAt', 'DESC']],
+      limit: 20,
+      attributes: ['id', 'type', 'description', 'createdAt', 'module', 'source']
+    });
+
+    res.set('Cache-Control', 'no-store');
+    sendResponse(res, 200, activities, 'Activités récupérées');
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

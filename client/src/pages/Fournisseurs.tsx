@@ -1,27 +1,15 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Truck, 
-  Plus, 
-  Search, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Package, 
-  TrendingUp,
-  FileText,
-  Edit2,
-  Trash2,
-  X,
-  Filter,
-  Download
+  Truck, Plus, Search, Phone, Mail, MapPin, Package, TrendingUp, FileText, Edit2, Trash2, X, Filter, Download, RefreshCw, Loader2, Edit, Building2
 } from 'lucide-react';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
+import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const Fournisseurs = () => {
   const { t } = useTranslation();
@@ -31,6 +19,8 @@ const Fournisseurs = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   
   const user = useAuthStore(state => state.user);
   const canDo = (permission: string): boolean => {
@@ -39,7 +29,6 @@ const Fournisseurs = () => {
     return (user.permissions || []).includes(permission);
   };
 
-  // Form State
   const [formData, setFormData] = useState({
     nom: '',
     email: '',
@@ -48,7 +37,6 @@ const Fournisseurs = () => {
     categorie: ''
   });
 
-  // Edit Form State (separate to avoid conflicts)
   const [editData, setEditData] = useState({
     nom: '',
     email: '',
@@ -57,27 +45,21 @@ const Fournisseurs = () => {
     categorie: ''
   });
 
-  useEffect(() => {
-    fetchSuppliers();
-  }, []);
-
   const fetchSuppliers = async () => {
+    setLoading(true);
     try {
       const response = await api.get(`/fournisseurs?_t=${Date.now()}`);
       const resData = response.data;
       
       let suppliersList = [];
       
-      // Structure standard: { success, data: { data: [] } }
       if (resData.success && resData.data) {
         if (Array.isArray(resData.data.data)) {
           suppliersList = resData.data.data;
         } else if (Array.isArray(resData.data)) {
           suppliersList = resData.data;
         }
-      }
-      // Fallback
-      else {
+      } else {
         const data = resData;
         if (Array.isArray(data)) suppliersList = data;
         else if (data && Array.isArray(data.data)) suppliersList = data.data;
@@ -92,16 +74,20 @@ const Fournisseurs = () => {
     }
   };
 
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const { data } = await api.post('/fournisseurs', formData);
-      // Backend wraps in { success, data: fournisseur }
       const newSupplier = data?.data || data;
       setSuppliers(prev => [newSupplier, ...prev]);
       setShowAddModal(false);
       setFormData({ nom: '', email: '', telephone: '', adresse: '', categorie: '' });
       toast.success(t('supplierAdded'));
+      fetchSuppliers();
     } catch (error: any) {
       toast.error(error.response?.data?.message || t('supplierAddError'));
     }
@@ -129,6 +115,7 @@ const Fournisseurs = () => {
       setShowEditModal(false);
       setEditingSupplier(null);
       toast.success(t('supplierUpdated'));
+      fetchSuppliers();
     } catch (error: any) {
       toast.error(error.response?.data?.message || t('supplierUpdateError'));
     }
@@ -140,6 +127,7 @@ const Fournisseurs = () => {
       await api.delete(`/fournisseurs/${id}`);
       setSuppliers(prev => prev.filter(s => s.id !== id));
       toast.success(t('supplierDeleted'));
+      fetchSuppliers();
     } catch (error: any) {
       toast.error(error.response?.data?.message || t('supplierDeleteError'));
     }
@@ -147,203 +135,372 @@ const Fournisseurs = () => {
 
   const filteredSuppliers = suppliers.filter(s => 
     s.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage) || 1;
+  const currentItems = filteredSuppliers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 className="title-xl">{t('suppliersMgmtPrefix')} <span className="text-gradient">{t('suppliers')}</span></h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
+            <Truck size={14} /> {t('suppliersMgmtPrefix')}
+          </div>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
+            <span className="text-gradient">{t('suppliers')}</span>
+          </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('suppliersSubtitle')}</p>
         </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <button
-            onClick={() => exportToExcel(suppliers, 'Fournisseurs_Report')}
-            className="btn-hover"
-            style={{
-              padding: '16px 24px',
-              borderRadius: '20px',
-              backgroundColor: 'var(--bg-main)',
-              color: 'var(--text-main)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              fontWeight: '900',
-              cursor: 'pointer',
-              fontSize: '1rem'
+        
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(79, 70, 229, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+              <Building2 size={20} />
+            </div>
+            <div>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('totalPartners')}</span>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)' }}>{suppliers.length}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass" style={{ padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder={t('searchSupplier')}
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            style={{ 
+              width: '100%', 
+              padding: '16px 16px 16px 60px', 
+              borderRadius: 'var(--radius-sm)', 
+              border: '1px solid var(--border)', 
+              backgroundColor: 'var(--bg-main)', 
+              color: 'var(--text-main)', 
+              fontWeight: '600', 
+              outline: 'none',
+              fontSize: '1rem' 
             }}
-          >
-            <Download size={22} /> {t('report')}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => exportToExcel(suppliers, 'Fournisseurs_Report')} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
+            <Download size={18} /> {t('report')}
           </button>
+          
+          <button onClick={fetchSuppliers} className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
+            <RefreshCw size={18} />
+          </button>
+          
           {canDo('suppliers.add') && (
-            <button className="btn-premium primary" onClick={() => setShowAddModal(true)}>
-              <Plus size={18} /> {t('newSupplier')}
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '0 32px', height: '48px', borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--primary)', color: 'white',
+                border: 'none', fontWeight: '600', cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                fontSize: '0.95rem'
+              }}
+            >
+              <Plus size={20} /> {t('newSupplier')}
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Mini Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="premium-card" style={{ padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ background: 'var(--primary-glow)', color: 'var(--primary)', padding: '12px', borderRadius: '16px' }}><Truck size={24} /></div>
-            <div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('totalPartners')}</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 900 }}>{suppliers.length}</div>
-            </div>
-         </motion.div>
-      </div>
+      <div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                <th style={{ padding: '16px 24px' }}>Fournisseur</th>
+                <th style={{ padding: '16px 24px' }}>Contact</th>
+                <th style={{ padding: '16px 24px' }}>Catégorie</th>
+                <th style={{ padding: '16px 24px' }}>Date d'ajout</th>
+                <th style={{ padding: '16px 24px', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} style={{ padding: '60px', textAlign: 'center' }}>
+                  <Loader2 size={40} className="animate-spin" style={{ color: 'var(--primary)', margin: '0 auto', opacity: 0.5 }} />
+                </td></tr>
+              ) : currentItems.length === 0 ? (
+                <tr><td colSpan={5} style={{ padding: '60px', textAlign: 'center' }}>
+                  <Truck size={60} style={{ opacity: 0.1, marginBottom: '24px', margin: '0 auto', color: 'var(--text-muted)' }} />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text-muted)' }}>Aucun fournisseur</h3>
+                  <p style={{ color: 'var(--text-muted)', fontWeight: '500', marginTop: '8px' }}>Ajoutez vos premiers partenaires.</p>
+                </td></tr>
+              ) : currentItems.map((s: any) => (
+                <motion.tr
+                  key={s.id}
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.3s' }}
+                  className="hover-row"
+                >
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', color: 'var(--primary)', fontSize: '1.2rem', boxShadow: 'var(--shadow-sm)' }}>
+                        <Truck size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '700', color: 'var(--text-main)', fontSize: '1rem' }}>{s.nom}</div>
+                        {s.adresse && (
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            <MapPin size={12} /> <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.adresse}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {s.telephone && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.85rem' }}>
+                          <Phone size={14} color="var(--primary)" /> {s.telephone}
+                        </div>
+                      )}
+                      {s.email && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontWeight: '500', fontSize: '0.85rem' }}>
+                          <Mail size={14} /> {s.email}
+                        </div>
+                      )}
+                      {!s.telephone && !s.email && (
+                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('notSpecified')}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
+                    {s.categorie ? (
+                      <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '6px', background: 'var(--bg-main)', color: 'var(--primary)', fontWeight: '800', border: '1px solid var(--border)' }}>
+                        {s.categorie.toUpperCase()}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontWeight: '600', fontSize: '0.9rem' }}>
+                      {new Date(s.createdAt || Date.now()).toLocaleDateString()}
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      {canDo('suppliers.edit') && (
+                        <button
+                          onClick={() => openEditModal(s)}
+                          className="glass btn-hover"
+                          style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Edit size={16} />
+                        </button>
+                      )}
+                      {canDo('suppliers.delete') && (
+                        <button
+                          onClick={() => handleDeleteSupplier(s.id, s.nom)}
+                          className="glass btn-hover"
+                          style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      {/* List Component */}
-      <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', gap: '20px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input 
-              type="text" 
-              placeholder={t('searchSupplier')} 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '14px 14px 14px 48px', borderRadius: '16px', border: '1px solid var(--border)', width: '100%', outline: 'none', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem' }}
-            />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
+            {t('showingClients')
+              .replace('{start}', (filteredSuppliers.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1).toString())
+              .replace('{end}', Math.min(currentPage * itemsPerPage, filteredSuppliers.length).toString())
+              .replace('{total}', filteredSuppliers.length.toString())}
           </div>
-          <button className="btn-premium secondary" style={{ border: '1px solid var(--border)' }}><Filter size={18} /> {t('filters')}</button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
-          <AnimatePresence>
-            {filteredSuppliers.map((supplier, i) => (
-              <motion.div
-                key={supplier.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: i * 0.05 }}
-                className="premium-card"
-                style={{ padding: '24px', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}
+          
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="btn-hover"
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 600, fontSize: '0.85rem' }}
               >
-                 <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', marginBottom: '20px' }}>
-                   <Truck size={24} />
-                 </div>
-
-                 <div style={{ marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>{supplier.nom}</h3>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase' }}>{supplier.categorie || 'IMPORTATEUR'}</span>
-                 </div>
-
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                       <Phone size={15} color="var(--primary)" /> {supplier.telephone || t('notSpecified')}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                       <Mail size={15} color="var(--primary)" /> {supplier.email || 'N/A'}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                       <MapPin size={15} color="var(--primary)" /> {supplier.adresse || 'N/A'}
-                    </div>
-                 </div>
-
-                 <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px' }}>
-                    {canDo('suppliers.edit') && (
-                      <button
-                        className="btn-premium secondary"
-                        style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                        onClick={() => openEditModal(supplier)}
-                      >
-                        <Edit2 size={15} /> {t('edit')}
-                      </button>
-                    )}
-                    {canDo('suppliers.delete') && (
-                      <button
-                        className="btn-premium secondary"
-                        style={{ flex: 1, padding: '10px', borderRadius: '12px', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                        onClick={() => handleDeleteSupplier(supplier.id, supplier.nom)}
-                      >
-                        <Trash2 size={15} /> {t('delete')}
-                      </button>
-                    )}
-                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                {t('previous')}
+              </button>
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                if (totalPages > 5 && Math.abs(pageNum - currentPage) > 1 && pageNum !== 1 && pageNum !== totalPages) {
+                  if (pageNum === 2 || pageNum === totalPages - 1) return <span key={pageNum} style={{ color: 'var(--text-muted)', padding: '0 4px', display: 'flex', alignItems: 'center' }}>...</span>;
+                  return null;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    style={{
+                      width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
+                      background: currentPage === pageNum ? 'var(--primary)' : 'var(--bg-card)',
+                      color: currentPage === pageNum ? 'white' : 'var(--text-main)',
+                      fontWeight: 700, cursor: 'pointer', border: currentPage === pageNum ? 'none' : '1px solid var(--border)',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="btn-hover"
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 600, fontSize: '0.85rem' }}
+              >
+                {t('next')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Add Modal */}
-      {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-           <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="premium-card" style={{ width: '100%', maxWidth: '500px', padding: '48px', borderRadius: '36px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                 <h2 style={{ fontSize: '1.8rem', fontWeight: 900 }}>{t('newSupplier')}</h2>
-                 <button onClick={() => setShowAddModal(false)} style={{ background: 'var(--sidebar-active)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title={t('newSupplier')}
+        subtitle={t('newSupplierSubtitle') || 'Ajoutez un nouveau fournisseur à votre carnet.'}
+        maxWidth="650px"
+        icon={Building2}
+      >
+        <form onSubmit={handleAddSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('companyName')}</label>
+            <div style={{ position: 'relative' }}>
+              <Building2 style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+              <input required type="text" placeholder="Ex: Global Supply Sarl" value={formData.nom} onChange={(e) => setFormData({ ...formData, nom: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('phone')}</label>
+              <div style={{ position: 'relative' }}>
+                <Phone style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="+243..." value={formData.telephone} onChange={(e) => setFormData({ ...formData, telephone: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
               </div>
-
-              <form onSubmit={handleAddSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('companyName')}</label>
-                    <input type="text" placeholder="Ex: Global Supply Sarl" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('partnerEmail')}</label>
-                    <input type="email" placeholder="contact@fournisseur.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                     <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('phone')}</label>
-                     <input type="text" placeholder="+243 ..." value={formData.telephone} onChange={e => setFormData({...formData, telephone: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                  </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('location')}</label>
-                    <input type="text" placeholder="Kinshasa, Gombe" value={formData.adresse} onChange={e => setFormData({...formData, adresse: e.target.value})} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <button type="submit" className="btn-premium primary" style={{ height: '60px', fontSize: '1.1rem', marginTop: '12px' }}>{t('savePartner')}</button>
-              </form>
-           </motion.div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && editingSupplier && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-           <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="premium-card" style={{ width: '100%', maxWidth: '500px', padding: '48px', borderRadius: '36px', background: 'var(--bg-card)', border: '1px solid var(--border-strong)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                 <h2 style={{ fontSize: '1.8rem', fontWeight: 900 }}>{t('editSupplier')}</h2>
-                 <button onClick={() => { setShowEditModal(false); setEditingSupplier(null); }} style={{ background: 'var(--sidebar-active)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('partnerEmail')}</label>
+              <div style={{ position: 'relative' }}>
+                <Mail style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="email" placeholder="contact@fournisseur.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
               </div>
+            </div>
+          </div>
 
-              <form onSubmit={handleEditSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('companyName')}</label>
-                    <input type="text" placeholder="Ex: Global Supply Sarl" required value={editData.nom} onChange={e => setEditData({ ...editData, nom: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('partnerEmail')}</label>
-                    <input type="email" placeholder="contact@fournisseur.com" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('phone')}</label>
-                    <input type="text" placeholder="+243 ..." value={editData.telephone} onChange={e => setEditData({ ...editData, telephone: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('location')}</label>
-                    <input type="text" placeholder="Kinshasa, Gombe" value={editData.adresse} onChange={e => setEditData({ ...editData, adresse: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '4px' }}>{t('category')}</label>
-                    <input type="text" placeholder="Ex: IMPORTATEUR" value={editData.categorie} onChange={e => setEditData({ ...editData, categorie: e.target.value })} style={{ padding: '16px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontSize: '1rem' }} />
-                 </div>
-                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                    <button type="button" onClick={() => { setShowEditModal(false); setEditingSupplier(null); }} style={{ flex: 1, height: '56px', fontSize: '1rem', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}>{t('cancel')}</button>
-                    <button type="submit" className="btn-premium primary" style={{ flex: 2, height: '56px', fontSize: '1rem' }}>{t('save')}</button>
-                 </div>
-              </form>
-           </motion.div>
-        </div>
-      )}
-    </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('location')}</label>
+              <div style={{ position: 'relative' }}>
+                <MapPin style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="Kinshasa, Gombe" value={formData.adresse} onChange={(e) => setFormData({ ...formData, adresse: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('category')}</label>
+              <div style={{ position: 'relative' }}>
+                <Package style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="Ex: IMPORTATEUR" value={formData.categorie} onChange={(e) => setFormData({ ...formData, categorie: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+            <button type="button" onClick={() => setShowAddModal(false)} className="btn-hover" style={{ padding: '12px 24px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem', borderRadius: 'var(--radius-sm)' }}>{t('cancel')}</button>
+            <button type="submit" className="btn-hover" style={{ padding: '12px 32px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={18} /> {t('savePartner')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => { setShowEditModal(false); setEditingSupplier(null); }}
+        title={t('editSupplier')}
+        subtitle={t('editSupplierSubtitle') || 'Mettez à jour les informations de ce fournisseur.'}
+        maxWidth="650px"
+        icon={Edit}
+      >
+        <form onSubmit={handleEditSupplier} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('companyName')}</label>
+            <div style={{ position: 'relative' }}>
+              <Building2 style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+              <input required type="text" placeholder="Ex: Global Supply Sarl" value={editData.nom} onChange={(e) => setEditData({ ...editData, nom: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('phone')}</label>
+              <div style={{ position: 'relative' }}>
+                <Phone style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="+243..." value={editData.telephone} onChange={(e) => setEditData({ ...editData, telephone: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('partnerEmail')}</label>
+              <div style={{ position: 'relative' }}>
+                <Mail style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="email" placeholder="contact@fournisseur.com" value={editData.email} onChange={(e) => setEditData({ ...editData, email: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('location')}</label>
+              <div style={{ position: 'relative' }}>
+                <MapPin style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="Kinshasa, Gombe" value={editData.adresse} onChange={(e) => setEditData({ ...editData, adresse: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('category')}</label>
+              <div style={{ position: 'relative' }}>
+                <Package style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} size={20} />
+                <input type="text" placeholder="Ex: IMPORTATEUR" value={editData.categorie} onChange={(e) => setEditData({ ...editData, categorie: e.target.value })} style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.95rem', outline: 'none' }} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '16px' }}>
+            <button type="button" onClick={() => { setShowEditModal(false); setEditingSupplier(null); }} className="btn-hover" style={{ padding: '12px 24px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem', borderRadius: 'var(--radius-sm)' }}>{t('cancel')}</button>
+            <button type="submit" className="btn-hover" style={{ padding: '12px 32px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--primary)', color: 'white', border: 'none', fontWeight: '600', fontSize: '0.95rem', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Edit size={18} /> {t('save')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+    </motion.div>
   );
 };
 
 export default Fournisseurs;
-

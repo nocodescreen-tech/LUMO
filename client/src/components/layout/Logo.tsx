@@ -17,23 +17,23 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          filter: 'drop-shadow(0 6px 14px rgba(99, 102, 241, 0.35))'
+          filter: 'drop-shadow(0 6px 14px rgba(62, 156, 148, 0.35))'
         }}
         title="LUMO - Intelligence Commerce"
       >
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', transform: 'scale(1.15)' }}>
           <defs>
             <linearGradient id={gradientIds.top} x1="10" y1="45" x2="90" y2="45" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#a855f7" />
-              <stop offset="1" stopColor="#6366f1" />
+              <stop stopColor="#1F7A72" />
+              <stop offset="1" stopColor="#C98A1B" />
             </linearGradient>
             <linearGradient id={gradientIds.left} x1="10" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#ec4899" />
-              <stop offset="1" stopColor="#8b5cf6" />
+              <stop stopColor="#B04A26" />
+              <stop offset="1" stopColor="#1F7A72" />
             </linearGradient>
             <linearGradient id={gradientIds.right} x1="90" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#3b82f6" />
-              <stop offset="1" stopColor="#6366f1" />
+              <stop stopColor="#C98A1B" />
+              <stop offset="1" stopColor="#1F7A72" />
             </linearGradient>
           </defs>
           {/* Back faceted glow */}
@@ -50,15 +50,11 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
         </svg>
       </div>
       {showText && (
-        <span style={{ 
-          fontSize: size * 0.72, 
-          fontWeight: 900, 
+        <span style={{
+          fontSize: size * 0.72,
+          fontWeight: 900,
           letterSpacing: '-0.05em',
-          backgroundImage: `linear-gradient(135deg, ${textColor || 'var(--text-main)'} 0%, var(--primary) 100%)`,
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          color: 'transparent',
+          color: textColor || 'var(--text-main, #17130C)',
           display: 'inline-block',
           fontFamily: "'Inter', 'Outfit', sans-serif",
           whiteSpace: 'nowrap'

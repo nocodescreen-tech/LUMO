@@ -94,3 +94,6 @@ coverage/
 # ─── Divers ──────────────────────────────────────────────────
 *.bak
 *.gitignore.bak
+# ─── Capacitor (généré, régénérable via npx cap sync) ─────────
+client/android/
+client/.capacitor/

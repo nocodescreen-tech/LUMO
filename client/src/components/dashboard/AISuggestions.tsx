@@ -17,9 +17,9 @@ const AISuggestions = () => {
                 setAnalysis(data.analysis || '');
                 
                 const typeMap: any = {
-                    stock: { icon: AlertCircle, color: '#f59e0b' },
-                    sales: { icon: TrendingUp, color: '#10b981' },
-                    pricing: { icon: Zap, color: '#6366f1' }
+                    stock: { icon: AlertCircle, color: 'var(--warning)' },
+                    sales: { icon: TrendingUp, color: 'var(--success)' },
+                    pricing: { icon: Zap, color: '#155E58' }
                 };
 
                 const mapped = (data.suggestions || []).map((s: any, idx: number) => ({
@@ -59,7 +59,7 @@ const AISuggestions = () => {
     return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '1.4rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO AIO Insights'}
                 </h3>
             </div>
@@ -104,7 +104,7 @@ const AISuggestions = () => {
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                         <h4 style={{ fontWeight: '800', margin: 0 }}>{s.title}</h4>
-                                        <span style={{ fontSize: '0.75rem', fontWeight: '900', color: s.color, backgroundColor: `${s.color}10`, padding: '4px 8px', borderRadius: '8px' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: s.color, backgroundColor: `${s.color}10`, padding: '4px 8px', borderRadius: '8px' }}>
                                             {getBadgeLabel(s.type)}
                                         </span>
                                     </div>

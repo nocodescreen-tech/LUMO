@@ -275,7 +275,7 @@ const Sales = () => {
                     <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> {t('reports')}</button>
                     <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> {t('excel')}</button>
                     {(user?.role === 'admin' || user?.role === 'superadmin') && (
-                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={18} /> {t('empty')}</button>
+                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(214, 69, 69, 0.2)' }}><Trash2 size={18} /> {t('empty')}</button>
                     )}
                     <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> {t('newSale')}</button>
                 </div>
@@ -283,7 +283,7 @@ const Sales = () => {
 
             {/* Stats Cards Section */}
             <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(99,102,241,0.2)', position: 'relative', overflow: 'hidden' }}>
+                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(21,94,88,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(21,94,88,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'var(--primary-glow)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
@@ -291,34 +291,34 @@ const Sales = () => {
                         </div>
                         <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('revenue')}</span>
                     </div>
-                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
-                        {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 900 }}>{currency}</span>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 700 }}>{currency}</span>
                     </div>
                 </div>
 
                 <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.05) 100%)', border: '1px solid rgba(16,185,129,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(16,185,129,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--success), var(--success-dark))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
                             <DollarSign size={28} />
                         </div>
                         <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('averageBasket')}</span>
                     </div>
-                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
-                        {Math.round(reportStats.averageValue).toLocaleString()} <span style={{ fontSize: '1rem', color: '#10b981', fontWeight: 900 }}>{currency}</span>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {Math.round(reportStats.averageValue).toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--success)', fontWeight: 700 }}>{currency}</span>
                     </div>
                 </div>
 
                 <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(217,119,6,0.05) 100%)', border: '1px solid rgba(245,158,11,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(245,158,11,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--warning), #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
                             <PieChart size={28} />
                         </div>
                         <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('transactionsLabel')}</span>
                     </div>
-                    <div style={{ fontSize: '2.4rem', fontWeight: 950, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
-                        {reportStats.count} <span style={{ fontSize: '1rem', color: '#f59e0b', fontWeight: 900 }}>{t('invoices')}</span>
+                    <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
+                        {reportStats.count} <span style={{ fontSize: '1rem', color: 'var(--warning)', fontWeight: 700 }}>{t('invoices')}</span>
                     </div>
                 </div>
             </div>
@@ -367,7 +367,7 @@ const Sales = () => {
                             style={{ overflow: 'hidden', paddingBottom: '32px', display: 'flex', gap: '20px', borderBottom: '1.5px solid var(--border)', marginBottom: '32px' }}
                         >
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('date')}</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('date')}</label>
                                 <input 
                                     type="date" 
                                     value={filterDate}
@@ -376,7 +376,7 @@ const Sales = () => {
                                 />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('method')}</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('method')}</label>
                                 <select 
                                     value={filterMethod}
                                     onChange={(e) => setFilterMethod(e.target.value)}
@@ -390,7 +390,7 @@ const Sales = () => {
                             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                                 <button 
                                     onClick={() => { setFilterDate(''); setFilterMethod(''); }}
-                                    style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', fontWeight: 800, cursor: 'pointer' }}
+                                    style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(214, 69, 69, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 800, cursor: 'pointer' }}
                                 >
                                     {t('reset')}
                                 </button>
@@ -400,13 +400,13 @@ const Sales = () => {
                 </AnimatePresence>
 
                 <div className="table-responsive">
-                    <table style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-sales" style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('referenceClient')}</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('dateMethod')}</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900 }}>{t('seller')}</th>
-                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 900, textAlign: 'right' }}>{t('totalAmount')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{t('referenceClient')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{t('dateMethod')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{t('seller')}</th>
+                                <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, textAlign: 'right' }}>{t('totalAmount')}</th>
                                 <th style={{ padding: '16px 24px' }}></th>
                             </tr>
                         </thead>
@@ -425,7 +425,7 @@ const Sales = () => {
                                         style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}
                                     >
                                         <td style={{ padding: '24px' }}>
-                                            <div style={{ fontWeight: 950, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
+                                            <div style={{ fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
                                                 #{sale.id?.toString().slice(-6).toUpperCase()}
                                                 <ArrowUpRight size={14} style={{ opacity: 0.4 }} />
                                             </div>
@@ -439,21 +439,21 @@ const Sales = () => {
                                         </td>
                                         <td style={{ padding: '24px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 900, boxShadow: '0 4px 12px var(--primary-glow)' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, boxShadow: '0 4px 12px var(--primary-glow)' }}>
                                                     {sale.vendeur?.nom?.charAt(0) || 'A'}
                                                 </div>
                                                 <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{sale.vendeur?.nom || 'Admin'}</span>
                                             </div>
                                         </td>
                                         <td style={{ padding: '24px', textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                                                {fx.originalAmount?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 900 }}>{fx.saleCurrency}</span>
+                                            <div style={{ fontWeight: 800, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                                                {fx.originalAmount?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 700 }}>{fx.saleCurrency}</span>
                                             </div>
-                                            <div style={{ fontSize: '0.95rem', color: '#10b981', fontWeight: 950, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                            <div style={{ fontSize: '0.95rem', color: 'var(--success)', fontWeight: 800, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                                                 <RefreshCcw size={14} /> {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
                                             </div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
-                                                {sale.articles?.length || 0} {t('articles')} · <span style={{ color: sale.statut === 'Remboursée' ? '#ef4444' : '#10b981' }}>{sale.statut || t('paid')}</span>
+                                                {sale.articles?.length || 0} {t('articles')} · <span style={{ color: sale.statut === 'Remboursée' ? 'var(--danger)' : 'var(--success)' }}>{sale.statut || t('paid')}</span>
                                             </div>
                                         </td>
                                         <td style={{ padding: '24px' }}>
@@ -496,7 +496,7 @@ const Sales = () => {
                                                                 onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
-                                                                <Zap size={16} color="#f59e0b" /> {t('receipt')}
+                                                                <Zap size={16} color="var(--warning)" /> {t('receipt')}
                                                             </button>
                                                             {sale.statut !== 'Remboursée' && (
                                                                 <button 
@@ -511,8 +511,8 @@ const Sales = () => {
                                                             <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
                                                             <button 
                                                                 onClick={() => { deleteSale(sale.id); setActionMenuId(null); }}
-                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#ef4444', fontWeight: 700, borderRadius: '10px' }}
-                                                                onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700, borderRadius: '10px' }}
+                                                                onMouseOver={e => e.currentTarget.style.background = 'rgba(214, 69, 69, 0.05)'}
                                                                 onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                             >
                                                                 <Trash2 size={16} /> {t('deleteSale')}
@@ -592,27 +592,27 @@ const Sales = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', background: 'var(--bg-main)', borderRadius: '20px' }}>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('customer')}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('customer')}</p>
                                 <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.clientInfo?.nom || t('walkInCustomer')}</p>
                             </div>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('method')}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('method')}</p>
                                 <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.methodePaiement === 'Dette' || selectedSale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : selectedSale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : selectedSale.methodePaiement}</p>
                             </div>
                             <div>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</p>
                                 <p style={{ fontWeight: 800 }}>{new Date(selectedSale.createdAt).toLocaleString('fr-FR', { hour12: false })}</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <p style={{ fontSize: '0.75rem', fontWeight: 900, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('totalAmount')}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('totalAmount')}</p>
                                 {(() => {
                                     const fx = getSaleDisplayAmounts(selectedSale);
                                     return (
                                         <div>
-                                            <p style={{ fontWeight: 950, fontSize: '1.4rem', color: 'var(--primary)', margin: 0 }}>
+                                            <p style={{ fontWeight: 800, fontSize: '1.4rem', color: 'var(--primary)', margin: 0 }}>
                                                 {fx.originalAmount.toLocaleString()} {fx.saleCurrency}
                                             </p>
-                                            <p style={{ fontSize: '0.9rem', color: '#10b981', fontWeight: 800, margin: '4px 0 0 0' }}>
+                                            <p style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 800, margin: '4px 0 0 0' }}>
                                                 ≙ {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
                                             </p>
                                         </div>
@@ -630,7 +630,7 @@ const Sales = () => {
                                             <p style={{ fontWeight: 800, color: 'var(--text-main)' }}>{art.nom}</p>
                                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{art.quantite} x {art.prixUnitaire?.toLocaleString()} {currency}</p>
                                         </div>
-                                        <p style={{ fontWeight: 900 }}>{(art.quantite * art.prixUnitaire)?.toLocaleString()} {currency}</p>
+                                        <p style={{ fontWeight: 700 }}>{(art.quantite * art.prixUnitaire)?.toLocaleString()} {currency}</p>
                                     </div>
                                 ))}
                             </div>
@@ -671,14 +671,14 @@ const Sales = () => {
                              <TrendingUp size={20} />
                           </div>
                           <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('revenue')}</p>
-                          <h3 style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
+                          <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
                        </div>
                        <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid var(--border)' }}>
                              <ShoppingBag size={20} />
                           </div>
                           <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('transactionsLabel')}</p>
-                          <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>{reportStats.count}</h3>
+                          <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{reportStats.count}</h3>
                        </div>
                     </div>
 

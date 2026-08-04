@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="favTop" x1="14" y1="12" x2="86" y2="55" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#155E58" />
+      <stop offset="1" stopColor="#1F7A72" />
+    </linearGradient>
+    <linearGradient id="favLeft" x1="14" y1="45" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#A84420" />
+      <stop offset="1" stopColor="#B04A26" />
+    </linearGradient>
+    <linearGradient id="favRight" x1="86" y1="45" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#C98A1B" />
+      <stop offset="1" stopColor="#B37A14" />
+    </linearGradient>
+  </defs>
+  <!-- Crystal — contours nets, sans flou, lisible en 16px -->
+  <path d="M14 45 L50 88 L50 55 Z" fill="url(#favLeft)" />
+  <path d="M86 45 L50 88 L50 55 Z" fill="url(#favRight)" />
+  <path d="M14 45 L50 12 L86 45 L50 55 Z" fill="url(#favTop)" />
+  <path d="M50 12 L14 45 L50 55 Z" fill="#ffffff" opacity="0.28" />
+  <path d="M50 55 L86 45 L50 48 Z" fill="#ffffff" opacity="0.18" />
+</svg>

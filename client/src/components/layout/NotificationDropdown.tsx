@@ -151,7 +151,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
           {Array.isArray(notifications) && notifications.length > 0 && (
             <button
               onClick={() => setShowDeleteModal(true)}
-              style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex' }}
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex' }}
               title="Tout supprimer"
             >
               <Trash2 size={14} />
@@ -189,13 +189,13 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
                   padding: '14px 16px',
                   borderRadius: '16px',
                   backgroundColor: n.lu ? 'transparent' : 'var(--primary-glow)',
-                  border: `1px solid ${n.lu ? 'var(--border)' : 'rgba(99,102,241,0.15)'}`,
+                  border: `1px solid ${n.lu ? 'var(--border)' : 'rgba(21,94,88,0.15)'}`,
                   cursor: n.lu ? 'default' : 'pointer',
                   transition: 'all 0.15s',
                   position: 'relative',
                   opacity: n.lu ? 0.7 : 1,
                 }}
-                onMouseEnter={e => !n.lu && (e.currentTarget.style.background = 'rgba(99,102,241,0.12)')}
+                onMouseEnter={e => !n.lu && (e.currentTarget.style.background = 'rgba(21,94,88,0.12)')}
                 onMouseLeave={e => !n.lu && (e.currentTarget.style.background = 'var(--primary-glow)')}
               >
                 {!n.lu && (

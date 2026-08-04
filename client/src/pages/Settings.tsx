@@ -167,13 +167,13 @@ const TwoFASection = () => {
       <div style={{
         padding: '24px',
         borderRadius: '24px',
-        border: `2px solid ${is2FAEnabled ? 'rgba(99,102,241,0.3)' : 'var(--border)'}`,
-        background: is2FAEnabled ? 'rgba(99,102,241,0.05)' : 'var(--bg-main)',
+        border: `2px solid ${is2FAEnabled ? 'rgba(21,94,88,0.3)' : 'var(--border)'}`,
+        background: is2FAEnabled ? 'rgba(21,94,88,0.05)' : 'var(--bg-main)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         transition: 'all 0.3s'
       }}>
         <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-          <div style={{ width: '54px', height: '54px', borderRadius: '16px', backgroundColor: is2FAEnabled ? 'rgba(99,102,241,0.15)' : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: is2FAEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '16px', backgroundColor: is2FAEnabled ? 'rgba(21,94,88,0.15)' : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: is2FAEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
             <ShieldCheck size={26} />
           </div>
           <div>
@@ -192,7 +192,7 @@ const TwoFASection = () => {
             padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
             fontWeight: 800, fontSize: '0.9rem', transition: 'all 0.3s',
             background: is2FAEnabled ? 'rgba(239,68,68,0.1)' : 'var(--primary)',
-            color: is2FAEnabled ? '#ef4444' : 'white',
+            color: is2FAEnabled ? 'var(--danger)' : 'white',
             opacity: loading2FA ? 0.6 : 1
           }}
         >
@@ -279,7 +279,7 @@ const TwoFASection = () => {
             style={{ width: '100%', maxWidth: '400px', padding: '32px', borderRadius: '32px', background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.5)' }}
           >
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(214, 69, 69, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--danger)' }}>
                 <ShieldCheck size={32} />
               </div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: '0 0 8px' }}>{t('twoFADisable')}</h2>
@@ -314,7 +314,7 @@ const TwoFASection = () => {
                 <button
                   onClick={handleDisable2FA}
                   disabled={loading2FA || !disablePassword}
-                  style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 800, cursor: loading2FA || !disablePassword ? 'not-allowed' : 'pointer', opacity: loading2FA || !disablePassword ? 0.6 : 1 }}
+                  style={{ flex: 1, padding: '14px', borderRadius: '14px', border: 'none', background: 'var(--danger)', color: 'white', fontWeight: 800, cursor: loading2FA || !disablePassword ? 'not-allowed' : 'pointer', opacity: loading2FA || !disablePassword ? 0.6 : 1 }}
                 >
                   {loading2FA ? t('verifying') : t('confirmBtn')}
                 </button>
@@ -576,7 +576,7 @@ const TeamSection = () => {
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontWeight: 900 }}>{u.nom}</p>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '100px', backgroundColor: u.role === 'manager' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', color: u.role === 'manager' ? 'var(--primary)' : '#10b981' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '100px', backgroundColor: u.role === 'manager' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: u.role === 'manager' ? 'var(--primary)' : 'var(--success)' }}>
                     {u.role}
                   </span>
                 </div>
@@ -591,7 +591,7 @@ const TeamSection = () => {
                 </button>
                 <button
                   onClick={() => setConfirmDelete({ isOpen: true, id: u.id, name: u.nom })}
-                  style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
+                  style={{ background: 'rgba(214, 69, 69, 0.1)', border: 'none', color: 'var(--danger)', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}
                 >
                   <Trash2 size={18} />
                 </button>
@@ -639,9 +639,9 @@ const TeamSection = () => {
                 ].map((req, idx) => (
                   <span key={idx} style={{
                     fontSize: '0.65rem', padding: '2px 6px', borderRadius: '6px',
-                    background: req.met ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0,0,0,0.03)',
-                    color: req.met ? '#10b981' : 'var(--text-muted)',
-                    border: `1px solid ${req.met ? '#10b981' : 'transparent'}`,
+                    background: req.met ? 'rgba(15, 157, 106, 0.1)' : 'rgba(0,0,0,0.03)',
+                    color: req.met ? 'var(--success)' : 'var(--text-muted)',
+                    border: `1px solid ${req.met ? 'var(--success)' : 'transparent'}`,
                     fontWeight: '700'
                   }}>{req.label}</span>
                 ))}
@@ -697,8 +697,8 @@ const TeamSection = () => {
                             <label key={action.id} style={{
                               display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px',
                               borderRadius: '10px', cursor: 'pointer',
-                              background: isActionOn ? 'rgba(99,102,241,0.06)' : 'transparent',
-                              border: `1px solid ${isActionOn ? 'rgba(99,102,241,0.2)' : 'transparent'}`,
+                              background: isActionOn ? 'rgba(21,94,88,0.06)' : 'transparent',
+                              border: `1px solid ${isActionOn ? 'rgba(21,94,88,0.2)' : 'transparent'}`,
                               transition: 'all 0.15s'
                             }}>
                               <input type="checkbox" checked={isActionOn} onChange={() => togglePermission(action.id)} style={{ display: 'none' }} />
@@ -780,7 +780,7 @@ const TeamSection = () => {
                 {staffPayments.map((p: any) => (
                   <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '14px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <div style={{ padding: '6px', borderRadius: '8px', background: p.type === 'SALAIRE' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)', color: p.type === 'SALAIRE' ? 'var(--primary)' : '#10b981' }}>
+                      <div style={{ padding: '6px', borderRadius: '8px', background: p.type === 'SALAIRE' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: p.type === 'SALAIRE' ? 'var(--primary)' : 'var(--success)' }}>
                         <DollarSign size={16} />
                       </div>
                       <div>
@@ -795,7 +795,7 @@ const TeamSection = () => {
                           openPaymentModal(selectedStaff);
                         }
                       }}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', opacity: 0.5, cursor: 'pointer' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--danger)', opacity: 0.5, cursor: 'pointer' }}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -1106,10 +1106,10 @@ const Settings = () => {
   const allTabs = [
     { id: 'profile', label: t('myProfile'), icon: UserIcon, color: 'var(--primary)' },
     { id: 'business', label: t('myBusiness'), icon: Store, color: 'var(--secondary)' },
-    { id: 'appearance', label: t('interface'), icon: Palette, color: '#f59e0b' },
-    { id: 'modules', label: t('modulesAI'), icon: Cpu, color: '#ef4444', adminOnly: true },
-    { id: 'team', label: t('myTeam'), icon: Users, color: '#10b981', adminOnly: true },
-    { id: 'security', label: t('security'), icon: ShieldCheck, color: '#6366f1', adminOnly: true },
+    { id: 'appearance', label: t('interface'), icon: Palette, color: 'var(--warning)' },
+    { id: 'modules', label: t('modulesAI'), icon: Cpu, color: 'var(--danger)', adminOnly: true },
+    { id: 'team', label: t('myTeam'), icon: Users, color: 'var(--success)', adminOnly: true },
+    { id: 'security', label: t('security'), icon: ShieldCheck, color: '#155E58', adminOnly: true },
   ];
 
   const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
@@ -1134,7 +1134,7 @@ const Settings = () => {
         <button
           onClick={() => setShowLogoutConfirm(true)}
           className="btn-premium"
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', borderRadius: '16px', background: 'rgba(214, 69, 69, 0.1)', color: 'var(--danger)', fontWeight: '800', cursor: 'pointer', fontSize: '0.9rem', border: '1px solid rgba(214, 69, 69, 0.2)' }}
         >
           <LogOut size={16} /> {t('endSession')}
         </button>
@@ -1190,7 +1190,7 @@ const Settings = () => {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '32px', padding: '24px', background: 'var(--bg-main)', borderRadius: '24px', border: '1.5px solid var(--border)' }}>
                   <div style={{ position: 'relative' }}>
-                    <div style={{ width: '110px', height: '110px', borderRadius: '32px', overflow: 'hidden', border: '4px solid var(--primary)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.8rem', fontWeight: '900', color: 'var(--primary)', boxShadow: '0 10px 25px rgba(99, 102, 241, 0.2)' }}>
+                    <div style={{ width: '110px', height: '110px', borderRadius: '32px', overflow: 'hidden', border: '4px solid var(--primary)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.8rem', fontWeight: '900', color: 'var(--primary)', boxShadow: '0 10px 25px rgba(21, 94, 88, 0.2)' }}>
                       {uploading ? (
                         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
                           <RefreshCcw size={32} />
@@ -1361,7 +1361,7 @@ const Settings = () => {
 
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-                    <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: theme === 'dark' ? 'rgba(21, 94, 88, 0.1)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
                       <Palette size={24} />
                     </div>
                     <div>
@@ -1379,7 +1379,7 @@ const Settings = () => {
 
                 <div style={{ padding: '24px', borderRadius: '24px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
-                    <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '16px', backgroundColor: 'rgba(62, 110, 142, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2E6E8E' }}>
                       <Globe size={24} />
                     </div>
                     <div>
@@ -1411,12 +1411,12 @@ const Settings = () => {
                 </div>
 
                 {[
-                  { id: 'ai', label: t('moduleAILabel'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#6366f1', active: enabledModules.includes('ai') },
-                  { id: 'suppliers', label: t('moduleSuppliersLabel'), desc: t('moduleSuppliersDesc'), icon: Package, color: '#10b981', active: enabledModules.includes('suppliers') },
-                  { id: 'debts', label: t('moduleDebtsLabel'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: '#f59e0b', active: enabledModules.includes('debts') },
-                  { id: 'analytics', label: t('moduleStatsLabel'), desc: t('moduleStatsDesc'), icon: BarChart2, color: '#3b82f6', active: enabledModules.includes('analytics') },
-                  { id: 'cash', label: t('moduleCashLabel'), desc: t('moduleCashDesc'), icon: Wallet, color: '#10b981', active: enabledModules.includes('cash') },
-                  { id: 'barcode', label: t('moduleBarcodeLabel'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#ec4899', active: enabledModules.includes('barcode') },
+                  { id: 'ai', label: t('moduleAILabel'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#155E58', active: enabledModules.includes('ai') },
+                  { id: 'suppliers', label: t('moduleSuppliersLabel'), desc: t('moduleSuppliersDesc'), icon: Package, color: 'var(--success)', active: enabledModules.includes('suppliers') },
+                  { id: 'debts', label: t('moduleDebtsLabel'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: 'var(--warning)', active: enabledModules.includes('debts') },
+                  { id: 'analytics', label: t('moduleStatsLabel'), desc: t('moduleStatsDesc'), icon: BarChart2, color: '#2E6E8E', active: enabledModules.includes('analytics') },
+                  { id: 'cash', label: t('moduleCashLabel'), desc: t('moduleCashDesc'), icon: Wallet, color: 'var(--success)', active: enabledModules.includes('cash') },
+                  { id: 'barcode', label: t('moduleBarcodeLabel'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#C98A1B', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
                     key={mod.id}
@@ -1490,9 +1490,9 @@ const Settings = () => {
                             fontSize: '0.7rem',
                             padding: '4px 8px',
                             borderRadius: '8px',
-                            backgroundColor: req.met ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.05)',
-                            color: req.met ? '#10b981' : 'var(--text-muted)',
-                            border: `1px solid ${req.met ? '#10b981' : 'transparent'}`,
+                            backgroundColor: req.met ? 'rgba(15, 157, 106, 0.15)' : 'rgba(0, 0, 0, 0.05)',
+                            color: req.met ? 'var(--success)' : 'var(--text-muted)',
+                            border: `1px solid ${req.met ? 'var(--success)' : 'transparent'}`,
                             fontWeight: '700',
                             transition: 'all 0.3s'
                           }}>
@@ -1502,7 +1502,7 @@ const Settings = () => {
                       </div>
                     )}
                   </div>
-                  <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(99, 102, 241, 0.05)', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: '1.5' }}>
+                  <div style={{ padding: '20px', borderRadius: '18px', background: 'rgba(21, 94, 88, 0.05)', border: '1px solid rgba(21, 94, 88, 0.2)', fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: '1.5' }}>
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('passwordWarning')}</p>
                   </div>
 
@@ -1513,7 +1513,7 @@ const Settings = () => {
 
                     <div style={{
                       padding: '24px', borderRadius: '24px',
-                      background: 'rgba(99,102,241,0.03)', border: '2px solid rgba(99,102,241,0.1)',
+                      background: 'rgba(21,94,88,0.03)', border: '2px solid rgba(21,94,88,0.1)',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                     }}>
                       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -1564,7 +1564,7 @@ const Settings = () => {
                         animate={{ opacity: 1, y: 0 }}
                         style={{
                           padding: '20px', borderRadius: '20px',
-                          background: 'rgba(99,102,241,0.02)', border: '1.5px dashed rgba(99,102,241,0.2)',
+                          background: 'rgba(21,94,88,0.02)', border: '1.5px dashed rgba(21,94,88,0.2)',
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           marginTop: '-8px'
                         }}
@@ -1644,7 +1644,7 @@ const Settings = () => {
                           style={{ display: 'none' }}
                         />
                         <motion.button
-                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(99,102,241,0.08)' }}
+                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(21,94,88,0.08)' }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => fileInputRef.current?.click()}
                           style={{
@@ -1674,7 +1674,7 @@ const Settings = () => {
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                               <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <FileJson size={24} color="#10b981" />
+                                <FileJson size={24} color="var(--success)" />
                               </div>
                               <div>
                                 <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aperçu de la sauvegarde</h4>
@@ -1684,9 +1684,9 @@ const Settings = () => {
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                               {[
-                                { label: 'Produits', count: restorePreview.counts.products, icon: Package, color: '#6366f1' },
-                                { label: 'Ventes', count: restorePreview.counts.sales, icon: CreditCard, color: '#10b981' },
-                                { label: 'Clients', count: restorePreview.counts.clients, icon: UserIcon, color: '#f59e0b' }
+                                { label: 'Produits', count: restorePreview.counts.products, icon: Package, color: '#155E58' },
+                                { label: 'Ventes', count: restorePreview.counts.sales, icon: CreditCard, color: 'var(--success)' },
+                                { label: 'Clients', count: restorePreview.counts.clients, icon: UserIcon, color: 'var(--warning)' }
                               ].map((item, idx) => (
                                 <div key={idx} style={{ padding: '16px', borderRadius: '16px', background: 'rgba(0,0,0,0.03)', textAlign: 'center' }}>
                                   <item.icon size={20} color={item.color} style={{ marginBottom: '8px' }} />
@@ -1697,8 +1697,8 @@ const Settings = () => {
                             </div>
 
                             <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                              <AlertTriangle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
-                              <p style={{ margin: 0, fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, lineHeight: 1.4 }}>
+                              <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0 }} />
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 600, lineHeight: 1.4 }}>
                                 Cette action va fusionner ces données avec vos données actuelles. Les ventes déjà existantes ne seront pas dupliquées.
                               </p>
                             </div>
@@ -1760,10 +1760,10 @@ const Settings = () => {
               disabled={saving}
               style={{
                 padding: '16px 40px', borderRadius: '18px',
-                backgroundColor: savedSuccess ? '#10b981' : 'var(--primary)',
+                backgroundColor: savedSuccess ? 'var(--success)' : 'var(--primary)',
                 color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '12px',
                 fontWeight: '900', fontSize: '1rem', cursor: saving ? 'not-allowed' : 'pointer',
-                boxShadow: `0 12px 24px -6px ${savedSuccess ? 'rgba(16,185,129,0.5)' : 'rgba(99,102,241,0.5)'}`,
+                boxShadow: `0 12px 24px -6px ${savedSuccess ? 'rgba(16,185,129,0.5)' : 'rgba(21,94,88,0.5)'}`,
                 transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 opacity: saving ? 0.8 : 1
               }}
@@ -1792,7 +1792,7 @@ const Settings = () => {
             style={{
               width: '100%', padding: '16px', borderRadius: '16px', border: 'none',
               background: 'var(--danger)', color: 'white', fontWeight: '800',
-              fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 20px -6px rgba(239, 68, 68, 0.4)',
+              fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 20px -6px rgba(214, 69, 69, 0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
             }}
           >

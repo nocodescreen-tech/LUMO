@@ -82,10 +82,10 @@ const VerifyResetOTP = () => {
             backgroundSize: 'cover',
             padding: '20px',
             position: 'relative',
-            backgroundColor: theme === 'dark' ? '#09090b' : '#f8fafc'
+            backgroundColor: theme === 'dark' ? 'var(--bg-main)' : 'var(--text-main)'
           }}>
           <style>{`
-            input::placeholder { color: ${theme === 'dark' ? '#64748b' : '#94a3b8'} !important; opacity: 1 !important; }
+            input::placeholder { color: ${theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)'} !important; opacity: 1 !important; }
           `}</style>
           
           {/* Theme Toggle Button */}
@@ -102,7 +102,7 @@ const VerifyResetOTP = () => {
               borderRadius: '16px',
               background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
               border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+              color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -150,7 +150,7 @@ const VerifyResetOTP = () => {
                 <button
                     style={{
                         border: 'none',
-                        background: 'rgba(99, 102, 241, 0.1)',
+                        background: 'rgba(21, 94, 88, 0.1)',
                         color: 'var(--primary)',
                         padding: '8px 16px',
                         borderRadius: '12px',
@@ -170,11 +170,11 @@ const VerifyResetOTP = () => {
                 </button>
 
                 <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Logo size={70} showText={true} textColor={theme === 'dark' ? '#f8fafc' : '#0f172a'} />
+                    <Logo size={70} showText={true} textColor={theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)'} />
                     <div style={{ 
                         width: '84px', 
                         height: '84px', 
-                        background: 'rgba(99, 102, 241, 0.1)', 
+                        background: 'rgba(21, 94, 88, 0.1)', 
                         borderRadius: '26px', 
                         display: 'flex', 
                         alignItems: 'center', 
@@ -186,8 +186,8 @@ const VerifyResetOTP = () => {
                         <KeyRound size={42} />
                     </div>
 
-                    <h2 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-0.05em', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>Code de Sécurité</h2>
-                    <p style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '40px', fontWeight: 500 }}>
+                    <h2 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '12px', letterSpacing: '-0.05em', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)' }}>Code de Sécurité</h2>
+                    <p style={{ color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '40px', fontWeight: 500 }}>
                         Entrez le code à 6 chiffres envoyé à <br/>
                         <strong style={{ color: 'var(--primary)', fontWeight: '800' }}>{email}</strong>
                     </p>
@@ -213,11 +213,11 @@ const VerifyResetOTP = () => {
                                     height: '74px',
                                     textAlign: 'center',
                                     fontSize: '2rem',
-                                    fontWeight: '900',
+                                    fontWeight: '700',
                                     borderRadius: '18px',
                                     border: theme === 'dark' ? '2.3px solid rgba(255,255,255,0.1)' : '2.3px solid rgba(0,0,0,0.1)',
                                     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                                    color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+                                    color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)',
                                     outline: 'none',
                                     transition: 'all 0.3s',
                                     borderColor: digit ? 'var(--primary)' : undefined
@@ -227,7 +227,7 @@ const VerifyResetOTP = () => {
                     </div>
 
                     <motion.button 
-                        whileHover={{ scale: 1.02, boxShadow: '0 20px 40px -10px rgba(109, 40, 217, 0.4)' }}
+                        whileHover={{ scale: 1.02, boxShadow: '0 20px 40px -10px rgba(168, 68, 32, 0.4)' }}
                         whileTap={{ scale: 0.98 }}
                         type="submit" 
                         disabled={loading}
@@ -235,17 +235,17 @@ const VerifyResetOTP = () => {
                             width: '100%', 
                             padding: '20px', 
                             borderRadius: '20px', 
-                            background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', 
+                            background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', 
                             color: 'white', 
                             border: 'none', 
-                            fontWeight: '900',
+                            fontWeight: '700',
                             fontSize: '1.2rem',
                             cursor: loading ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '12px',
-                            boxShadow: '0 15px 30px -5px rgba(109, 40, 217, 0.5)',
+                            boxShadow: '0 15px 30px -5px rgba(168, 68, 32, 0.5)',
                             transition: 'all 0.3s ease'
                         }}
                     >
@@ -261,7 +261,7 @@ const VerifyResetOTP = () => {
                         style={{ 
                             background: 'none', 
                             border: 'none', 
-                            color: theme === 'dark' ? '#94a3b8' : '#475569', 
+                            color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', 
                             fontSize: '1rem', 
                             cursor: 'pointer', 
                             display: 'inline-flex', 
@@ -278,7 +278,7 @@ const VerifyResetOTP = () => {
             </motion.div>
 
             {/* Footer Info */}
-            <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.85rem', fontWeight: '500', zIndex: 5 }}>
+            <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '500', zIndex: 5 }}>
                 <span>© 2026 Lumo Intelligence</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>&bull; Protection des données active</span>
             </div>

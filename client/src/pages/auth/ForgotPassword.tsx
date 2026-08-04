@@ -39,7 +39,7 @@ const ForgotPassword = () => {
         justifyContent: 'center', 
         padding: '20px',
         position: 'relative',
-        backgroundColor: theme === 'dark' ? '#09090b' : '#f8fafc',
+        backgroundColor: theme === 'dark' ? 'var(--bg-main)' : 'var(--text-main)',
         overflow: 'hidden'
       }}>
       
@@ -54,7 +54,7 @@ const ForgotPassword = () => {
               position: 'absolute',
               top: '-10%', left: '-10%',
               width: '60%', height: '60%',
-              background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(21, 94, 88, 0.15) 0%, transparent 70%)',
               filter: 'blur(80px)',
               animation: 'float 20s infinite alternate'
           }} />
@@ -62,7 +62,7 @@ const ForgotPassword = () => {
               position: 'absolute',
               bottom: '-10%', right: '-10%',
               width: '60%', height: '60%',
-              background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(168, 68, 32, 0.15) 0%, transparent 70%)',
               filter: 'blur(80px)',
               animation: 'float 25s infinite alternate-reverse'
           }} />
@@ -73,7 +73,7 @@ const ForgotPassword = () => {
             from { transform: translate(0, 0); }
             to { transform: translate(100px, 100px); }
         }
-        input::placeholder { color: ${theme === 'dark' ? '#64748b' : '#94a3b8'} !important; opacity: 1 !important; }
+        input::placeholder { color: ${theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)'} !important; opacity: 1 !important; }
       `}</style>
       
       {/* Theme Toggle */}
@@ -161,12 +161,12 @@ const ForgotPassword = () => {
             justifyContent: 'center',
             color: 'var(--primary)',
             marginBottom: '20px',
-            border: '1.5px solid rgba(99, 102, 241, 0.2)'
+            border: '1.5px solid rgba(21, 94, 88, 0.2)'
           }}>
             <KeyRound size={36} />
           </div>
           
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '12px', letterSpacing: '-0.05em', color: 'var(--text-main)' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '12px', letterSpacing: '-0.05em', color: 'var(--text-main)' }}>
             {t.forgotTitle}
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.5, maxWidth: '320px' }}>

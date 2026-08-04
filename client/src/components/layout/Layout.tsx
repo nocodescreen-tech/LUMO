@@ -558,7 +558,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <button
                             onClick={() => useAuthStore.getState().setCurrency(currency === 'CDF' ? 'USD' : 'CDF')}
-                            style={{ padding: '8px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--primary)', background: 'var(--primary-glow)', border: '1px solid rgba(99,102,241,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                            style={{ padding: '8px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: 'var(--primary)', background: 'var(--primary-glow)', border: '1px solid rgba(21,94,88,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
                         >
                             <DollarSign size={18} /> {currency}
                         </button>
@@ -633,7 +633,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 </header>
 
                 <div style={{ marginTop: '32px' }}>
-                    {children}
+                    <motion.div
+                        key={location.pathname}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                        {children}
+                    </motion.div>
                 </div>
             </main>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Search, UserCircle, Sun, Moon, LogOut, Settings, User, Check, Trash2, Sparkles, X, LayoutDashboard, ShoppingCart, Package, Users, BarChart3, Wallet, CreditCard, Truck, Activity, UserX } from 'lucide-react';
-import { useAuthStore } from '../../store/useAuthStore';
+import { setMemoryToken, useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -22,17 +22,11 @@ const Topbar = () => {
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
 
-    const isImpersonating = !!localStorage.getItem('lumo-token-superadmin');
+    const isImpersonating = Boolean((user as any)?.isImpersonating);
 
     const handleStopImpersonation = () => {
-        const superadminToken = localStorage.getItem('lumo-token-superadmin');
-        if (superadminToken) {
-            localStorage.removeItem('lumo-token-superadmin');
-            // SECURITY: restore only the access token; the user profile is
-            // re-fetched from the server on the next checkAuth().
-            localStorage.setItem('lumo-token', superadminToken);
-            window.location.href = '/superadmin';
-        }
+        setMemoryToken(null);
+        window.location.href = '/superadmin';
     };
 
     const fetchNotifications = async () => {
@@ -126,7 +120,7 @@ const Topbar = () => {
                     <motion.button
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        whileHover={{ scale: 1.05, backgroundColor: '#ef4444' }}
+                        whileHover={{ scale: 1.05, backgroundColor: 'var(--danger)' }}
                         onClick={handleStopImpersonation}
                         style={{
                             padding: '10px 20px',
@@ -215,7 +209,7 @@ const Topbar = () => {
                                 right: '-4px',
                                 width: '20px',
                                 height: '20px',
-                                backgroundColor: '#ef4444',
+                                backgroundColor: 'var(--danger)',
                                 borderRadius: '50%',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -271,7 +265,7 @@ const Topbar = () => {
                                                 style={{ 
                                                     padding: '12px', 
                                                     borderRadius: '12px', 
-                                                    backgroundColor: n.lu ? 'rgba(255,255,255,0.01)' : 'rgba(99, 102, 241, 0.05)', 
+                                                    backgroundColor: n.lu ? 'rgba(255,255,255,0.01)' : 'rgba(21, 94, 88, 0.05)', 
                                                     border: '1px solid var(--border)',
                                                     opacity: n.lu ? 0.7 : 1
                                                 }}
@@ -335,7 +329,7 @@ const Topbar = () => {
                                     right: '0',
                                     width: '12px',
                                     height: '12px',
-                                    backgroundColor: '#ef4444',
+                                    backgroundColor: 'var(--danger)',
                                     borderRadius: '50%',
                                     border: '2px solid var(--bg-card)',
                                     zIndex: 10
@@ -378,7 +372,7 @@ const Topbar = () => {
                                 </div>
                                 <div 
                                     onClick={() => { logout(); navigate('/login'); }}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '12px', cursor: 'pointer', color: '#ef4444' }}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '12px', cursor: 'pointer', color: 'var(--danger)' }}
                                     onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.05)'}
                                     onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >

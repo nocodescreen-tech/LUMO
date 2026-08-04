@@ -92,13 +92,13 @@ const Activities = () => {
     const getIcon = (type: string) => {
         const style = { size: 20 };
         switch (type) {
-            case 'VENTE': return <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', ...iconBox }}><ShoppingCart {...style} /></div>;
-            case 'CREATION_PRODUIT': return <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.2)', ...iconBox }}><PlusCircle {...style} /></div>;
-            case 'MODIF_PRODUIT': return <div style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', ...iconBox }}><Edit {...style} /></div>;
-            case 'SUPPRESSION_PRODUIT': return <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', ...iconBox }}><Trash2 {...style} /></div>;
-            case 'DETTE': return <div style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)', ...iconBox }}><AlertTriangle {...style} /></div>;
-            case 'DETTE_REGLEMENT': return <div style={{ background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', border: '1px solid rgba(20, 184, 166, 0.2)', ...iconBox }}><CreditCard {...style} /></div>;
-            case 'IMPORT_EXCEL': return <div style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.2)', ...iconBox }}><FileText {...style} /></div>;
+            case 'VENTE': return <div style={{ background: 'rgba(15, 157, 106, 0.1)', color: 'var(--success)', border: '1px solid rgba(15, 157, 106, 0.2)', ...iconBox }}><ShoppingCart {...style} /></div>;
+            case 'CREATION_PRODUIT': return <div style={{ background: 'rgba(21, 94, 88, 0.1)', color: '#155E58', border: '1px solid rgba(21, 94, 88, 0.2)', ...iconBox }}><PlusCircle {...style} /></div>;
+            case 'MODIF_PRODUIT': return <div style={{ background: 'rgba(62, 110, 142, 0.1)', color: '#2E6E8E', border: '1px solid rgba(62, 110, 142, 0.2)', ...iconBox }}><Edit {...style} /></div>;
+            case 'SUPPRESSION_PRODUIT': return <div style={{ background: 'rgba(214, 69, 69, 0.1)', color: 'var(--danger)', border: '1px solid rgba(214, 69, 69, 0.2)', ...iconBox }}><Trash2 {...style} /></div>;
+            case 'DETTE': return <div style={{ background: 'rgba(192, 126, 18, 0.1)', color: 'var(--warning)', border: '1px solid rgba(192, 126, 18, 0.2)', ...iconBox }}><AlertTriangle {...style} /></div>;
+            case 'DETTE_REGLEMENT': return <div style={{ background: 'rgba(20, 184, 166, 0.1)', color: 'var(--success)', border: '1px solid rgba(20, 184, 166, 0.2)', ...iconBox }}><CreditCard {...style} /></div>;
+            case 'IMPORT_EXCEL': return <div style={{ background: 'rgba(168, 68, 32, 0.1)', color: '#A84420', border: '1px solid rgba(168, 68, 32, 0.2)', ...iconBox }}><FileText {...style} /></div>;
             default: return <div style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', border: '1px solid var(--border)', ...iconBox }}><Activity {...style} /></div>;
         }
     };
@@ -142,7 +142,7 @@ const Activities = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
                         <Database size={14} /> {t('activitiesAuditBadge')}
                     </div>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 950, letterSpacing: '-0.04em', margin: 0 }}>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
                         {t('activitiesTitlePrefix')}<span className="text-gradient">{t('activitiesTitleSuffix')}</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('activitiesSubtitle')}</p>
@@ -160,14 +160,14 @@ const Activities = () => {
                             exportToExcel(rows, 'Activites_Report');
                         }}
                         className="btn-hover"
-                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
+                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
                     >
                         <Download size={22} /> {t('report')}
                     </button>
                     <button
                         onClick={fetchActivities}
                         className="btn-hover primary-glow"
-                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '950', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
+                        style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}
                     >
                         <RefreshCw size={22} className={loading ? 'animate-spin' : ''} /> {t('refresh')}
                     </button>
@@ -198,7 +198,7 @@ const Activities = () => {
                                 backgroundColor: filter === f ? 'var(--primary)' : 'transparent',
                                 color: filter === f ? 'white' : 'var(--text-muted)',
                                 fontSize: '0.85rem',
-                                fontWeight: '950',
+                                fontWeight: '800',
                                 cursor: 'pointer',
                                 transition: 'all 0.3s',
                                 whiteSpace: 'nowrap',
@@ -226,14 +226,14 @@ const Activities = () => {
                         }}
                     />
                     {dateFilter && (
-                        <button onClick={() => setDateFilter('')} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: '900', fontSize: '0.8rem', padding: '0 10px' }}>
+                        <button onClick={() => setDateFilter('')} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontWeight: '900', fontSize: '0.8rem', padding: '0 10px' }}>
                             <X size={16} />
                         </button>
                     )}
                 </div>
             </div>
 
-            <div className="premium-card" style={{ padding: '48px', borderRadius: '44px', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: '0 40px 80px -20px rgba(0,0,0,0.3)' }}>
+            <div className="premium-card" style={{ padding: '28px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '120px' }}>
                         <Loader2 size={60} className="animate-spin" style={{ margin: '0 auto', color: 'var(--primary)', opacity: 0.5 }} />
@@ -241,7 +241,7 @@ const Activities = () => {
                 ) : filtered.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '120px' }}>
                         <Database size={100} style={{ margin: '0 auto 32px', opacity: 0.1, color: 'var(--text-muted)' }} />
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: '950' }}>{t('noData')}</h2>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>{t('noData')}</h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: '600' }}>{t('activitiesNoMatch')}</p>
                     </div>
                 ) : (
@@ -264,20 +264,20 @@ const Activities = () => {
                                 <div style={{ flex: 1 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <p style={{ fontWeight: '1000', fontSize: '1.2rem', margin: 0, color: '#0f172a' }}>{a.description}</p>
-                                            <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border)', fontSize: '0.7rem', fontWeight: '950', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <p style={{ fontWeight: '800', fontSize: '1.2rem', margin: 0, color: 'var(--text-main)' }}>{a.description}</p>
+                                            <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '10px', border: '1px solid var(--border)', fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                                 {a.module || t('systemLabel')}
                                             </div>
                                         </div>
-                                        <span style={{ fontSize: '0.95rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '950' }}>
-                                            <Clock size={16} color="#6366f1" /> {new Date(a.createdAt).toLocaleString('fr-FR', { hour12: false })}
+                                        <span style={{ fontSize: '0.95rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800' }}>
+                                            <Clock size={16} color="#155E58" /> {new Date(a.createdAt).toLocaleString('fr-FR', { hour12: false })}
                                         </span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
                                             <User size={14} color="var(--text-muted)" />
                                         </div>
-                                        <span style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '900' }}>{a.userNom || t('systemUserLabel')}</span>
+                                        <span style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '900' }}>{a.userNom || t('systemUserLabel')}</span>
                                         <ChevronRight size={14} style={{ opacity: 0.2 }} />
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.5, fontWeight: '600' }}>{t('activitiesActionIdPrefix') || 'ID Action'}: #{a.id}</span>
                                     </div>

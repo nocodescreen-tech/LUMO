@@ -139,7 +139,7 @@ export const generateInvoice = (data: any, user: any = null) => {
             body { font-family: 'Plus Jakarta Sans', sans-serif; color: #1e293b; padding: 40px; }
             .invoice-box { max-width: 800px; margin: auto; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
-            .logo { font-size: 24px; font-weight: 800; color: #6366f1; }
+            .logo { font-size: 24px; font-weight: 800; color: #155E58; }
             .title { font-size: 32px; font-weight: 800; text-align: right; }
             .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
             .info-block h4 { margin-bottom: 8px; color: #64748b; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
@@ -149,7 +149,7 @@ export const generateInvoice = (data: any, user: any = null) => {
             .total-section { display: flex; justify-content: flex-end; }
             .total-card { background: #f8fafc; padding: 24px; border-radius: 12px; width: 300px; }
             .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-            .grand-total { font-weight: 800; font-size: 24px; color: #6366f1; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px; flex-direction: column; align-items: flex-end; gap: 4px; }
+            .grand-total { font-weight: 800; font-size: 24px; color: #155E58; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px; flex-direction: column; align-items: flex-end; gap: 4px; }
             @media print { body { padding: 0; } .no-print { display: none; } }
           </style>
         </head>
@@ -177,7 +177,7 @@ export const generateInvoice = (data: any, user: any = null) => {
               </div>
               <div class="info-block" style="text-align: right; background: #f8fafc; padding: 20px; border-radius: 12px;">
                 <h4>${t(lang, 'Détails de facturation', 'Billing details')}</h4>
-                <p style="font-weight: 600; color: #0f172a; margin-top: 4px;">${t(lang, 'N° Facture', 'Invoice No.')}: <span style="color: #6366f1;">#${invoiceNumber}</span></p>
+                <p style="font-weight: 600; color: #0f172a; margin-top: 4px;">${t(lang, 'N° Facture', 'Invoice No.')}: <span style="color: #155E58;">#${invoiceNumber}</span></p>
                 <p style="font-weight: 600; color: #0f172a;">${t(lang, 'Date', 'Date')}: ${formatPrintDate(invoiceData.date || invoiceData.createdAt || Date.now(), lang)}</p>
               </div>
             </div>
@@ -437,7 +437,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
             .report-box { max-width: 900px; margin: auto; border: 1px solid #e2e8f0; padding: 40px; border-radius: 20px; }
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
             .title { font-size: 28px; font-weight: 800; color: #1e293b; }
-            .period { background: #f1f5f9; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 14px; color: #6366f1; }
+            .period { background: #f1f5f9; padding: 8px 16px; border-radius: 99px; font-weight: 700; font-size: 14px; color: #155E58; }
             .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
             .stat-card { padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9; background: #f8fafc; }
             .stat-label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
@@ -447,7 +447,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
             th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #64748b; font-size: 12px; }
             td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 600; }
             .section-title { font-size: 18px; font-weight: 800; margin-top: 40px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
-            .section-title::before { content: ""; width: 4px; height: 18px; background: #6366f1; border-radius: 4px; }
+            .section-title::before { content: ""; width: 4px; height: 18px; background: #155E58; border-radius: 4px; }
             
             @media print {
               body { padding: 0; margin: 0; background: #fff; color: #000; }
@@ -478,7 +478,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
             </div>
             <div class="stat-card">
               <div class="stat-label">${t(lang, 'Bénéfice Net', 'Net Profit')}</div>
-              <div class="stat-value" style="color: #6366f1;">${formatAmount(getMainAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))), displayCurrency)}</div>
+              <div class="stat-value" style="color: #155E58;">${formatAmount(getMainAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))), displayCurrency)}</div>
               <div class="stat-sub">≈ ${formatAltAmount(getAltAmount(Number((data?.totals?.profit ?? data?.totals?.revenue ?? 0))), altCurrency)}</div>
             </div>
           </div>

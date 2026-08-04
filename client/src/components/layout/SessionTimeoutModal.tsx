@@ -255,13 +255,13 @@ const SessionTimeoutModal = () => {
                                     style={{
                                         width: '100%', padding: '18px',
                                         borderRadius: '18px', border: 'none',
-                                        background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
+                                        background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)',
                                         color: 'white', fontWeight: 800,
                                         fontSize: '1.05rem',
                                         display: 'flex', alignItems: 'center',
                                         justifyContent: 'center', gap: '10px',
                                         cursor: renewing ? 'not-allowed' : 'pointer',
-                                        boxShadow: '0 8px 25px -5px rgba(99,102,241,0.5)',
+                                        boxShadow: '0 8px 25px -5px rgba(21,94,88,0.5)',
                                         opacity: renewing ? 0.7 : 1,
                                         transition: 'opacity 0.2s'
                                     }}

@@ -178,7 +178,7 @@ const Cash = () => {
                             <button onClick={() => generateCashSessionReport(currentSession, { ...user, preferences: { ...user?.preferences, currency } })} className="btn-premium secondary" style={{ background: 'var(--bg-card)' }}>
                                 <Printer size={18} /> {t('printReport')}
                             </button>
-                            <button onClick={() => setShowCloseModal(true)} className="btn-premium secondary" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                            <button onClick={() => setShowCloseModal(true)} className="btn-premium secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(214, 69, 69, 0.2)' }}>
                                 <Lock size={18} /> {t('closeCash')}
                             </button>
                         </div>
@@ -212,7 +212,7 @@ const Cash = () => {
                                 borderRadius: '100px', 
                                 fontSize: '0.8rem', 
                                 fontWeight: 900, 
-                                background: currentSession ? '#10b981' : '#ef4444', 
+                                background: currentSession ? 'var(--success)' : 'var(--danger)', 
                                 color: 'white',
                                 textTransform: 'uppercase'
                             }}>
@@ -224,7 +224,7 @@ const Cash = () => {
                                 </span>
                             )}
                         </div>
-                        <h2 style={{ fontSize: '2.5rem', fontWeight: 950, margin: 0 }}>
+                        <h2 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0 }}>
                             {currentSession ? (
                                 <>{formatAmt(Number(currentSession.openingBalance))} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}><br/>({t('initialFund')})</span></>
                             ) : (
@@ -245,13 +245,13 @@ const Cash = () => {
                         style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}
                     >
                         <div className="premium-card" style={{ padding: '24px', borderRadius: '24px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#10b981', marginBottom: '16px' }}>
-                                <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--success)', marginBottom: '16px' }}>
+                                <div style={{ padding: '10px', borderRadius: '12px', background: 'rgba(15, 157, 106, 0.1)' }}>
                                     <TrendingUp size={20} />
                                 </div>
                                 <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('dailySalesCaps')}</span>
                             </div>
-                            <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>{formatAmt(Number(currentSession.totalSales || 0))}</h3>
+                            <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{formatAmt(Number(currentSession.totalSales || 0))}</h3>
                         </div>
 
                         <div className="premium-card" style={{ padding: '24px', borderRadius: '24px', background: 'var(--bg-main)', border: '2px dashed var(--border)' }}>
@@ -261,7 +261,7 @@ const Cash = () => {
                                 </div>
                                 <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('theoreticalBalanceCaps')}</span>
                             </div>
-                            <h3 style={{ fontSize: '1.8rem', fontWeight: 950 }}>
+                            <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
                                 {formatAmt(Number(currentSession.openingBalance) + Number(currentSession.totalSales || 0))}
                             </h3>
                         </div>
@@ -273,11 +273,11 @@ const Cash = () => {
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
                     <History size={24} color="var(--primary)" />
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 950, margin: 0 }}>{t('sessionsHistory')}</h3>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>{t('sessionsHistory')}</h3>
                 </div>
                 
                 <div className="table-responsive">
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-cash" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
                                 <th style={{ padding: '0 24px' }}>{t('openingClosing')}</th>
@@ -307,14 +307,14 @@ const Cash = () => {
                                         </td>
                                         <td style={{ padding: '20px 24px', fontWeight: 700 }}>{formatAmt(Number(s.openingBalance))}</td>
                                         <td style={{ padding: '20px 24px' }}>
-                                            <div style={{ color: '#10b981', fontWeight: 700 }}>+{formatAmtStr(Number(s.totalSales))}</div>
+                                            <div style={{ color: 'var(--success)', fontWeight: 700 }}>+{formatAmtStr(Number(s.totalSales))}</div>
                                         </td>
                                         <td style={{ padding: '20px 24px', fontWeight: 900 }}>{formatAmt(Number(s.closingBalance || 0))}</td>
                                         <td style={{ padding: '20px 24px' }}>
                                             {s.status === 'CLOSED' ? (
                                                 <span style={{ 
                                                     fontWeight: 900, 
-                                                    color: diff === 0 ? '#10b981' : '#ef4444',
+                                                    color: diff === 0 ? 'var(--success)' : 'var(--danger)',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: '6px'
@@ -336,7 +336,7 @@ const Cash = () => {
                                             </button>
                                             <button 
                                                 onClick={() => setConfirmDelete({ isOpen: true, id: s.id })}
-                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}
+                                                style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '8px' }}
                                                 title={t('deleteSession')}
                                             >
                                                 <Trash2 size={18} />
@@ -466,7 +466,7 @@ const Cash = () => {
                              </div>
                          </div>
                      )}
-                    <button type="submit" className="btn-premium primary" style={{ width: '100%', padding: '20px', background: '#ef4444', boxShadow: '0 20px 40px -10px rgba(239, 68, 68, 0.3)' }}>
+                    <button type="submit" className="btn-premium primary" style={{ width: '100%', padding: '20px', background: 'var(--danger)', boxShadow: '0 20px 40px -10px rgba(214, 69, 69, 0.3)' }}>
                         {t('confirmClosing')}
                     </button>
                 </form>

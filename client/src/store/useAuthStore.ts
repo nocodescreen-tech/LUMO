@@ -70,22 +70,38 @@ interface AuthState {
 // The full user object (email, phone, enterprise info, preferences) is kept in
 // memory (Zustand store) only and re-fetched from the server on page reload.
 // This prevents sensitive PII from being readable in DevTools localStorage.
-const TOKEN_KEY = 'lumo-token';
+const LEGACY_AUTH_STORAGE_KEYS = [
+  'lumo-auth',
+  'lumo-token',
+  'lumo-token-superadmin',
+  'token',
+  'refreshToken',
+];
+
+let memoryToken: string | null = null;
+
+export const getMemoryToken = (): string | null => memoryToken;
+
+export const setMemoryToken = (token: string | null) => {
+  memoryToken = token;
+};
+
+const clearLegacyAuthStorage = () => {
+  LEGACY_AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+};
 
 const getStoredToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
+  return getMemoryToken();
 };
 
 const setStoredToken = (token: string | null) => {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  setMemoryToken(token);
+  clearLegacyAuthStorage();
 };
 
 const loadInitialAuth = () => {
-  return { user: null as User | null, token: getStoredToken() };
+  clearLegacyAuthStorage();
+  return { user: null as User | null, token: null as string | null };
 };
 
 const initialAuth = loadInitialAuth();
@@ -131,8 +147,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Ignorer si déjà expiré ou réseau coupé
     }
 
-    // SECURITY: clear ALL localStorage (removes token + any legacy sensitive data)
-    localStorage.clear();
+    clearLegacyAuthStorage();
+    setMemoryToken(null);
 
     set({
         token: null,
@@ -150,8 +166,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async (shouldRedirect = true) => {
-    const token = getStoredToken();
-    if (!token) return;
+    clearLegacyAuthStorage();
+    let token = getStoredToken();
+    if (!token) {
+      const refreshResponse = await api.post('/auth/refresh');
+      token = refreshResponse.data.token;
+      if (!token) return;
+      setStoredToken(token);
+    }
 
     try {
       // Ajout d'un cache-buster (?t=...) pour forcer le réseau et ignorer le cache PWA/Navigateur
@@ -180,6 +202,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       // Token probably invalid
       setStoredToken(null);
+      clearLegacyAuthStorage();
       set({ token: null, user: null });
       if (shouldRedirect && window.location.pathname !== '/login' && window.location.pathname !== '/' && window.location.pathname !== '/register') {
           window.location.href = '/login?expired=true';

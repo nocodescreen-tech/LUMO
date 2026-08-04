@@ -78,28 +78,49 @@ exports.getDashboardStats = async (req, res, next) => {
     ]);
 
     let revenue = 0;
+    let revenueUSD = 0;
     let completed = 0;
+    let completedUSD = 0;
     let profit = 0;
+    let profitUSD = 0;
 
     for (const sale of salesRows) {
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
+      const isSaleUSD = normalizeCurrency(sale.devise || shopCurrency) === 'USD';
+      
       const saleRevenueCDF = toCDF(sale.montantTotal, sale.devise || shopCurrency, saleRate, safeRate);
+      const saleRevenueUSD = isSaleUSD ? Number(sale.montantTotal || 0) : (saleRevenueCDF / saleRate);
+      
       revenue += saleRevenueCDF;
-      if (['Terminee', 'Completee', 'Terminée', 'Complétée'].includes(String(sale.statut || ''))) completed += saleRevenueCDF;
+      revenueUSD += saleRevenueUSD;
+      
+      if (['Terminee', 'Completee', 'Terminée', 'Complétée'].includes(String(sale.statut || ''))) {
+        completed += saleRevenueCDF;
+        completedUSD += saleRevenueUSD;
+      }
 
       const items = safeParseArticles(sale.articles);
       let costCDF = 0;
+      let costUSD = 0;
       for (const item of items) {
         const qty = Number(item?.quantite || 0);
         const unitCost = Number(item?.prixAchat || 0);
         const itemDevise = item?.deviseProduit || sale.devise || 'CDF';
-        costCDF += toCDF(unitCost * qty, itemDevise, saleRate, safeRate);
+        
+        const itemCostCDF = toCDF(unitCost * qty, itemDevise, saleRate, safeRate);
+        const itemCostUSD = normalizeCurrency(itemDevise) === 'USD' ? (unitCost * qty) : (itemCostCDF / saleRate);
+        
+        costCDF += itemCostCDF;
+        costUSD += itemCostUSD;
       }
 
       if (costCDF > 0) {
         profit += saleRevenueCDF - costCDF;
+        profitUSD += saleRevenueUSD - costUSD;
       } else {
-        profit += toCDF(sale.profitNet || 0, shopCurrency, saleRate, safeRate);
+        const profitCDF = toCDF(sale.profitNet || 0, shopCurrency, saleRate, safeRate);
+        profit += profitCDF;
+        profitUSD += (normalizeCurrency(shopCurrency) === 'USD' ? Number(sale.profitNet || 0) : (profitCDF / saleRate));
       }
     }
 
@@ -115,14 +136,18 @@ exports.getDashboardStats = async (req, res, next) => {
       {
         summary: {
           revenue: revenueRounded,
+          revenueUSD: round2(revenueUSD),
           profitNetEstimation: profitRounded,
+          profitNetEstimationUSD: round2(profitUSD),
           marginPercent,
           totalClients: Number(totalClients || 0),
           lowStockCount: Number(lowStockCount || 0),
           totalProducts: Number(totalProducts || 0),
           totalSales: salesCount,
           completedRevenue: completedRounded,
+          completedRevenueUSD: round2(completedUSD),
           averageOrderValue: salesCount > 0 ? round2(revenueRounded / salesCount) : 0,
+          averageOrderValueUSD: salesCount > 0 ? round2(revenueUSD / salesCount) : 0,
         },
         recentSales: recentSales.map((sale) => ({
           ...sale,
@@ -188,11 +213,16 @@ exports.getSalesChartData = async (req, res, next) => {
         keyDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
       }
       const key = keyDate.toISOString();
-      if (!grouped.has(key)) grouped.set(key, { period: keyDate, totalCommandes: 0, revenue: 0 });
+      if (!grouped.has(key)) grouped.set(key, { period: keyDate, totalCommandes: 0, revenue: 0, revenueUSD: 0 });
       const row = grouped.get(key);
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
       row.totalCommandes += 1;
-      row.revenue += toCDF(sale.montantTotal, sale.devise || shopCurrency, saleRate, safeRate);
+      
+      const isSaleUSD = normalizeCurrency(sale.devise || shopCurrency) === 'USD';
+      const cdfAmount = toCDF(sale.montantTotal, sale.devise || shopCurrency, saleRate, safeRate);
+      
+      row.revenue += cdfAmount;
+      row.revenueUSD += isSaleUSD ? Number(sale.montantTotal || 0) : (cdfAmount / saleRate);
     }
 
     const data = Array.from(grouped.values())
@@ -201,7 +231,9 @@ exports.getSalesChartData = async (req, res, next) => {
         period: r.period,
         totalCommandes: r.totalCommandes,
         revenue: round2(r.revenue),
+        revenueUSD: round2(r.revenueUSD),
         prixMoyen: r.totalCommandes > 0 ? round2(r.revenue / r.totalCommandes) : 0,
+        prixMoyenUSD: r.totalCommandes > 0 ? round2(r.revenueUSD / r.totalCommandes) : 0,
       }));
 
     return sendResponse(res, 200, { period: truncUnit, data }, 'Donnees graphiques de ventes recuperees');

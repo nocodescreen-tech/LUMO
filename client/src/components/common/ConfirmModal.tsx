@@ -52,12 +52,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             border: '1px solid var(--border)', 
                             background: 'var(--bg-main)', 
                             color: 'var(--text-main)', 
-                            fontWeight: 950, 
+                            fontWeight: 800, 
                             cursor: 'pointer',
                             transition: 'all 0.2s'
                         }}
-                        onMouseOver={e => e.currentTarget.style.background = 'var(--border)'}
-                        onMouseOut={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                        onMouseOver={e => { e.currentTarget.style.background = 'var(--sidebar-active)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'var(--bg-main)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
                     >
                         {finalCancelText}
                     </button>
@@ -68,15 +68,15 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             padding: '16px', 
                             borderRadius: '18px', 
                             border: 'none', 
-                            background: isDanger ? '#ef4444' : 'var(--primary)', 
+                            background: isDanger ? 'var(--danger)' : 'var(--primary)', 
                             color: 'white', 
-                            fontWeight: 950, 
+                            fontWeight: 800, 
                             cursor: 'pointer',
-                            boxShadow: isDanger ? '0 10px 30px -8px rgba(239, 68, 68, 0.4)' : '0 10px 30px -8px rgba(99, 102, 241, 0.4)',
+                            boxShadow: isDanger ? '0 10px 30px -8px rgba(214, 69, 69, 0.4)' : '0 10px 30px -8px rgba(21, 94, 88, 0.4)',
                             transition: 'all 0.2s'
                         }}
-                        onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                        onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = isDanger ? '#B23A3A' : 'var(--primary-dark)'; e.currentTarget.style.boxShadow = '0 14px 34px -10px rgba(0,0,0,0.3)'; }}
+                        onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = isDanger ? 'var(--danger)' : 'var(--primary)'; e.currentTarget.style.boxShadow = isDanger ? '0 10px 30px -8px rgba(214, 69, 69, 0.4)' : '0 10px 30px -8px rgba(21, 94, 88, 0.4)'; }}
                     >
                         {finalConfirmText}
                     </button>

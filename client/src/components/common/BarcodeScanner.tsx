@@ -251,7 +251,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                             <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted playsInline />
                             
                             {status === 'scanning' && (
-                                <div style={{ position: 'absolute', inset: 0, border: '2px solid var(--primary)', borderRadius: '24px', boxShadow: 'inset 0 0 100px rgba(99,102,241,0.2)', pointerEvents: 'none' }}>
+                                <div style={{ position: 'absolute', inset: 0, border: '2px solid var(--primary)', borderRadius: '24px', boxShadow: 'inset 0 0 100px rgba(21,94,88,0.2)', pointerEvents: 'none' }}>
                                     <motion.div 
                                         animate={{ top: ['10%', '90%', '10%'] }} 
                                         transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
@@ -276,8 +276,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                         {status === 'error' && (
                             <div style={{ marginTop: '16px', padding: '16px', borderRadius: '16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', textAlign: 'center' }}>
                                 <AlertCircle size={32} color="#ef4444" style={{ margin: '0 auto 12px' }} />
-                                <p style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 700, margin: 0 }}>{errorMsg}</p>
-                                <button onClick={initCamera} style={{ marginTop: '12px', padding: '8px 20px', borderRadius: '10px', border: 'none', background: '#ef4444', color: 'white', fontWeight: 800, cursor: 'pointer' }}>{t('retry')}</button>
+                                <p style={{ color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 700, margin: 0 }}>{errorMsg}</p>
+                                <button onClick={initCamera} style={{ marginTop: '12px', padding: '8px 20px', borderRadius: '10px', border: 'none', background: 'var(--danger)', color: 'white', fontWeight: 800, cursor: 'pointer' }}>{t('retry')}</button>
                             </div>
                         )}
 
@@ -323,7 +323,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onDetected, onClose }) 
                 )}
 
                 {/* Footer Tip */}
-                <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(99,102,241,0.05)', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(21,94,88,0.05)', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                     {t('scannerTip')}
                 </div>
             </motion.div>

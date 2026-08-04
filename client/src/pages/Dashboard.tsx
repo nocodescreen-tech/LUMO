@@ -14,7 +14,10 @@ import {
   Download,
   Activity,
   Plus,
-  Loader2
+  Loader2,
+  Trophy,
+  ArrowLeftRight,
+  Boxes
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../api/axios';
@@ -70,7 +73,7 @@ const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: an
           fontSize: '0.85rem',
           fontWeight: '800',
           padding: '6px 12px',
-          backgroundColor: trend >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          backgroundColor: trend >= 0 ? 'rgba(15, 157, 106, 0.1)' : 'rgba(214, 69, 69, 0.1)',
           borderRadius: '12px'
         }}>
           {trend >= 0 ? <Plus size={14} /> : <TrendingUp size={14} style={{ transform: 'rotate(180deg)' }} />}
@@ -93,15 +96,36 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
+  // Taux affiché : celui configuré par l'utilisateur dans Paramètres (préférences)
+  const widgetRate = Number(exchangeRate) || 2250;
+  const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('7d');
 
   const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
 
-  const getDisplayValues = (rawAmount: number) => {
-    if (!rawAmount) return { main: `0 ${currency}`, sub: `0 ${altCurrency}` };
+  const getDisplayValues = (rawAmount: number, rawAmountUSD?: number) => {
+    if (!rawAmount && !rawAmountUSD) return { main: `0 ${currency}`, sub: `0 ${altCurrency}` };
 
-    // Since the backend now sends all summary stats normalized to CDF
+    if (rawAmountUSD !== undefined && rawAmountUSD !== null) {
+      if (currency === 'USD') {
+        return {
+          main: `${getDisplayAmount(rawAmountUSD, 'USD', 'USD', exchangeRate).main.replace(' USD', '')} USD`,
+          sub: `${getDisplayAmount(rawAmount, 'CDF', 'CDF', exchangeRate).main.replace(' CDF', '')} CDF`,
+          mainDevise: 'USD',
+          subDevise: 'CDF'
+        };
+      } else {
+        return {
+          main: `${getDisplayAmount(rawAmount, 'CDF', 'CDF', exchangeRate).main.replace(' CDF', '')} CDF`,
+          sub: `${getDisplayAmount(rawAmountUSD, 'USD', 'USD', exchangeRate).main.replace(' USD', '')} USD`,
+          mainDevise: 'CDF',
+          subDevise: 'USD'
+        };
+      }
+    }
+
+    // Since the backend sends all summary stats normalized to CDF, fallback to dynamic conversion if rawAmountUSD is missing
     const result = getDisplayAmount(rawAmount, 'CDF', currency, exchangeRate);
     return result;
   };
@@ -141,12 +165,26 @@ const Dashboard = () => {
 
     fetchDashboardData();
     const intervalId = setInterval(fetchDashboardData, 30000); // Actualisation toutes les 30s
-
     return () => {
       isMounted = false;
       clearInterval(intervalId);
     };
   }, [chartPeriod]);
+
+  // Top produits — chargé depuis /stats/analytics (déjà fourni par le backend)
+  useEffect(() => {
+    let isMounted = true;
+    api.get(`/stats/analytics?_t=${Date.now()}`)
+      .then((res) => {
+        if (!isMounted) return;
+        const d = res.data;
+        const payload = d && d.success && d.data ? d.data : d;
+        const list = (payload && payload.topProducts) || [];
+        setTopProducts(Array.isArray(list) ? list.slice(0, 5) : []);
+      })
+      .catch(() => { });
+    return () => { isMounted = false; };
+  }, []);
 
   const allActions = [
     { id: 'pos', label: t('quickSale'), icon: Zap, path: '/pos', color: 'var(--primary)', desc: t('quickSaleDesc') },
@@ -221,7 +259,7 @@ const Dashboard = () => {
           >
             <Download size={20} /> {t('report')}
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.4)' }}>
+          <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(21, 94, 88, 0.4)' }}>
             <Plus size={22} /> {t('newSale')}
           </motion.button>
         </div>
@@ -231,8 +269,8 @@ const Dashboard = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         <KpiCard 
           title={t('revenuePeriod')} 
-          value={getDisplayValues(stats?.summary?.revenue || 0).main} 
-          subValue={getDisplayValues(stats?.summary?.revenue || 0).sub}
+          value={getDisplayValues(stats?.summary?.revenue || 0, stats?.summary?.revenueUSD).main} 
+          subValue={getDisplayValues(stats?.summary?.revenue || 0, stats?.summary?.revenueUSD).sub}
           icon={TrendingUp} 
           trend={stats?.summary?.revenueTrend || 12} 
           color="var(--primary)"
@@ -241,8 +279,8 @@ const Dashboard = () => {
         {(user?.role === 'superadmin' || user?.role === 'admin') && (
           <KpiCard 
             title={t('netMargin')} 
-            value={getDisplayValues(stats?.summary?.profitNetEstimation || 0).main} 
-            subValue={getDisplayValues(stats?.summary?.profitNetEstimation || 0).sub}
+            value={getDisplayValues(stats?.summary?.profitNetEstimation || 0, stats?.summary?.profitNetEstimationUSD).main} 
+            subValue={getDisplayValues(stats?.summary?.profitNetEstimation || 0, stats?.summary?.profitNetEstimationUSD).sub}
             icon={DollarSign} 
             trend={stats?.summary?.marginPercent || 0} 
             color="var(--success)"
@@ -295,12 +333,10 @@ const Dashboard = () => {
             <DashboardCharts
               salesData={chartData.map((d: any) => ({
                 ...d,
-                // Pre-computed in display currency for DashboardCharts to consume directly
-                convertedRevenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
-                convertedTotal: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
-                // Legacy fields kept for backward compatibility (Stats.tsx reads these)
-                revenue: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
-                total: normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate)
+                convertedRevenue: currency === 'USD' && d.revenueUSD !== undefined ? d.revenueUSD : normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                convertedTotal: currency === 'USD' && d.revenueUSD !== undefined ? d.revenueUSD : normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                revenue: currency === 'USD' && d.revenueUSD !== undefined ? d.revenueUSD : normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate),
+                total: currency === 'USD' && d.revenueUSD !== undefined ? d.revenueUSD : normalizeAmount(parseFloat(d.revenue || d.total) || 0, 'CDF', currency, exchangeRate)
               }))}
               period={chartPeriod}
             />
@@ -358,7 +394,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '32px' }}>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="premium-card" style={{ padding: '40px', borderRadius: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <h3 style={{ fontSize: '1.6rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '14px', letterSpacing: '-0.03em' }}>
@@ -381,8 +417,8 @@ const Dashboard = () => {
                     <ShoppingCart size={24} />
                   </div>
                   <div>
-                    <p style={{ fontWeight: 1000, color: '#0f172a', margin: '0 0 4px 0', fontSize: '1.2rem' }}>{t('saleNumber')}{(sale.id?.toString() || '').slice(-4)}</p>
-                    <p style={{ fontSize: '0.95rem', color: '#475569', fontWeight: '900', margin: 0 }}>{new Date(sale.createdAt).toLocaleTimeString()} · {sale.methodePaiement}</p>
+                    <p style={{ fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px 0', fontSize: '1.2rem' }}>{t('saleNumber')}{(sale.id?.toString() || '').slice(-4)}</p>
+                    <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: '900', margin: 0 }}>{new Date(sale.createdAt).toLocaleTimeString()} · {sale.methodePaiement}</p>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -392,8 +428,8 @@ const Dashboard = () => {
                     const result = getDisplayAmount(saleAmount, 'CDF', currency, exchangeRate);
                     return (
                       <>
-                        <p style={{ fontWeight: 1000, color: '#10b981', fontSize: '1.4rem', margin: 0 }}>+{result.main}</p>
-                        <p style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 950, margin: 0 }}>≙ {result.sub}</p>
+                        <p style={{ fontWeight: 800, color: 'var(--success)', fontSize: '1.4rem', margin: 0 }}>+{result.main}</p>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 800, margin: 0 }}>≙ {result.sub}</p>
                       </>
                     );
                   })()}
@@ -416,6 +452,117 @@ const Dashboard = () => {
           expiringProductsCount={stats?.summary?.expiringProductsCount}
           expiringProducts={stats?.summary?.expiringProducts}
         />
+      </div>
+
+      {/* Widgets : Top produits + Taux de change + Vue d'ensemble */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Trophy size={22} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, letterSpacing: '-0.02em' }}>{'Top produits'}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>{'Meilleurs vendeurs de la période'}</p>
+            </div>
+          </div>
+          {topProducts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)' }}>
+              <Package size={36} style={{ opacity: 0.25, marginBottom: '10px' }} />
+              <p style={{ fontWeight: 700, fontSize: '0.95rem' }}>{'Pas encore de données'}</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {topProducts.map((p, i) => {
+                const maxRev = Math.max(...topProducts.map((x) => Number(x.revenu) || 0), 1);
+                const pct = Math.max(((Number(p.revenu) || 0) / maxRev) * 100, 4);
+                const money = getDisplayValues(Number(p.revenu) || 0);
+                return (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', gap: '10px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ color: 'var(--primary)', fontWeight: 900, marginRight: '8px' }}>#{i + 1}</span>{p.nom || 'Produit'}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{money.main}</span>
+                    </div>
+                    <div style={{ height: '8px', borderRadius: '100px', background: 'var(--sidebar-active)', overflow: 'hidden' }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: 0.8, delay: 0.3 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                        style={{ height: '100%', borderRadius: '100px', background: `linear-gradient(90deg, var(--primary), ${i === 0 ? 'var(--secondary)' : 'var(--primary)'})` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ArrowLeftRight size={22} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, letterSpacing: '-0.02em' }}>{'Taux de change'}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>{'Conversion instantanée'}</p>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>1 USD</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--primary)' }}>{widgetRate.toLocaleString('fr-FR')}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>CDF</div>
+            </div>
+            <ArrowLeftRight size={18} style={{ color: 'var(--text-muted)' }} />
+            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>1 CDF</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--secondary)' }}>{Number(1 / widgetRate).toFixed(4)}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>USD</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <input
+              type="number"
+              defaultValue="1000"
+              min={0}
+              style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700, fontSize: '1rem' }}
+              onInput={(e: any) => {
+                const v = parseFloat(e.target.value) || 0;
+                const out = e.target.nextElementSibling as HTMLElement;
+                if (out) out.textContent = `${(v / widgetRate).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USD`;
+              }}
+            />
+            <span style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--text-main)', minWidth: '110px', textAlign: 'right' }}>CDF → USD</span>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Boxes size={22} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 900, letterSpacing: '-0.02em' }}>{"Vue d'ensemble"}</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>Chiffres clés de votre activité</p>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            {[
+              { label: 'Produits', value: stats?.summary?.totalProducts || 0, color: 'var(--primary)' },
+              { label: 'Ventes Totales', value: stats?.summary?.totalSales || 0, color: 'var(--success)' },
+              { label: 'Panier moyen', value: getDisplayValues(stats?.summary?.averageOrderValue || 0, stats?.summary?.averageOrderValueUSD).main, color: 'var(--secondary)' },
+              { label: 'CA encaissé', value: getDisplayValues(stats?.summary?.completedRevenue || 0, stats?.summary?.completedRevenueUSD).main, color: 'var(--info)' },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{s.label}</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
 
       {enabledModules.includes('ai') && <AIChat />}

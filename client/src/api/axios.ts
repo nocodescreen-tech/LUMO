@@ -1,21 +1,14 @@
 import axios from 'axios';
-import { useAuthStore } from '../store/useAuthStore';
+import { getMemoryToken, setMemoryToken, useAuthStore } from '../store/useAuthStore';
 
 export const SESSION_EXPIRY_EVENT = 'lumo-session-expired';
 
-// SECURITY: access token is stored in a single dedicated key (no PII).
-const TOKEN_KEY = 'lumo-token';
-
 const getToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
+  return getMemoryToken();
 };
 
 const setToken = (token: string | null) => {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  setMemoryToken(token);
 };
 
 const api = axios.create({
@@ -94,7 +87,8 @@ api.interceptors.response.use(
 
       if (!data.token) throw new Error('No token returned');
 
-      // Persist only the new access token (no PII).
+      // Keep the access token in memory only. The refresh token remains in the
+      // httpOnly cookie and is not readable by JavaScript.
       setToken(data.token);
 
       processQueue(null, data.token);

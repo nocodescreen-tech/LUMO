@@ -145,7 +145,7 @@ const AIChat = () => {
                                     <Sparkles size={20} />
                                 </div>
                                 <div>
-                                    <h4 style={{ margin: 0, fontWeight: '950', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>LUMO Assistant</h4>
+                                    <h4 style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>LUMO Assistant</h4>
                                     <span style={{ fontSize: '0.75rem', opacity: 0.8, fontWeight: '700' }}>Expert IA Stratégique</span>
                                 </div>
                             </div>
@@ -162,9 +162,9 @@ const AIChat = () => {
                         {/* Messages Area */}
                         <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-main)' }}>
                             {messages.length === 0 && (
-                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#64748b', padding: '20px' }}>
-                                    <Bot size={48} color="#6366f1" opacity={0.3} style={{ marginBottom: '16px' }} />
-                                    <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#64748b', fontWeight: 600 }}>Bonjour ! Posez-moi une question sur vos ventes, votre stock ou demandez-moi un conseil stratégique.</p>
+                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                                    <Bot size={48} color="#155E58" opacity={0.3} style={{ marginBottom: '16px' }} />
+                                    <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-muted)', fontWeight: 600 }}>Bonjour ! Posez-moi une question sur vos ventes, votre stock ou demandez-moi un conseil stratégique.</p>
                                 </div>
                             )}
                             {messages.map((m, i) => (
@@ -173,13 +173,13 @@ const AIChat = () => {
                                     maxWidth: '85%',
                                     padding: '14px 18px',
                                     borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                    backgroundColor: m.role === 'user' ? '#6366f1' : '#232333',
-                                    color: m.role === 'user' ? 'white' : '#e2e8f0',
+                                    backgroundColor: m.role === 'user' ? '#155E58' : 'var(--bg-card)',
+                                    color: m.role === 'user' ? 'white' : 'var(--text-main)',
                                     border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.06)',
                                     fontSize: '0.9rem',
                                     lineHeight: '1.6',
                                     fontWeight: 500,
-                                    boxShadow: m.role === 'user' ? '0 10px 15px -3px rgba(99, 102, 241, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
+                                    boxShadow: m.role === 'user' ? '0 10px 15px -3px rgba(21, 94, 88, 0.3)' : '0 2px 8px rgba(0,0,0,0.3)'
                                 }}>
                                     {m.content.split(/(\*\*.*?\*\*|\n)/g).map((part, idx) => {
                                         if (part === '\n') {
@@ -193,9 +193,9 @@ const AIChat = () => {
                                 </div>
                             ))}
                             {loading && messages[messages.length - 1]?.role === 'user' && (
-                                <div style={{ alignSelf: 'flex-start', background: '#232333', border: '1px solid rgba(255,255,255,0.06)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <Loader2 size={16} className="animate-spin" color="#6366f1" />
-                                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Analyse en cours...</span>
+                                <div style={{ alignSelf: 'flex-start', background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.06)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <Loader2 size={16} className="animate-spin" color="#155E58" />
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Analyse en cours...</span>
                                 </div>
                             )}
                         </div>
@@ -207,7 +207,7 @@ const AIChat = () => {
                                 placeholder="Posez votre question..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#232333', color: '#e2e8f0', outline: 'none', fontSize: '0.9rem', fontWeight: 500 }}
+                                style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none', fontSize: '0.9rem', fontWeight: 500 }}
                             />
                             <button
                                 type="submit"
@@ -232,14 +232,14 @@ const AIChat = () => {
                     width: '64px', height: '64px', borderRadius: '22px',
                     background: 'var(--grad-primary)', color: 'white',
                     border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', boxShadow: '0 15px 30px -10px rgba(99, 102, 241, 0.6)',
+                    cursor: 'pointer', boxShadow: '0 15px 30px -10px rgba(21, 94, 88, 0.6)',
                     position: 'relative'
                 }}
             >
                 {hasUnread && !isOpen && (
                     <div style={{
                         position: 'absolute', top: '-4px', right: '-4px',
-                        width: '20px', height: '20px', backgroundColor: '#ef4444',
+                        width: '20px', height: '20px', backgroundColor: 'var(--danger)',
                         border: '3px solid white', borderRadius: '50%',
                         boxShadow: '0 0 10px rgba(239, 68, 68, 0.5)'
                     }}></div>

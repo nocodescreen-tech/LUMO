@@ -17,7 +17,7 @@ import { generateMonthlyReport } from '../utils/printHelpers';
 import { useCurrency, getDisplayAmount } from '../utils/currencyHelpers';
 import { toast } from 'sonner';
 
-const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+const COLORS = ['#155E58', '#A84420', 'var(--success)', 'var(--warning)', 'var(--danger)', '#06b6d4', '#C98A1B'];
 
 const Stats = () => {
     const { user } = useAuthStore();
@@ -265,7 +265,7 @@ const Stats = () => {
                             </div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>
-                                <svg viewBox={`0 0 ${barW} ${barH + 50}`} style={{ width: '100%', minWidth: '400px' }}>
+                                <svg viewBox={`0 0 ${barW} ${barH + 50}`} style={{ width: '100%', minWidth: 'min(400px, 100%)' }}>
                                     <defs>
                                         <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.9" />

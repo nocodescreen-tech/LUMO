@@ -100,10 +100,10 @@ const Login = () => {
         padding: '20px',
         overflow: 'auto',
         position: 'relative',
-        backgroundColor: theme === 'dark' ? '#09090b' : '#f8fafc'
+        backgroundColor: theme === 'dark' ? 'var(--bg-main)' : 'var(--text-main)'
       }}>
       <style>{`
-        input::placeholder { color: ${theme === 'dark' ? '#64748b' : '#94a3b8'} !important; opacity: 1 !important; }
+        input::placeholder { color: ${theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)'} !important; opacity: 1 !important; }
         
         @media (max-width: 600px) {
           .auth-container { padding: 32px 24px !important; border-radius: 24px !important; }
@@ -128,7 +128,7 @@ const Login = () => {
             padding: '0 20px', height: '50px', borderRadius: '16px',
             background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
             border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-            color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+            color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             backdropFilter: 'blur(10px)', fontWeight: '800', fontSize: '0.85rem', gap: '10px'
           }}
@@ -146,7 +146,7 @@ const Login = () => {
               padding: '0 12px', height: '50px', borderRadius: '16px',
               background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
               border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+              color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
               backdropFilter: 'blur(10px)', fontWeight: '800', fontSize: '0.85rem', gap: '8px'
             }}
@@ -163,7 +163,7 @@ const Login = () => {
               width: '50px', height: '50px', borderRadius: '16px',
               background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
               border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-              color: theme === 'dark' ? '#f8fafc' : '#0f172a',
+              color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             }}
           >
@@ -180,7 +180,7 @@ const Login = () => {
           rotate: [0, 45, 0],
         }}
         transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        style={{ position: 'absolute', top: '-5%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)', filter: 'blur(80px)', zIndex: 0 }} 
+        style={{ position: 'absolute', top: '-5%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(21, 94, 88, 0.1) 0%, rgba(168, 68, 32, 0.05) 100%)', filter: 'blur(80px)', zIndex: 0 }} 
       />
       <motion.div 
         animate={{ 
@@ -219,13 +219,13 @@ const Login = () => {
         {/* Logo Section */}
         <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Link to="/" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Logo size={80} showText={true} textColor={theme === 'dark' ? '#f8fafc' : '#0f172a'} />
+            <Logo size={80} showText={true} textColor={theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)'} />
           </Link>
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            style={{ color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1.1rem', marginTop: '20px', fontWeight: 600 }}>
+            style={{ color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontSize: '1.1rem', marginTop: '20px', fontWeight: 600 }}>
             {step === '2fa' ? t.login2faTitle : t.loginTitle}
           </motion.p>
         </div>
@@ -238,16 +238,16 @@ const Login = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.loginEmail}</label>
+                <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', marginLeft: '4px' }}>{t.loginEmail}</label>
                 <div style={{ position: 'relative' }}>
-                  <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
+                  <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)' }} />
                   <input 
                     type="email" 
                     placeholder={t.phEmail} 
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem', fontWeight: '500' }} 
+                    style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', outline: 'none', fontSize: '1rem', fontWeight: '500' }} 
                   />
                 </div>
               </motion.div>
@@ -258,18 +258,18 @@ const Login = () => {
                 transition={{ delay: 0.5 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
-                  <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a' }}>{t.loginPassword}</label>
+                  <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)' }}>{t.loginPassword}</label>
                   <Link to="/forgot-password" style={{ fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>{t.loginForgot}</Link>
                 </div>
                 <div style={{ position: 'relative' }}>
-                  <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? '#94a3b8' : '#475569' }} />
+                  <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)' }} />
                   <input 
                     type="password" 
                     placeholder="••••••••" 
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '1rem' }} 
+                    style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: theme === 'dark' ? '1.5px solid rgba(255,255,255,0.1)' : '1.5px solid rgba(0,0,0,0.1)', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', outline: 'none', fontSize: '1rem' }} 
                   />
                 </div>
               </motion.div>
@@ -282,21 +282,21 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={loading}
-                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(109, 40, 217, 0.5)' }}
+                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(168, 68, 32, 0.5)' }}
               >
                 {loading ? t.loginLoading : (<>{t.loginSubmit} <ArrowRight size={22} /></>)}
               </motion.button>
             </motion.form>
           ) : (
             <motion.form key="2fa" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onSubmit={handle2FAVerify} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(99,102,241,0.08)', borderRadius: '20px', border: '1px solid rgba(99,102,241,0.2)' }}>
+              <div style={{ textAlign: 'center', padding: '20px', background: 'rgba(21,94,88,0.08)', borderRadius: '20px', border: '1px solid rgba(21,94,88,0.2)' }}>
                 <Shield size={40} color="var(--primary)" style={{ margin: '0 auto 12px' }} />
-                <p style={{ margin: 0, fontWeight: 700, color: theme === 'dark' ? '#f8fafc' : '#0f172a', fontSize: '1rem' }}>{t.login2faSubtitle}</p>
-                <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: theme === 'dark' ? '#94a3b8' : '#475569', fontWeight: 600 }}>{t.login2faValid}</p>
+                <p style={{ margin: 0, fontWeight: 700, color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', fontSize: '1rem' }}>{t.login2faSubtitle}</p>
+                <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontWeight: 600 }}>{t.login2faValid}</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? '#f8fafc' : '#0f172a', marginLeft: '4px' }}>{t.login2faCode}</label>
+                <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', marginLeft: '4px' }}>{t.login2faCode}</label>
                 <div style={{ position: 'relative' }}>
                   <KeyRound size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
                   <input
@@ -308,7 +308,7 @@ const Login = () => {
                     autoFocus
                     value={twoFACode}
                     onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ''))}
-                    style={{ width: '100%', padding: '20px 16px 20px 52px', borderRadius: '16px', border: '1.5px solid var(--primary)', backgroundColor: 'rgba(99,102,241,0.05)', color: theme === 'dark' ? '#f8fafc' : '#0f172a', outline: 'none', fontSize: '2rem', fontWeight: '900', letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'monospace' }}
+                    style={{ width: '100%', padding: '20px 16px 20px 52px', borderRadius: '16px', border: '1.5px solid var(--primary)', backgroundColor: 'rgba(21,94,88,0.05)', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', outline: 'none', fontSize: '2rem', fontWeight: '700', letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'monospace' }}
                   />
                 </div>
               </div>
@@ -318,7 +318,7 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading || twoFACode.length !== 6}
-                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(109, 40, 217, 0.5)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
+                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(168, 68, 32, 0.5)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
               >
                 {loading ? t.verifyLoading : (<><Shield size={22} /> {t.login2faSubmit}</>)}
               </motion.button>
@@ -334,7 +334,7 @@ const Login = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          style={{ textAlign: 'center', marginTop: '40px', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '1rem' }}>
+          style={{ textAlign: 'center', marginTop: '40px', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontSize: '1rem' }}>
           {t.loginNoAccount} {' '}
           <Link to="/register" style={{ color: 'var(--secondary)', textDecoration: 'none', fontWeight: '800', borderBottom: '2px solid var(--secondary-glow)' }}>
             {t.loginStart}
@@ -343,7 +343,7 @@ const Login = () => {
       </motion.div>
 
       {/* Footer Info */}
-      <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', color: theme === 'dark' ? '#94a3b8' : '#475569', fontSize: '0.85rem', fontWeight: '500' }}>
+      <div style={{ position: 'absolute', bottom: '32px', display: 'flex', gap: '24px', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '500' }}>
         <span>© 2026 Lumo Intelligence</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>&bull; Sécurisé par SSL</span>
       </div>

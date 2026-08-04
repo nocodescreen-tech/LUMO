@@ -302,7 +302,7 @@ const Dettes = () => {
                   const display = getDisplayAmount(totalDebt, shopCurrency, currency, exchangeRate);
                   return (
                     <div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)' }}>
                         {display.main}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '4px' }}>
@@ -312,7 +312,7 @@ const Dettes = () => {
                   );
                 })()
               ) : (
-                <div style={{ fontSize: '1.8rem', fontWeight: 950, color: 'var(--text-main)' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)' }}>
                   {s.noFormat ? `${s.value}${s.unit || ''}` : format(s.value)}
                 </div>
               )}
@@ -445,7 +445,7 @@ const Dettes = () => {
                         const display = getDisplayAmount(debt.detteTotale, shopCurrency, currency, exchangeRate);
                         return (
                           <>
-                            <div style={{ fontWeight: 950, fontSize: '1.2rem', color: statusColor }}>
+                            <div style={{ fontWeight: 800, fontSize: '1.2rem', color: statusColor }}>
                               {display.main}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>
@@ -644,7 +644,7 @@ const Dettes = () => {
               </button>
 
               {/* Icon */}
-              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, var(--success), #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 12px 28px rgba(16,185,129,0.3)' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'linear-gradient(135deg, var(--success), var(--success-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 12px 28px rgba(16,185,129,0.3)' }}>
                 <DollarSign size={30} color="white" />
               </div>
 

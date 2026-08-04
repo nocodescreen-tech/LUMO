@@ -160,8 +160,8 @@ const Purchases = () => {
 
     const getStatusStyle = (status: string) => {
         const s = status?.toLowerCase() || '';
-        if (s.includes('reçu') || s.includes('payé')) return { bg: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' };
-        if (s.includes('attente') || s.includes('cours')) return { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
+        if (s.includes('reçu') || s.includes('payé')) return { bg: 'rgba(15, 157, 106, 0.1)', color: 'var(--success)' };
+        if (s.includes('attente') || s.includes('cours')) return { bg: 'rgba(192, 126, 18, 0.1)', color: 'var(--warning)' };
         return { bg: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-muted)' };
     };
 
@@ -216,7 +216,7 @@ const Purchases = () => {
 
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
-                    <div style={{ position: 'relative', width: '400px' }}>
+                    <div style={{ position: 'relative', width: '400px', maxWidth: '100%' }}>
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input 
                           type="text" 
@@ -368,7 +368,7 @@ const Purchases = () => {
                                 <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <Package size={22} color="var(--primary)" /> {t('registerPurchaseTitle')}
                                 </h2>
-                                <button onClick={() => setShowModal(false)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+                                <button onClick={() => setShowModal(false)} style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
                             </div>
 
                             {/* ── Scrollable Body ── */}
@@ -428,11 +428,11 @@ const Purchases = () => {
                                 </div>
 
                                 {/* Devise + Taux de change */}
-                                <div style={{ background: 'var(--primary-glow)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(99,102,241,0.2)' }}>
+                                <div style={{ background: 'var(--primary-glow)', borderRadius: '14px', padding: '14px 16px', border: '1px solid rgba(21,94,88,0.2)' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', alignItems: 'end' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                             <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('invoiceCurrencyLabel')}</label>
-                                            <select value={formData.devise} onChange={e => setFormData({ ...formData, devise: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700, appearance: 'none' }}>
+                                            <select value={formData.devise} onChange={e => setFormData({ ...formData, devise: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(21,94,88,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700, appearance: 'none' }}>
                                                 <option value="USD">🇺🇸 USD — Dollar</option>
                                                 <option value="CDF">🇨🇩 CDF — Franc Congolais</option>
                                             </select>
@@ -443,7 +443,7 @@ const Purchases = () => {
                                                 <input
                                                     type="number" min={1} value={exchangeRate}
                                                     onChange={e => setExchangeRate(Number(e.target.value) || 1)}
-                                                    style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700 }}
+                                                    style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(21,94,88,0.3)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 700 }}
                                                 />
                                                 <span style={{ fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>CDF</span>
                                             </div>
@@ -522,7 +522,7 @@ const Purchases = () => {
                                                     {(item.quantite * item.prixAchat).toLocaleString()}
                                                     <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: '3px' }}>{formData.devise}</span>
                                                 </div>
-                                                <button type="button" onClick={() => setItems(items.filter((_: any, i: number) => i !== idx))} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><X size={15} /></button>
+                                                <button type="button" onClick={() => setItems(items.filter((_: any, i: number) => i !== idx))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', justifyContent: 'center' }}><X size={15} /></button>
                                             </div>
                                         ))}
                                         {/* Totals row */}
@@ -660,7 +660,7 @@ const Purchases = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '16px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'rgba(21, 94, 88, 0.05)', borderRadius: '16px', border: '1px solid rgba(21, 94, 88, 0.1)' }}>
                                 <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>{t('totalAmount')}</div>
                                 <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{selectedPurchase.montantTotal?.toLocaleString()} {currency}</div>
                             </div>

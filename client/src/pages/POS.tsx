@@ -505,12 +505,12 @@ toast.info(syncMsg);
                         }}
                         disabled={checkingSession}
                         className={`btn-hover ${cashSession ? 'danger' : 'primary'}`}
-                        style={{ padding: '14px 24px', borderRadius: '16px', fontWeight: 800, border: 'none', background: cashSession ? 'rgba(239, 68, 68, 0.1)' : 'var(--primary)', color: cashSession ? '#ef4444' : 'white', cursor: checkingSession ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: checkingSession ? 0.6 : 1 }}
+                        style={{ padding: '14px 24px', borderRadius: '16px', fontWeight: 800, border: 'none', background: cashSession ? 'rgba(214, 69, 69, 0.1)' : 'var(--primary)', color: cashSession ? 'var(--danger)' : 'white', cursor: checkingSession ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: checkingSession ? 0.6 : 1 }}
                     >
                         {checkingSession ? (
                             <Loader2 className="animate-spin" size={18} />
                         ) : (
-                            <Zap size={18} fill={cashSession ? '#ef4444' : 'white'} />
+                            <Zap size={18} fill={cashSession ? 'var(--danger)' : 'white'} />
                         )}
                         {checkingSession ? t('checking') : (cashSession ? t('closeRegister') : t('openRegister'))}
                     </button>
@@ -541,7 +541,7 @@ toast.info(syncMsg);
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                                 <div>
-                                    <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '1.1rem' }}>{displayPrice(product)}</span>
+                                    <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.1rem' }}>{displayPrice(product)}</span>
                                     {displayOriginalPrice(product) && (
                                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '2px' }}>
                                             ≙ {displayOriginalPrice(product)}
@@ -561,14 +561,14 @@ toast.info(syncMsg);
             </div>
 
             {/* Cart */}
-            <div className="glass" style={{ borderRadius: '32px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                <div style={{ padding: '32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="glass" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', backgroundColor: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <ShoppingCart size={28} />
                         </div>
                         <div>
-                            <h2 style={{ fontWeight: 900, fontSize: '1.4rem' }}>{t('customerCart')}</h2>
+                            <h2 style={{ fontWeight: 800, fontSize: '1.4rem' }}>{t('customerCart')}</h2>
                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{cart.length} {language === 'fr' ? 'articles sélectionnés' : 'selected items'}</p>
                         </div>
                     </div>
@@ -606,14 +606,14 @@ toast.info(syncMsg);
                                             </div>
                                         )}
                                         <div>
-                                            <p style={{ fontWeight: 900, color: 'var(--primary)', margin: 0, fontSize: '0.9rem' }}>
+                                            <p style={{ fontWeight: 800, color: 'var(--primary)', margin: 0, fontSize: '0.9rem' }}>
                                                 {displayCartItemPrice(item)}
                                             </p>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-main)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border)' }}>
                                         <button onClick={() => updateQuantity(item.cartId, Math.max(1, item.quantite - 1))} style={{ border: 'none', background: 'none', color: 'var(--text-main)', cursor: 'pointer' }}><Minus size={16} /></button>
-                                        <span style={{ fontWeight: 900, minWidth: '24px', textAlign: 'center' }}>{item.quantite}</span>
+                                        <span style={{ fontWeight: 800, minWidth: '24px', textAlign: 'center' }}>{item.quantite}</span>
                                         <button onClick={() => updateQuantity(item.cartId, item.quantite + 1)} style={{ border: 'none', background: 'none', color: 'var(--text-main)', cursor: 'pointer' }}><Plus size={16} /></button>
                                     </div>
                                     <button onClick={() => removeFromCart(item.cartId)} style={{ border: 'none', background: 'none', color: 'var(--danger)', opacity: 0.5, cursor: 'pointer' }}><X size={20} /></button>
@@ -638,7 +638,7 @@ toast.info(syncMsg);
                         </div>
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px' }}>{t('totalToPay')}</div>
-                            <div className="text-gradient" style={{ fontWeight: 900, fontSize: '2rem', lineHeight: '1', letterSpacing: '-0.02em' }}>{getSaleTotal().toLocaleString()} <span style={{ fontSize: '1rem' }}>{saleCurrency}</span></div>
+                            <div className="text-gradient" style={{ fontWeight: 800, fontSize: '2rem', lineHeight: '1', letterSpacing: '-0.02em' }}>{getSaleTotal().toLocaleString()} <span style={{ fontSize: '1rem' }}>{saleCurrency}</span></div>
                         </div>
                     </div>
 
@@ -670,16 +670,16 @@ toast.info(syncMsg);
 
                     {/* Calculateur de monnaie à rendre (uniquement Espèces) */}
                     {paymentMethod === 'Espèces' && (
-                        <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(99,102,241,0.2)', padding: '16px' }}>
+                        <div style={{ background: 'linear-gradient(135deg, rgba(21,94,88,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(21,94,88,0.2)', padding: '16px' }}>
                             <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('changeToReturn')}</div>
                             <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>{saleCurrency === 'USD' ? '$' : 'CDF'}</span>
+                                <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--primary)', fontSize: '1rem' }}>{saleCurrency === 'USD' ? '$' : 'CDF'}</span>
                                 <input
                                     type="number"
                                     placeholder={t('amountReceived')}
                                     value={amountReceived}
                                     onChange={(e) => setAmountReceived(e.target.value)}
-                                    style={{ width: '100%', padding: '10px 16px 10px 40px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 900, outline: 'none' }}
+                                    style={{ width: '100%', padding: '10px 16px 10px 40px', borderRadius: '12px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 800, outline: 'none' }}
                                 />
                             </div>
                             {amountReceived && !isNaN(parseFloat(amountReceived)) && (
@@ -689,10 +689,10 @@ toast.info(syncMsg);
                                     borderRadius: '12px', padding: '10px 14px',
                                     border: `1px solid ${parseFloat(amountReceived) >= getSaleTotal() ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`
                                 }}>
-                                    <span style={{ fontWeight: 800, fontSize: '0.85rem', color: parseFloat(amountReceived) >= getSaleTotal() ? '#10b981' : '#ef4444' }}>
+                                    <span style={{ fontWeight: 800, fontSize: '0.85rem', color: parseFloat(amountReceived) >= getSaleTotal() ? 'var(--success)' : 'var(--danger)' }}>
                                         {parseFloat(amountReceived) >= getSaleTotal() ? t('changeToGive') : t('insufficientAmount')}
                                     </span>
-                                    <span style={{ fontWeight: 900, fontSize: '1.1rem', color: parseFloat(amountReceived) >= getSaleTotal() ? '#10b981' : '#ef4444' }}>
+                                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: parseFloat(amountReceived) >= getSaleTotal() ? 'var(--success)' : 'var(--danger)' }}>
                                         {Math.abs(parseFloat(amountReceived) - getSaleTotal()).toLocaleString()} {saleCurrency}
                                     </span>
                                 </div>
@@ -716,10 +716,10 @@ toast.info(syncMsg);
             <AnimatePresence>
                 {selectedProductForVariants && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '32px' }}>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <div>
-                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>{t('chooseVariant')}</h2>
+                                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>{t('chooseVariant')}</h2>
                                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>{selectedProductForVariants.nom}</p>
                                 </div>
                                 <button onClick={() => setSelectedProductForVariants(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
@@ -776,9 +776,9 @@ toast.info(syncMsg);
                             <div style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
                                 <Zap size={40} fill="var(--primary)" />
                             </div>
-                            <h2 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '8px' }}>{t('cashRegisterOpening')}</h2>
+                            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '8px' }}>{t('cashRegisterOpening')}</h2>
                             <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', currency)}</p>
-                            <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} autoFocus style={{ width: '100%', padding: '20px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 900, textAlign: 'center', outline: 'none', marginBottom: '32px' }} />
+                            <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} autoFocus style={{ width: '100%', padding: '20px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', outline: 'none', marginBottom: '32px' }} />
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <button onClick={() => setShowCashModal(false)} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('cancelBtn')}</button>
                                 <button onClick={handleOpenSession} disabled={openingCash} className="btn-premium primary" style={{ flex: 2, padding: '16px', opacity: openingCash ? 0.6 : 1 }}>
@@ -798,7 +798,7 @@ toast.info(syncMsg);
                             <div style={{ width: '100px', height: '100px', borderRadius: '50%', backgroundColor: 'var(--success-glow)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px', border: '2px solid var(--success)' }}>
                                 <CheckCircle2 size={60} />
                             </div>
-                            <h2 style={{ fontSize: '2.5rem', fontWeight: 900, marginBottom: '16px' }}>{t('saleSuccessful')}</h2>
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '16px' }}>{t('saleSuccessful')}</h2>
                             {canPrint() && (
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
                                 <button onClick={() => (generateTicket as any)(lastSale, user)} className="btn-hover" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -806,7 +806,7 @@ toast.info(syncMsg);
                                     <span style={{ fontWeight: 800 }}>{t('ticket')}</span>
                                 </button>
                                 <button onClick={() => (generateInvoice as any)(lastSale, user)} className="btn-hover" style={{ padding: '20px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                    <Download size={24} color="#6366f1" />
+                                    <Download size={24} color="#155E58" />
                                     <span style={{ fontWeight: 800 }}>{t('invoiceA4')}</span>
                                 </button>
                             </div>
@@ -821,9 +821,9 @@ toast.info(syncMsg);
             <AnimatePresence>
                 {showClientModal && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1300 }}>
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '32px' }}>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="premium-card" style={{ width: '100%', maxWidth: '450px', padding: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                <h2 style={{ fontSize: '1.4rem', fontWeight: 900, margin: 0 }}>{t('checkoutCustomer')}</h2>
+                                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>{t('checkoutCustomer')}</h2>
                                 <button onClick={() => setShowClientModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 

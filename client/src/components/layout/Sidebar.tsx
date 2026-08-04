@@ -90,7 +90,7 @@ const Sidebar = () => {
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=128`;
 
   const roleLabel = user?.role === 'superadmin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : user?.role === 'manager' ? 'Manager' : 'Caissier';
-  const roleColor = user?.role === 'superadmin' ? '#a855f7' : user?.role === 'admin' ? '#6366f1' : user?.role === 'manager' ? '#f59e0b' : '#10b981';
+  const roleColor = user?.role === 'superadmin' ? '#A84420' : user?.role === 'admin' ? '#155E58' : user?.role === 'manager' ? '#f59e0b' : '#10b981';
 
   return (
     <div className="glass" style={{
@@ -287,7 +287,7 @@ const Sidebar = () => {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '11px 14px', borderRadius: '13px', cursor: 'pointer',
-                  color: '#ef4444', fontWeight: '700', fontSize: '0.9rem',
+                  color: 'var(--danger)', fontWeight: '700', fontSize: '0.9rem',
                   transition: 'background 0.2s',
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'}

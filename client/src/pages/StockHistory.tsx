@@ -89,9 +89,9 @@ const StockHistory = () => {
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
 
     const getIcon = (type: string) => {
-        if (type === 'ENTREE') return <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '10px', borderRadius: '12px' }}><ArrowUpRight size={20} /></div>;
-        if (type === 'SORTIE') return <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '10px', borderRadius: '12px' }}><ArrowDownRight size={20} /></div>;
-        return <div style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '10px', borderRadius: '12px' }}><Layers size={20} /></div>;
+        if (type === 'ENTREE') return <div style={{ background: 'rgba(15, 157, 106, 0.1)', color: 'var(--success)', padding: '10px', borderRadius: '12px' }}><ArrowUpRight size={20} /></div>;
+        if (type === 'SORTIE') return <div style={{ background: 'rgba(214, 69, 69, 0.1)', color: 'var(--danger)', padding: '10px', borderRadius: '12px' }}><ArrowDownRight size={20} /></div>;
+        return <div style={{ background: 'rgba(62, 110, 142, 0.1)', color: '#2E6E8E', padding: '10px', borderRadius: '12px' }}><Layers size={20} /></div>;
     };
 
     return (
@@ -182,7 +182,7 @@ const StockHistory = () => {
             {/* Table */}
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div className="table-responsive">
-                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-stockhist" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
                                 <th style={{ padding: '0 24px' }}>{t('dateAndProduct')}</th>
@@ -234,7 +234,7 @@ const StockHistory = () => {
                                                 <span style={{ 
                                                     fontWeight: 900, 
                                                     fontSize: '1.1rem',
-                                                    color: m.type === 'ENTREE' ? '#10b981' : m.type === 'SORTIE' ? '#ef4444' : 'var(--primary)'
+                                                    color: m.type === 'ENTREE' ? 'var(--success)' : m.type === 'SORTIE' ? 'var(--danger)' : 'var(--primary)'
                                                 }}>
                                                     {m.type === 'ENTREE' ? '+' : '-'}{m.quantite}
                                                 </span>

@@ -37,11 +37,11 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
             cursor: 'pointer'
           }}
         >
-          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>
+          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(192, 126, 18, 0.15)', color: 'var(--warning)' }}>
             <AlertTriangle size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#f59e0b', fontSize: '1.1rem' }}>
+            <h4 style={{ margin: 0, fontWeight: '700', color: 'var(--warning)', fontSize: '1.1rem' }}>
               {t('criticalStockTitle').replace('{count}', lowStockCount.toString())}
             </h4>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
@@ -71,11 +71,11 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
             cursor: 'pointer'
           }}
         >
-          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>
+          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(239, 68, 68, 0.2)', color: 'var(--danger)' }}>
             <AlertTriangle size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#ef4444', fontSize: '1.1rem' }}>
+            <h4 style={{ margin: 0, fontWeight: '700', color: 'var(--danger)', fontSize: '1.1rem' }}>
               {t('expiredProductsTitle').replace('{count}', expiringProductsCount.toString())}
             </h4>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>
@@ -98,19 +98,19 @@ const DashboardAlerts = ({ lowStockCount = 0, lowStockProducts = [], debtsTotal 
           style={{ 
             padding: '20px 24px', 
             borderRadius: '24px', 
-            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%)',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
+            background: 'linear-gradient(135deg, rgba(21, 94, 88, 0.1) 0%, rgba(21, 94, 88, 0.05) 100%)',
+            border: '1px solid rgba(21, 94, 88, 0.2)',
             display: 'flex',
             alignItems: 'center',
             gap: '20px',
             cursor: 'pointer'
           }}
         >
-          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(99, 102, 241, 0.2)', color: '#6366f1' }}>
+          <div style={{ padding: '12px', borderRadius: '16px', backgroundColor: 'rgba(21, 94, 88, 0.2)', color: '#155E58' }}>
             <CreditCard size={24} />
           </div>
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, fontWeight: '900', color: '#6366f1', fontSize: '1.1rem' }}>
+            <h4 style={{ margin: 0, fontWeight: '700', color: '#155E58', fontSize: '1.1rem' }}>
               {t('debtsToCollectTitle')}
             </h4>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.95rem', color: 'var(--text-main)', opacity: 0.8, fontWeight: 600 }}>

@@ -48,7 +48,7 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
     const tableHtml = [
         '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">',
         '<head><meta charset="utf-8"><style>',
-        '.title { font-size: 20px; font-weight: bold; color: #ffffff; background-color: #4f46e5; text-align: center; height: 50px; vertical-align: middle; }',
+        '.title { font-size: 20px; font-weight: bold; color: #ffffff; background-color: #0F4A45; text-align: center; height: 50px; vertical-align: middle; }',
         '.subtitle { font-size: 12px; font-style: italic; color: #64748b; text-align: right; height: 30px; vertical-align: middle; }',
         '.header { font-size: 14px; font-weight: bold; color: #ffffff; background-color: #1e293b; text-align: center; height: 40px; border: 1px solid #cbd5e1; vertical-align: middle; }',
         '.cell { font-size: 12px; border: 1px solid #cbd5e1; text-align: left; height: 25px; vertical-align: middle; padding: 5px; }',

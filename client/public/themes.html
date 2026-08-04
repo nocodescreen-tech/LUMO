@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LUMO — Choix du thème</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Space Grotesk', sans-serif; background: #EAE6DC; color: #1C1710; padding: 40px 28px 80px; }
+  h1 { font-family: 'Fraunces', serif; font-size: 2.2rem; font-weight: 600; letter-spacing: -0.02em; }
+  .intro { max-width: 860px; margin: 12px 0 36px; color: #5C554A; line-height: 1.6; }
+  .intro b { color: #1C1710; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; }
+  .card { background: #FFFDF7; border: 1px solid rgba(28,23,16,.14); border-radius: 14px; overflow: hidden; box-shadow: 0 18px 50px -30px rgba(28,23,16,.4); }
+  .card-head { padding: 16px 20px; border-bottom: 1px solid rgba(28,23,16,.1); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card-head h2 { font-family: 'Fraunces', serif; font-size: 1.25rem; font-weight: 600; }
+  .card-head .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: #6E6352; }
+  .preview { padding: 34px 28px 40px; }
+  .preview h3 { font-family: 'Fraunces', serif; font-size: 1.7rem; line-height: 1.08; letter-spacing: -0.02em; font-weight: 600; margin: 14px 0 10px; }
+  .preview h3 em { font-style: italic; }
+  .preview p { font-size: .86rem; line-height: 1.6; max-width: 420px; }
+  .btns { display: flex; gap: 10px; margin: 18px 0; flex-wrap: wrap; }
+  .btn { font-family: 'JetBrains Mono', monospace; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 10px 18px; border-radius: 6px; border: 1px solid transparent; cursor: default; }
+  .btn.ghost { background: transparent; }
+  .stats { display: flex; gap: 26px; margin-top: 20px; padding-top: 18px; border-top: 1px solid; flex-wrap: wrap; }
+  .stats b { display: block; font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 600; }
+  .stats span { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; }
+  .chips { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .chip { font-family: 'JetBrains Mono', monospace; font-size: .66rem; padding: 6px 12px; border-radius: 100px; border: 1px solid; }
+  .foot { margin-top: 44px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #6E6352; line-height: 1.8; }
+  .foot b { color: #1C1710; }
+  /* Palette A — Terre & Fleuve clair */
+  .A { background: #F5EFE3; color: #1C1710; }
+  .A h3 em { color: #C4552D; }
+  .A p { color: #6E6352; }
+  .A .btn.primary { background: #1F6F6B; color: #F5EFE3; }
+  .A .btn.ghost { border-color: rgba(28,23,16,.22); color: #1C1710; }
+  .A .stats { border-color: rgba(28,23,16,.14); }
+  .A .stats b { color: #1C1710; }
+  .A .stats span { color: #6E6352; }
+  .A .chip { border-color: rgba(31,111,107,.3); color: #1F6F6B; background: rgba(31,111,107,.08); }
+  /* Palette B — Nuit & Or (sombre doux) */
+  .B { background: #1A1F26; color: #E9E6E0; }
+  .B h3 em { color: #E0A93D; }
+  .B p { color: #A8A49A; }
+  .B .btn.primary { background: #E0A93D; color: #1A1F26; }
+  .B .btn.ghost { border-color: rgba(233,230,224,.25); color: #E9E6E0; }
+  .B .stats { border-color: rgba(233,230,224,.15); }
+  .B .stats b { color: #E9E6E0; }
+  .B .stats span { color: #A8A49A; }
+  .B .chip { border-color: rgba(62,156,148,.4); color: #5FC9C0; background: rgba(62,156,148,.12); }
+  /* Palette C — Océan clair */
+  .C { background: #F0F5F6; color: #15262B; }
+  .C h3 em { color: #167D7F; }
+  .C p { color: #55707A; }
+  .C .btn.primary { background: #167D7F; color: #F0F5F6; }
+  .C .btn.ghost { border-color: rgba(21,38,43,.2); color: #15262B; }
+  .C .stats { border-color: rgba(21,38,43,.12); }
+  .C .stats b { color: #15262B; }
+  .C .stats span { color: #55707A; }
+  .C .chip { border-color: rgba(22,125,127,.3); color: #167D7F; background: rgba(22,125,127,.08); }
+  /* Palette D — Perle & Fer (neutre clair) */
+  .D { background: #F5F4F1; color: #22262C; }
+  .D h3 em { color: #2E7D74; }
+  .D p { color: #6B7077; }
+  .D .btn.primary { background: #2E7D74; color: #F5F4F1; }
+  .D .btn.ghost { border-color: rgba(34,38,44,.2); color: #22262C; }
+  .D .stats { border-color: rgba(34,38,44,.12); }
+  .D .stats b { color: #22262C; }
+  .D .stats span { color: #6B7077; }
+  .D .chip { border-color: rgba(46,125,116,.3); color: #2E7D74; background: rgba(46,125,116,.08); }
+  /* Palette E — Aube (chaud clair) */
+  .E { background: #FAF4E9; color: #2A2118; }
+  .E h3 em { color: #B84A2F; }
+  .E p { color: #7A6C58; }
+  .E .btn.primary { background: #C98A1B; color: #FAF4E9; }
+  .E .btn.ghost { border-color: rgba(42,33,24,.2); color: #2A2118; }
+  .E .stats { border-color: rgba(42,33,24,.12); }
+  .E .stats b { color: #2A2118; }
+  .E .stats span { color: #7A6C58; }
+  .E .chip { border-color: rgba(201,138,27,.35); color: #A97310; background: rgba(201,138,27,.1); }
+  /* Palette F — Terre & Fleuve sombre (actuel) */
+  .F { background: #14100B; color: #EDE3CE; }
+  .F h3 em { color: #D9744A; }
+  .F p { color: #A99B7E; }
+  .F .btn.primary { background: #3E9C94; color: #14100B; }
+  .F .btn.ghost { border-color: rgba(237,227,206,.22); color: #EDE3CE; }
+  .F .stats { border-color: rgba(237,227,206,.15); }
+  .F .stats b { color: #EDE3CE; }
+  .F .stats span { color: #A99B7E; }
+  .F .chip { border-color: rgba(62,156,148,.4); color: #5FC9C0; background: rgba(62,156,148,.12); }
+  .current { position: relative; }
+  .current::after { content: 'ACTUEL'; position: absolute; top: 14px; right: 14px; background: #C4552D; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .14em; padding: 5px 10px; border-radius: 100px; }
+</style>
+</head>
+<body>
+  <h1>LUMO — choisis ton thème</h1>
+  <p class="intro">Chaque carte est un <b>aperçu réel</b> du futur visuel (fond, titres, boutons, cartes, badges). Dis-moi la <b>lettre</b> (A à F) que tu préfères — je l'applique <b>partout</b> : landing, connexion, inscription et tableau de bord. Les thèmes clairs sont pensés pour être doux pour les yeux, les sombres pour le confort nocturne.</p>
+  <div class="grid">
+    <div class="card"><div class="card-head"><h2>A — Terre &amp; Fleuve clair</h2><span class="tag">Papier chaud · teal &amp; terre cuite</span></div><div class="preview A"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+    <div class="card"><div class="card-head"><h2>B — Nuit &amp; Or</h2><span class="tag">Sombre doux bleu nuit · doré</span></div><div class="preview B"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+    <div class="card"><div class="card-head"><h2>C — Océan clair</h2><span class="tag">Bleu-vert frais · lumineux</span></div><div class="preview C"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+    <div class="card"><div class="card-head"><h2>D — Perle &amp; Fer</h2><span class="tag">Neutre clair · minimal</span></div><div class="preview D"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+    <div class="card"><div class="card-head"><h2>E — Aube</h2><span class="tag">Chaud clair · ambre &amp; brique</span></div><div class="preview E"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+    <div class="card current"><div class="card-head"><h2>F — Terre &amp; Fleuve sombre</h2><span class="tag">Encre chaude · teal &amp; terre cuite</span></div><div class="preview F"><span class="chip">● Gestion commerciale</span><h3>Gérez votre business <em>comme un expert.</em></h3><p>Ventes, stock, caisse, clients et analyses — une seule plateforme, pensée pour le commerce.</p><div class="btns"><span class="btn primary">Créer un compte</span><span class="btn ghost">Voir une démo</span></div><div class="chips"><span class="chip">+18% CA</span><span class="chip">Stock critique</span></div><div class="stats"><div><b>500+</b><span>Boutiques</span></div><div><b>99,9%</b><span>Disponibilité</span></div><div><b>24/7</b><span>Support</span></div></div></div></div>
+  </div>
+  <p class="foot">Ouvre <b>http://localhost:5180/themes.html</b> · Dis-moi la lettre (A–F) et je l'applique partout. Si aucun ne te va, dis-moi ce qui te dérange (trop sombre ? trop jaune ? trop fade ?) et j'ajuste.</p>
+</body>
+</html>
