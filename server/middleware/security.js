@@ -111,8 +111,8 @@ const securityMiddleware = (app) => {
 
     // Application du CSRF sur les autres routes
     app.use((req, res, next) => {
-        // Désactiver le CSRF pendant les tests automatisés
-        if (process.env.NODE_ENV === 'test') {
+        // Désactiver le CSRF pendant les tests automatisés et en production (cross-domain)
+        if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'production') {
             return next();
         }
 
