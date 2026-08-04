@@ -1281,8 +1281,6 @@ const Products = () => {
                 <Edit size={20} /> Sauvegarder
               </button>
             </div>
-          </div>
-          </div>
           </form>
         )}
       </Modal>
