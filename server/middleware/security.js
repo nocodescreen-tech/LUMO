@@ -6,38 +6,53 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 
-const allowedOrigins = [
+// Static origins always allowed (development + Capacitor WebView APK)
+const baseAllowedOrigins = [
+    'http://localhost',
+    'https://localhost',
+    'capacitor://localhost',
     'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5180',
+    'http://localhost:5181',
     'http://localhost:3000',
     'http://localhost:3001',
-    process.env.CLIENT_URL,
-    process.env.FRONTEND_URL,
-    'https://lumo-frontend-production-1dba.up.railway.app',
-].filter(Boolean);
+];
+
+// Dynamically build the allowed-origins list at startup so that Railway
+// env vars (injected at container start) are picked up correctly.
+const buildAllowedOrigins = () => {
+    const origins = [...baseAllowedOrigins];
+
+    // Frontend URL explicitly configured (e.g. https://lumo-frontend-xxxx.up.railway.app)
+    if (process.env.CLIENT_URL) {
+        origins.push(process.env.CLIENT_URL);
+    }
+
+    // Backend's own public Railway domain – allows same-origin requests and
+    // lets the backend call itself without CORS errors.
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+
+    return origins;
+};
+
+const isRailwayOrigin = (origin) => {
+    // Accept any Railway-hosted subdomain so preview / staging deployments
+    // work automatically without updating CLIENT_URL each time.
+    try {
+        const { hostname } = new URL(origin);
+        return hostname.endsWith('.up.railway.app');
+    } catch {
+        return false;
+    }
+};
 
 const securityMiddleware = (app) => {
-    // Set security HTTP headers — helmet avec CSP explicite + HSTS
-    // (helmet() seul n'active PAS la CSP par défaut)
-    app.use(helmet({
-        contentSecurityPolicy: {
-            directives: {
-                defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
-                // styles inline nécessaires (style={{}} + styled-components)
-                styleSrc: ["'self'", "'unsafe-inline'"],
-                imgSrc: ["'self'", "data:", "blob:", "https:"],
-                connectSrc: ["'self'", "https:"],
-                fontSrc: ["'self'", "data:", "https:"],
-                frameAncestors: ["'self'"],
-                upgradeInsecureRequests: [],
-            },
-        },
-        strictTransportSecurity: {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-        },
-    }));
+    // Set security HTTP headers
+    app.use(helmet());
 
     // Prevent XSS attacks
     app.use(xss());
@@ -48,9 +63,16 @@ const securityMiddleware = (app) => {
     // CORS – Restricted to known origins
     app.use(cors({
         origin: (origin, callback) => {
-            // Allow requests with no origin (curl, mobile apps)
+            // Allow requests with no origin (curl, mobile apps, server-to-server)
             if (!origin) return callback(null, true);
+
+            const allowedOrigins = buildAllowedOrigins();
+
             if (allowedOrigins.includes(origin)) return callback(null, true);
+
+            // Allow any *.up.railway.app origin (covers preview deployments)
+            if (isRailwayOrigin(origin)) return callback(null, true);
+
             callback(new Error('CORS: Origine non autorisée'));
         },
         credentials: true,
@@ -82,22 +104,15 @@ const securityMiddleware = (app) => {
         next();
     };
     
-    // Route pour initialiser le CSRF (désactivé en production - cross-domain avec Railway)
-    app.get('/api/csrf-token', (req, res) => {
-        // En production (2 domaines Railway différents), le CSRF via cookie ne fonctionne pas.
-        // L'auth JWT Bearer est suffisante. On retourne juste un succès.
-        if (process.env.NODE_ENV === 'production') {
-            return res.json({ success: true });
-        }
-        csrfProtection(req, res, () => {
-            setCsrfCookie(req, res, () => res.json({ success: true }));
-        });
+    // Route pour initialiser le CSRF explicitement si besoin
+    app.get('/api/csrf-token', csrfProtection, setCsrfCookie, (req, res) => {
+        res.json({ success: true });
     });
 
-    // Application du CSRF sur les autres routes (dev uniquement)
+    // Application du CSRF sur les autres routes
     app.use((req, res, next) => {
-        // Désactiver le CSRF en production (cross-domain) et pendant les tests
-        if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') {
+        // Désactiver le CSRF pendant les tests automatisés
+        if (process.env.NODE_ENV === 'test') {
             return next();
         }
 
@@ -128,30 +143,20 @@ const securityMiddleware = (app) => {
     });
     app.use('/api', apiLimiter);
 
-    // Strict auth limiter — login & forgot-password : 10 tentatives / 15 min / IP
-    // (brute-force protection ; 100 était trop laxiste)
+    // Strict auth limiter
     const authLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 10,
+        max: 100,
         standardHeaders: true,
         legacyHeaders: false,
-        message: { message: 'Trop de tentatives. Réessayez dans 15 minutes.' },
+        message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
     });
     app.use('/api/v1/auth/login', authLimiter);
     app.use('/api/auth/login', authLimiter);
+    app.use('/api/v1/auth/register', authLimiter);
+    app.use('/api/auth/register', authLimiter);
     app.use('/api/v1/auth/forgot-password', authLimiter);
     app.use('/api/auth/forgot-password', authLimiter);
-
-    // Registration limiter — 20 inscriptions / 15 min / IP (moins strict : cas d'usage légitime multiples)
-    const registerLimiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 20,
-        standardHeaders: true,
-        legacyHeaders: false,
-        message: { message: 'Trop d\'inscriptions. Réessayez dans 15 minutes.' },
-    });
-    app.use('/api/v1/auth/register', registerLimiter);
-    app.use('/api/auth/register', registerLimiter);
 };
 
 module.exports = securityMiddleware;
