@@ -54,9 +54,11 @@ interface AuthState {
   currency: 'USD' | 'CDF';
   exchangeRate: number;
   enabledModules: string[];
+  hydrating: boolean;
   setAuth: (user: User, token: string, refreshToken?: string) => void;
   logout: (shouldRedirect?: boolean) => void;
   checkAuth: (shouldRedirect?: boolean) => Promise<void>;
+  hydrateFromRefresh: () => Promise<boolean>;
   updateUser: (data: Partial<User>) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   setLanguage: (lang: 'fr' | 'en') => void;
@@ -114,6 +116,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   currency: 'CDF',
   exchangeRate: 0,
   enabledModules: [],
+  hydrating: true,
 
   setAuth: (user, token, refreshToken) => {
     // SECURITY: persist ONLY the access token. The user object (with PII) stays
@@ -136,8 +139,52 @@ export const useAuthStore = create<AuthState>((set) => ({
         language: lang as any,
         enabledModules: modules,
         currency: curr,
-        exchangeRate: rate
+        exchangeRate: rate,
+        hydrating: false
     });
+  },
+
+  hydrateFromRefresh: async () => {
+    try {
+      const refreshResponse = await api.post('/auth/refresh');
+      const token = refreshResponse.data?.token;
+      if (!token) {
+        set({ hydrating: false });
+        return false;
+      }
+
+      setStoredToken(token);
+
+      const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+      const user = data.user || data;
+      const prefs = user.preferences || {};
+
+      const curr = normalizeCurrency((prefs.currency as any) || (user.entreprise?.devise as any));
+      const theme = prefs.theme || 'dark';
+      const lang = prefs.language || 'fr';
+      const modules = normalizeModules(prefs.enabledModules || []);
+      const rate = Number(prefs.exchangeRate || 0);
+
+      document.documentElement.setAttribute('data-theme', theme);
+
+      set({
+        user,
+        token,
+        theme: theme as any,
+        language: lang as any,
+        enabledModules: modules,
+        currency: curr,
+        exchangeRate: rate,
+        hydrating: false
+      });
+
+      return true;
+    } catch (err) {
+      setStoredToken(null);
+      clearLegacyAuthStorage();
+      set({ token: null, user: null, hydrating: false });
+      return false;
+    }
   },
 
   logout: async (shouldRedirect = true) => {
