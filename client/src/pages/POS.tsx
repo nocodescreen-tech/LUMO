@@ -24,6 +24,7 @@ import api from '../api/axios';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'sonner';
+import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
 
 const POS = () => {

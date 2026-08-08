@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { normalizeAmount } from '../utils/currencyHelpers';
 
 interface CartItem {
   id: number;

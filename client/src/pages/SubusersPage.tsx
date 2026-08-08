@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
+import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { TeamSection } from '../components/team/TeamSection';
@@ -34,7 +35,11 @@ const SubusersPage = () => {
           api.get(`/sales?limit=500&_t=${Date.now()}`)
         ]);
         const subs = Array.isArray(subRes.data) ? subRes.data : (subRes.data?.data || []);
-        const sales = Array.isArray(salesRes.data) ? salesRes.data : (salesRes.data?.data || (salesRes.data?.sales || []));
+        const sales = Array.isArray(salesRes.data) ? salesRes.data 
+          : (Array.isArray(salesRes.data?.data) ? salesRes.data.data 
+          : (Array.isArray(salesRes.data?.sales) ? salesRes.data.sales 
+          : (Array.isArray(salesRes.data?.data?.sales) ? salesRes.data.data.sales 
+          : [])));
         setSubusers(subs);
         setAllSales(sales);
       } catch (err) {

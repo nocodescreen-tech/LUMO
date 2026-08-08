@@ -32,6 +32,7 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import { exportToExcel } from '../utils/exportUtils';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
+import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const Clients = () => {
   const { t } = useTranslation();

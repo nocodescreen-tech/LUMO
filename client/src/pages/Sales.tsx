@@ -27,6 +27,7 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { getEffectiveRate } from '../utils/currencyHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import { toast } from 'sonner';

@@ -16,6 +16,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { normalizeAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';

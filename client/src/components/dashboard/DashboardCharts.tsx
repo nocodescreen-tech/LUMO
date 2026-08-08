@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/useAuthStore';
+import { normalizeAmount } from '../../utils/currencyHelpers';
 
 interface ChartProps {
   salesData?: any[];
