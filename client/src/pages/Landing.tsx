@@ -865,8 +865,8 @@ export default function Landing() {
         .lp-chat-input input:focus { outline: none; border-color: var(--fleuve); }
         .lp-chat-input button { background: var(--fleuve); color: #F5EFE3; border: 0; border-radius: 8px; width: 44px; cursor: pointer; display: grid; place-items: center; }
         /* Cookie */
-        .lp-cookie { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0E0C08; color: #EDE3CE; border-radius: 12px; padding: 18px 22px; display: flex; align-items: center; gap: 18px; z-index: 95; max-width: min(640px, calc(100vw - 32px)); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); }
-        .lp-cookie span { font-size: 15px; line-height: 1.5; opacity: .9; }
+        .lp-cookie { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0E0C08; color: #EDE3CE; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: center; gap: 16px; z-index: 95; max-width: min(640px, calc(100vw - 32px)); box-shadow: 0 24px 60px -20px rgba(0,0,0,0.5); flex-wrap: wrap; text-align: center; }
+        .lp-cookie span { font-size: 14px; line-height: 1.5; opacity: .9; flex: 1 1 200px; }
         .lp-cookie button { background: var(--or); color: #14100B; border: 0; border-radius: 8px; padding: 12px 24px; font-family: var(--font-mono); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .3s cubic-bezier(0.25, 1, 0.5, 1); }
         .lp-cookie button:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -10px rgba(169,116,17,0.8); }
         /* Back to top */
