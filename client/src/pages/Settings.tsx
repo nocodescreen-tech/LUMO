@@ -1412,10 +1412,10 @@ const Settings = () => {
 
                 {[
                   { id: 'ai', label: t('moduleAILabel'), desc: t('moduleAIDesc'), icon: Sparkles, color: '#155E58', active: enabledModules.includes('ai') },
-                  { id: 'suppliers', label: t('moduleSuppliersLabel'), desc: t('moduleSuppliersDesc'), icon: Package, color: 'var(--success)', active: enabledModules.includes('suppliers') },
-                  { id: 'debts', label: t('moduleDebtsLabel'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: 'var(--warning)', active: enabledModules.includes('debts') },
+                  { id: 'suppliers', label: t('moduleSuppliersLabel'), desc: t('moduleSuppliersDesc'), icon: Truck, color: '#0F9D6A', active: enabledModules.includes('suppliers') },
+                  { id: 'debts', label: t('moduleDebtsLabel'), desc: t('moduleDebtsDesc'), icon: CreditCard, color: '#C07E12', active: enabledModules.includes('debts') },
                   { id: 'analytics', label: t('moduleStatsLabel'), desc: t('moduleStatsDesc'), icon: BarChart2, color: '#2E6E8E', active: enabledModules.includes('analytics') },
-                  { id: 'cash', label: t('moduleCashLabel'), desc: t('moduleCashDesc'), icon: Wallet, color: 'var(--success)', active: enabledModules.includes('cash') },
+                  { id: 'cash', label: t('moduleCashLabel'), desc: t('moduleCashDesc'), icon: Wallet, color: '#0F9D6A', active: enabledModules.includes('cash') },
                   { id: 'barcode', label: t('moduleBarcodeLabel'), desc: t('moduleBarcodeDesc'), icon: Camera, color: '#C98A1B', active: enabledModules.includes('barcode') },
                 ].map((mod) => (
                   <div
