@@ -59,42 +59,6 @@ import { BUSINESS_TYPES } from '../constants/businessTypes';
 import ConfirmModal from '../components/common/ConfirmModal';
 import Modal from '../components/common/Modal';
 
-const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, readOnly = false, required = false }: any) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-    <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-      {label} {required && <span style={{ color: 'var(--danger)' }}>*</span>}
-    </label>
-    <div style={{ position: 'relative' }}>
-      {Icon && <Icon size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.8, zIndex: 2 }} />}
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        readOnly={readOnly}
-        required={required}
-        style={{
-          width: '100%',
-          padding: Icon ? '15px 16px 15px 48px' : '15px 16px',
-          borderRadius: '16px',
-          border: '2px solid var(--border-strong)',
-          backgroundColor: readOnly ? 'var(--sidebar-active)' : 'var(--bg-card)',
-          color: 'var(--text-main)',
-          fontSize: '0.95rem',
-          outline: 'none',
-          fontWeight: '700',
-          opacity: readOnly ? 0.8 : 1,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          cursor: readOnly ? 'default' : 'text',
-          boxSizing: 'border-box',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-        }}
-        onFocus={e => { if (!readOnly) { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 4px var(--primary-glow)'; } }}
-        onBlur={e => { e.target.style.borderColor = 'var(--border-strong)'; e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)'; }}
-      />
-    </div>
-  </div>
-);
 
 const TwoFASection = () => {
   const { t } = useTranslation();
