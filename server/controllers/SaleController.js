@@ -501,7 +501,7 @@ exports.refundSale = async (req, res, next) => {
     await sale.save({ transaction });
 
     // Log activité remboursement
-    await logActivite(req.user.id, 'REMBOURSEMENT', , 'Ventes', userId);
+    await logActivite(req.user.id, 'REMBOURSEMENT', `Remboursement vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
     await transaction.commit();
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');

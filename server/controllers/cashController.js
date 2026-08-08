@@ -64,7 +64,7 @@ exports.openSession = async (req, res, next) => {
         });
 
         // Log activité
-        await logActivite(req.user.id, 'CAISSE', , 'Caisse', userId);
+        await logActivite(req.user.id, 'CAISSE', `Ouverture de caisse #${session.id}`, 'Caisse', userId);
         const { sendResponse } = require('../utils/response');
         sendResponse(res, 201, session, 'Caisse ouverte');
     } catch (error) {
@@ -116,7 +116,7 @@ exports.closeSession = async (req, res, next) => {
         });
 
         // Log activité
-        await logActivite(req.user.id, 'CAISSE', , 'Caisse', userId);
+        await logActivite(req.user.id, 'CAISSE', `Fermeture de caisse #${session.id} — solde: ${closingBalance || expectedBalance}`, 'Caisse', userId);
         res.status(200).json(session);
     } catch (error) {
         next(error);
