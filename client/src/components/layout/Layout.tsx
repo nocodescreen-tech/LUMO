@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -60,6 +60,24 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchResults, setShowSearchResults] = useState(false);
+    const [apiSearchResults, setApiSearchResults] = useState<any>(null);
+    const searchTimeoutRef = useRef<any>(null);
+
+    // Recherche API avec debounce
+    useEffect(() => {
+        if (searchQuery.length >= 2) {
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+            searchTimeoutRef.current = setTimeout(async () => {
+                try {
+                    const { data } = await api.get('/search?q=' + encodeURIComponent(searchQuery));
+                    setApiSearchResults(data);
+                } catch { setApiSearchResults(null); }
+            }, 300);
+        } else {
+            setApiSearchResults(null);
+        }
+        return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+    }, [searchQuery]);
     const navigate = useNavigate();
     const location = useLocation();
     const t = (translations as any)[language] || translations.fr;

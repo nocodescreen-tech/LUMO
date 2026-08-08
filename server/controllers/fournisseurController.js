@@ -34,6 +34,7 @@ exports.createFournisseur = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
     const fournisseur = await Fournisseur.create({ ...req.body, userId });
+    await logActivite(req.user.id, 'FOURNISSEUR', `Nouveau fournisseur: ${req.body.nom || req.body.entreprise}`, 'Achats', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, fournisseur, 'Fournisseur créé');
   } catch (error) {
@@ -54,6 +55,7 @@ exports.updateFournisseur = async (req, res, next) => {
     const fournisseur = await Fournisseur.findOne({ where: { id: req.params.id, userId } });
     if (!fournisseur) return res.status(404).json({ message: 'Fournisseur non trouvé' });
     await fournisseur.update(req.body);
+    await logActivite(req.user.id, 'FOURNISSEUR', `Mise à jour fournisseur: ${fournisseur.nom}`, 'Achats', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, fournisseur, 'Fournisseur mis à jour');
   } catch (error) {
@@ -66,7 +68,9 @@ exports.deleteFournisseur = async (req, res, next) => {
     const userId = req.user.tenantId;
     const fournisseur = await Fournisseur.findOne({ where: { id: req.params.id, userId } });
     if (!fournisseur) return res.status(404).json({ message: 'Fournisseur non trouvé' });
+        const fNom = fournisseur.nom;
     await fournisseur.destroy();
+    await logActivite(req.user.id, 'FOURNISSEUR', `Suppression fournisseur: ${fNom}`, 'Achats', fournisseur.userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, null, 'Fournisseur supprimé');
   } catch (error) {

@@ -1,5 +1,6 @@
 const { CashSession, Sale } = require('../models');
 const { Op } = require('sequelize');
+const { logActivite } = require('./activiteController');
 
 exports.getCurrentSession = async (req, res, next) => {
     try {
@@ -62,6 +63,8 @@ exports.openSession = async (req, res, next) => {
             status: 'OPEN'
         });
 
+        // Log activité
+        await logActivite(req.user.id, 'CAISSE', , 'Caisse', userId);
         const { sendResponse } = require('../utils/response');
         sendResponse(res, 201, session, 'Caisse ouverte');
     } catch (error) {
@@ -112,6 +115,8 @@ exports.closeSession = async (req, res, next) => {
             note: note || session.note
         });
 
+        // Log activité
+        await logActivite(req.user.id, 'CAISSE', , 'Caisse', userId);
         res.status(200).json(session);
     } catch (error) {
         next(error);

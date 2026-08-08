@@ -14,7 +14,7 @@ import {
   Download,
   Activity,
   Plus,
-  Loader2,
+  Loader2, AlertCircle,
   Trophy,
   ArrowLeftRight,
   Boxes
@@ -29,6 +29,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
+import { notifySound } from '../utils/notificationSound';
 import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
@@ -143,6 +144,11 @@ const Dashboard = () => {
           // Standardize access: { success: true, data: { ... } }
           const sData = statsRes.data;
           setStats(sData.success && sData.data ? sData.data : sData);
+          // Son si alertes
+          const summary = (sData.success && sData.data ? sData.data : sData)?.summary;
+          if (summary && (summary.lowStockCount > 0 || summary.debtToCollect > 0)) {
+            notifySound(user?.preferences?.notificationSoundEnabled !== false);
+          }
           
           const cData = chartRes.data;
           let chartList = [];

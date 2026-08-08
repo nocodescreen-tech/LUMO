@@ -143,6 +143,7 @@ v1Routes.use('/ux', require('./routes/uxRoutes'));
 v1Routes.use('/subusers', require('./routes/subUserRoutes'));
 v1Routes.use('/staff-payments', require('./routes/staffPaymentRoutes'));
 v1Routes.use('/newsletter', require('./routes/newsletterRoutes'));
+v1Routes.use('/search', require('./routes/searchRoutes'));
 v1Routes.use('/contact', require('./routes/contactRoutes'));
 
 app.get('/health', async (req, res) => {

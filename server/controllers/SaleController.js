@@ -2,6 +2,7 @@ const { Sale, Product, Client, Notification } = require('../models');
 const { validateSale } = require('../middleware/validators');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
+const { logActivite } = require('./activiteController');
 const { convertCurrency } = require('../utils/currency');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
@@ -498,6 +499,9 @@ exports.refundSale = async (req, res, next) => {
 
     sale.statut = 'Remboursée';
     await sale.save({ transaction });
+
+    // Log activité remboursement
+    await logActivite(req.user.id, 'REMBOURSEMENT', , 'Ventes', userId);
     await transaction.commit();
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
