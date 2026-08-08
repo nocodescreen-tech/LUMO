@@ -89,16 +89,29 @@ export const setMemoryToken = (token: string | null) => {
 };
 
 const clearLegacyAuthStorage = () => {
-  LEGACY_AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  // Only clear truly legacy keys — preserve lumo-token (managed by setStoredToken)
+  // and lumo-token-superadmin (managed by impersonation flow)
+  ['lumo-auth', 'token', 'refreshToken'].forEach((key) => localStorage.removeItem(key));
 };
 
 const getStoredToken = (): string | null => {
-  return getMemoryToken();
+  // Memory-first, localStorage as fallback for cross-reload persistence (impersonation, etc.)
+  return getMemoryToken() || localStorage.getItem('lumo-token');
 };
 
 const setStoredToken = (token: string | null) => {
   setMemoryToken(token);
-  clearLegacyAuthStorage();
+  if (token) {
+    localStorage.setItem('lumo-token', token);
+  } else {
+    localStorage.removeItem('lumo-token');
+  }
+  // Clean up other legacy keys but preserve lumo-token
+  ['lumo-auth', 'lumo-token-superadmin', 'token', 'refreshToken'].forEach((key) => {
+    // Don't delete lumo-token-superadmin here — it's managed by impersonation flow
+    if (key === 'lumo-token-superadmin') return;
+    localStorage.removeItem(key);
+  });
 };
 
 const loadInitialAuth = () => {
@@ -194,7 +207,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Ignorer si déjà expiré ou réseau coupé
     }
 
-    clearLegacyAuthStorage();
+    // Full cleanup: clear all auth keys including impersonation
+    ['lumo-token', 'lumo-token-superadmin', 'lumo-auth', 'token', 'refreshToken'].forEach((key) => localStorage.removeItem(key));
     setMemoryToken(null);
 
     set({
