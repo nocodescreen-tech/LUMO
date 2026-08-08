@@ -13,7 +13,9 @@ import {
   Download,
   X,
   Loader2,
-  FileText
+  FileText,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { normalizeAmount } from '../utils/currencyHelpers';
