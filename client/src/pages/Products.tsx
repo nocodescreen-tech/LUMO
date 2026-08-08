@@ -37,6 +37,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import * as XLSX from 'xlsx';
 import { BUSINESS_TYPES } from '../constants/businessTypes';
 import { useTranslation } from '../hooks/useTranslation';
+import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const normalizeActivityType = (type: string | undefined | null) => {
   if (!type) return 'commerce-general';
@@ -57,7 +58,7 @@ const Products = () => {
 
   const user = useAuthStore(state => state.user);
   const currency = useAuthStore(state => state.currency) || 'CDF';
-  const exchangeRate = useAuthStore(state => state.exchangeRate) || 2250;
+  const exchangeRate = getEffectiveRate();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
@@ -70,12 +71,8 @@ const Products = () => {
 
   // Conversion utility: convert a price from one currency to another
   const convertPrice = (price: number, fromDevise: string, toDevise: string): number => {
-    if (fromDevise === toDevise || !exchangeRate || exchangeRate === 0) return price;
-    // CDF -> USD
-    if (fromDevise === 'CDF' && toDevise === 'USD') return Math.round((price / exchangeRate) * 100) / 100;
-    // USD -> CDF
-    if (fromDevise === 'USD' && toDevise === 'CDF') return Math.round(price * exchangeRate);
-    return price;
+    if (fromDevise === toDevise) return price;
+    return normalizeAmount(price, fromDevise, toDevise, exchangeRate);
   };
 
   const normalizeCurrency = (val: string): string => {

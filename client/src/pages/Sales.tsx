@@ -96,7 +96,7 @@ const Sales = () => {
     const getSaleDisplayAmounts = (sale: any) => {
         const storedAmount = Number(sale?.montantTotal || 0);
         const saleCurrency = sale?.devise || shopCurrency;
-        const rate = Number(sale?.tauxChange || exchangeRate);
+        const rate = Number(sale?.tauxChange || getEffectiveRate());
         const altCurrency = saleCurrency === 'USD' ? 'CDF' : 'USD';
 
         // The backend stores montantTotal directly in the saleCurrency. No need to reconstruct it from shopCurrency.

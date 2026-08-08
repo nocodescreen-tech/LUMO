@@ -22,14 +22,14 @@ import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { generateCashSessionReport } from '../utils/printHelpers';
-import { getDisplayAmount, normalizeAmount } from '../utils/currencyHelpers';
+import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { Printer } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 
 const Cash = () => {
     const { t } = useTranslation();
     const { currency, user } = useAuthStore();
-    const exchangeRate = user?.preferences?.exchangeRate || 2800;
+    const exchangeRate = getEffectiveRate();
     const shopCurrency = (user?.entreprise?.devise === 'FC' ? 'CDF' : user?.entreprise?.devise) || 'CDF';
 
     const formatAmt = (amount: number) => {

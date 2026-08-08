@@ -74,10 +74,25 @@ export const formatMontant = (
   return `${formatSmart(converted)} ${displayCurrency}`;
 };
 
+/**
+ * Taux de change effectif — source unique pour toute l'application.
+ * Priorité : préférences utilisateur → fallback 2800 (taux RDC standard).
+ * JAMAIS 0 — si 0, la conversion est ignorée et le prix affiché est faux.
+ */
+export const getEffectiveRate = (): number => {
+  try {
+    const state = useAuthStore.getState();
+    const rate = Number(state.exchangeRate);
+    return rate > 0 ? rate : 2800;
+  } catch {
+    return 2800;
+  }
+};
+
 export const useCurrency = () => {
   const { user } = useAuthStore();
   const displayCurrency = (user as any)?.preferences?.currency || 'CDF';
-  const exchangeRate = Number((user as any)?.preferences?.exchangeRate || 0);
+  const exchangeRate = getEffectiveRate();
 
   const convert = (amount: number, fromDevise: string = 'CDF') => {
     return normalizeAmount(amount, fromDevise, displayCurrency, exchangeRate);

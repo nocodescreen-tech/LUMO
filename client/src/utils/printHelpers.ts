@@ -1,4 +1,4 @@
-import { normalizeAmount } from './currencyHelpers';
+import { normalizeAmount, getEffectiveRate } from './currencyHelpers';
 
 type Lang = 'fr' | 'en';
 
@@ -87,7 +87,7 @@ export const generateInvoice = (data: any, user: any = null) => {
   try {
     const shopCurrency = normalizeCurrency(user?.entreprise?.devise);
     const saleCurrency = normalizeCurrency(data?.devise || data?.currency || shopCurrency);
-    const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
+    const rate = Number(data?.tauxChange || getEffectiveRate());
     const storedTotal = Number(data?.montantTotal || data?.total || 0);
     // storedTotal is already in saleCurrency (data.devise). No need to normalize it from shopCurrency!
     const displayTotal = storedTotal;
@@ -268,7 +268,7 @@ export const generateTicket = (data: any, user: any = null) => {
   try {
     const shopCurrency = normalizeCurrency(user?.entreprise?.devise);
     const saleCurrency = normalizeCurrency(data?.devise || data?.currency || shopCurrency);
-    const rate = Number(data?.tauxChange || user?.preferences?.exchangeRate || 2800);
+    const rate = Number(data?.tauxChange || getEffectiveRate());
     const storedTotal = Number(data?.montantTotal || data?.total || 0);
     // storedTotal is already in saleCurrency (data.devise). No need to normalize it from shopCurrency!
     const displayTotal = storedTotal;
@@ -412,7 +412,7 @@ export const generateMonthlyReport = (data: any, user: any, periodLabel: string)
   const lang = getPrintLanguage(user);
   const displayCurrency = normalizeCurrency(user?.preferences?.currency || 'CDF');
   const altCurrency = displayCurrency === 'CDF' ? 'USD' : 'CDF';
-  const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+  const exchangeRate = getEffectiveRate();
   const baseCurrency = 'CDF';
 
   const getMainAmount = (amount: number) => normalizeAmount(amount, baseCurrency, displayCurrency, exchangeRate);
@@ -556,7 +556,7 @@ export const generateCashSessionReport = (session: any, user: any) => {
   try {
     const currency = normalizeCurrency(user?.preferences?.currency || user?.entreprise?.devise || 'CDF');
     const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
-    const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+    const exchangeRate = getEffectiveRate();
     const shopCurrency = normalizeCurrency(user?.entreprise?.devise || 'CDF');
 
     const formatMain = (amount: number) => {

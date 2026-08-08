@@ -7,7 +7,7 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
     const { user, language } = useAuthStore.getState() as any;
     const currency = user?.preferences?.currency || 'USD';
     const shopCurrency = user?.entreprise?.devise || 'CDF';
-    const exchangeRate = Number(user?.preferences?.exchangeRate || 2800);
+    const exchangeRate = getEffectiveRate();
     const dateLocale = language === 'en' ? 'en-US' : 'fr-FR';
 
     const headers = Object.keys(data[0]);

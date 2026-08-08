@@ -471,7 +471,7 @@ const Purchases = () => {
                                                 // Show price converted to selected invoice currency
                                                 const displayPrice = formData.devise === 'USD'
                                                     ? (p.prixAchat || 0)
-                                                    : Math.round((p.prixAchat || 0) * exchangeRate);
+                                                    : normalizeAmount(p.prixAchat || 0, p.devise || currency, currency, exchangeRate);
                                                 return (
                                                     <div key={p.id}
                                                         onClick={() => {
@@ -479,7 +479,7 @@ const Purchases = () => {
                                                             // Store price in invoice currency
                                                             const convertedPrice = formData.devise === 'USD'
                                                                 ? (p.prixAchat || 0)
-                                                                : Math.round((p.prixAchat || 0) * exchangeRate);
+                                                                : normalizeAmount(p.prixAchat || 0, p.devise || currency, currency, exchangeRate);
                                                             if (existing) {
                                                                 setItems(items.map((i: any) => i.id === p.id ? { ...i, quantite: i.quantite + 1 } : i));
                                                             } else {

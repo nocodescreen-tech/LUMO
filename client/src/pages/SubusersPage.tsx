@@ -87,7 +87,7 @@ const SubusersPage = () => {
 
   // Conversion devise
   const convertPrice = (price: number, devise: string) => {
-    const rate = Number(exchangeRate) || 2800;
+    const rate = getEffectiveRate();
     if (devise === currency) return `${price.toLocaleString()} ${currency}`;
     if (devise === 'USD' && currency === 'CDF') return `${Math.round(price * rate).toLocaleString()} ${currency}`;
     if (devise === 'CDF' && currency === 'USD') return `${Math.round((price / rate) * 100) / 100} ${currency}`;

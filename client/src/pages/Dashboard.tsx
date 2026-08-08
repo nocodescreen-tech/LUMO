@@ -29,7 +29,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
-import { getDisplayAmount, normalizeAmount } from '../utils/currencyHelpers';
+import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
   <motion.div 
@@ -97,7 +97,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState<any>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   // Taux affiché : celui configuré par l'utilisateur dans Paramètres (préférences)
-  const widgetRate = Number(exchangeRate) || 2250;
+  const widgetRate = getEffectiveRate();
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('7d');

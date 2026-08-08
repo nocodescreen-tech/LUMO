@@ -42,18 +42,15 @@ const Clients = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 8;
-  const { user, currency, exchangeRate } = useAuthStore(state => ({ user: state.user, currency: state.currency, exchangeRate: state.exchangeRate }));
+  const { user, currency } = useAuthStore(state => ({ user: state.user, currency: state.currency }));
+  const exchangeRate = getEffectiveRate();
   const displayCurrency = currency || user?.entreprise?.devise || 'CDF';
 
   // Normalize any amount to the user's display currency
   const toDisplayCurrency = (amount: number, saleCurrency: string): number => {
     const normalized = (saleCurrency === 'FC' ? 'CDF' : saleCurrency) || displayCurrency;
     if (normalized === displayCurrency) return amount;
-    // Sale is in CDF, display is USD => divide
-    if (normalized === 'CDF' && displayCurrency === 'USD') return amount / (exchangeRate || 2250);
-    // Sale is in USD, display is CDF => multiply
-    if (normalized === 'USD' && displayCurrency === 'CDF') return amount * (exchangeRate || 2250);
-    return amount;
+    return normalizeAmount(amount, normalized, displayCurrency, exchangeRate);
   };
 
   const canDo = (permission: string): boolean => {
