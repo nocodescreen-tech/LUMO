@@ -230,7 +230,7 @@ const Purchases = () => {
                 </div>
             </div>
 
-            <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
+            <div className="premium-card glass" style={{ padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                     <div style={{ position: 'relative', width: '400px', maxWidth: '100%' }}>
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

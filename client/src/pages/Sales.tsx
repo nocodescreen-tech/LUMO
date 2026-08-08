@@ -324,7 +324,7 @@ const Sales = () => {
                 </div>
             </div>
 
-            <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
+            <div className="premium-card glass" style={{ padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
                     <div style={{ position: 'relative', width: '100%', maxWidth: '450px' }}>
                         <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
