@@ -2,15 +2,42 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, TrendingUp, ShoppingCart, Package, DollarSign,
   Search, Calendar, ChevronRight, ArrowLeft, Loader2,
-  Activity, Clock, User, Filter, X, BarChart3
+  Activity, Clock, User, Filter, X, BarChart3, FileText,
+  Edit, Trash2, Plus, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
-import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
 import { TeamSection } from '../components/team/TeamSection';
+import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
+
+// Icônes par type d'activité (adapté aux permissions)
+const activityIcons: Record<string, any> = {
+  VENTE: ShoppingCart,
+  PRODUIT: Package,
+  CLIENT: Users,
+  ACHAT: FileText,
+  CAISSE: DollarSign,
+  REMBOURSEMENT: RefreshCw,
+  FOURNISSEUR: Truck,
+  DETTE: AlertCircle,
+  IMPERSONATE: User,
+  MODIFICATION_PRIX: Edit,
+};
+const activityColors: Record<string, string> = {
+  VENTE: 'var(--success)',
+  PRODUIT: 'var(--primary)',
+  CLIENT: 'var(--secondary)',
+  ACHAT: 'var(--warning)',
+  CAISSE: '#C07E12',
+  REMBOURSEMENT: 'var(--danger)',
+  FOURNISSEUR: '#2E6E8E',
+  DETTE: '#C98A1B',
+  IMPERSONATE: '#155E58',
+  MODIFICATION_PRIX: '#C07E12',
+};
 
 const SubusersPage = () => {
   const { t, language } = useTranslation();
@@ -23,7 +50,9 @@ const SubusersPage = () => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
-  const [showTeamManager, setShowTeamManager] = useState(false); // today, week, month, all
+  const [showTeamManager, setShowTeamManager] = useState(false);
+  const [userActivities, setUserActivities] = useState<any[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
 
   // Charger subusers + ventes
   useEffect(() => {
@@ -51,6 +80,27 @@ const SubusersPage = () => {
     fetchData();
   }, []);
 
+  // Charger activités quand un utilisateur est sélectionné
+  const fetchUserActivities = async (userId: number) => {
+    setActivitiesLoading(true);
+    try {
+      const { data } = await api.get(`/subusers/${userId}/activity?_t=${Date.now()}`);
+      const activities = Array.isArray(data) ? data : (data?.data || []);
+      setUserActivities(activities);
+    } catch (err) {
+      console.error('Erreur activités:', err);
+      setUserActivities([]);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  // Sélectionner un utilisateur → charger ses activités
+  const selectUser = (sub: any) => {
+    setSelectedUser(sub);
+    fetchUserActivities(sub.id);
+  };
+
   // Filtrer ventes par période
   const filterByPeriod = (sales: any[]) => {
     if (!sales.length) return [];
@@ -58,7 +108,6 @@ const SubusersPage = () => {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfDay.getTime() - startOfDay.getDay() * 86400000);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
     switch (periodFilter) {
       case 'today': return sales.filter(s => new Date(s.createdAt) >= startOfDay);
       case 'week': return sales.filter(s => new Date(s.createdAt) >= startOfWeek);
@@ -67,7 +116,6 @@ const SubusersPage = () => {
     }
   };
 
-  // Stats par subuser
   const getSubuserSales = (subuserId: number) => {
     return allSales.filter(s => s.userId === subuserId || s.sellerId === subuserId);
   };
@@ -85,14 +133,12 @@ const SubusersPage = () => {
     };
   };
 
-  // Filtrer subusers par recherche
   const filteredSubusers = subusers.filter(u =>
     u.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Conversion devise
   const convertPrice = (price: number, devise: string) => {
     const rate = getEffectiveRate();
     if (devise === currency) return `${price.toLocaleString()} ${currency}`;
@@ -104,15 +150,46 @@ const SubusersPage = () => {
     return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatTime = (d: string) => {
+    return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
+  // Traduire le type d'activité
+  const getActivityLabel = (type: string) => {
+    const map: Record<string, string> = {
+      VENTE: 'Vente',
+      PRODUIT: 'Produit',
+      CLIENT: 'Client',
+      ACHAT: 'Achat',
+      CAISSE: 'Caisse',
+      REMBOURSEMENT: 'Remboursement',
+      FOURNISSEUR: 'Fournisseur',
+      DETTE: 'Dette',
+      IMPERSONATE: 'Connexion en tant que',
+      MODIFICATION_PRIX: 'Modification prix',
+      SYSTEM: 'Système',
+    };
+    return map[type] || type;
+  };
+
+  // Filtrer activités par période
+  const filteredActivities = filterByPeriod(userActivities);
+
   // ─── VUE DÉTAIL ───
   if (selectedUser) {
     const sales = getSubuserSales(selectedUser.id);
     const filtered = filterByPeriod(sales);
     const stats = getSubuserStats(selectedUser.id);
 
+    // Compter activités par type
+    const activityCounts: Record<string, number> = {};
+    filteredActivities.forEach((a: any) => {
+      const t = a.type || 'SYSTEM';
+      activityCounts[t] = (activityCounts[t] || 0) + 1;
+    });
+
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
-        {/* Back button */}
         <button onClick={() => setSelectedUser(null)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', padding: 0, width: 'fit-content' }}>
           <ArrowLeft size={20} /> {language === 'fr' ? 'Retour à l\'équipe' : 'Back to team'}
@@ -141,12 +218,13 @@ const SubusersPage = () => {
         </div>
 
         {/* KPIs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
           {[
             { label: language === 'fr' ? 'Ventes' : 'Sales', value: stats.totalSales, icon: ShoppingCart, color: 'var(--primary)' },
-            { label: language === 'fr' ? 'Chiffre d\'affaires' : 'Revenue', value: `${(stats.totalRevenue).toLocaleString()} ${currency}`, icon: DollarSign, color: 'var(--success)' },
-            { label: language === 'fr' ? 'Produits vendus' : 'Products sold', value: stats.totalProducts, icon: Package, color: 'var(--secondary)' },
-            { label: language === 'fr' ? 'Panier moyen' : 'Avg cart', value: stats.totalSales > 0 ? `${Math.round(stats.totalRevenue / stats.totalSales).toLocaleString()} ${currency}` : `0 ${currency}`, icon: TrendingUp, color: 'var(--warning)' },
+            { label: language === 'fr' ? 'CA' : 'Revenue', value: `${(stats.totalRevenue).toLocaleString()} ${currency}`, icon: DollarSign, color: 'var(--success)' },
+            { label: language === 'fr' ? 'Produits' : 'Products', value: stats.totalProducts, icon: Package, color: 'var(--secondary)' },
+            { label: language === 'fr' ? 'Panier moy.' : 'Avg cart', value: stats.totalSales > 0 ? `${Math.round(stats.totalRevenue / stats.totalSales).toLocaleString()} ${currency}` : `0 ${currency}`, icon: TrendingUp, color: 'var(--warning)' },
+            { label: language === 'fr' ? 'Actions' : 'Actions', value: filteredActivities.length, icon: Activity, color: '#155E58' },
           ].map((kpi, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
               className="premium-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -182,28 +260,31 @@ const SubusersPage = () => {
 
         {/* Tableau des ventes */}
         <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+          <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)' }}>
+            🛒 {language === 'fr' ? 'Ventes' : 'Sales'} ({filtered.length})
+          </h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>{language === 'fr' ? 'N° Facture' : 'Invoice #'}</th>
-                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>{language === 'fr' ? 'Client' : 'Client'}</th>
-                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>{language === 'fr' ? 'Produits' : 'Products'}</th>
-                  <th style={{ padding: '14px 20px', textAlign: 'right' }}>{language === 'fr' ? 'Montant' : 'Amount'}</th>
-                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>{language === 'fr' ? 'Paiement' : 'Payment'}</th>
-                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>{language === 'fr' ? 'Date & Heure' : 'Date & Time'}</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>N° Facture</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>Client</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>Produits</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'right' }}>Montant</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>Paiement</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'left' }}>Date & Heure</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr><td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    {language === 'fr' ? 'Aucune vente trouvée pour cette période' : 'No sales found for this period'}
+                    Aucune vente trouvée pour cette période
                   </td></tr>
                 ) : filtered.map((sale, i) => (
                   <motion.tr key={sale.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
                     style={{ borderBottom: '1px solid var(--border)' }} className="hover-row">
                     <td style={{ padding: '14px 20px', fontWeight: 700 }}>#{sale.id?.toString()?.slice(-6) || '—'}</td>
-                    <td style={{ padding: '14px 20px' }}>{sale.clientInfo?.nom || sale.clientNom || (language === 'fr' ? 'Client comptoir' : 'Walk-in')}</td>
+                    <td style={{ padding: '14px 20px' }}>{sale.clientInfo?.nom || sale.clientNom || 'Client comptoir'}</td>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         {(sale.items || sale.articles || []).slice(0, 3).map((item: any, j: number) => (
@@ -213,7 +294,7 @@ const SubusersPage = () => {
                         ))}
                         {(sale.items || sale.articles || []).length > 3 && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700 }}>
-                            +{(sale.items || sale.articles).length - 3} {language === 'fr' ? 'autres' : 'more'}
+                            +{(sale.items || sale.articles).length - 3} autres
                           </span>
                         )}
                       </div>
@@ -235,6 +316,66 @@ const SubusersPage = () => {
             </table>
           </div>
         </div>
+
+        {/* Flux d'activités */}
+        <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+          <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>📋 {language === 'fr' ? 'Flux d\'activités' : 'Activity Feed'} ({filteredActivities.length})</span>
+            <button onClick={() => fetchUserActivities(selectedUser.id)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '4px' }}>
+              <RefreshCw size={16} className={activitiesLoading ? 'animate-spin' : ''} />
+            </button>
+          </h3>
+          {activitiesLoading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}><Loader2 size={24} className="animate-spin" style={{ color: 'var(--primary)' }} /></div>
+          ) : filteredActivities.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Activity size={32} opacity={0.2} />
+              <p style={{ fontWeight: 600, marginTop: '8px' }}>Aucune activité enregistrée pour cette période</p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {filteredActivities.map((act: any, i: number) => {
+                const IconComp = activityIcons[act.type] || Activity;
+                const color = activityColors[act.type] || 'var(--text-muted)';
+                return (
+                  <div key={act.id || i} style={{
+                    display: 'flex', gap: '14px', padding: '14px 20px',
+                    borderBottom: '1px solid var(--border)',
+                    alignItems: 'flex-start', transition: 'background 0.2s'
+                  }} className="hover-row">
+                    <div style={{
+                      width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                      background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color
+                    }}>
+                      <IconComp size={16} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px',
+                          background: `${color}15`, color, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em'
+                        }}>
+                          {getActivityLabel(act.type)}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {formatDate(act.createdAt)}
+                        </span>
+                      </div>
+                      <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.4 }}>
+                        {act.description}
+                      </p>
+                      {act.module && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', display: 'inline-block' }}>
+                          Module: {act.module}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </motion.div>
     );
   }
@@ -248,7 +389,6 @@ const SubusersPage = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
-      {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 900, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
           <Users size={14} /> {language === 'fr' ? 'Gestion Équipe' : 'Team Management'}
@@ -261,7 +401,6 @@ const SubusersPage = () => {
         </p>
       </div>
 
-      {/* Toggle: Gérer l'équipe */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setShowTeamManager(!showTeamManager)}
@@ -290,22 +429,17 @@ const SubusersPage = () => {
         )}
       </div>
 
-      {/* Team Manager */}
       {showTeamManager && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <TeamSection />
         </motion.div>
       )}
 
-      {/* Search */}
-      {!showTeamManager && (<></>)}
-
-      {/* Liste des subusers */}
       <div style={{ display: 'grid', gap: '12px' }}>
         {filteredSubusers.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '20px', color: 'var(--text-muted)' }}>
             <Users size={48} opacity={0.15} />
-            <p style={{ fontWeight: 700, marginTop: '12px' }}>{language === 'fr' ? 'Aucun membre trouvé' : 'No team members found'}</p>
+            <p style={{ fontWeight: 700, marginTop: '12px' }}>Aucun membre trouvé</p>
           </div>
         ) : filteredSubusers.map(sub => {
           const stats = getSubuserStats(sub.id);
@@ -313,7 +447,7 @@ const SubusersPage = () => {
             <motion.div
               key={sub.id}
               whileHover={{ y: -2, boxShadow: 'var(--shadow-md)' }}
-              onClick={() => setSelectedUser(sub)}
+              onClick={() => selectUser(sub)}
               className="premium-card"
               style={{ padding: '20px 24px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}
             >
@@ -334,7 +468,7 @@ const SubusersPage = () => {
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.totalSales}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{language === 'fr' ? 'Ventes' : 'Sales'}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ventes</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success)' }}>{(stats.totalRevenue).toLocaleString()} {currency}</div>
