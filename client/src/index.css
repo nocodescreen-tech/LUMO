@@ -280,14 +280,26 @@ html[data-theme='dark'] .premium-shadow {
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Auto-stacking grids for dashboard, settings, etc */
+  /* Auto-stacking grids for dashboard, settings, pos, etc */
   .responsive-grid {
     grid-template-columns: 1fr !important;
+    height: auto !important; /* POS: override fixed height */
   }
   
   .responsive-flex {
     flex-direction: column !important;
     align-items: stretch !important;
+  }
+
+  /* Stats cards: allow wrapping on mobile */
+  .stats-card {
+    flex: 1 1 calc(50% - 8px) !important;
+    min-width: 0 !important;
+  }
+
+  /* POS catalog: fix overflow so it scrolls instead of cutting off */
+  .pos-catalog-scroll {
+    max-height: 60vh !important;
   }
 }
 
@@ -336,8 +348,48 @@ html[data-theme='dark'] .premium-shadow {
 }
 
 
+/* === TABLETTE - 768px-1024px === */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-2col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .tablet-3col {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .tablet-up {
+    display: flex !important;
+  }
+}
+
 /* === MOBILE - compactage et confort tactile (<=640px) === */
 @media (max-width: 640px) {
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* Topbar search: compressed but visible */
+  .mobile-search-wrap {
+    flex: 1;
+    min-width: 0;
+    max-width: 140px;
+  }
+
+  /* Topbar currency button: icon only */
+  .topbar-currency-label {
+    display: none !important;
+  }
+
+  .premium-card {
+    padding: 16px !important;
+    border-radius: 20px !important;
+  }
+
   table { font-size: 13px; }
   .table-sales { min-width: 540px !important; }
 
@@ -346,16 +398,47 @@ html[data-theme='dark'] .premium-shadow {
 
   /* Tableaux : colonnes secondaires masquées sur mobile */
   .table-sales th:nth-child(3), .table-sales td:nth-child(3) { display: none; }
+  /* Products: hide Category column on mobile */
   .table-products th:nth-child(2), .table-products td:nth-child(2) { display: none; }
+  /* Products: hide Status column on mobile (redundant with stock badge) */
+  .table-products th:nth-child(5), .table-products td:nth-child(5) { display: none; }
 
-  table td, table th { padding: 9px 7px !important; white-space: nowrap; }
+  table td, table th { padding: 9px 7px !important; }
   .premium-card { border-radius: 20px !important; }
   input, select, textarea { font-size: 16px !important; }
-  button { min-height: 44px; }
+  button { min-height: 44px; min-width: 44px; }
   button svg { flex-shrink: 0; }
+  /* Actions colonne toujours visible et accessible */
+  .table-products td:last-child button { min-width: 44px; min-height: 44px; }
   [style*='display: grid'], [style*='display:grid'] { max-width: 100%; }
   h1 { font-size: 1.6rem !important; }
   h2 { font-size: 1.35rem !important; }
-  h3 { font-size: 1.2rem !important; }
+  h3 { font-size: 1.15rem !important; }
   div[style*='overflow-x: auto'], div[style*='overflowX: auto'] { -webkit-overflow-scrolling: touch; }
+
+  /* Products control bar: stack search and buttons vertically */
+  .products-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .products-controls > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Dashboard hero: stack title and buttons */
+  .dash-hero-actions {
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+  .dash-hero-actions button {
+    flex: 1 !important;
+  }
+
+  /* Landing hero visual: limit height on mobile so it stays visible */
+  .lp-hero-visual {
+    max-height: 280px !important;
+    overflow: hidden !important;
+  }
 }

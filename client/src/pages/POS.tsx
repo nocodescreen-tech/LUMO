@@ -516,7 +516,7 @@ toast.info(syncMsg);
                     </button>
                 </div>
 
-                <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '12px', paddingBottom: '20px' }}>
+                <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(160px, 100%, 220px), 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '12px', paddingBottom: '20px' }}>
                     {filteredProducts.map((product) => (
                         <motion.div
                             key={product.id}

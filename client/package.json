@@ -10,10 +10,6 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/splash-screen": "^8.0.2",
     "@zxing/library": "^0.21.3",
     "axios": "^1.4.0",
     "framer-motion": "^10.12.16",

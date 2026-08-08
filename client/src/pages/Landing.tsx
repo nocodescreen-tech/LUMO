@@ -672,6 +672,7 @@ export default function Landing() {
         .lp-icon-btn:hover { border-color: var(--fleuve); color: var(--fleuve); }
         /* Hero */
         .lp-hero { padding: 170px 0 60px; position: relative; }
+        @media (max-width: 768px) { .lp-hero { padding: 100px 0 40px; } }
         .lp-badge { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--fleuve); border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 100px; }
         .lp-hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 60px; align-items: center; }
         .lp-hero h1 { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.03em; line-height: 1.02; font-size: clamp(2.7rem, 6vw, 4.6rem); margin: 26px 0 22px; }
@@ -679,9 +680,11 @@ export default function Landing() {
         .lp-hero .lp-hero-sub { color: var(--muted); font-size: 1.18rem; line-height: 1.75; max-width: 520px; }
         .lp-hero-btns { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
         .lp-hero-stats { display: flex; gap: 42px; margin-top: 54px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 30px; }
+        @media (max-width: 640px) { .lp-hero-stats { gap: 20px; margin-top: 36px; } }
         .lp-hero-stat b { display: block; font-family: var(--font-serif); font-size: 1.9rem; font-weight: 600; color: var(--ink); }
         .lp-hero-stat > span { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
         .lp-hero-visual { position: relative; }
+        @media (max-width: 768px) { .lp-hero-visual { max-height: 340px; overflow: hidden; } }
         .lp-frame { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; box-shadow: var(--shadow); }
         .lp-frame img { width: 100%; display: block; border-radius: 8px; }
         .lp-frame-bar { display: flex; gap: 6px; padding: 6px 8px 12px; }
@@ -884,6 +887,8 @@ export default function Landing() {
         .lp-news button { background: var(--or); color: #14100B; border: 0; border-radius: 8px; padding: 13px 22px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; cursor: pointer; }
         .lp-news .news-msg { font-family: var(--font-mono); font-size: 12px; color: var(--or); margin-top: 10px; }
         .lp-mobile-menu { position: fixed; inset: 0; background: var(--bg); z-index: 92; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+        .lp-mobile-close { position: absolute; top: 24px; right: 24px; width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.25s; }
+        .lp-mobile-close:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); transform: rotate(90deg); }
         .lp-mobile-menu a { color: var(--ink); text-decoration: none; font-family: var(--font-serif); font-size: 1.7rem; }
         .lp-mobile-menu button { font-family: var(--font-mono); font-size: 13px; }
         @media (max-width: 900px) {
@@ -891,6 +896,13 @@ export default function Landing() {
           .lp-split.reverse .lp-split-text { order: 0; } .lp-split.reverse .lp-split-visual { order: 0; }
           .lp-feat-grid, .lp-steps, .lp-testi-grid, .lp-team-grid { grid-template-columns: 1fr; }
           .lp-band { padding: 64px 0; }
+          @media (max-width: 640px) { .lp-band { padding: 48px 0; } }
+        }
+        @media (min-width: 600px) and (max-width: 900px) {
+          .lp-steps, .lp-testi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 900px) {
+          @media (max-width: 640px) { .lp-band { padding: 48px 0; } }
           .lp-chip-1 { left: 6px; } .lp-chip-2 { right: 6px; }
           .lp-empire { padding: 44px 26px; }
           .lp-cta { padding: 60px 26px; }
@@ -899,6 +911,7 @@ export default function Landing() {
           .lp-nav-inner .lp-link { display: none; }
           .lp-nav-inner .lp-btn-fleuve { padding: 10px 14px !important; font-size: 12px; }
           .lp-nav-inner > div { gap: 8px !important; }
+          .lp-nav-inner > svg, .lp-nav-inner > .lp-logo { max-width: 140px; overflow: hidden; }
           .lp-mobile-burger { display: grid !important; }
         }
         @media (max-width: 560px) { .lp-footer-grid { grid-template-columns: 1fr; } .lp-calc { padding: 30px 22px; } }
@@ -940,6 +953,17 @@ export default function Landing() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div className="lp-mobile-menu" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.button
+              className="lp-mobile-close"
+              onClick={() => setMenuOpen(false)}
+              initial={{ opacity: 0, rotate: -90 }}
+              animate={{ opacity: 1, rotate: 0 }}
+              exit={{ opacity: 0, rotate: 90 }}
+              transition={{ duration: 0.3, ease: 'circOut' }}
+              aria-label="Fermer le menu"
+            >
+              <X size={22} strokeWidth={2} />
+            </motion.button>
             <a href="#features" onClick={() => setMenuOpen(false)}>{L.nav_features}</a>
             <a href="#showcase" onClick={() => setMenuOpen(false)}>{L.nav_demo}</a>
             <a href="#multi-magasins" onClick={() => setMenuOpen(false)}>{L.footer_f2}</a>

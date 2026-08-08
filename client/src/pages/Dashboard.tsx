@@ -84,7 +84,7 @@ const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: an
     
     <div>
       <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginBottom: '6px', fontWeight: '600' }}>{title}</p>
-      <h3 style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-main)' }}>{value}</h3>
+      <h3 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.4rem)', fontWeight: 800, letterSpacing: '-0.05em', color: 'var(--text-main)' }}>{value}</h3>
       {subValue && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '4px' }}>≙ {subValue}</p>}
     </div>
   </motion.div>
@@ -233,7 +233,7 @@ const Dashboard = () => {
           <h1 className="title-xl" style={{ fontSize: 'clamp(2rem, 8vw, 3.6rem)', marginBottom: '16px', letterSpacing: '-0.06em' }}>
             <span className="text-gradient">{t('highPerfDashboard')}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.95rem, 2.5vw, 1.25rem)', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
             {t('poweredBy')} <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>LUMO Intelligence</strong>. 
             {language === 'fr' ? 'Bienvenue' : 'Welcome'}, {user?.nom}. {t('readyForGrowth')}
           </p>
@@ -314,7 +314,7 @@ const Dashboard = () => {
                 {t('financialDesc')}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <select 
                 value={chartPeriod} 
                 onChange={(e) => setChartPeriod(e.target.value)}
@@ -329,7 +329,7 @@ const Dashboard = () => {
               {t('realTime')}
             </div>
           </div>
-          <div style={{ height: '280px', width: '100%' }}>
+          <div style={{ height: 'clamp(200px, 45vw, 280px)', width: '100%' }}>
             <DashboardCharts
               salesData={chartData.map((d: any) => ({
                 ...d,
@@ -500,7 +500,7 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }} className="premium-card" style={{ padding: '28px', borderRadius: '24px', overflow: 'hidden', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--secondary-glow)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ArrowLeftRight size={22} />
@@ -510,32 +510,32 @@ const Dashboard = () => {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>{'Conversion instantanée'}</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', gap: '8px', marginBottom: '18px' }}>
+            <div style={{ padding: '12px 8px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center', minWidth: 0 }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>1 USD</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--primary)' }}>{widgetRate.toLocaleString('fr-FR')}</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{widgetRate.toLocaleString('fr-FR')}</div>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>CDF</div>
             </div>
-            <ArrowLeftRight size={18} style={{ color: 'var(--text-muted)' }} />
-            <div style={{ padding: '16px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center' }}>
+            <ArrowLeftRight size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <div style={{ padding: '12px 8px', borderRadius: '16px', background: 'var(--bg-main)', border: '1px solid var(--border)', textAlign: 'center', minWidth: 0 }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '4px' }}>1 CDF</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--secondary)' }}>{Number(1 / widgetRate).toFixed(4)}</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{Number(1 / widgetRate).toFixed(4)}</div>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>USD</div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <input
               type="number"
               defaultValue="1000"
               min={0}
-              style={{ flex: 1, padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700, fontSize: '1rem' }}
+              style={{ flex: 1, minWidth: '80px', padding: '12px 14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700, fontSize: '1rem' }}
               onInput={(e: any) => {
                 const v = parseFloat(e.target.value) || 0;
                 const out = e.target.nextElementSibling as HTMLElement;
                 if (out) out.textContent = `${(v / widgetRate).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USD`;
               }}
             />
-            <span style={{ fontSize: '0.9rem', fontWeight: 900, color: 'var(--text-main)', minWidth: '110px', textAlign: 'right' }}>CDF → USD</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>CDF → USD</span>
           </div>
         </motion.div>
 

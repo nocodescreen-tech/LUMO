@@ -51,6 +51,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
@@ -132,12 +133,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const handleResize = () => {
-            const mobile = window.innerWidth <= 768;
+            const w = window.innerWidth;
+            const mobile = w <= 768;
+            const tablet = w > 768 && w <= 1024;
             setIsMobile(mobile);
-            if (mobile && isSidebarOpen) setIsSidebarOpen(false);
+            setIsTablet(tablet);
+            if (mobile) setIsSidebarOpen(false);
+            else if (tablet) setIsSidebarOpen(false);
         };
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
+
+        // Appel initial pour détecter l'état mobile au premier rendu
+        handleResize();
 
         window.addEventListener('resize', handleResize);
         window.addEventListener('online', handleOnline);
@@ -369,9 +377,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 className="premium-scroll"
                 style={{
                     flex: 1,
-                    marginLeft: isMobile ? 0 : (isSidebarOpen ? 300 : 120),
+                    marginLeft: isMobile ? 0 : isTablet && !isSidebarOpen ? 120 : (isSidebarOpen ? 300 : 120),
                     transition: 'margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                    padding: isMobile ? '0 16px 24px 16px' : '0 40px 40px 40px',
+                    padding: isMobile ? '16px 16px 24px 16px' : '0 40px 40px 40px',
                     height: '100vh',
                     overflowY: 'auto',
                     overflowX: 'hidden',
@@ -400,11 +408,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="flex-center"
-                            style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }}
+                            style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}
                         >
                             <Menu size={20} />
                         </button>
-                        <div style={{ position: 'relative' }}>
+                        <div className="mobile-search-wrap" style={{ position: 'relative' }}>
                             <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
                             <input
                                 type="text"
@@ -435,7 +443,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                     border: '1px solid var(--border)',
                                     backgroundColor: 'var(--bg-card)',
                                     color: 'var(--text-main)',
-                                    width: isMobile ? '140px' : '280px',
+                                    width: 'clamp(120px, 20vw, 280px)',
+                                    minWidth: isMobile ? '120px' : '200px',
                                     outline: 'none',
                                     fontSize: '0.95rem',
                                     fontWeight: '500',
