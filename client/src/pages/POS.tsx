@@ -40,7 +40,31 @@ const POS = () => {
     const [clientEmail, setClientEmail] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
-    const { currency, user, exchangeRate, enabledModules } = useAuthStore();
+    const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
+    // Taux vivant : sync avec le store + fallback + rechargement au focus
+    const [liveRate, setLiveRate] = useState(Number(storeRate) || 2800);
+
+    // Resync le taux depuis le store à chaque changement
+    useEffect(() => {
+        if (Number(storeRate) > 0) setLiveRate(Number(storeRate));
+    }, [storeRate]);
+
+    // Recharger le taux depuis le serveur au montage et au focus (si subuser)
+    useEffect(() => {
+        const refreshRate = async () => {
+            try {
+                const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+                const prefs = data.user?.preferences || data.preferences || {};
+                if (prefs.exchangeRate && Number(prefs.exchangeRate) > 0) {
+                    setLiveRate(Number(prefs.exchangeRate));
+                }
+            } catch (_) { /* silencieux */ }
+        };
+        refreshRate();
+        const onFocus = () => refreshRate();
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, []);
 
     const canPrint = (): boolean => {
         if (!user) return false;
@@ -255,13 +279,13 @@ const POS = () => {
             // Initialize with first values if possible or empty
             setTempSelectedVariants(product.variantes.map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
         } else {
-            addToCart(product, currency, exchangeRate);
+            addToCart(product, currency, liveRate);
         }
     };
 
     const confirmVariantSelection = () => {
         if (selectedProductForVariants) {
-            addToCart(selectedProductForVariants, currency, exchangeRate, tempSelectedVariants);
+            addToCart(selectedProductForVariants, currency, liveRate, tempSelectedVariants);
             setSelectedProductForVariants(null);
             setTempSelectedVariants([]);
         }
@@ -270,7 +294,7 @@ const POS = () => {
     const displayPrice = (product: any) => {
         const rawPrice = product.prixVente || product.prix || 0;
         const productDevise = product.devise || currency;
-        const rate = Number(exchangeRate) || 2800; // fallback si non configuré (subuser)
+        const rate = liveRate;
         if (productDevise === currency) {
             return `${Number(rawPrice).toLocaleString()} ${currency}`;
         }
@@ -331,7 +355,7 @@ const POS = () => {
     const getCartItemPriceInSaleCurrency = (item: any) => {
         const rawPrice = item.prixOriginal || item.prix || 0;
         const deviseOrigin = item.deviseOriginal || currency;
-        const rate = Number(exchangeRate) || 2800; // fallback si non configuré (subuser)
+        const rate = liveRate;
         if (deviseOrigin === saleCurrency) return rawPrice;
         if (deviseOrigin === 'USD' && saleCurrency === 'CDF') return Math.round(rawPrice * rate);
         if (deviseOrigin === 'CDF' && saleCurrency === 'USD') return Math.round((rawPrice / rate) * 100) / 100;
@@ -378,7 +402,7 @@ const POS = () => {
         }),
         montantTotal: saleTotal,
             devise: saleCurrency || currency || 'USD',
-            tauxChange: Number(exchangeRate) || 2800,
+            tauxChange: liveRate,
             methodePaiement: paymentMethod || 'Espèces',
             montantRecu: paymentMethod === 'Espèces' ? Number(amountReceived) || saleTotal : saleTotal,
             clientInfo: {
