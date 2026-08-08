@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, Mail, Phone, Trash2, Wallet, DollarSign,
-  Check, Key, Loader2, Package, ShoppingCart, TrendingUp, Download,
+  Check, Key, Loader2, Package, ShoppingCart, TrendingUp, Download, History,
   CreditCard, BarChart2, Activity, Zap, Truck, UserCheck, Settings as SettingsIcon
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -48,6 +48,8 @@ export const TeamSection = () => {
       id: 'cash', label: 'Caisse de session', icon: Zap, actions: [
         { id: 'cash.open', label: 'Ouvrir une session de caisse' },
         { id: 'cash.close', label: 'Fermer une session de caisse' },
+        { id: 'cash.view', label: 'Voir historique de caisse' },
+        { id: 'cash.delete_session', label: 'Supprimer une session' },
       ]
     },
     {
@@ -97,10 +99,17 @@ export const TeamSection = () => {
         { id: 'purchases.delete', label: 'Supprimer un achat' },
       ]
     },
+    {
+      id: 'stock-history', label: 'Historique Stock', icon: History, actions: [
+        { id: 'stock-history.view', label: 'Consulter les mouvements' },
+        { id: 'stock-history.export', label: 'Exporter l\'historique' },
+      ]
+    },
 
     {
       id: 'debts', label: 'Gestion Dettes', icon: CreditCard, actions: [
         { id: 'debts.settle', label: 'Enregistrer un règlement' },
+        { id: 'debts.delete', label: 'Supprimer une dette' },
         { id: 'debts.send_reminder', label: 'Envoyer rappel de paiement' },
       ]
     },
@@ -113,7 +122,16 @@ export const TeamSection = () => {
         { id: 'settings.exchange_rate', label: 'Modifier le taux de change' },
       ]
     },
+    {
+      id: 'team', label: 'Gestion Équipe', icon: UserPlus, actions: [
+        { id: 'team.add', label: 'Ajouter un membre' },
+        { id: 'team.edit', label: 'Modifier un membre' },
+        { id: 'team.delete', label: 'Supprimer un membre' },
+        { id: 'team.view_activity', label: 'Voir activités des membres' },
+      ]
+    },
   ];
+
 
   // Toggle a top-level module and ALL its sub-actions
   const toggleModule = (moduleId: string) => {
