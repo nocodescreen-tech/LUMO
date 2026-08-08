@@ -270,12 +270,13 @@ const POS = () => {
     const displayPrice = (product: any) => {
         const rawPrice = product.prixVente || product.prix || 0;
         const productDevise = product.devise || currency;
+        const rate = Number(exchangeRate) || 2800; // fallback si non configuré (subuser)
         if (productDevise === currency) {
             return `${Number(rawPrice).toLocaleString()} ${currency}`;
         }
         let converted: number;
-        if (productDevise === 'USD' && currency === 'CDF' && exchangeRate) converted = Math.round(rawPrice * exchangeRate);
-        else if (productDevise === 'CDF' && currency === 'USD' && exchangeRate) converted = Math.round((rawPrice / exchangeRate) * 100) / 100;
+        if (productDevise === 'USD' && currency === 'CDF') converted = Math.round(rawPrice * rate);
+        else if (productDevise === 'CDF' && currency === 'USD') converted = Math.round((rawPrice / rate) * 100) / 100;
         else converted = rawPrice;
         return `${Number(converted).toLocaleString()} ${currency}`;
     };
@@ -330,9 +331,10 @@ const POS = () => {
     const getCartItemPriceInSaleCurrency = (item: any) => {
         const rawPrice = item.prixOriginal || item.prix || 0;
         const deviseOrigin = item.deviseOriginal || currency;
+        const rate = Number(exchangeRate) || 2800; // fallback si non configuré (subuser)
         if (deviseOrigin === saleCurrency) return rawPrice;
-        if (deviseOrigin === 'USD' && saleCurrency === 'CDF' && exchangeRate) return Math.round(rawPrice * exchangeRate);
-        if (deviseOrigin === 'CDF' && saleCurrency === 'USD' && exchangeRate) return Math.round((rawPrice / exchangeRate) * 100) / 100;
+        if (deviseOrigin === 'USD' && saleCurrency === 'CDF') return Math.round(rawPrice * rate);
+        if (deviseOrigin === 'CDF' && saleCurrency === 'USD') return Math.round((rawPrice / rate) * 100) / 100;
         return rawPrice;
     };
 
