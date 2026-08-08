@@ -335,9 +335,9 @@ export const TeamSection = () => {
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
               style={{ width: '100%', padding: '14px 16px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, outline: 'none', cursor: 'pointer', appearance: 'none' }}
             >
-              <option value="vendeur">💼 Vendeur — POS, produits, clients</option>
-              <option value="gerant">👔 Gérant — Dashboard, stats, gestion équipe</option>
-              <option value="caissier">💰 Caissier — POS uniquement</option>
+              <option value="vendeur">Vendeur — POS, produits, clients</option>
+              <option value="gerant">Gérant — Dashboard, stats, gestion équipe</option>
+              <option value="caissier">Caissier — POS uniquement</option>
             </select>
           </div>
 

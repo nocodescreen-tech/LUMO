@@ -933,7 +933,7 @@ const Products = () => {
                     const newPrix = convertPrice(newProduct.prixVente, oldDevise, newDevise);
                     const newPrixAchat = convertPrice(newProduct.prixAchat, oldDevise, newDevise);
                     setNewProduct({ ...newProduct, devise: newDevise, prixVente: newPrix, prixAchat: newPrixAchat });
-                    setConversionBanner(`💱 Prix convertis : ${oldDevise} → ${newDevise} (taux: 1 USD = ${exchangeRate.toLocaleString()} CDF)`);
+                    setConversionBanner(`Prix convertis : ${oldDevise} → ${newDevise} (taux: 1 USD = ${exchangeRate.toLocaleString()} CDF)`);
                     setTimeout(() => setConversionBanner(null), 4000);
                   }
                 }}
@@ -1140,7 +1140,7 @@ const Products = () => {
                       const newPrix = convertPrice(parseFloat(selectedProduct.prix) || 0, oldDevise, newDevise);
                       const newPrixAchat = convertPrice(parseFloat(selectedProduct.prixAchat) || 0, oldDevise, newDevise);
                       setSelectedProduct({ ...selectedProduct, devise: newDevise, prix: newPrix, prixAchat: newPrixAchat });
-                      setConversionBanner(`💱 Prix convertis : ${oldDevise} → ${newDevise} (taux: 1 USD = ${exchangeRate.toLocaleString()} CDF)`);
+                      setConversionBanner(`Prix convertis : ${oldDevise} → ${newDevise} (taux: 1 USD = ${exchangeRate.toLocaleString()} CDF)`);
                       setTimeout(() => setConversionBanner(null), 4000);
                     }
                   }}
