@@ -858,8 +858,8 @@ const SuperAdminDashboard = () => {
                                         style={{ width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600', fontSize: '0.92rem', outline: 'none' }}
                                     >
                                         <option value="info">💡 Information générale</option>
-                                        <option value="success">✅ Mise à jour disponible</option>
-                                        <option value="warning">⚠️ Alerte maintenance</option>
+                                        <option value="success">Mise à jour disponible</option>
+                                        <option value="warning">Alerte maintenance</option>
                                         <option value="error">🚨 Incident technique</option>
                                     </select>
                                 </div>

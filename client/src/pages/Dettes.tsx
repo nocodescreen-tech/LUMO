@@ -207,7 +207,7 @@ const Dettes = () => {
       const baseAmount = normalizeAmount(amount, shopCurrency, currency, exchangeRate);
 
       await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
-      toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom) + ' ✅');
+      toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom));
       setSettleModal({ open: false, client: null });
       setSettleAmount('');
       fetchClients();

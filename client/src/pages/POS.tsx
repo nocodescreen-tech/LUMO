@@ -214,7 +214,7 @@ const POS = () => {
         if (found) {
             handleProductClick(found);
             toast.success(`🛒 ${t('posProductAdded').replace('{name}', found.nom)}`, {
-                icon: '✅',
+                icon: 'check',
                 style: { borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--primary)' }
             });
         } else {
@@ -483,7 +483,7 @@ toast.info(syncMsg);
             }
             localStorage.setItem('pending-sales', JSON.stringify(remaining));
             if (remaining.length === 0) {
-                toast.success("✅ " + t('allOfflineSynced'));
+                toast.success("" + t('allOfflineSynced'));
             }
         };
 

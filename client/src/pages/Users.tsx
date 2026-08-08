@@ -528,7 +528,7 @@ const Users = () => {
 
           {/* Limites opérationnelles */}
           <details style={{ marginTop: '4px' }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-muted)', padding: '8px 0' }}>⚙️ Limites opérationnelles (optionnel)</summary>
+            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-muted)', padding: '8px 0' }}>Limites opérationnelles (optionnel)</summary>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
               <div>
                 <label style={labelStyle}>Remise max (%)</label>
@@ -583,7 +583,7 @@ const Users = () => {
                     fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.2s',
                     boxShadow: editTab === tab ? 'var(--shadow-sm)' : 'none'
                   }}>
-                  {tab === 'info' ? '📋 Infos' : tab === 'permissions' ? '🔐 Permissions' : tab === 'activity' ? '📊 Activité' : '⚙️ Limites'}
+                  {tab === 'info' ? 'Infos' : tab === 'permissions' ? 'Permissions' : tab === 'activity' ? 'Activité' : 'Limites'}
                 </button>
               ))}
             </div>

@@ -413,7 +413,7 @@ const SubusersPage = () => {
             display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
           }}
         >
-          {showTeamManager ? '✕ Fermer' : '⚙️ Gérer l\'équipe'}
+          {showTeamManager ? 'Fermer' : 'Gerer l\'equipe'}
         </button>
         {!showTeamManager && (
           <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
