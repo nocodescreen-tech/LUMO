@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { normalizeAmount } from '../utils/currencyHelpers';
+import { getDisplayAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
 import { toast } from 'sonner';
 import { exportToExcel } from '../utils/exportUtils';
@@ -37,6 +38,7 @@ const Purchases = () => {
     const [showProductSuggestions, setShowProductSuggestions] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     const [formData, setFormData] = useState({
         fournisseurId: null,
@@ -174,6 +176,17 @@ const Purchases = () => {
     const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
 
+    const handleDeletePurchase = async (id: number, facture: string) => {
+        if (!confirm(`Supprimer l'achat ${facture || '#' + id} ?`)) return;
+        try {
+            await api.delete(`/purchases/${id}`);
+            toast.success('Achat supprimé');
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Erreur suppression');
+        }
+    };
+
     if (loading) return (
         <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Loader2 className="animate-spin" size={40} color="var(--primary)" />
@@ -242,6 +255,7 @@ const Purchases = () => {
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('items')}</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('status')}</th>
                                 <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'right' }}>{t('totalAmount')}</th>
+                                <th style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,7 +301,37 @@ const Purchases = () => {
                                                 {localizedStatus}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{purchase.montantTotal?.toLocaleString() || 0} {purchase.devise || currency}</td>
+                                        <td style={{ padding: '16px', textAlign: 'right' }}>
+                                            {(() => {
+                                                const result = getDisplayAmount(purchase.montantTotal || 0, purchase.devise || 'USD', currency, exchangeRate);
+                                                return (
+                                                    <>
+                                                        <div style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{result.main}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>≙ {result.sub}</div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                <button
+                                                    onClick={() => { setSelectedPurchase(purchase); setShowEditModal(true); }}
+                                                    className="glass btn-hover"
+                                                    style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    title="Modifier"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePurchase(purchase.id, purchase.numeroFacture)}
+                                                    className="glass btn-hover"
+                                                    style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    title="Supprimer"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </motion.tr>
                                 );
                             })}
