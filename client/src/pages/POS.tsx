@@ -42,7 +42,7 @@ const POS = () => {
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
     // Taux vivant : sync avec le store + fallback + rechargement au focus
-    const [liveRate, setLiveRate] = useState(Number(storeRate) || 2800);
+    const [liveRate, setLiveRate] = useState(Number(storeRate) || 2250);
 
     // Resync le taux depuis le store à chaque changement
     useEffect(() => {

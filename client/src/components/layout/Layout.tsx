@@ -23,7 +23,8 @@ import {
     Activity,
     CreditCard,
     ShieldCheck,
-    History
+    History,
+    UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import NotificationDropdown from './NotificationDropdown';
@@ -170,7 +171,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.pos, icon: ShoppingCart, path: '/pos', group: 'STORE' },
         { name: t.products, icon: Package, path: '/products', group: 'STORE' },
         { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
-        { name: t.team || 'Équipe', icon: Users, path: '/subusers', group: 'STORE' },
+        ...(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'gerant'
+          ? [{ name: t.team || 'Équipe', icon: UserPlus, path: '/subusers', group: 'STORE' }]
+          : []),
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
         { name: t.purchases, icon: ShoppingBag, path: '/purchases', group: 'STORE' },
         { name: t.stockHistoryNav || 'Stock History', icon: History, path: '/stock-history', group: 'STORE' },

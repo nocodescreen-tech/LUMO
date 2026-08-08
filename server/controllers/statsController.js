@@ -27,8 +27,8 @@ const safeParseArticles = (articles) => {
 };
 
 const getSafeRate = (owner) => {
-  const baseRate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate || 2800);
-  return Number.isFinite(baseRate) && baseRate > 1 ? baseRate : 2800;
+  const baseRate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate || 2250);
+  return Number.isFinite(baseRate) && baseRate > 1 ? baseRate : 2250;
 };
 
 const normalizeCurrency = (currency) => (currency === 'FC' ? 'CDF' : (currency || 'CDF'));

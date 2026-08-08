@@ -9,6 +9,7 @@ import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
+import { TeamSection } from '../components/team/TeamSection';
 
 const SubusersPage = () => {
   const { t, language } = useTranslation();
@@ -20,7 +21,8 @@ const SubusersPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [periodFilter, setPeriodFilter] = useState('all'); // today, week, month, all
+  const [periodFilter, setPeriodFilter] = useState('all');
+  const [showTeamManager, setShowTeamManager] = useState(false); // today, week, month, all
 
   // Charger subusers + ventes
   useEffect(() => {
@@ -255,17 +257,44 @@ const SubusersPage = () => {
         </p>
       </div>
 
-      {/* Search */}
-      <div style={{ position: 'relative', maxWidth: '400px' }}>
-        <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-        <input
-          type="text"
-          placeholder={language === 'fr' ? 'Rechercher un membre...' : 'Search team member...'}
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600, outline: 'none' }}
-        />
+      {/* Toggle: Gérer l'équipe */}
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setShowTeamManager(!showTeamManager)}
+          className="btn-premium"
+          style={{
+            padding: '10px 20px', borderRadius: '14px', border: '1.5px solid var(--border)',
+            background: showTeamManager ? 'var(--primary)' : 'var(--bg-card)',
+            color: showTeamManager ? 'white' : 'var(--text-main)',
+            fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem',
+            display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
+          }}
+        >
+          {showTeamManager ? '✕ Fermer' : '⚙️ Gérer l\'équipe'}
+        </button>
+        {!showTeamManager && (
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
+            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder={language === 'fr' ? 'Rechercher un membre...' : 'Search team member...'}
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600, outline: 'none' }}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Team Manager */}
+      {showTeamManager && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <TeamSection />
+        </motion.div>
+      )}
+
+      {/* Search */}
+      {!showTeamManager && (<></>)}
 
       {/* Liste des subusers */}
       <div style={{ display: 'grid', gap: '12px' }}>

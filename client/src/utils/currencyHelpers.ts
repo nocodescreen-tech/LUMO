@@ -76,16 +76,16 @@ export const formatMontant = (
 
 /**
  * Taux de change effectif — source unique pour toute l'application.
- * Priorité : préférences utilisateur → fallback 2800 (taux RDC standard).
+ * Priorité : préférences utilisateur → fallback 2250 (taux RDC standard).
  * JAMAIS 0 — si 0, la conversion est ignorée et le prix affiché est faux.
  */
 export const getEffectiveRate = (): number => {
   try {
     const state = useAuthStore.getState();
     const rate = Number(state.exchangeRate);
-    return rate > 0 ? rate : 2800;
+    return rate > 0 ? rate : 2250;
   } catch {
-    return 2800;
+    return 2250;
   }
 };
 
