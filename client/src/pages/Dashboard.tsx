@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   Package, 
@@ -29,7 +29,6 @@ import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { exportToExcel } from '../utils/exportUtils';
-import { notifySound } from '../utils/notificationSound';
 import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
@@ -102,7 +101,6 @@ const Dashboard = () => {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('7d');
-  const previousAlertCount = useRef(0);
 
   const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
 
@@ -145,13 +143,6 @@ const Dashboard = () => {
           // Standardize access: { success: true, data: { ... } }
           const sData = statsRes.data;
           setStats(sData.success && sData.data ? sData.data : sData);
-          // Son uniquement si NOUVELLES alertes (pas à chaque rafraîchissement)
-          const summary = (sData.success && sData.data ? sData.data : sData)?.summary;
-          const currentAlerts = (summary?.lowStockCount || 0) + (summary?.debtToCollect > 0 ? 1 : 0);
-          if (currentAlerts > previousAlertCount.current) {
-            notifySound(user?.preferences?.notificationSoundEnabled !== false);
-          }
-          previousAlertCount.current = currentAlerts;
           
           const cData = chartRes.data;
           let chartList = [];
