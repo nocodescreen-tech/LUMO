@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   TrendingUp, 
   Package, 
@@ -102,6 +102,7 @@ const Dashboard = () => {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState('7d');
+  const previousAlertCount = useRef(0);
 
   const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
 
@@ -144,11 +145,13 @@ const Dashboard = () => {
           // Standardize access: { success: true, data: { ... } }
           const sData = statsRes.data;
           setStats(sData.success && sData.data ? sData.data : sData);
-          // Son si alertes
+          // Son uniquement si NOUVELLES alertes (pas à chaque rafraîchissement)
           const summary = (sData.success && sData.data ? sData.data : sData)?.summary;
-          if (summary && (summary.lowStockCount > 0 || summary.debtToCollect > 0)) {
+          const currentAlerts = (summary?.lowStockCount || 0) + (summary?.debtToCollect > 0 ? 1 : 0);
+          if (currentAlerts > previousAlertCount.current) {
             notifySound(user?.preferences?.notificationSoundEnabled !== false);
           }
+          previousAlertCount.current = currentAlerts;
           
           const cData = chartRes.data;
           let chartList = [];

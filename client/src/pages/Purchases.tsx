@@ -709,7 +709,18 @@ const Purchases = () => {
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'rgba(21, 94, 88, 0.05)', borderRadius: '16px', border: '1px solid rgba(21, 94, 88, 0.1)' }}>
                                 <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>{t('totalAmount')}</div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{selectedPurchase.montantTotal?.toLocaleString()} {currency}</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>
+                                    {(() => {
+                                        const result = getDisplayAmount(selectedPurchase.montantTotal || 0, selectedPurchase.devise || 'USD', currency, exchangeRate);
+                                        return <>{result.main}</>;
+                                    })()}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                    ≙ {(() => {
+                                        const result = getDisplayAmount(selectedPurchase.montantTotal || 0, selectedPurchase.devise || 'USD', currency, exchangeRate);
+                                        return <>{result.sub}</>;
+                                    })()}
+                                </div>
                             </div>
 
                             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
