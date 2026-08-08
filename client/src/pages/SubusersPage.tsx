@@ -3,7 +3,7 @@ import {
   Users, TrendingUp, ShoppingCart, Package, DollarSign,
   Search, Calendar, ChevronRight, ArrowLeft, Loader2,
   Activity, Clock, User, Filter, X, BarChart3, FileText,
-  Edit, Trash2, Plus, AlertCircle, RefreshCw
+  Edit, Trash2, Plus, AlertCircle, RefreshCw, Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
