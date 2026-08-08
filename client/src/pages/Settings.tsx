@@ -625,6 +625,19 @@ const TeamSection = () => {
             <InputField label="Téléphone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
           </div>
 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginLeft: '4px' }}>Rôle</label>
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              style={{ width: '100%', padding: '14px 16px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, outline: 'none', cursor: 'pointer', appearance: 'none' }}
+            >
+              <option value="vendeur">💼 Vendeur — POS, produits, clients</option>
+              <option value="gerant">👔 Gérant — Dashboard, stats, gestion équipe</option>
+              <option value="caissier">💰 Caissier — POS uniquement</option>
+            </select>
+          </div>
+
           <InputField label="Email / Identifiant" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} placeholder="jules@example.com" required icon={Mail} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <InputField label="Mot de passe initial" type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caractères + symboles" required icon={Key} />

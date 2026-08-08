@@ -22,6 +22,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const StockHistory = lazy(() => import('./pages/StockHistory'));
 const Activities = lazy(() => import('./pages/Activities'));
 const Stats = lazy(() => import('./pages/Stats'));
+const SubusersPage = lazy(() => import('./pages/SubusersPage'));
 const Cash = lazy(() => import('./pages/Cash'));
 
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -124,6 +125,7 @@ const App = () => {
               <Route path="/settings" element={<Settings />} />
               <Route path="/activities" element={<Activities />} />
               <Route path="/stats" element={<Stats />} />
+              <Route path="/subusers" element={<SubusersPage />} />
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
