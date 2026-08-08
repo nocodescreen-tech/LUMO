@@ -34,7 +34,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { getDisplayAmount, useCurrency } from '../utils/currencyHelpers';
+import { getDisplayAmount, useCurrency, normalizeAmount } from '../utils/currencyHelpers';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../api/axios';
@@ -151,7 +151,7 @@ const Dettes = () => {
   // ── Debt stats ────────────────────────────
   const totalDebt = clients.reduce((s, c) => s + c.detteTotale, 0);
   const totalDebtConverted = convertAmount(totalDebt);
-  const urgentLimit = currency === 'USD' ? 50 : (50 * exchangeRate);
+  const urgentLimit = normalizeAmount(50, 'USD', currency, exchangeRate);
   const urgentCount = clients.filter(c => convertAmount(c.detteTotale) > urgentLimit).length;
   const normalCount = clients.filter(c => {
     const amt = convertAmount(c.detteTotale);
@@ -204,7 +204,7 @@ const Dettes = () => {
     setSettleLoading(true);
     try {
       // Convert back to base currency for backend
-      const baseAmount = Math.round(amount / (currency === 'USD' && shopCurrency === 'CDF' ? 1/exchangeRate : currency === 'CDF' && shopCurrency === 'USD' ? exchangeRate : 1));
+      const baseAmount = normalizeAmount(amount, shopCurrency, currency, exchangeRate);
 
       await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
       toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom) + ' ✅');

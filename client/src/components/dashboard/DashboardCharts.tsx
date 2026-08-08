@@ -15,7 +15,7 @@ interface ChartProps {
  */
 function normalizeToDisplay(rawCDF: number, exchangeRate: number, displayCurrency: string): number {
   if (displayCurrency === 'CDF') return rawCDF;
-  return Math.round((rawCDF / exchangeRate) * 100) / 100;
+  return normalizeAmount(rawCDF, 'CDF', 'USD', exchangeRate);
 }
 
 const DashboardCharts = ({ salesData = [], period = '7d' }: ChartProps) => {

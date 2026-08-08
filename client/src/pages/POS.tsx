@@ -299,8 +299,7 @@ const POS = () => {
             return `${Number(rawPrice).toLocaleString()} ${currency}`;
         }
         let converted: number;
-        if (productDevise === 'USD' && currency === 'CDF') converted = Math.round(rawPrice * rate);
-        else if (productDevise === 'CDF' && currency === 'USD') converted = Math.round((rawPrice / rate) * 100) / 100;
+        if (productDevise !== currency) converted = normalizeAmount(rawPrice, productDevise, currency, rate);
         else converted = rawPrice;
         return `${Number(converted).toLocaleString()} ${currency}`;
     };
@@ -357,8 +356,7 @@ const POS = () => {
         const deviseOrigin = item.deviseOriginal || currency;
         const rate = liveRate;
         if (deviseOrigin === saleCurrency) return rawPrice;
-        if (deviseOrigin === 'USD' && saleCurrency === 'CDF') return Math.round(rawPrice * rate);
-        if (deviseOrigin === 'CDF' && saleCurrency === 'USD') return Math.round((rawPrice / rate) * 100) / 100;
+        if (deviseOrigin !== saleCurrency) return normalizeAmount(rawPrice, deviseOrigin, saleCurrency, rate);
         return rawPrice;
     };
 

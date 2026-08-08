@@ -529,8 +529,8 @@ const Purchases = () => {
                                         {(() => {
                                             const totalBase = items.reduce((acc: number, i: any) => acc + (i.quantite * i.prixAchat), 0);
                                             const totalConverted = formData.devise === 'USD'
-                                                ? Math.round(totalBase * exchangeRate)
-                                                : Math.round(totalBase / exchangeRate * 100) / 100;
+                                                ? normalizeAmount(totalBase, shopCurrency, displayCurrency, exchangeRate)
+                                                : totalBase;
                                             const otherDevise = formData.devise === 'USD' ? 'CDF' : 'USD';
                                             return (
                                                 <div style={{ padding: '12px 14px', background: 'var(--primary-glow)', display: 'flex', flexDirection: 'column', gap: '4px' }}>

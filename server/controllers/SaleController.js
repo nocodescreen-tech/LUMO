@@ -2,6 +2,7 @@ const { Sale, Product, Client, Notification } = require('../models');
 const { validateSale } = require('../middleware/validators');
 const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
+const { convertCurrency } = require('../utils/currency');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
@@ -88,10 +89,11 @@ exports.createSale = async (req, res, next) => {
     transaction = await sequelize.transaction();
 
     // Récupérer le propriétaire pour la devise et le taux de change
-    const owner = await require('../models/User').findByPk(userId, { transaction });
+    const ownerId = req.user.parentId || userId;
+    const owner = await require('../models/User').findByPk(ownerId, { transaction });
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
-    const finalRate = Number(owner?.preferences?.exchangeRate || owner?.entreprise?.exchangeRate);
+    const finalRate = Number(owner?.preferences?.exchangeRate) || 2250;
     if (!Number.isFinite(finalRate) || finalRate <= 0) {
       await transaction.rollback();
       return res.status(400).json({
@@ -267,11 +269,7 @@ exports.createSale = async (req, res, next) => {
           await transaction.rollback();
           return res.status(400).json({ message: "Taux de change invalide pour la gestion des dettes." });
         }
-        if (devise === 'USD' && shopCurrency === 'CDF') {
-          amountToAdd = Math.round(amountToAdd * rate);
-        } else if (devise === 'CDF' && shopCurrency === 'USD') {
-          amountToAdd = Math.round((amountToAdd / rate) * 100) / 100;
-        }
+        amountToAdd = convertCurrency(amountToAdd, devise, shopCurrency, rate);
       }
 
       if (dbClient) {
@@ -332,7 +330,7 @@ exports.deleteSale = async (req, res, next) => {
         const client = await Client.findByPk(sale.clientId, { transaction });
         if (client) {
           // Réduire la dette du client en convertissant dans la devise de la boutique
-          const owner = await require('../models/User').findByPk(sale.userId, { transaction });
+          const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
           const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
@@ -342,11 +340,7 @@ exports.deleteSale = async (req, res, next) => {
           }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
           if (effectiveDevise !== shopCurrency) {
-            if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {
-              debtToSubtract = Math.round(debtToSubtract * rate);
-            } else if (effectiveDevise === 'CDF' && shopCurrency === 'USD') {
-              debtToSubtract = Math.round((debtToSubtract / rate) * 100) / 100;
-            }
+            debtToSubtract = convertCurrency(debtToSubtract, effectiveDevise, shopCurrency, rate);
           }
             client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
             await client.save({ transaction });
@@ -485,7 +479,7 @@ exports.refundSale = async (req, res, next) => {
         const client = await Client.findByPk(sale.clientId, { transaction });
         if (client) {
           // Convertir le montant dans la devise de la boutique avant de réduire la dette
-          const owner = await require('../models/User').findByPk(sale.userId, { transaction });
+          const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
           const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
           const effectiveDevise = sale.devise || 'USD';
           const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
@@ -495,11 +489,7 @@ exports.refundSale = async (req, res, next) => {
           }
           let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
           if (effectiveDevise !== shopCurrency) {
-            if (effectiveDevise === 'USD' && shopCurrency === 'CDF') {
-              debtToSubtract = Math.round(debtToSubtract * rate);
-            } else if (effectiveDevise === 'CDF' && shopCurrency === 'USD') {
-              debtToSubtract = Math.round((debtToSubtract / rate) * 100) / 100;
-            }
+            debtToSubtract = convertCurrency(debtToSubtract, effectiveDevise, shopCurrency, rate);
           }
             client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
             await client.save({ transaction });

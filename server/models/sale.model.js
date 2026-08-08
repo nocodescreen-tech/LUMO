@@ -112,7 +112,7 @@ const Sale = sequelize.define('Sale', {
                     
                     let altAmount = 0;
                     if (sale.devise === 'USD') {
-                        altAmount = Math.round(sale.montantTotal * rate);
+                        altAmount = convertCurrency(sale.montantTotal, sale.devise, altCurrency, rate);
                     description += ` (≙ ${altAmount.toLocaleString()} ${altCurrency})`;
                     } else {
                         altAmount = Math.round((sale.montantTotal / (rate || 2800)) * 100) / 100;

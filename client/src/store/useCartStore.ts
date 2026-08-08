@@ -25,10 +25,10 @@ interface CartState {
 // Convert a price between currencies using the admin exchange rate
 const normalize = (price: number, fromDevise: string, toDevise: string, rate: number): number => {
   if (!fromDevise || fromDevise === toDevise) return price;
-  if (fromDevise === 'USD' && toDevise === 'CDF') return Math.round(price * rate);
-  if (fromDevise === 'CDF' && toDevise === 'USD') return Math.round((price / rate) * 100) / 100;
-  if (fromDevise === 'EUR' && toDevise === 'CDF') return Math.round(price * rate);
-  if (fromDevise === 'CDF' && toDevise === 'EUR') return Math.round((price / rate) * 100) / 100;
+  if (fromDevise !== toDevise) return normalizeAmount(price, fromDevise, toDevise, rate);
+  
+  
+  
   // USD <-> EUR treated as 1:1
   return price;
 };

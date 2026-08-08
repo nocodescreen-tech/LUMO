@@ -91,9 +91,8 @@ const SubusersPage = () => {
   const convertPrice = (price: number, devise: string) => {
     const rate = getEffectiveRate();
     if (devise === currency) return `${price.toLocaleString()} ${currency}`;
-    if (devise === 'USD' && currency === 'CDF') return `${Math.round(price * rate).toLocaleString()} ${currency}`;
-    if (devise === 'CDF' && currency === 'USD') return `${Math.round((price / rate) * 100) / 100} ${currency}`;
-    return `${price.toLocaleString()} ${devise}`;
+    if (devise !== currency) price = normalizeAmount(price, devise, currency, rate);
+    return `${price.toLocaleString()} ${currency}`;
   };
 
   const formatDate = (d: string) => {

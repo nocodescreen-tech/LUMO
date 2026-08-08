@@ -62,7 +62,7 @@ const buildLumoKnowledge = async (userId, user) => {
         .join(' + ') || '0 CDF';
     // CA total converti en CDF pour référence
     const totalRevenueCDF = Object.entries(salesByCurrency).reduce((acc, [dev, total]) => {
-        return acc + (dev === 'USD' ? total * exchangeRate : total);
+        return acc + (convertCurrency(total, dev, 'CDF', exchangeRate));
     }, 0);
 
     const totalDebtClients = clients.reduce((acc, c) => acc + parseFloat(c.detteTotale || 0), 0);
@@ -357,7 +357,7 @@ const getAIInsights = async (req, res, next) => {
             .map(([dev, total]) => `${total.toLocaleString()} ${dev}`)
             .join(' + ') || `0 ${shopCurrency}`;
         const totalRevenueCDF = Object.entries(salesByCurrency).reduce((acc, [dev, total]) => {
-            return acc + (dev === 'USD' ? total * exchangeRate : total);
+            return acc + (convertCurrency(total, dev, 'CDF', exchangeRate));
         }, 0);
 
         const lowStock = products.filter(p => (p.stock || 0) <= (p.stockAlerte || 5));
