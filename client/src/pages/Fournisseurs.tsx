@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Truck, Plus, Search, Phone, Mail, MapPin, Package, TrendingUp, FileText, Edit2, Trash2, X, Filter, Download, RefreshCw, Loader2, Edit, Building2
 } from 'lucide-react';
 import api from '../api/axios';
@@ -18,10 +18,11 @@ const Fournisseurs = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  
+
   const user = useAuthStore(state => state.user);
   const canDo = (permission: string): boolean => {
     if (!user) return false;
@@ -50,9 +51,9 @@ const Fournisseurs = () => {
     try {
       const response = await api.get(`/fournisseurs?_t=${Date.now()}`);
       const resData = response.data;
-      
+
       let suppliersList = [];
-      
+
       if (resData.success && resData.data) {
         if (Array.isArray(resData.data.data)) {
           suppliersList = resData.data.data;
@@ -65,7 +66,7 @@ const Fournisseurs = () => {
         else if (data && Array.isArray(data.data)) suppliersList = data.data;
         else if (data && Array.isArray(data.fournisseurs)) suppliersList = data.fournisseurs;
       }
-      
+
       setSuppliers(suppliersList);
     } catch (error) {
       toast.error(t('suppliersLoadError'));
@@ -122,18 +123,25 @@ const Fournisseurs = () => {
   };
 
   const handleDeleteSupplier = async (id: number, nom: string) => {
-    if (!confirm(`Supprimer le fournisseur "${nom}" ?`)) return;
-    try {
-      await api.delete(`/fournisseurs/${id}`);
-      setSuppliers(prev => prev.filter(s => s.id !== id));
-      toast.success(t('supplierDeleted'));
-      fetchSuppliers();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || t('supplierDeleteError'));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Supprimer le fournisseur',
+      message: `Voulez-vous vraiment supprimer le fournisseur "${nom}" ? Cette action est irréversible.`,
+      onConfirm: async () => {
+        try {
+          await api.delete(`/fournisseurs/${id}`);
+          setSuppliers(prev => prev.filter(s => s.id !== id));
+          toast.success(t('supplierDeleted'));
+          fetchSuppliers();
+        } catch (error: any) {
+          toast.error(error.response?.data?.message || t('supplierDeleteError'));
+        }
+      }
+    });
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
+
+  const filteredSuppliers = suppliers.filter(s =>
     s.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -158,7 +166,7 @@ const Fournisseurs = () => {
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('suppliersSubtitle')}</p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <div className="glass" style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-card)', minWidth: '180px' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'rgba(79, 70, 229, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -180,16 +188,16 @@ const Fournisseurs = () => {
             placeholder={t('searchSupplier')}
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            style={{ 
-              width: '100%', 
-              padding: '16px 16px 16px 60px', 
-              borderRadius: 'var(--radius-sm)', 
-              border: '1px solid var(--border)', 
-              backgroundColor: 'var(--bg-main)', 
-              color: 'var(--text-main)', 
-              fontWeight: '600', 
+            style={{
+              width: '100%',
+              padding: '16px 16px 16px 60px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-main)',
+              color: 'var(--text-main)',
+              fontWeight: '600',
               outline: 'none',
-              fontSize: '1rem' 
+              fontSize: '1rem'
             }}
           />
         </div>
@@ -197,11 +205,11 @@ const Fournisseurs = () => {
           <button onClick={() => exportToExcel(suppliers, 'Fournisseurs_Report')} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
             <Download size={18} /> {t('report')}
           </button>
-          
+
           <button onClick={fetchSuppliers} className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
             <RefreshCw size={18} />
           </button>
-          
+
           {canDo('suppliers.add') && (
             <button
               onClick={() => setShowAddModal(true)}
@@ -280,7 +288,7 @@ const Fournisseurs = () => {
                         </div>
                       )}
                       {!s.telephone && !s.email && (
-                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('notSpecified')}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('notSpecified')}</span>
                       )}
                     </div>
                   </td>
@@ -333,7 +341,7 @@ const Fournisseurs = () => {
               .replace('{end}', Math.min(currentPage * itemsPerPage, filteredSuppliers.length).toString())
               .replace('{total}', filteredSuppliers.length.toString())}
           </div>
-          
+
           {totalPages > 1 && (
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -499,6 +507,13 @@ const Fournisseurs = () => {
         </form>
       </Modal>
 
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+      />
     </motion.div>
   );
 };

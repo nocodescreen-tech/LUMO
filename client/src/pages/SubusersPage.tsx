@@ -64,11 +64,11 @@ const SubusersPage = () => {
           api.get(`/sales?limit=500&_t=${Date.now()}`)
         ]);
         const subs = Array.isArray(subRes.data) ? subRes.data : (subRes.data?.data || []);
-        const sales = Array.isArray(salesRes.data) ? salesRes.data 
-          : (Array.isArray(salesRes.data?.data) ? salesRes.data.data 
-          : (Array.isArray(salesRes.data?.sales) ? salesRes.data.sales 
-          : (Array.isArray(salesRes.data?.data?.sales) ? salesRes.data.data.sales 
-          : [])));
+        const sales = Array.isArray(salesRes.data) ? salesRes.data
+          : (Array.isArray(salesRes.data?.data) ? salesRes.data.data
+            : (Array.isArray(salesRes.data?.sales) ? salesRes.data.sales
+              : (Array.isArray(salesRes.data?.data?.sales) ? salesRes.data.data.sales
+                : [])));
         setSubusers(subs);
         setAllSales(sales);
       } catch (err) {
@@ -205,7 +205,7 @@ const SubusersPage = () => {
               <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{selectedUser.nom}</h2>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
                 <span style={{ fontSize: '0.8rem', padding: '3px 10px', borderRadius: '100px', background: selectedUser.role === 'gerant' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: selectedUser.role === 'gerant' ? 'var(--primary)' : 'var(--success)', fontWeight: 800, textTransform: 'capitalize' }}>
-                  {selectedUser.role === 'gerant' ? '👔 Gérant' : selectedUser.role === 'caissier' ? '💰 Caissier' : '💼 Vendeur'}
+                  {selectedUser.role === 'gerant' ? 'Gérant' : selectedUser.role === 'caissier' ? 'Caissier' : 'Vendeur'}
                 </span>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{selectedUser.email}</span>
               </div>
@@ -261,7 +261,7 @@ const SubusersPage = () => {
         {/* Tableau des ventes */}
         <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)' }}>
-            🛒 {language === 'fr' ? 'Ventes' : 'Sales'} ({filtered.length})
+            {language === 'fr' ? 'Ventes' : 'Sales'} ({filtered.length})
           </h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
@@ -320,7 +320,7 @@ const SubusersPage = () => {
         {/* Flux d'activités */}
         <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>📋 {language === 'fr' ? 'Flux d\'activités' : 'Activity Feed'} ({filteredActivities.length})</span>
+            <span>{language === 'fr' ? 'Flux d\'activités' : 'Activity Feed'} ({filteredActivities.length})</span>
             <button onClick={() => fetchUserActivities(selectedUser.id)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '4px' }}>
               <RefreshCw size={16} className={activitiesLoading ? 'animate-spin' : ''} />
             </button>
@@ -394,7 +394,7 @@ const SubusersPage = () => {
           <Users size={14} /> {language === 'fr' ? 'Gestion Équipe' : 'Team Management'}
         </div>
         <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
-          {language === 'fr' ? 'Activité des collaborateurs' : 'Staff Activity'}
+          <span className="text-gradient">{language === 'fr' ? 'Activité des collaborateurs' : 'Staff Activity'}</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
           {language === 'fr' ? 'Suivez les performances de chaque membre de votre équipe' : 'Track each team member\'s performance'}
