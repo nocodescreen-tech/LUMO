@@ -102,7 +102,7 @@ const StockHistory = () => {
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h1 className="title-xl">{t('stockHistoryTitle')} <span className="text-gradient">{t('stockHistoryGradient')}</span></h1>
+                    <h1 className="title-xl"><span className="text-gradient">{t('stockHistoryTitle')} {t('stockHistoryGradient')}</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('stockHistoryDesc')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
