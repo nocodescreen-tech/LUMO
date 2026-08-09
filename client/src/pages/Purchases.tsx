@@ -575,10 +575,10 @@ const Purchases = () => {
                                         {/* Totals row */}
                                         {(() => {
                                             const totalBase = items.reduce((acc: number, i: any) => acc + (i.quantite * i.prixAchat), 0);
-                                            const totalConverted = formData.devise === 'USD'
-                                                ? normalizeAmount(totalBase, shopCurrency, displayCurrency, exchangeRate)
-                                                : totalBase;
                                             const otherDevise = formData.devise === 'USD' ? 'CDF' : 'USD';
+                                            const totalConverted = formData.devise === 'USD'
+                                                ? normalizeAmount(totalBase, 'USD', otherDevise, exchangeRate)
+                                                : totalBase;
                                             return (
                                                 <div style={{ padding: '12px 14px', background: 'var(--primary-glow)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, color: 'var(--primary)', fontSize: '1rem' }}>
