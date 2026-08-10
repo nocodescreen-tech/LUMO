@@ -2,6 +2,8 @@ export const translations: Record<string, Record<string, string>> = {
   fr: {
     dashboard: 'Tableau de bord',
     pos: 'Caisse (POS)',
+    cash: 'Espèces',
+    debt: 'Dette',
     products: 'Produits & Stocks',
     sales: 'Flux de Ventes',
     purchases: 'Achats',
@@ -1060,6 +1062,8 @@ export const translations: Record<string, Record<string, string>> = {
   en: {
     dashboard: 'Dashboard',
     pos: 'Point of Sale (POS)',
+    cash: 'Cash',
+    debt: 'Debt',
     products: 'Products & Stock',
     sales: 'Sales History',
     purchases: 'Purchases',

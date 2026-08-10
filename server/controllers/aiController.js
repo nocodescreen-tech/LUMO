@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const { Sale, Product, User, Client, Fournisseur, Purchase, GlobalSetting, StaffPayment } = require("../models");
+const { convertCurrency } = require("../utils/currency");
 
 const redis = require("../utils/redis");
 
@@ -44,7 +45,7 @@ const buildLumoKnowledge = async (userId, user) => {
     // Taux de change : priorité aux préférences de l'utilisateur connecté
     const exchangeRate = user.preferences?.exchangeRate 
         || user.entreprise?.exchangeRate 
-        || 2800;
+        || 2250;
     const shopName = user.entreprise?.nom || 'votre boutique';
     const shopCurrency = user.entreprise?.devise || 'CDF';
 
@@ -346,7 +347,7 @@ const getAIInsights = async (req, res, next) => {
         const { systemInstruction, products, sales } = await buildLumoKnowledge(userId, user);
 
         // ✅ FIX : Calcul du CA par devise (comme buildLumoKnowledge le fait déjà)
-        const exchangeRate = user.preferences?.exchangeRate || user.entreprise?.exchangeRate || 2800;
+        const exchangeRate = user.preferences?.exchangeRate || user.entreprise?.exchangeRate || 2250;
         const shopCurrency = (user.entreprise?.devise || 'CDF').toUpperCase();
         const salesByCurrency = {};
         sales.forEach(s => {
