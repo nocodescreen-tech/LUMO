@@ -276,21 +276,16 @@ const POS = () => {
 
     const handleProductClick = (product: any) => {
             if (product.variantes && product.variantes.length > 0) {
-                setSelectedProductForVariants({ ...product, variantes: normalizeVariantes(product.variantes) });
-                // Initialize with first values if possible or empty
-                setTempSelectedVariants(normalizeVariantes(product.variantes).map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
+                // Modèle configurations : chaque ligne = UNE configuration complète (Y7, Y9...), on garde la liste telle quelle
+                setSelectedProductForVariants({ ...product, variantes: product.variantes });
+                setTempSelectedVariants([{ nom: product.variantes[0].nom, valeur: product.variantes[0].valeur }]);
             } else {
                 addToCart(product, currency, liveRate);
             }
         };
 
-        const formatVariantSummary = (variants: { nom: string; valeur: string }[] = []) => {
-            if (!Array.isArray(variants) || variants.length === 0) return '';
-            return variants
-                .filter(v => v && v.valeur)
-                .map(v => `${v.nom}: ${v.valeur}`)
-                .join(' • ');
-        };
+        // Modèle configurations : chaque ligne = UNE configuration complète (ex: "MODEL 1", "Y7"...), on garde la liste telle quelle
+        // (plus besoin de formatVariantSummary : le nomAffiche utilise le nom de la config et les specs vont dans metadata)
 
         // Regroupe les variantes par nom et fusionne les valeurs uniques (évite les doublons type RAM x2, SSD x2)
         const normalizeVariantes = (variantes: any[] = []): { nom: string; valeur: string }[] => {
@@ -420,8 +415,9 @@ const POS = () => {
                     items: cart.map(item => {
                         const itemSalePrice = getCartItemPriceInSaleCurrency(item);
                         const cleanVariantes = dedupeSelectedVariantes(item.selectedVariantes || []);
-                        const variationSummary = formatVariantSummary(cleanVariantes);
-                        const normalizedName = variationSummary ? `${item.nom} (${variationSummary})` : item.nom;
+                        // nomAffiche court pour la facture : "hp probook - Y7" (specs complètes dans metadata)
+                        const configLabel = cleanVariantes.length > 0 ? cleanVariantes[0].nom : '';
+                        const normalizedName = configLabel ? `${item.nom} - ${configLabel}` : item.nom;
                         return {
                             id: item.id,
                             nom: item.nom,
@@ -661,14 +657,19 @@ toast.info(syncMsg);
                                         {item.image ? <img src={item.image} alt={item.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}><Package size={24} /></div>}
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                                                            <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
-                                                                            {item.selectedVariantes && item.selectedVariantes.length > 0 && (
-                                                                                <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                                                                    {dedupeSelectedVariantes(item.selectedVariantes).map((v, idx) => (
-                                                                                        <span key={idx} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 800 }}>{v.nom}: {v.valeur}</span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
+                                        <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
+                                        {item.selectedVariantes && item.selectedVariantes.length > 0 && (
+                                            dedupeSelectedVariantes(item.selectedVariantes).map((v, idx) => (
+                                                <div key={idx} style={{ marginBottom: '4px' }}>
+                                                    <span style={{ display: 'inline-block', fontSize: '0.68rem', padding: '2px 8px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '6px', fontWeight: 800 }}>{v.nom}</span>
+                                                    {String(v.valeur || '').split(',').map(s => s.trim()).filter(Boolean).length > 0 && (
+                                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '2px' }}>
+                                                            {String(v.valeur).split(',').map(s => s.trim()).filter(Boolean).join(' • ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
                                         <div>
                                             <p style={{ fontWeight: 800, color: 'var(--primary)', margin: 0, fontSize: '0.9rem' }}>
                                                 {displayCartItemPrice(item)}
@@ -789,39 +790,35 @@ toast.info(syncMsg);
                                 <button onClick={() => setSelectedProductForVariants(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
-                                {selectedProductForVariants.variantes.map((v: any, idx: number) => (
-                                    <div key={idx}>
-                                        <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>{v.nom}</label>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                                            {(v.valeur || '').split(',').map((opt: string) => {
-                                                const val = opt.trim();
-                                                const isActive = tempSelectedVariants.find(sv => sv.nom === v.nom)?.valeur === val;
-                                                return (
-                                                    <button 
-                                                        key={val}
-                                                        onClick={() => {
-                                                            const newV = [...tempSelectedVariants];
-                                                            const existingIdx = newV.findIndex(sv => sv.nom === v.nom);
-                                                            if (existingIdx >= 0) newV[existingIdx].valeur = val;
-                                                            else newV.push({ nom: v.nom, valeur: val });
-                                                            setTempSelectedVariants(newV);
-                                                        }}
-                                                        style={{ 
-                                                            padding: '10px 16px', borderRadius: '12px', border: '1.5px solid', 
-                                                            borderColor: isActive ? 'var(--primary)' : 'var(--border)',
-                                                            backgroundColor: isActive ? 'var(--primary-glow)' : 'var(--bg-main)',
-                                                            color: isActive ? 'var(--primary)' : 'var(--text-main)',
-                                                            fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s'
-                                                        }}
-                                                    >
-                                                        {val}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '32px' }}>
+                                {(selectedProductForVariants.variantes || []).map((v: any, idx: number) => {
+                                    const isActive = tempSelectedVariants.some(sv => sv.nom === v.nom && sv.valeur === v.valeur);
+                                    const specList = String(v.valeur || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => setTempSelectedVariants([{ nom: v.nom, valeur: v.valeur }])}
+                                            style={{
+                                                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px',
+                                                padding: '14px 16px', borderRadius: '14px', cursor: 'pointer', textAlign: 'left', width: '100%',
+                                                border: `2px solid ${isActive ? 'var(--primary)' : 'var(--border)'}`,
+                                                background: isActive ? 'var(--primary-glow)' : 'var(--bg-main)',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '1rem', fontWeight: 800, color: isActive ? 'var(--primary)' : 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {isActive && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }} />}
+                                                {v.nom || `${selectedProductForVariants.nom} ${idx + 1}`}
+                                            </span>
+                                            {specList.length > 0 && (
+                                                <span style={{ fontSize: '0.83rem', color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1.5 }}>
+                                                    {specList.join(' • ')}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             <button onClick={confirmVariantSelection} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '16px', fontSize: '1rem' }}>
