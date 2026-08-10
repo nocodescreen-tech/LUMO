@@ -40,7 +40,7 @@ const activityColors: Record<string, string> = {
 };
 
 const SubusersPage = () => {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { user, currency, exchangeRate } = useAuthStore();
   const navigate = useNavigate();
 
@@ -219,7 +219,7 @@ const SubusersPage = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
         <button onClick={() => setSelectedUser(null)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', padding: 0, width: 'fit-content' }}>
-          <ArrowLeft size={20} /> {language === 'fr' ? 'Retour à l\'équipe' : 'Back to team'}
+          <ArrowLeft size={20} /> {t('teamBack')}
         </button>
 
         {/* Profil header */}
@@ -232,14 +232,14 @@ const SubusersPage = () => {
               <h2 style={{ fontSize: '1.6rem', fontWeight: 800, margin: 0 }}>{selectedUser.nom}</h2>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '4px' }}>
                 <span style={{ fontSize: '0.8rem', padding: '3px 10px', borderRadius: '100px', background: selectedUser.role === 'gerant' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: selectedUser.role === 'gerant' ? 'var(--primary)' : 'var(--success)', fontWeight: 800, textTransform: 'capitalize' }}>
-                  {selectedUser.role === 'gerant' ? 'Gérant' : selectedUser.role === 'caissier' ? 'Caissier' : 'Vendeur'}
+                  {selectedUser.role === 'gerant' ? t('teamRoleManagerShort') : selectedUser.role === 'caissier' ? t('teamRoleCashierShort') : t('teamRoleVendorShort')}
                 </span>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{selectedUser.email}</span>
               </div>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800 }}>{language === 'fr' ? 'Dernière activité' : 'Last activity'}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800 }}>{t('teamLastActivity')}</div>
             <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{stats.lastActivity ? formatDate(stats.lastActivity) : '—'}</div>
           </div>
         </div>
@@ -247,11 +247,11 @@ const SubusersPage = () => {
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
           {[
-            { label: language === 'fr' ? 'Ventes' : 'Sales', value: stats.totalSales, icon: ShoppingCart, color: 'var(--primary)' },
-            { label: language === 'fr' ? 'CA' : 'Revenue', value: `${(stats.totalRevenue).toLocaleString()} ${currency}`, icon: DollarSign, color: 'var(--success)' },
-            { label: language === 'fr' ? 'Produits' : 'Products', value: stats.totalProducts, icon: Package, color: 'var(--secondary)' },
-            { label: language === 'fr' ? 'Panier moy.' : 'Avg cart', value: stats.totalSales > 0 ? `${Math.round(stats.totalRevenue / stats.totalSales).toLocaleString()} ${currency}` : `0 ${currency}`, icon: TrendingUp, color: 'var(--warning)' },
-            { label: language === 'fr' ? 'Actions' : 'Actions', value: filteredActivities.length, icon: Activity, color: '#155E58' },
+            { label: t('teamSalesLabel'), value: stats.totalSales, icon: ShoppingCart, color: 'var(--primary)' },
+                        { label: t('teamRevenueLabel'), value: `${(stats.totalRevenue).toLocaleString()} ${currency}`, icon: DollarSign, color: 'var(--success)' },
+                        { label: t('teamProductsLabel'), value: stats.totalProducts, icon: Package, color: 'var(--secondary)' },
+                        { label: t('teamAvgCartLabel'), value: stats.totalSales > 0 ? `${Math.round(stats.totalRevenue / stats.totalSales).toLocaleString()} ${currency}` : `0 ${currency}`, icon: TrendingUp, color: 'var(--warning)' },
+                        { label: t('teamActionsCountLabel'), value: filteredActivities.length, icon: Activity, color: '#155E58' },
           ].map((kpi, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
               className="premium-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -269,10 +269,10 @@ const SubusersPage = () => {
         {/* Filtres période */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
-            { key: 'all', label: language === 'fr' ? 'Tout' : 'All' },
-            { key: 'today', label: language === 'fr' ? 'Aujourd\'hui' : 'Today' },
-            { key: 'week', label: language === 'fr' ? 'Cette semaine' : 'This week' },
-            { key: 'month', label: language === 'fr' ? 'Ce mois' : 'This month' },
+            { key: 'all', label: t('teamPeriodAll') },
+                        { key: 'today', label: t('teamPeriodToday') },
+                        { key: 'week', label: t('teamPeriodWeek') },
+                        { key: 'month', label: t('teamPeriodMonth') },
           ].map(f => (
             <button key={f.key} onClick={() => setPeriodFilter(f.key)}
               style={{
@@ -288,7 +288,7 @@ const SubusersPage = () => {
         {/* Tableau des ventes */}
         <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)' }}>
-            {language === 'fr' ? 'Ventes' : 'Sales'} ({filtered.length})
+            {t('teamSalesLabel')} ({filtered.length})
           </h3>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
@@ -311,7 +311,7 @@ const SubusersPage = () => {
                   <motion.tr key={sale.id || i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
                     style={{ borderBottom: '1px solid var(--border)' }} className="hover-row">
                     <td style={{ padding: '14px 20px', fontWeight: 700 }}>#{sale.id?.toString()?.slice(-6) || '—'}</td>
-                    <td style={{ padding: '14px 20px' }}>{sale.clientInfo?.nom || sale.clientNom || 'Client comptoir'}</td>
+                    <td style={{ padding: '14px 20px' }}>{sale.clientInfo?.nom || sale.clientNom || t('walkInClient')}</td>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         {(sale.items || sale.articles || []).slice(0, 3).map((item: any, j: number) => (
@@ -321,7 +321,7 @@ const SubusersPage = () => {
                         ))}
                         {(sale.items || sale.articles || []).length > 3 && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700 }}>
-                            +{(sale.items || sale.articles).length - 3} autres
+                            +{(sale.items || sale.articles).length - 3} {t('teamOthersLabel')}
                           </span>
                         )}
                       </div>
@@ -347,7 +347,7 @@ const SubusersPage = () => {
         {/* Flux d'activités */}
         <div className="glass" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
           <h3 style={{ padding: '16px 20px', margin: 0, fontSize: '1rem', fontWeight: 800, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{language === 'fr' ? 'Flux d\'activités' : 'Activity Feed'} ({filteredActivities.length})</span>
+            <span>{t('teamActivityFeedTitle')} ({filteredActivities.length})</span>
             <button onClick={() => fetchUserActivities(selectedUser.id)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '4px' }}>
               <RefreshCw size={16} className={activitiesLoading ? 'animate-spin' : ''} />
             </button>
@@ -357,7 +357,7 @@ const SubusersPage = () => {
           ) : filteredActivities.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <Activity size={32} opacity={0.2} />
-              <p style={{ fontWeight: 600, marginTop: '8px' }}>Aucune activité enregistrée pour cette période</p>
+              <p style={{ fontWeight: 600, marginTop: '8px' }}>{t('teamNoActivityPeriod')}</p>
             </div>
           ) : (
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
@@ -393,7 +393,7 @@ const SubusersPage = () => {
                       </p>
                       {act.module && (
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px', display: 'inline-block' }}>
-                          Module: {act.module}
+                          {t('teamModuleLabel')}: {act.module}
                         </span>
                       )}
                     </div>
@@ -418,13 +418,13 @@ const SubusersPage = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 900, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
-          <Users size={14} /> {language === 'fr' ? 'Gestion Équipe' : 'Team Management'}
+          <Users size={14} /> {t('teamBadge')}
         </div>
         <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
-          <span className="text-gradient">{language === 'fr' ? 'Activité des collaborateurs' : 'Staff Activity'}</span>
+          <span className="text-gradient">{t('teamActivityTitle')}</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
-          {language === 'fr' ? 'Suivez les performances de chaque membre de votre équipe' : 'Track each team member\'s performance'}
+          {t('teamActivitySubtitle')}
         </p>
       </div>
 
@@ -440,14 +440,14 @@ const SubusersPage = () => {
             display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
           }}
         >
-          {showTeamManager ? 'Fermer' : 'Gerer l\'equipe'}
+          {showTeamManager ? t('teamCloseManager') : t('teamOpenManager')}
         </button>
         {!showTeamManager && (
           <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
             <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder={language === 'fr' ? 'Rechercher un membre...' : 'Search team member...'}
+              placeholder={t('teamSearchPlaceholder')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 600, outline: 'none' }}
@@ -466,7 +466,7 @@ const SubusersPage = () => {
         {filteredSubusers.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center', border: '2px dashed var(--border)', borderRadius: '20px', color: 'var(--text-muted)' }}>
             <Users size={48} opacity={0.15} />
-            <p style={{ fontWeight: 700, marginTop: '12px' }}>Aucun membre trouvé</p>
+            <p style={{ fontWeight: 700, marginTop: '12px' }}>{t('teamNoMemberFound')}</p>
           </div>
         ) : filteredSubusers.map(sub => {
           const stats = getSubuserStats(sub.id);
@@ -486,7 +486,7 @@ const SubusersPage = () => {
                   <div style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {sub.nom}
                     <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '100px', background: sub.role === 'gerant' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: sub.role === 'gerant' ? 'var(--primary)' : 'var(--success)', fontWeight: 800, textTransform: 'capitalize' }}>
-                      {sub.role === 'gerant' ? 'Gérant' : sub.role === 'caissier' ? 'Caissier' : 'Vendeur'}
+                      {sub.role === 'gerant' ? t('teamRoleManagerShort') : sub.role === 'caissier' ? t('teamRoleCashierShort') : t('teamRoleVendorShort')}
                     </span>
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{sub.email}</div>
@@ -495,11 +495,11 @@ const SubusersPage = () => {
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.totalSales}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ventes</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('teamSalesLabel')}</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success)' }}>{(stats.totalRevenue).toLocaleString()} {currency}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>CA</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('teamRevenueLabel')}</div>
                 </div>
                 <ChevronRight size={20} style={{ color: 'var(--text-muted)' }} />
               </div>

@@ -14,6 +14,7 @@ const {
   Notification,
   User,
   Feedback,
+  StaffPayment,
 } = require('../models');
 const { uploadBackup } = require('../services/firebaseService');
 const { sendEmail } = require('../utils/emailService');
@@ -103,6 +104,7 @@ const executeDailyBackup = async () => {
         notifications,
         subUsers,
         feedbacks,
+        staffPayments,
       ] = await Promise.all([
         Product.findAll({ where: { userId } }),
         Sale.findAll({ where: { userId } }),
@@ -115,6 +117,7 @@ const executeDailyBackup = async () => {
         Notification.findAll({ where: { userId } }),
         User.findAll({ where: { parentId: userId } }),
         Feedback.findAll({ where: { userId } }),
+        StaffPayment.findAll({ where: { userId } }),
       ]);
 
       const backupData = {
@@ -138,6 +141,7 @@ const executeDailyBackup = async () => {
             return plain;
           }),
           feedbacks: feedbacks.map((f) => f.get({ plain: true })),
+          staffPayments: staffPayments.map((sp) => sp.get({ plain: true })),
         },
       };
 

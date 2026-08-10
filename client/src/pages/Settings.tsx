@@ -576,11 +576,12 @@ const Settings = () => {
     toast('Restauration des données en cours...');
     try {
       const response = await api.post('/backup/import', restorePreview.rawData);
-      toast.success(`Restauration réussie ! (${response.data.restored.products} produits, ${response.data.restored.clients} clients restaurés)`);
+      const r = response.data?.restored || {};
+      toast.success(`Restauration réussie ! Produits: ${r.products ?? 0}, Ventes: ${r.sales ?? 0}, Clients: ${r.clients ?? 0}, Équipe: ${r.subUsers ?? 0}`);
       setRestorePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
-      toast.error(t('ErreurlorsdelarMsg'));
+      toast.error(t('invalidBackupFile'));
     } finally {
       setRestoreLoading(false);
     }
@@ -1164,16 +1165,25 @@ const Settings = () => {
                               </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
                               {[
-                                { label: 'Produits', count: restorePreview.counts.products, icon: Package, color: '#155E58' },
-                                { label: 'Ventes', count: restorePreview.counts.sales, icon: CreditCard, color: 'var(--success)' },
-                                { label: 'Clients', count: restorePreview.counts.clients, icon: UserIcon, color: 'var(--warning)' }
+                                { label: 'Produits', count: restorePreview.counts?.products ?? 0, icon: Package, color: '#155E58' },
+                                { label: 'Ventes', count: restorePreview.counts?.sales ?? 0, icon: CreditCard, color: 'var(--success)' },
+                                { label: 'Clients', count: restorePreview.counts?.clients ?? 0, icon: UserIcon, color: 'var(--warning)' },
+                                { label: 'Fournisseurs', count: restorePreview.counts?.fournisseurs ?? 0, icon: Truck, color: '#2E6E8E' },
+                                { label: 'Achats', count: restorePreview.counts?.purchases ?? 0, icon: ShoppingCart, color: 'var(--primary)' },
+                                { label: 'Mouvements stock', count: restorePreview.counts?.movements ?? 0, icon: RefreshCcw, color: '#7C3AED' },
+                                { label: 'Sessions caisse', count: restorePreview.counts?.sessions ?? 0, icon: Wallet, color: '#C07E12' },
+                                { label: 'Activités', count: restorePreview.counts?.activities ?? 0, icon: Activity, color: '#155E58' },
+                                { label: 'Notifications', count: restorePreview.counts?.notifications ?? 0, icon: Bell, color: '#DB2777' },
+                                { label: 'Équipe', count: restorePreview.counts?.subUsers ?? 0, icon: Users, color: '#0EA5E9' },
+                                { label: 'Paiements équipe', count: restorePreview.counts?.staffPayments ?? 0, icon: DollarSign, color: '#059669' },
+                                { label: 'Feedbacks', count: restorePreview.counts?.feedbacks ?? 0, icon: Sparkles, color: '#F59E0B' }
                               ].map((item, idx) => (
                                 <div key={idx} style={{ padding: '16px', borderRadius: '16px', background: 'rgba(0,0,0,0.03)', textAlign: 'center' }}>
                                   <item.icon size={20} color={item.color} style={{ marginBottom: '8px' }} />
                                   <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>{item.count}</div>
-                                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</div>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</div>
                                 </div>
                               ))}
                             </div>

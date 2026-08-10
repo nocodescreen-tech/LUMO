@@ -169,7 +169,7 @@ export const TeamSection = () => {
       const members = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
       setSubUsers(members);
     } catch (err) {
-      toast.error("Erreur lors de la récupération de l'équipe");
+      toast.error(t('teamFetchError'));
       setSubUsers([]);
     } finally {
       setLoading(false);
@@ -185,23 +185,23 @@ export const TeamSection = () => {
 
     // Validation permissions choisies manuellement
     if (!Array.isArray(newUser.permissions) || newUser.permissions.length === 0) {
-      return toast.error("Sélectionnez au moins une permission pour ce membre.");
+      return toast.error(t('teamPermissionRequired'));
     }
 
     // Validation mot de passe
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
     if (!passwordRegex.test(newUser.motDePasse)) {
-      return toast.error("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+      return toast.error(t('teamPasswordPolicyError'));
     }
 
     try {
       await api.post('/subusers', newUser);
-      toast.success(`Membre ${newUser.nom} ajouté !`);
+      toast.success(t('memberAdded', { name: newUser.nom }));
       setShowAddModal(false);
       setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: [] });
       fetchSubUsers();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Erreur lors de l'ajout");
+      toast.error(err.response?.data?.message || t('memberAddError'));
     }
   };
 
@@ -225,7 +225,7 @@ export const TeamSection = () => {
       const { data } = await api.get(`/staff-payments?staffId=${staff.id}`);
       setStaffPayments(Array.isArray(data.data) ? data.data : []);
     } catch (err) {
-      toast.error(t('ErreurlorsdelarMsg'));
+      toast.error(t('teamPaymentLoadError'));
     } finally {
       setLoadingPayments(false);
     }
@@ -243,7 +243,7 @@ export const TeamSection = () => {
       setPaymentData({ amount: '', type: 'SALAIRE', note: '', date: new Date().toISOString().split('T')[0] });
       openPaymentModal(selectedStaff); // Refresh list
     } catch (err) {
-      toast.error("Erreur lors de l'enregistrement");
+      toast.error(t('teamPaymentSaveError'));
     }
   };
 
@@ -326,42 +326,42 @@ export const TeamSection = () => {
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Nouveau membre"
-        subtitle="Créez un compte employé sécurisé avec accès personnalisés."
+        title={t('teamAddMemberTitle')}
+        subtitle={t('teamAddMemberSubtitle')}
         maxWidth="600px"
         icon={Users}
       >
         <form onSubmit={handleAddSubUser} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <InputField label="Nom Complet" value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder="Ex: Jules Kamba" required />
-            <InputField label="Téléphone" value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder="+243..." />
+            <InputField label={t('teamFullNameLabel')} value={newUser.nom} onChange={(e: any) => setNewUser({ ...newUser, nom: e.target.value })} placeholder={t('teamFullNamePlaceholder')} required />
+                        <InputField label={t('teamPhoneLabel')} value={newUser.telephone} onChange={(e: any) => setNewUser({ ...newUser, telephone: e.target.value })} placeholder={t('teamPhonePlaceholder')} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginLeft: '4px' }}>Rôle</label>
+            <label style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', marginLeft: '4px' }}>{t('teamRoleLabel')}</label>
             <select
               value={newUser.role}
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
               style={{ width: '100%', padding: '14px 16px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, outline: 'none', cursor: 'pointer', appearance: 'none' }}
             >
-              <option value="vendeur">Vendeur — POS, produits, clients</option>
-              <option value="gerant">Gérant — Dashboard, stats, gestion équipe</option>
-              <option value="caissier">Caissier — POS uniquement</option>
+              <option value="vendeur">{t('teamRoleVendor')}</option>
+                            <option value="gerant">{t('teamRoleManager')}</option>
+                            <option value="caissier">{t('teamRoleCashier')}</option>
             </select>
           </div>
 
-          <InputField label="Email / Identifiant" type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} placeholder="jules@example.com" required icon={Mail} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <InputField label="Mot de passe initial" type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caractères + symboles" required icon={Key} />
-            {newUser.motDePasse && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                {[
-                  { label: '8+ Car.', met: newUser.motDePasse.length >= 8 },
-                  { label: 'Maj.', met: /[A-Z]/.test(newUser.motDePasse) },
-                  { label: 'Min.', met: /[a-z]/.test(newUser.motDePasse) },
-                  { label: 'Chiffre', met: /\d/.test(newUser.motDePasse) },
-                  { label: 'Symbole', met: /[@$!%*?&#]/.test(newUser.motDePasse) },
-                ].map((req, idx) => (
+          <InputField label={t('emailIdentifier')} type="email" value={newUser.email} onChange={(e: any) => setNewUser({ ...newUser, email: e.target.value })} placeholder="jules@example.com" required icon={Mail} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <InputField label={t('initialPassword')} type="password" value={newUser.motDePasse} onChange={(e: any) => setNewUser({ ...newUser, motDePasse: e.target.value })} placeholder="Min. 8 caractères + symboles" required icon={Key} />
+                      {newUser.motDePasse && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                          {[
+                            { label: t('pwdReq8Chars'), met: newUser.motDePasse.length >= 8 },
+                            { label: t('pwdReqUpper'), met: /[A-Z]/.test(newUser.motDePasse) },
+                            { label: t('pwdReqLower'), met: /[a-z]/.test(newUser.motDePasse) },
+                            { label: t('pwdReqDigit'), met: /\d/.test(newUser.motDePasse) },
+                            { label: t('pwdReqSymbol'), met: /[@$!%*?&#]/.test(newUser.motDePasse) },
+                          ].map((req, idx) => (
                   <span key={idx} style={{
                     fontSize: '0.65rem', padding: '2px 6px', borderRadius: '6px',
                     background: req.met ? 'rgba(15, 157, 106, 0.1)' : 'rgba(0,0,0,0.03)',
@@ -376,15 +376,15 @@ export const TeamSection = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>
-              Accès & Permissions - Sélection manuelle
+              {t('teamPermissionsManualTitle')}
             </label>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {newUser.permissions.length} permission(s) sélectionnée(s)
+                {t('teamPermissionsSelectedCount', { count: String(newUser.permissions.length) })}
               </span>
               {newUser.permissions.length === 0 && (
                 <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700 }}>
-                  Choisissez au moins une permission
+                  {t('teamPermissionsNeedOne')}
                 </span>
               )}
             </div>
@@ -421,7 +421,7 @@ export const TeamSection = () => {
                       </div>
                       <m.icon size={15} style={{ color: isModuleOn ? 'var(--primary)' : 'var(--text-muted)', flexShrink: 0 }} />
                       <span style={{ fontSize: '0.9rem', fontWeight: '800', color: isModuleOn ? 'var(--primary)' : 'var(--text-main)', flex: 1 }}>{m.label}</span>
-                      {m.actions.length > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700 }}>{newUser.permissions.filter(p => m.actions.some(a => a.id === p)).length}/{m.actions.length} actions</span>}
+                      {m.actions.length > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700 }}>{newUser.permissions.filter(p => m.actions.some(a => a.id === p)).length}/{m.actions.length} {t('teamActionsLabel')}</span>}
                     </label>
                     {/* Sub-actions (shown only when module is enabled) */}
                     {isModuleOn && m.actions.length > 0 && (
@@ -470,7 +470,7 @@ export const TeamSection = () => {
               cursor: newUser.permissions.length === 0 ? 'not-allowed' : 'pointer'
             }}
           >
-            Finaliser l'enregistrement
+            {t('teamFinalizeRegistration')}
           </button>
         </form>
       </Modal>
@@ -479,49 +479,49 @@ export const TeamSection = () => {
         isOpen={confirmDelete.isOpen}
         onClose={() => setConfirmDelete({ isOpen: false, id: null, name: '' })}
         onConfirm={handleDelete}
-        title="Supprimer un membre"
-        message={`Voulez-vous vraiment supprimer l'accès pour ${confirmDelete.name} ?`}
+        title={t('teamDeleteMemberTitle')}
+        message={t('teamDeleteMemberMessage', { name: confirmDelete.name })}
       />
 
       <Modal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        title={`Paiements : ${selectedStaff?.nom}`}
-        subtitle="Historique des salaires, primes et transport."
+        title={`${t('teamPaymentsTitlePrefix')} ${selectedStaff?.nom}`}
+        subtitle={t('teamPaymentsSubtitle')}
         maxWidth="800px"
         icon={Wallet}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <form onSubmit={handleAddPayment} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', padding: '20px', background: 'rgba(0,0,0,0.02)', borderRadius: '20px', border: '1px solid var(--border)' }}>
-            <InputField label="Montant" type="number" value={paymentData.amount} onChange={(e: any) => setPaymentData({ ...paymentData, amount: e.target.value })} placeholder="Ex: 500" required icon={DollarSign} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 800 }}>Type</label>
-              <select
-                value={paymentData.type}
-                onChange={(e) => setPaymentData({ ...paymentData, type: e.target.value })}
-                style={{ padding: '12px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
-              >
-                <option value="SALAIRE">Salaire</option>
-                <option value="TRANSPORT">Transport</option>
-                <option value="PRIME">Prime</option>
-                <option value="AUTRE">Autre</option>
-              </select>
-            </div>
-            <InputField label="Date" type="date" value={paymentData.date} onChange={(e: any) => setPaymentData({ ...paymentData, date: e.target.value })} required />
-            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1 }}>
-                <InputField label="Note / Commentaire" value={paymentData.note} onChange={(e: any) => setPaymentData({ ...paymentData, note: e.target.value })} placeholder="Ex: Prime de vente" />
-              </div>
-              <button type="submit" className="btn-premium primary" style={{ padding: '14px 24px', height: 'fit-content' }}>Enregistrer</button>
-            </div>
+            <InputField label={t('teamPaymentAmountLabel')} type="number" value={paymentData.amount} onChange={(e: any) => setPaymentData({ ...paymentData, amount: e.target.value })} placeholder={t('teamPaymentAmountPlaceholder')} required icon={DollarSign} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 800 }}>{t('teamPaymentTypeLabel')}</label>
+                          <select
+                            value={paymentData.type}
+                            onChange={(e) => setPaymentData({ ...paymentData, type: e.target.value })}
+                            style={{ padding: '12px', borderRadius: '12px', border: '2px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
+                          >
+                            <option value="SALAIRE">{t('teamPaymentTypeSalary')}</option>
+                            <option value="TRANSPORT">{t('teamPaymentTypeTransport')}</option>
+                            <option value="PRIME">{t('teamPaymentTypeBonus')}</option>
+                            <option value="AUTRE">{t('teamPaymentTypeOther')}</option>
+                          </select>
+                        </div>
+                        <InputField label={t('teamPaymentDateLabel')} type="date" value={paymentData.date} onChange={(e: any) => setPaymentData({ ...paymentData, date: e.target.value })} required />
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                          <div style={{ flex: 1 }}>
+                            <InputField label={t('teamPaymentNoteLabel')} value={paymentData.note} onChange={(e: any) => setPaymentData({ ...paymentData, note: e.target.value })} placeholder={t('teamPaymentNotePlaceholder')} />
+                          </div>
+                          <button type="submit" className="btn-premium primary" style={{ padding: '14px 24px', height: 'fit-content' }}>{t('teamPaymentSaveButton')}</button>
+                        </div>
           </form>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h4 style={{ margin: 0, fontWeight: 900 }}>Historique Récent</h4>
+            <h4 style={{ margin: 0, fontWeight: 900 }}>{t('teamRecentHistoryTitle')}</h4>
             {loadingPayments ? (
               <Loader2 size={24} className="animate-spin" style={{ margin: '20px auto' }} />
             ) : staffPayments.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontWeight: 600 }}>Aucun historique trouvé.</p>
+              <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontWeight: 600 }}>{t('teamNoPaymentHistory')}</p>
             ) : (
               <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {staffPayments.map((p: any) => (
@@ -537,7 +537,7 @@ export const TeamSection = () => {
                     </div>
                     <button
                       onClick={async () => {
-                        if (confirm('Supprimer ce paiement ?')) {
+                        if (confirm(t('teamDeletePaymentConfirm'))) {
                           await api.delete(`/staff-payments/${p.id}`);
                           openPaymentModal(selectedStaff);
                         }

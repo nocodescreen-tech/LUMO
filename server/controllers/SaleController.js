@@ -185,19 +185,20 @@ exports.createSale = async (req, res, next) => {
           profitNormalized += (prixUnitaireCDF - prixAchatCDF) * quantite;
 
           return {
-            id: item.id,
-            nom: item.nom,
-            prixUnitaire,
-            quantite,
-            prixAchat: rawPrixAchat,
-            deviseOrigine: saleCurrency,
-            tauxChange: finalRate,
-            totalLigneOrigine: Math.round((prixUnitaire * quantite) * 100) / 100,
-            totalLigneCDF: Math.round((prixUnitaireCDF * quantite) * 100) / 100,
-            totalLigneUSD: Math.round(((prixUnitaireCDF * quantite) / finalRate) * 100) / 100,
-            deviseProduit: productDevise,
-            metadata: item.metadata || null,
-          };
+                      id: item.id,
+                      nom: item.nom,
+                      nomAffiche: item.nomAffiche || item.nom,
+                      prixUnitaire,
+                      quantite,
+                      prixAchat: rawPrixAchat,
+                      deviseOrigine: saleCurrency,
+                      tauxChange: finalRate,
+                      totalLigneOrigine: Math.round((prixUnitaire * quantite) * 100) / 100,
+                      totalLigneCDF: Math.round((prixUnitaireCDF * quantite) * 100) / 100,
+                      totalLigneUSD: Math.round(((prixUnitaireCDF * quantite) / finalRate) * 100) / 100,
+                      deviseProduit: productDevise,
+                      metadata: item.metadata || null,
+                    };
         })
       : [];
 

@@ -1015,16 +1015,16 @@ const Products = () => {
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Variantes (Taille, Couleur, etc.)</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {newProduct.variantes.map((v, i) => (
                 <div key={i} style={{ display: 'flex', gap: '10px' }}>
-                  <input placeholder="ex: Couleur" value={v.nom} onChange={e => {
+                  <input placeholder={t('variantNamePlaceholder')} value={v.nom} onChange={e => {
                     const newV = [...newProduct.variantes];
                     newV[i].nom = e.target.value;
                     setNewProduct({ ...newProduct, variantes: newV });
                   }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
-                  <input placeholder="ex: Rouge" value={v.valeur} onChange={e => {
+                  <input placeholder={t('variantValuePlaceholder')} value={v.valeur} onChange={e => {
                     const newV = [...newProduct.variantes];
                     newV[i].valeur = e.target.value;
                     setNewProduct({ ...newProduct, variantes: newV });
@@ -1032,7 +1032,7 @@ const Products = () => {
                   <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: newProduct.variantes.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
+              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ {t('addVariantBtn')}</button>
             </div>
           </div>
 
@@ -1219,16 +1219,16 @@ const Products = () => {
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Variantes</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(selectedProduct.variantes || []).map((v: any, i: number) => (
                   <div key={i} style={{ display: 'flex', gap: '10px' }}>
-                    <input placeholder="ex: Taille" value={v.nom} onChange={e => {
+                    <input placeholder={t('variantNamePlaceholder')} value={v.nom} onChange={e => {
                       const newV = [...selectedProduct.variantes];
                       newV[i].nom = e.target.value;
                       setSelectedProduct({ ...selectedProduct, variantes: newV });
                     }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
-                    <input placeholder="ex: XL" value={v.valeur} onChange={e => {
+                    <input placeholder={t('variantValuePlaceholder')} value={v.valeur} onChange={e => {
                       const newV = [...selectedProduct.variantes];
                       newV[i].valeur = e.target.value;
                       setSelectedProduct({ ...selectedProduct, variantes: newV });
@@ -1236,7 +1236,7 @@ const Products = () => {
                     <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: selectedProduct.variantes.filter((_: any, idx: number) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                   </div>
                 ))}
-                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ Ajouter une variante</button>
+                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ {t('addVariantBtn')}</button>
               </div>
             </div>
 

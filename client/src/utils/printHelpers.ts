@@ -205,7 +205,7 @@ export const generateInvoice = (data: any, user: any = null) => {
                   return `
                   <tr>
                     <td style="font-weight: 700; color: #0f172a;">
-                      ${esc(item.nom)}
+                                          ${esc(item.nomAffiche || item.nom)}
                       ${metadataLines.length ? `<div style="margin-top: 4px; font-size: 11px; font-weight: 600; color: #64748b;">${metadataLines.join(' • ')}</div>` : ''}
                     </td>
                     <td style="text-align: center; color: #475569; font-weight: 600;">${quantity}</td>
@@ -360,7 +360,7 @@ export const generateTicket = (data: any, user: any = null) => {
                 : '';
               return `
               <div class="item-row">
-                <div style="flex: 2;">${esc(item.nom)}${metaStr ? `<br/><span style="font-size:9px;">${metaStr}</span>` : ''}<br/><span style="font-size:9px;">${formatAmount(pu, ticketData.currency)} x${quantity}</span></div>
+                              <div style="flex: 2;">${esc(item.nomAffiche || item.nom)}${metaStr ? `<br/><span style="font-size:9px;">${metaStr}</span>` : ''}<br/><span style="font-size:9px;">${formatAmount(pu, ticketData.currency)} x${quantity}</span></div>
                 <div style="flex: 1.5; text-align: right;">
                   ${formatAmount(lineTotal, ticketData.currency)}<br/>
                   <span style="font-size: 9px;">(≈${formatAltAmount(getAltAmount(lineTotal), altCurrency)})</span>

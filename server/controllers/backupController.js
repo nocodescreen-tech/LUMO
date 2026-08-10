@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const {
     Product, Sale, Client, Fournisseur, Purchase,
-    StockMovement, CashSession, Activite, Notification, User, Feedback
+    StockMovement, CashSession, Activite, Notification, User, Feedback, StaffPayment
 } = require('../models');
 const { sendEmail } = require('../utils/emailService');
 const { sequelize } = require('../config/database');
@@ -30,7 +30,7 @@ exports.exportBackup = async (req, res, next) => {
 
         const [
             products, sales, clients, fournisseurs, purchases,
-            movements, sessions, activities, notifications, subUsers, feedbacks
+            movements, sessions, activities, notifications, subUsers, feedbacks, staffPayments
         ] = await Promise.all([
             Product.findAll({ where: { userId } }),
             Sale.findAll({ where: { userId } }),
@@ -42,7 +42,8 @@ exports.exportBackup = async (req, res, next) => {
             Activite.findAll({ where: { UserId: userId } }),
             Notification.findAll({ where: { userId } }),
             User.findAll({ where: { parentId: userId } }),
-            Feedback.findAll({ where: { userId } })
+            Feedback.findAll({ where: { userId } }),
+            StaffPayment.findAll({ where: { userId } })
         ]);
 
         const backupData = {
@@ -60,6 +61,7 @@ exports.exportBackup = async (req, res, next) => {
                 activities: activities.map(a => a.get({ plain: true })),
                 notifications: notifications.map(n => n.get({ plain: true })),
                 feedbacks: feedbacks.map(f => f.get({ plain: true })),
+                staffPayments: staffPayments.map(sp => sp.get({ plain: true })),
                 subUsers: subUsers.map(u => {
                     const plain = u.get({ plain: true });
                     delete plain.motDePasse;
@@ -87,7 +89,7 @@ exports.exportEmailBackup = async (req, res, next) => {
 
         const [
             products, sales, clients, fournisseurs, purchases,
-            movements, sessions, activities, notifications, subUsers, feedbacks
+            movements, sessions, activities, notifications, subUsers, feedbacks, staffPayments
         ] = await Promise.all([
             Product.findAll({ where: { userId } }),
             Sale.findAll({ where: { userId } }),
@@ -99,7 +101,8 @@ exports.exportEmailBackup = async (req, res, next) => {
             Activite.findAll({ where: { UserId: userId } }),
             Notification.findAll({ where: { userId } }),
             User.findAll({ where: { parentId: userId } }),
-            Feedback.findAll({ where: { userId } })
+            Feedback.findAll({ where: { userId } }),
+            StaffPayment.findAll({ where: { userId } })
         ]);
 
         const backupData = {
@@ -117,6 +120,7 @@ exports.exportEmailBackup = async (req, res, next) => {
                 activities: activities.map(a => a.get({ plain: true })),
                 notifications: notifications.map(n => n.get({ plain: true })),
                 feedbacks: feedbacks.map(f => f.get({ plain: true })),
+                staffPayments: staffPayments.map(sp => sp.get({ plain: true })),
                 subUsers: subUsers.map(u => {
                     const plain = u.get({ plain: true });
                     delete plain.motDePasse;
@@ -189,7 +193,7 @@ exports.importBackup = async (req, res, next) => {
         const {
             products = [], clients = [], sales = [], fournisseurs = [],
             purchases = [], movements = [], sessions = [],
-            activities = [], notifications = [], subUsers = [], feedbacks = []
+            activities = [], notifications = [], subUsers = [], feedbacks = [], staffPayments = []
         } = backup.data;
 
         let restoredProducts = 0;
@@ -203,6 +207,7 @@ exports.importBackup = async (req, res, next) => {
         let restoredNotifications = 0;
         let restoredSubUsers = 0;
         let restoredFeedbacks = 0;
+        let restoredStaffPayments = 0;
 
         // --- Restaurer les Produits (upsert par nom) ---
         for (const p of products) {
@@ -309,6 +314,19 @@ exports.importBackup = async (req, res, next) => {
             restoredFeedbacks++;
         }
 
+        // --- Restaurer les Paiements de l'équipe ---
+        for (const sp of staffPayments) {
+            const { id, createdAt, updatedAt, userId: _uid, staffId, ...spData } = sp;
+            const existing = await StaffPayment.findOne({
+                where: { userId, staffId, amount: spData.amount, type: spData.type, date: spData.date || null },
+                transaction: t
+            });
+            if (!existing) {
+                await StaffPayment.create({ ...spData, userId, staffId }, { transaction: t });
+                restoredStaffPayments++;
+            }
+        }
+
         // --- Restaurer les Sous-utilisateurs ---
         for (const u of subUsers) {
             const { id, createdAt, updatedAt, parentId: _pid, ...userData } = u;
@@ -334,7 +352,8 @@ exports.importBackup = async (req, res, next) => {
                 activities: restoredActivities,
                 notifications: restoredNotifications,
                 subUsers: restoredSubUsers,
-                feedbacks: restoredFeedbacks
+                feedbacks: restoredFeedbacks,
+                staffPayments: restoredStaffPayments
             }
         });
 
@@ -387,6 +406,8 @@ exports.previewBackup = async (req, res, next) => {
                 activities: (backup.data.activities || []).length,
                 notifications: (backup.data.notifications || []).length,
                 subUsers: (backup.data.subUsers || []).length,
+                feedbacks: (backup.data.feedbacks || []).length,
+                staffPayments: (backup.data.staffPayments || []).length,
             }
         });
     } catch (error) {

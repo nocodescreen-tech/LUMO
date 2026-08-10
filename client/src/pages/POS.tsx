@@ -275,22 +275,30 @@ const POS = () => {
     );
 
     const handleProductClick = (product: any) => {
-        if (product.variantes && product.variantes.length > 0) {
-            setSelectedProductForVariants(product);
-            // Initialize with first values if possible or empty
-            setTempSelectedVariants(product.variantes.map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
-        } else {
-            addToCart(product, currency, liveRate);
-        }
-    };
+            if (product.variantes && product.variantes.length > 0) {
+                setSelectedProductForVariants(product);
+                // Initialize with first values if possible or empty
+                setTempSelectedVariants(product.variantes.map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
+            } else {
+                addToCart(product, currency, liveRate);
+            }
+        };
 
-    const confirmVariantSelection = () => {
-        if (selectedProductForVariants) {
-            addToCart(selectedProductForVariants, currency, liveRate, tempSelectedVariants);
-            setSelectedProductForVariants(null);
-            setTempSelectedVariants([]);
-        }
-    };
+        const formatVariantSummary = (variants: { nom: string; valeur: string }[] = []) => {
+            if (!Array.isArray(variants) || variants.length === 0) return '';
+            return variants
+                .filter(v => v && v.valeur)
+                .map(v => `${v.nom}: ${v.valeur}`)
+                .join(' • ');
+        };
+
+        const confirmVariantSelection = () => {
+            if (selectedProductForVariants) {
+                addToCart(selectedProductForVariants, currency, liveRate, tempSelectedVariants);
+                setSelectedProductForVariants(null);
+                setTempSelectedVariants([]);
+            }
+        };
 
     const displayPrice = (product: any) => {
         const rawPrice = product.prixVente || product.prix || 0;
@@ -382,23 +390,27 @@ const POS = () => {
         setClientEmail(finalClientEmail);
         
         const saleTotal = getSaleTotal();
-        const salePayload = {
-            items: cart.map(item => {
-                const itemSalePrice = getCartItemPriceInSaleCurrency(item);
-                return {
-                    id: item.id,
-                    nom: item.nom,
-                    prix: itemSalePrice,
-                    prixUnitaire: itemSalePrice,
-                prixAchat: item.prixAchat || 0,
-                deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
-                quantite: item.quantite,
-                metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
-                    acc[v.nom] = v.valeur;
-                    return acc;
-                }, {})
-            };
-        }),
+                const salePayload = {
+                    items: cart.map(item => {
+                        const itemSalePrice = getCartItemPriceInSaleCurrency(item);
+                        const variationSummary = formatVariantSummary(item.selectedVariantes || []);
+                        const normalizedName = variationSummary ? `${item.nom} (${variationSummary})` : item.nom;
+                        return {
+                            id: item.id,
+                            nom: item.nom,
+                            nomAffiche: normalizedName,
+                            prix: itemSalePrice,
+                            prixUnitaire: itemSalePrice,
+                        prixAchat: item.prixAchat || 0,
+                        deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
+                        quantite: item.quantite,
+                        selectedVariantes: item.selectedVariantes || [],
+                        metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
+                            acc[v.nom] = v.valeur;
+                            return acc;
+                        }, {})
+                    };
+                }),
         montantTotal: saleTotal,
             devise: saleCurrency || currency || 'USD',
             tauxChange: liveRate,
@@ -622,14 +634,14 @@ toast.info(syncMsg);
                                         {item.image ? <img src={item.image} alt={item.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}><Package size={24} /></div>}
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
-                                        {item.selectedVariantes && item.selectedVariantes.length > 0 && (
-                                            <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
-                                                {item.selectedVariantes.map((v, idx) => (
-                                                    <span key={idx} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 800 }}>{v.valeur}</span>
-                                                ))}
-                                            </div>
-                                        )}
+                                                                            <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
+                                                                            {item.selectedVariantes && item.selectedVariantes.length > 0 && (
+                                                                                <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                                                                                    {item.selectedVariantes.map((v, idx) => (
+                                                                                        <span key={idx} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 800 }}>{v.nom}: {v.valeur}</span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
                                         <div>
                                             <p style={{ fontWeight: 800, color: 'var(--primary)', margin: 0, fontSize: '0.9rem' }}>
                                                 {displayCartItemPrice(item)}
