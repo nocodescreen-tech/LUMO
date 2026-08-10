@@ -3,7 +3,7 @@ export const translations: Record<string, Record<string, string>> = {
     dashboard: 'Tableau de bord',
     pos: 'Caisse (POS)',
     products: 'Produits & Stocks',
-    sales: 'Ventes',
+    sales: 'flux de Ventes',
     purchases: 'Achats',
     clients: 'Clients',
     suppliers: 'Fournisseurs',
