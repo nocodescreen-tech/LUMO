@@ -1043,7 +1043,14 @@ const Products = () => {
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
+            <p style={{ margin: '0 0 12px 4px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('variantsHint')}</p>
+            {/* En-têtes de colonnes */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '6px', padding: '0 4px' }}>
+              <span style={{ flex: 1, fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{language === 'en' ? 'Characteristic' : 'Caractéristique'}</span>
+              <span style={{ flex: 1.4, fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{language === 'en' ? 'Options (comma separated)' : 'Choix possibles (séparés par virgule)'}</span>
+              <span style={{ width: '24px' }} />
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {newProduct.variantes.map((v, i) => (
                 <div key={i} style={{ display: 'flex', gap: '10px' }}>
@@ -1060,8 +1067,24 @@ const Products = () => {
                   <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: newProduct.variantes.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ {t('addVariantBtn')}</button>
+              <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: [...newProduct.variantes, { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>{t('addVariantBtn')}</button>
             </div>
+            {/* Aperçu type Alibaba */}
+            {newProduct.variantes.some(v => v.nom && v.valeur) && (
+              <div style={{ marginTop: '14px', padding: '14px', borderRadius: '14px', background: 'rgba(21,94,88,0.05)', border: '1px solid rgba(21,94,88,0.15)' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>{t('variantsPreviewTitle')}</div>
+                {normalizeVariantesForSave(newProduct.variantes).map((v: any, vi: number) => (
+                  <div key={vi} style={{ marginBottom: vi < newProduct.variantes.length - 1 ? '10px' : 0 }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{v.nom}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {String(v.valeur).split(',').map((opt: string) => (
+                        <span key={opt.trim()} style={{ padding: '5px 12px', borderRadius: '8px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: 800, fontSize: '0.8rem' }}>{opt.trim()}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
@@ -1247,7 +1270,13 @@ const Products = () => {
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', display: 'block', marginLeft: '4px' }}>{t('variantsLabel')}</label>
+              <p style={{ margin: '0 0 12px 4px', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('variantsHint')}</p>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '6px', padding: '0 4px' }}>
+                <span style={{ flex: 1, fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{language === 'en' ? 'Characteristic' : 'Caractéristique'}</span>
+                <span style={{ flex: 1.4, fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{language === 'en' ? 'Options (comma separated)' : 'Choix possibles (séparés par virgule)'}</span>
+                <span style={{ width: '24px' }} />
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(selectedProduct.variantes || []).map((v: any, i: number) => (
                   <div key={i} style={{ display: 'flex', gap: '10px' }}>
@@ -1260,12 +1289,28 @@ const Products = () => {
                       const newV = [...selectedProduct.variantes];
                       newV[i].valeur = e.target.value;
                       setSelectedProduct({ ...selectedProduct, variantes: newV });
-                    }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
+                    }} style={{ flex: 1.4, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                     <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: selectedProduct.variantes.filter((_: any, idx: number) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                   </div>
                 ))}
-                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>+ {t('addVariantBtn')}</button>
+                <button type="button" onClick={() => setSelectedProduct({ ...selectedProduct, variantes: [...(selectedProduct.variantes || []), { nom: '', valeur: '' }] })} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--primary)', color: 'var(--primary)', fontWeight: '700', background: 'none', cursor: 'pointer' }}>{t('addVariantBtn')}</button>
               </div>
+              {/* Aperçu type Alibaba */}
+              {(selectedProduct.variantes || []).some((v: any) => v.nom && v.valeur) && (
+                <div style={{ marginTop: '14px', padding: '14px', borderRadius: '14px', background: 'rgba(21,94,88,0.05)', border: '1px solid rgba(21,94,88,0.15)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>{t('variantsPreviewTitle')}</div>
+                  {normalizeVariantesForSave(selectedProduct.variantes).map((v: any, vi: number) => (
+                    <div key={vi} style={{ marginBottom: vi < selectedProduct.variantes.length - 1 ? '10px' : 0 }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>{v.nom}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {String(v.valeur).split(',').map((opt: string) => (
+                          <span key={opt.trim()} style={{ padding: '5px 12px', borderRadius: '8px', border: '1.5px solid var(--primary)', background: 'var(--primary-glow)', color: 'var(--primary)', fontWeight: 800, fontSize: '0.8rem' }}>{opt.trim()}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {BUSINESS_TYPES[normalizeActivityType(user?.typeActivite)]?.fields.map((field) => (
