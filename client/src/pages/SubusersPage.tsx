@@ -127,10 +127,30 @@ const SubusersPage = () => {
     return allSales.filter(s => s.userId === subuserId || s.sellerId === subuserId);
   };
 
+  const getSaleAmountInCurrency = (sale: any, targetCurrency: 'USD' | 'CDF') => {
+    const rawTotal = Number(sale?.montantTotal);
+    const legacyCDF = Number(sale?.montantCDF);
+
+    // Source principale: montantTotal + devise de la vente
+    if (Number.isFinite(rawTotal)) {
+      const fromDevise = (sale?.devise === 'FC' ? 'CDF' : (sale?.devise || 'CDF')) as 'USD' | 'CDF';
+      const rate = Number(sale?.tauxChange) > 0 ? Number(sale.tauxChange) : getEffectiveRate();
+      return normalizeAmount(rawTotal, fromDevise, targetCurrency, rate);
+    }
+
+    // Fallback historique: montantCDF (déjà en CDF)
+    if (Number.isFinite(legacyCDF)) {
+      const rate = Number(sale?.tauxChange) > 0 ? Number(sale.tauxChange) : getEffectiveRate();
+      return normalizeAmount(legacyCDF, 'CDF', targetCurrency, rate);
+    }
+
+    return 0;
+  };
+
   const getSubuserStats = (subuserId: number) => {
     const sales = getSubuserSales(subuserId);
     const filtered = filterByPeriod(sales);
-    const totalRevenue = filtered.reduce((sum, s) => sum + (s.montantCDF || s.montantTotal || 0), 0);
+    const totalRevenue = filtered.reduce((sum, s) => sum + getSaleAmountInCurrency(s, currency), 0);
     const totalProducts = filtered.reduce((sum, s) => sum + ((s.items || s.articles || []).reduce((acc: number, i: any) => acc + (i.quantite || 1), 0)), 0);
     return {
       totalSales: filtered.length,
@@ -307,7 +327,7 @@ const SubusersPage = () => {
                       </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'right', fontWeight: 800, color: 'var(--success)' }}>
-                      {convertPrice(sale.montantCDF || sale.montantTotal || 0, sale.devise || 'CDF')}
+                      {Math.round(getSaleAmountInCurrency(sale, currency)).toLocaleString()} {currency}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
                       <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '8px', background: sale.methodePaiement === 'Espèces' ? 'rgba(16,185,129,0.1)' : 'rgba(192,126,18,0.1)', color: sale.methodePaiement === 'Espèces' ? 'var(--success)' : 'var(--warning)', fontWeight: 700 }}>
