@@ -368,8 +368,8 @@ const Dettes = () => {
                 >
                   {[
                     { id: 'all', label: t('allClientsFilter') },
-                    { id: 'urgent', label: `🔴 ${t('urgent')} (> ${urgentLimit.toLocaleString()} ${currency})` },
-                    { id: 'normal', label: `🟡 ${t('normal')} (≤ ${urgentLimit.toLocaleString()} ${currency})` },
+                    { id: 'urgent', label: `${t('urgent')} (> ${urgentLimit.toLocaleString()} ${currency})` },
+                    { id: 'normal', label: `${t('normal')} (≤ ${urgentLimit.toLocaleString()} ${currency})` },
                   ].map(f => (
                     <div
                       key={f.id}

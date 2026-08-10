@@ -100,14 +100,11 @@ const ALL_MODULES = [
 
 // ─── Rôles prédéfinis enrichis ────────────────────────────────────
 const ROLE_PRESETS: Record<string, string[]> = {
-  caissier: ['pos', 'sales.add', 'products', 'clients'],
-  vendeur: ['pos', 'sales.add', 'products', 'clients', 'clients.add', 'sales'],
-  inventoriste: ['products', 'products.add', 'products.edit', 'products.import', 'suppliers', 'suppliers.add', 'purchases', 'purchases.add'],
-  superviseur: ['pos', 'sales.add', 'sales', 'products', 'products.add', 'products.edit', 'products.import',
-    'clients', 'clients.add', 'clients.edit', 'suppliers', 'purchases', 'cash', 'debts', 'stats', 'activities', 'settings.view'],
-  manager: ['pos', 'sales.add', 'sales.refund', 'sales', 'products', 'products.add', 'products.edit', 'products.delete', 'products.import',
-    'clients', 'clients.add', 'clients.edit', 'clients.delete', 'suppliers', 'suppliers.add', 'suppliers.edit',
-    'purchases', 'purchases.add', 'purchases.refund', 'cash', 'debts', 'debts.settle', 'stats', 'activities', 'settings.view', 'settings.edit'],
+  caissier: [],
+  vendeur: [],
+  inventoriste: [],
+  superviseur: [],
+  manager: [],
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -241,7 +238,7 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [newUser, setNewUser] = useState({ ...emptyUser });
-  const [newPerms, setNewPerms] = useState<string[]>(ROLE_PRESETS.caissier);
+  const [newPerms, setNewPerms] = useState<string[]>([]);
   const [newLimits, setNewLimits] = useState({ ...emptyLimits });
   const [editPerms, setEditPerms] = useState<string[]>([]);
   const [editLimits, setEditLimits] = useState({ ...emptyLimits });
@@ -268,7 +265,6 @@ const Users = () => {
 
   const handleRoleChange = (role: string) => {
     setNewUser(p => ({ ...p, role }));
-    setNewPerms(ROLE_PRESETS[role] || []);
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -278,7 +274,7 @@ const Users = () => {
       toast.success(t('userAddedNamed').replace('{name}', newUser.nom));
       setShowAddModal(false);
       setNewUser({ ...emptyUser });
-      setNewPerms(ROLE_PRESETS.caissier);
+      setNewPerms([]);
       setNewLimits({ ...emptyLimits });
       fetchUsers();
     } catch (err: any) {
@@ -477,7 +473,7 @@ const Users = () => {
                     {limits.maxCaisse > 0 && <span style={{ fontSize: '0.62rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(214,69,69,0.08)', color: 'var(--danger)', fontWeight: 700 }}>Plafond {limits.maxCaisse.toLocaleString()} FC</span>}
                     {limits.allowRefund === false && <span style={{ fontSize: '0.62rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', fontWeight: 700 }}>Remboursement interdit</span>}
                     {limits.allowDelete === false && <span style={{ fontSize: '0.62rem', padding: '2px 7px', borderRadius: '5px', background: 'rgba(239,68,68,0.08)', color: 'var(--danger)', fontWeight: 700 }}>Suppression interdite</span>}
-                    {limits.heureDebut && <span style={{ fontSize: '0.62rem', padding: '2px 7px', borderRadius: '5px', background: 'var(--sidebar-active)', color: 'var(--text-muted)', fontWeight: 700 }}>🕐 {limits.heureDebut}–{limits.heureFin || '…'}</span>}
+                    {limits.heureDebut && <span style={{ fontSize: '0.62rem', padding: '2px 7px', borderRadius: '5px', background: 'var(--sidebar-active)', color: 'var(--text-muted)', fontWeight: 700 }}>{<Clock size={12} style={{marginRight:4}} />}{limits.heureDebut}–{limits.heureFin || '…'}</span>}
                   </div>
                 )}
 
@@ -606,7 +602,7 @@ const Users = () => {
                 </div>
                 <div>
                   <label style={labelStyle}>Rôle</label>
-                  <select value={selectedUser.role} onChange={e => { setSelectedUser({ ...selectedUser, role: e.target.value }); setEditPerms(ROLE_PRESETS[e.target.value] || []); }} style={inputStyle}>
+                  <select value={selectedUser.role} onChange={e => { setSelectedUser({ ...selectedUser, role: e.target.value }); }} style={inputStyle}>
                     {Object.entries(ROLE_LABELS).map(([key, label]) => (
                       <option key={key} value={key}>{label} — {ROLE_DESC[key]}</option>
                     ))}

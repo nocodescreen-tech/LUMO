@@ -59,9 +59,9 @@ const AISuggestions = () => {
     return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO AIO Insights'}
-                </h3>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO Insights'}
+                    </h3>
             </div>
 
             {analysis && (

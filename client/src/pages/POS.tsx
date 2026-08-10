@@ -213,14 +213,14 @@ const POS = () => {
 
         if (found) {
             handleProductClick(found);
-            toast.success(`🛒 ${t('posProductAdded').replace('{name}', found.nom)}`, {
+            toast.success(`${t('posProductAdded').replace('{name}', found.nom)}`, {
                 icon: 'check',
                 style: { borderRadius: '16px', background: 'var(--bg-card)', border: '1px solid var(--primary)' }
             });
         } else {
             toast.error(t('posBarcodeUnknown').replace('{code}', normalized), {
                 description: "Le produit n'existe pas ou le code est mal renseigné.",
-                icon: '❓'
+                icon: HelpCircle
             });
         }
     };
@@ -470,8 +470,8 @@ const POS = () => {
             if (pending.length === 0) return;
 
             const syncMsg = language === 'fr'
-  ? `⏳ Synchronisation de ${pending.length} vente(s) hors-ligne...`
-  : `⏳ Syncing ${pending.length} offline sale(s)...`;
+  ? `Synchronisation de ${pending.length} vente(s) hors-ligne...`
+  : `Syncing ${pending.length} offline sale(s)...`;
 toast.info(syncMsg);
             const remaining = [];
             for (const sale of pending) {
@@ -672,8 +672,8 @@ toast.info(syncMsg);
                         <div style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('paymentMethod')}</div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {[
-                                { value: 'Espèces', label: `💵 ${t('cashPayment')}` },
-                                { value: 'Crédit', label: `📋 ${t('creditPayment')}`, module: 'debts' },
+                                { value: 'Espèces', label: `${t('cashPayment')}` },
+                                { value: 'Crédit', label: `${t('creditPayment')}`, module: 'debts' },
                             ].filter(m => !m.module || enabledModules?.includes(m.module)).map(m => (
                                 <button
                                     key={m.value}

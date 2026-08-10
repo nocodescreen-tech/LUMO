@@ -2,29 +2,29 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ShoppingBag, 
-  Search, 
-  Calendar, 
-  Filter, 
-  Download, 
-  Eye, 
-  Clock,
-  Printer,
-  ChevronRight,
-  ChevronDown,
-  Loader2,
-  Package,
-  Zap,
-  ArrowUpRight,
-  BarChart2,
-  TrendingUp,
-  DollarSign,
-  PieChart,
-  MoreVertical,
-  Trash2,
-  RotateCcw,
-  RefreshCcw
+import {
+    ShoppingBag,
+    Search,
+    Calendar,
+    Filter,
+    Download,
+    Eye,
+    Clock,
+    Printer,
+    ChevronRight,
+    ChevronDown,
+    Loader2,
+    Package,
+    Zap,
+    ArrowUpRight,
+    BarChart2,
+    TrendingUp,
+    DollarSign,
+    PieChart,
+    MoreVertical,
+    Trash2,
+    RotateCcw,
+    RefreshCcw
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { getEffectiveRate } from '../utils/currencyHelpers';
@@ -72,7 +72,7 @@ const Sales = () => {
     const [filterMethod, setFilterMethod] = useState('');
     const [showReportModal, setShowReportModal] = useState(false);
     const [actionMenuId, setActionMenuId] = useState<number | null>(null);
-    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -114,9 +114,9 @@ const Sales = () => {
         try {
             const response = await api.get(`/sales?limit=200&_t=${Date.now()}`);
             const resData = response.data;
-            
+
             let salesList = [];
-            
+
             // Structure standard: { success, data: { data: [] } }
             if (resData.success && resData.data) {
                 if (Array.isArray(resData.data.data)) {
@@ -132,7 +132,7 @@ const Sales = () => {
                 else if (data && Array.isArray(data.data)) salesList = data.data;
                 else if (data && Array.isArray(data.sales)) salesList = data.sales;
             }
-            
+
             setSales(salesList);
         } catch (error) {
             toast.error(t('salesLoadError'));
@@ -209,7 +209,7 @@ const Sales = () => {
 
     const handleExportExcel = () => {
         if (sales.length === 0) return toast.error(t('noDataToExport'));
-        
+
         const rows = filteredSales.map(s => ({
             [t('salesExcelReference')]: s.id,
             [t('salesExcelCustomer')]: s.clientInfo?.nom || t('walkInCustomer'),
@@ -226,11 +226,11 @@ const Sales = () => {
     };
 
     const filteredSales = sales.filter(s => {
-        const matchesSearch = s.id?.toString().includes(searchTerm) || 
-                             s.clientInfo?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = s.id?.toString().includes(searchTerm) ||
+            s.clientInfo?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
         const matchesMethod = filterMethod ? s.methodePaiement === filterMethod : true;
-        
+
         return matchesSearch && matchesDate && matchesMethod;
     });
 
@@ -269,7 +269,7 @@ const Sales = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
             <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
                 <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
-                    <h1 className="title-xl">{t('salesTitle')} <span className="text-gradient">{t('sales')}</span></h1>
+                    <h1 className="title-xl"><span className="text-gradient">{t(' n  ')}</span></h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('salesSubtitle')}</p>
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
@@ -328,27 +328,27 @@ const Sales = () => {
                 <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
                     <div style={{ position: 'relative', width: '100%', maxWidth: '450px' }}>
                         <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
-                        <input 
-                          type="text" 
-                          placeholder={t('searchSale')}
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }} 
+                        <input
+                            type="text"
+                            placeholder={t('searchSale')}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ width: '100%', padding: '18px 20px 18px 60px', borderRadius: '20px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: '600', fontSize: '0.95rem' }}
                         />
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
-                        <button 
+                        <button
                             onClick={() => setShowFilters(!showFilters)}
-                            style={{ 
-                                padding: '14px 24px', 
-                                borderRadius: '16px', 
-                                background: showFilters ? 'var(--primary-glow)' : 'var(--bg-main)', 
-                                border: `1.5px solid ${showFilters ? 'var(--primary)' : 'var(--border)'}`, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '10px', 
-                                fontWeight: 800, 
-                                cursor: 'pointer', 
+                            style={{
+                                padding: '14px 24px',
+                                borderRadius: '16px',
+                                background: showFilters ? 'var(--primary-glow)' : 'var(--bg-main)',
+                                border: `1.5px solid ${showFilters ? 'var(--primary)' : 'var(--border)'}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                fontWeight: 800,
+                                cursor: 'pointer',
                                 color: showFilters ? 'var(--primary)' : 'var(--text-main)',
                                 transition: 'all 0.3s'
                             }}
@@ -360,7 +360,7 @@ const Sales = () => {
 
                 <AnimatePresence>
                     {showFilters && (
-                        <motion.div 
+                        <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -369,8 +369,8 @@ const Sales = () => {
                         >
                             <div style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('date')}</label>
-                                <input 
-                                    type="date" 
+                                <input
+                                    type="date"
                                     value={filterDate}
                                     onChange={(e) => setFilterDate(e.target.value)}
                                     style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
@@ -378,7 +378,7 @@ const Sales = () => {
                             </div>
                             <div style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>{t('method')}</label>
-                                <select 
+                                <select
                                     value={filterMethod}
                                     onChange={(e) => setFilterMethod(e.target.value)}
                                     style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 700 }}
@@ -389,7 +389,7 @@ const Sales = () => {
                                 </select>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                <button 
+                                <button
                                     onClick={() => { setFilterDate(''); setFilterMethod(''); }}
                                     style={{ padding: '14px 24px', borderRadius: '12px', background: 'rgba(214, 69, 69, 0.1)', color: 'var(--danger)', border: 'none', fontWeight: 800, cursor: 'pointer' }}
                                 >
@@ -417,113 +417,113 @@ const Sales = () => {
                                     const fx = getSaleDisplayAmounts(sale);
 
                                     return (
-                                    <motion.tr 
-                                        key={sale.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: i * 0.05 }}
-                                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)', scale: 1.002 }}
-                                        style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}
-                                    >
-                                        <td style={{ padding: '24px' }}>
-                                            <div style={{ fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
-                                                #{sale.id?.toString().slice(-6).toUpperCase()}
-                                                <ArrowUpRight size={14} style={{ opacity: 0.4 }} />
-                                            </div>
-                                            <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || t('walkInCustomer')}</div>
-                                        </td>
-                                        <td style={{ padding: '24px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                                <Calendar size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleDateString()}
-                                            </div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement === 'Dette' || sale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : sale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : sale.methodePaiement}</div>
-                                        </td>
-                                        <td style={{ padding: '24px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, boxShadow: '0 4px 12px var(--primary-glow)' }}>
-                                                    {sale.vendeur?.nom?.charAt(0) || 'A'}
+                                        <motion.tr
+                                            key={sale.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.05 }}
+                                            whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)', scale: 1.002 }}
+                                            style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}
+                                        >
+                                            <td style={{ padding: '24px' }}>
+                                                <div style={{ fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}>
+                                                    #{sale.id?.toString().slice(-6).toUpperCase()}
+                                                    <ArrowUpRight size={14} style={{ opacity: 0.4 }} />
                                                 </div>
-                                                <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{sale.vendeur?.nom || 'Admin'}</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '24px', textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 800, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                                                {fx.originalAmount?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 700 }}>{fx.saleCurrency}</span>
-                                            </div>
-                                            <div style={{ fontSize: '0.95rem', color: 'var(--success)', fontWeight: 800, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                                                <RefreshCcw size={14} /> {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
-                                                {sale.articles?.length || 0} {t('articles')} · <span style={{ color: sale.statut === 'Remboursée' ? 'var(--danger)' : 'var(--success)' }}>{sale.statut || t('paid')}</span>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '24px' }}>
-                                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', position: 'relative' }}>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === sale.id ? null : sale.id); }}
-                                                    className="btn-hover"
-                                                    style={{ width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg-main)' }}
-                                                >
-                                                    <MoreVertical size={20} />
-                                                </button>
+                                                <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>{sale.clientInfo?.nom || t('walkInCustomer')}</div>
+                                            </td>
+                                            <td style={{ padding: '24px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                                    <Calendar size={16} color="var(--primary)" /> {new Date(sale.createdAt).toLocaleDateString()}
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', fontWeight: 600 }}>{sale.methodePaiement === 'Dette' || sale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : sale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : sale.methodePaiement}</div>
+                                            </td>
+                                            <td style={{ padding: '24px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 700, boxShadow: '0 4px 12px var(--primary-glow)' }}>
+                                                        {sale.vendeur?.nom?.charAt(0) || 'A'}
+                                                    </div>
+                                                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{sale.vendeur?.nom || 'Admin'}</span>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '24px', textAlign: 'right' }}>
+                                                <div style={{ fontWeight: 800, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                                                    {fx.originalAmount?.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 700 }}>{fx.saleCurrency}</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.95rem', color: 'var(--success)', fontWeight: 800, marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                                                    <RefreshCcw size={14} /> {fx.convertedAmount.toLocaleString()} {fx.altCurrency}
+                                                </div>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, marginTop: '6px' }}>
+                                                    {sale.articles?.length || 0} {t('articles')} · <span style={{ color: sale.statut === 'Remboursée' ? 'var(--danger)' : 'var(--success)' }}>{sale.statut || t('paid')}</span>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '24px' }}>
+                                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', position: 'relative' }}>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === sale.id ? null : sale.id); }}
+                                                        className="btn-hover"
+                                                        style={{ width: '46px', height: '46px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg-main)' }}
+                                                    >
+                                                        <MoreVertical size={20} />
+                                                    </button>
 
-                                                <AnimatePresence>
-                                                    {actionMenuId === sale.id && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                            style={{ position: 'absolute', right: 0, top: '55px', zIndex: 50, background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '16px', padding: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '180px' }}
-                                                        >
-                                                            <button 
-                                                                onClick={() => { setShowDetailsModal(true); setSelectedSale(sale); setActionMenuId(null); }}
-                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
-                                                                onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
-                                                                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                    <AnimatePresence>
+                                                        {actionMenuId === sale.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                style={{ position: 'absolute', right: 0, top: '55px', zIndex: 50, background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '16px', padding: '8px', boxShadow: 'var(--shadow-lg)', minWidth: '180px' }}
                                                             >
-                                                                <Eye size={16} color="var(--primary)" /> {t('details')}
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => { handlePrint(sale); setActionMenuId(null); }}
-                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
-                                                                onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
-                                                                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                                                            >
-                                                                <Printer size={16} color="var(--primary)" /> {t('printInvoice')}
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => { handlePrintTicket(sale); setActionMenuId(null); }}
-                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
-                                                                onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
-                                                                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                                                            >
-                                                                <Zap size={16} color="var(--warning)" /> {t('receipt')}
-                                                            </button>
-                                                            {sale.statut !== 'Remboursée' && (
-                                                                <button 
-                                                                    onClick={() => { handleRefund(sale); setActionMenuId(null); }}
-                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--secondary)', fontWeight: 700, borderRadius: '10px' }}
-                                                                    onMouseOver={e => e.currentTarget.style.background = 'var(--secondary-glow)'}
+                                                                <button
+                                                                    onClick={() => { setShowDetailsModal(true); setSelectedSale(sale); setActionMenuId(null); }}
+                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
                                                                     onMouseOut={e => e.currentTarget.style.background = 'transparent'}
                                                                 >
-                                                                    <RotateCcw size={16} /> {t('refund')}
+                                                                    <Eye size={16} color="var(--primary)" /> {t('details')}
                                                                 </button>
-                                                            )}
-                                                            <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                                                            <button 
-                                                                onClick={() => { deleteSale(sale.id); setActionMenuId(null); }}
-                                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700, borderRadius: '10px' }}
-                                                                onMouseOver={e => e.currentTarget.style.background = 'rgba(214, 69, 69, 0.05)'}
-                                                                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                                                            >
-                                                                <Trash2 size={16} /> {t('deleteSale')}
-                                                            </button>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-                                        </td>
-                                    </motion.tr>
+                                                                <button
+                                                                    onClick={() => { handlePrint(sale); setActionMenuId(null); }}
+                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                                >
+                                                                    <Printer size={16} color="var(--primary)" /> {t('printInvoice')}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { handlePrintTicket(sale); setActionMenuId(null); }}
+                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 700, borderRadius: '10px' }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
+                                                                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                                >
+                                                                    <Zap size={16} color="var(--warning)" /> {t('receipt')}
+                                                                </button>
+                                                                {sale.statut !== 'Remboursée' && (
+                                                                    <button
+                                                                        onClick={() => { handleRefund(sale); setActionMenuId(null); }}
+                                                                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--secondary)', fontWeight: 700, borderRadius: '10px' }}
+                                                                        onMouseOver={e => e.currentTarget.style.background = 'var(--secondary-glow)'}
+                                                                        onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                                    >
+                                                                        <RotateCcw size={16} /> {t('refund')}
+                                                                    </button>
+                                                                )}
+                                                                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                                                                <button
+                                                                    onClick={() => { deleteSale(sale.id); setActionMenuId(null); }}
+                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700, borderRadius: '10px' }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = 'rgba(214, 69, 69, 0.05)'}
+                                                                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                                                                >
+                                                                    <Trash2 size={16} /> {t('deleteSale')}
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </td>
+                                        </motion.tr>
                                     );
                                 })}
                             </AnimatePresence>
@@ -541,21 +541,21 @@ const Sales = () => {
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
-                        <button 
-                            onClick={() => setCurrentPage(currentPage - 1)} 
+                        <button
+                            onClick={() => setCurrentPage(currentPage - 1)}
                             disabled={currentPage === 1}
                             style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, fontWeight: 700 }}
                         >
                             {t('previous')}
                         </button>
                         {[...Array(totalPages)].map((_, i) => (
-                            <button 
-                                key={i} 
+                            <button
+                                key={i}
                                 onClick={() => setCurrentPage(i + 1)}
-                                style={{ 
+                                style={{
                                     width: '48px', height: '48px',
-                                    borderRadius: '14px', 
-                                    background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)', 
+                                    borderRadius: '14px',
+                                    background: currentPage === i + 1 ? 'var(--primary)' : 'var(--bg-card)',
                                     color: currentPage === i + 1 ? 'white' : 'var(--text-main)',
                                     fontWeight: 800,
                                     cursor: 'pointer',
@@ -565,8 +565,8 @@ const Sales = () => {
                                 {i + 1}
                             </button>
                         ))}
-                        <button 
-                            onClick={() => setCurrentPage(currentPage + 1)} 
+                        <button
+                            onClick={() => setCurrentPage(currentPage + 1)}
                             disabled={currentPage === totalPages}
                             style={{ padding: '12px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, fontWeight: 700 }}
                         >
@@ -638,14 +638,14 @@ const Sales = () => {
                         </div>
 
                         <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
-                            <button 
+                            <button
                                 onClick={() => handlePrintTicket(selectedSale)}
-                                className="btn-premium primary" 
+                                className="btn-premium primary"
                                 style={{ flex: 1 }}
                             >
                                 <Printer size={18} /> {t('printReceipt')}
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setShowDetailsModal(false)}
                                 className="btn-premium secondary"
                             >
@@ -667,20 +667,20 @@ const Sales = () => {
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                       <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--primary-glow)', background: 'var(--primary-glow)' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                             <TrendingUp size={20} />
-                          </div>
-                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('revenue')}</p>
-                          <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
-                       </div>
-                       <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid var(--border)' }}>
-                             <ShoppingBag size={20} />
-                          </div>
-                          <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('transactionsLabel')}</p>
-                          <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{reportStats.count}</h3>
-                       </div>
+                        <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--primary-glow)', background: 'var(--primary-glow)' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+                                <TrendingUp size={20} />
+                            </div>
+                            <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('revenue')}</p>
+                            <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
+                        </div>
+                        <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)' }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--bg-main)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', border: '1px solid var(--border)' }}>
+                                <ShoppingBag size={20} />
+                            </div>
+                            <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('transactionsLabel')}</p>
+                            <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{reportStats.count}</h3>
+                        </div>
                     </div>
 
                     <div className="premium-card" style={{ padding: '24px' }}>
@@ -693,7 +693,7 @@ const Sales = () => {
                                         <span>{amount.toLocaleString()} {currency}</span>
                                     </div>
                                     <div style={{ height: '8px', background: 'var(--bg-main)', borderRadius: '10px', overflow: 'hidden' }}>
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${(amount / reportStats.totalRevenue) * 100}%` }}
                                             style={{ height: '100%', background: 'var(--primary)', borderRadius: '10px' }}
@@ -716,7 +716,7 @@ const Sales = () => {
                     </button>
                 </div>
             </Modal>
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={confirmModal.isOpen}
                 onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
                 onConfirm={confirmModal.onConfirm}

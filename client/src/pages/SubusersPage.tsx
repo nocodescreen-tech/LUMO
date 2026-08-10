@@ -64,11 +64,18 @@ const SubusersPage = () => {
           api.get(`/sales?limit=500&_t=${Date.now()}`)
         ]);
         const subs = Array.isArray(subRes.data) ? subRes.data : (subRes.data?.data || []);
-        const sales = Array.isArray(salesRes.data) ? salesRes.data
-          : (Array.isArray(salesRes.data?.data) ? salesRes.data.data
-            : (Array.isArray(salesRes.data?.sales) ? salesRes.data.sales
-              : (Array.isArray(salesRes.data?.data?.sales) ? salesRes.data.data.sales
-                : [])));
+        const salesPayload = salesRes.data;
+        const sales = Array.isArray(salesPayload)
+          ? salesPayload
+          : Array.isArray(salesPayload?.data?.data)
+            ? salesPayload.data.data
+            : Array.isArray(salesPayload?.data)
+              ? salesPayload.data
+              : Array.isArray(salesPayload?.sales)
+                ? salesPayload.sales
+                : Array.isArray(salesPayload?.data?.sales)
+                  ? salesPayload.data.sales
+                  : [];
         setSubusers(subs);
         setAllSales(sales);
       } catch (err) {

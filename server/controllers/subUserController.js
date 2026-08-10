@@ -15,8 +15,28 @@ const {
 const { sequelize } = require('../config/database');
 const { sendResponse } = require('../utils/response');
 
-// ─── Rôles autorisés pour sous-utilisateurs ──────────────────────
-const VALID_ROLES = ['manager', 'caissier', 'vendeur', 'inventoriste', 'superviseur'];
+// ─── Rôles autorisés pour membres ──────────────────────
+const VALID_ROLES = ['manager', 'caissier', 'vendeur', 'inventoriste', 'superviseur', 'gerant'];
+
+// Permissions officiellement supportées (backend whitelist)
+const VALID_PERMISSIONS = new Set([
+  'pos', 'sales.add', 'sales.refund', 'sales.edit', 'sales.delete', 'sales.export', 'sales',
+  'products', 'products.add', 'products.edit', 'products.delete', 'products.import', 'products.export', 'products.view_purchase_price',
+  'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder',
+  'suppliers', 'suppliers.add', 'suppliers.edit', 'suppliers.delete',
+  'purchases', 'purchases.add', 'purchases.edit', 'purchases.delete', 'purchases.refund',
+  'stock-history', 'stock-history.view', 'stock-history.export',
+  'cash', 'cash.open', 'cash.close', 'cash.view', 'cash.delete_session',
+  'debts', 'debts.settle', 'debts.delete', 'debts.send_reminder',
+  'stats', 'activities',
+  'settings', 'settings.view', 'settings.edit', 'settings.profile', 'settings.appearance', 'settings.exchange_rate',
+  'team', 'team.add', 'team.edit', 'team.delete', 'team.view_activity'
+]);
+
+const sanitizePermissions = (permissions = []) => {
+  if (!Array.isArray(permissions)) return [];
+  return [...new Set(permissions.filter((p) => VALID_PERMISSIONS.has(String(p))))];
+};
 
 // Create a sub-user (cashier/manager)
 exports.createSubUser = async (req, res) => {
@@ -25,7 +45,7 @@ exports.createSubUser = async (req, res) => {
 
     // Only allow valid roles for sub-users
     if (!VALID_ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Rôle invalide pour un sous-utilisateur. Rôles valides: ' + VALID_ROLES.join(', ') });
+      return res.status(400).json({ message: 'Rôle invalide pour un membre. Rôles valides: ' + VALID_ROLES.join(', ') });
     }
 
     const userExists = await User.findOne({ where: { email } });
@@ -33,15 +53,9 @@ exports.createSubUser = async (req, res) => {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
-    let finalPermissions = permissions;
+    const finalPermissions = sanitizePermissions(permissions);
     if (!finalPermissions || finalPermissions.length === 0) {
-      if (role === 'manager') {
-        finalPermissions = ['products', 'sales', 'clients', 'stats', 'pos', 'cash'];
-      } else if (role === 'caissier' || role === 'vendeur') {
-        finalPermissions = ['pos', 'sales.add', 'products', 'clients'];
-      } else {
-        finalPermissions = [];
-      }
+      return res.status(400).json({ message: "Sélectionnez au moins une permission pour créer un membre." });
     }
 
     const subUser = await User.create({
@@ -103,31 +117,29 @@ exports.updateSubUser = async (req, res) => {
     });
 
     if (!subUser) {
-      return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
+      return res.status(404).json({ message: 'Membre non trouvé' });
     }
 
     const { nom, email, role, telephone, isSuspended, permissions, limits, suspendUntil, suspendReason } = req.body;
-    
+
     if (role && !VALID_ROLES.includes(role)) {
-        return res.status(400).json({ message: 'Rôle invalide. Rôles valides: ' + VALID_ROLES.join(', ') });
+      return res.status(400).json({ message: 'Rôle invalide. Rôles valides: ' + VALID_ROLES.join(', ') });
     }
 
     let updateData = { nom, email, role, telephone, isSuspended };
-    
+
     // Support suspension scheduling
     if (suspendUntil !== undefined) updateData.suspendUntil = suspendUntil;
     if (suspendReason !== undefined) updateData.suspendReason = suspendReason;
     if (limits !== undefined) updateData.limits = limits;
 
-    // Update permissions based on role if role changed and no custom permissions provided
-    if (role && role !== subUser.role && (!permissions || permissions.length === 0)) {
-        if (role === 'manager') {
-            updateData.permissions = ['products', 'sales', 'clients', 'stats', 'pos', 'cash'];
-        } else if (role === 'caissier' || role === 'vendeur') {
-            updateData.permissions = ['pos', 'sales.add', 'products', 'clients'];
-        }
-    } else if (permissions !== undefined) {
-        updateData.permissions = permissions;
+    // Aucune permission par défaut: l'éditeur décide explicitement
+    if (permissions !== undefined) {
+      const sanitized = sanitizePermissions(permissions);
+      if (sanitized.length === 0) {
+        return res.status(400).json({ message: "Un membre doit garder au moins une permission." });
+      }
+      updateData.permissions = sanitized;
     }
 
     await subUser.update(updateData);
@@ -144,7 +156,7 @@ exports.getSubUserActivity = async (req, res) => {
       where: { id: req.params.id, parentId: req.user.tenantId }
     });
     if (!subUser) {
-      return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
+      return res.status(404).json({ message: 'Membre non trouvé' });
     }
 
     const activities = await Activite.findAll({
@@ -169,7 +181,7 @@ exports.deleteSubUser = async (req, res) => {
     });
 
     if (!subUser) {
-      return res.status(404).json({ message: 'Sous-utilisateur non trouvé' });
+      return res.status(404).json({ message: 'Membre non trouvé' });
     }
 
     await sequelize.transaction(async (transaction) => {

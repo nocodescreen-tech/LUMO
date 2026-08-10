@@ -281,6 +281,7 @@ exports.createSale = async (req, res, next) => {
 
     await transaction.commit();
     await invalidateCache('stats');
+    await logActivite(req.user.id, 'VENTE', `Vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, sale, 'Vente enregistrée avec succès');
   } catch (error) {

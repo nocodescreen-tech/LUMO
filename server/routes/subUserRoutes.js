@@ -9,8 +9,8 @@ const {
   getSubUserActivity
 } = require('../controllers/subUserController');
 
-// Only admins can manage sub-users
-router.use(protect, authorize('admin', 'superadmin'));
+// Admins + gérants peuvent gérer les sous-utilisateurs
+router.use(protect, authorize('admin', 'superadmin', 'gerant'));
 
 router.post('/', createSubUser);
 router.get('/', getSubUsers);

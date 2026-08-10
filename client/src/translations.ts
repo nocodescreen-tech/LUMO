@@ -834,7 +834,7 @@ export const translations: Record<string, Record<string, string>> = {
     stopSupport: 'Quitter le support',
     offlineLabel: 'HORS-LIGNE',
     aiLoading: 'Analyse prédictive en cours...',
-    aiInsightsTitle: 'LUMO AIO Insights',
+    aiInsightsTitle: 'LUMO Insights',
     stockBadge: 'STOCK',
     salesBadge: 'VENTES',
     pricingBadge: 'PRIX',

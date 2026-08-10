@@ -23,12 +23,7 @@ export const TeamSection = () => {
     motDePasse: '',
     role: 'vendeur',
     telephone: '',
-    permissions: [
-      'cash', 'cash.open', 'cash.close',
-      'pos', 'pos.credit_sale', 'pos.print',
-      'products', 'products.view_purchase_price', 'products.add', 'products.edit', 'products.delete', 'products.import', 'products.export',
-      'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder'
-    ]
+    permissions: []
   });
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -42,6 +37,15 @@ export const TeamSection = () => {
   const [staffPayments, setStaffPayments] = useState<any[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: number | null; name: string }>({ isOpen: false, id: null, name: '' });
+
+  const roleLabels: Record<string, string> = {
+    caissier: 'Caissier',
+    vendeur: 'Vendeur',
+    gerant: 'Gérant',
+    manager: 'Manager',
+    superviseur: 'Superviseur',
+    inventoriste: 'Inventoriste'
+  };
 
   const moduleDefinitions = [
     {
@@ -179,6 +183,11 @@ export const TeamSection = () => {
   const handleAddSubUser = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation permissions choisies manuellement
+    if (!Array.isArray(newUser.permissions) || newUser.permissions.length === 0) {
+      return toast.error("Sélectionnez au moins une permission pour ce membre.");
+    }
+
     // Validation mot de passe
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
     if (!passwordRegex.test(newUser.motDePasse)) {
@@ -189,7 +198,7 @@ export const TeamSection = () => {
       await api.post('/subusers', newUser);
       toast.success(`Membre ${newUser.nom} ajouté !`);
       setShowAddModal(false);
-      setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: ['pos', 'products', 'clients'] });
+      setNewUser({ nom: '', email: '', motDePasse: '', role: 'vendeur', telephone: '', permissions: [] });
       fetchSubUsers();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Erreur lors de l'ajout");
@@ -280,7 +289,7 @@ export const TeamSection = () => {
                 <p style={{ margin: 0, fontWeight: 900 }}>{u.nom}</p>
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', padding: '2px 8px', borderRadius: '100px', backgroundColor: u.role === 'manager' ? 'rgba(21,94,88,0.1)' : 'rgba(16,185,129,0.1)', color: u.role === 'manager' ? 'var(--primary)' : 'var(--success)' }}>
-                    {u.role}
+                    {roleLabels[u.role] || u.role}
                   </span>
                 </div>
               </div>
@@ -317,8 +326,8 @@ export const TeamSection = () => {
       <Modal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Nouveau Collaborateur"
-        subtitle="Créez un compte sécurisé avec des accès personnalisés."
+        title="Nouveau membre"
+        subtitle="Créez un compte employé sécurisé avec accès personnalisés."
         maxWidth="600px"
         icon={Users}
       >
@@ -367,8 +376,18 @@ export const TeamSection = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <label style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text-main)', marginLeft: '4px' }}>
-              Accès & Permissions - Sélection Manuelle
+              Accès & Permissions - Sélection manuelle
             </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                {newUser.permissions.length} permission(s) sélectionnée(s)
+              </span>
+              {newUser.permissions.length === 0 && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 700 }}>
+                  Choisissez au moins une permission
+                </span>
+              )}
+            </div>
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -438,7 +457,19 @@ export const TeamSection = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn-premium primary" style={{ width: '100%', marginTop: '10px', padding: '18px', fontSize: '1rem' }}>
+          <button
+            type="submit"
+            disabled={newUser.permissions.length === 0}
+            className="btn-premium primary"
+            style={{
+              width: '100%',
+              marginTop: '10px',
+              padding: '18px',
+              fontSize: '1rem',
+              opacity: newUser.permissions.length === 0 ? 0.6 : 1,
+              cursor: newUser.permissions.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+          >
             Finaliser l'enregistrement
           </button>
         </form>

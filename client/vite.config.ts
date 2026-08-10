@@ -12,19 +12,52 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['lumo_logo.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: [
+        'favicon.svg',
+        'lumo_logo.svg',
+        'apple-touch-icon.png',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'maskable-icon.png'
+      ],
       manifest: {
-        name: 'LUMO AIO',
-        short_name: 'LUMO AIO',
+        name: 'LUMO',
+        short_name: 'LUMO',
         description: 'Solution ERP complète pour commerçants en RDC',
-        theme_color: '#6366f1',
-        background_color: '#ffffff',
-        display: 'standalone'
+        theme_color: '#155E58',
+        background_color: '#F8F4EA',
+        display: 'standalone',
+        start_url: '/',
+        scope: '/',
+        lang: 'fr',
+        icons: [
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: '/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
+            purpose: 'apple touch icon'
+          },
+          {
+            src: '/maskable-icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 4194304,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 4194304, // 4 MB — accommodates large assets like team/rene.png (3.21 MB)
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -57,7 +90,7 @@ export default defineConfig({
           {
             // ALL API routes must bypass Service Worker — no cache for backend calls
             urlPattern: /\/api\/.*/i,
-            handler: 'NetworkOnly',
+            handler: 'NetworkOnly'
           }
         ]
       }

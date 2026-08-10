@@ -30,7 +30,11 @@ const cacheMiddleware = (duration) => async (req, res, next) => {
 
 const invalidateCache = async (pattern) => {
     if (!redis) return;
-    const keys = await redis.keys(`cache:${pattern}*`);
+
+    const keysA = await redis.keys(`cache:${pattern}*`);
+    const keysB = await redis.keys(`cache:*${pattern}*`);
+    const keys = Array.from(new Set([...(keysA || []), ...(keysB || [])]));
+
     if (keys.length > 0) {
         await redis.del(...keys);
     }
