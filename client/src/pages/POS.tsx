@@ -276,9 +276,9 @@ const POS = () => {
 
     const handleProductClick = (product: any) => {
             if (product.variantes && product.variantes.length > 0) {
-                setSelectedProductForVariants(product);
+                setSelectedProductForVariants({ ...product, variantes: normalizeVariantes(product.variantes) });
                 // Initialize with first values if possible or empty
-                setTempSelectedVariants(product.variantes.map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
+                setTempSelectedVariants(normalizeVariantes(product.variantes).map((v: any) => ({ nom: v.nom, valeur: v.valeur.split(',')[0].trim() })));
             } else {
                 addToCart(product, currency, liveRate);
             }
@@ -290,6 +290,32 @@ const POS = () => {
                 .filter(v => v && v.valeur)
                 .map(v => `${v.nom}: ${v.valeur}`)
                 .join(' • ');
+        };
+
+        // Regroupe les variantes par nom et fusionne les valeurs uniques (évite les doublons type RAM x2, SSD x2)
+        const normalizeVariantes = (variantes: any[] = []): { nom: string; valeur: string }[] => {
+            const map: Record<string, string[]> = {};
+            (Array.isArray(variantes) ? variantes : []).forEach((v: any) => {
+                if (!v || !v.nom) return;
+                const nom = String(v.nom).trim();
+                if (!nom) return;
+                const valeurs = String(v.valeur || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+                if (!map[nom]) map[nom] = [];
+                valeurs.forEach((val: string) => { if (!map[nom].includes(val)) map[nom].push(val); });
+            });
+            return Object.entries(map).map(([nom, valeurs]) => ({ nom, valeur: valeurs.join(', ') }));
+        };
+
+        // Dédoublonne les variantes sélectionnées (par nom) pour l'affichage panier / payload
+        const dedupeSelectedVariantes = (variants: { nom: string; valeur: string }[] = []): { nom: string; valeur: string }[] => {
+            const seen = new Set<string>();
+            const out: { nom: string; valeur: string }[] = [];
+            (Array.isArray(variants) ? variants : []).forEach((v) => {
+                if (!v || !v.nom) return;
+                const key = String(v.nom).trim().toLowerCase();
+                if (!seen.has(key)) { seen.add(key); out.push({ nom: v.nom, valeur: v.valeur }); }
+            });
+            return out;
         };
 
         const confirmVariantSelection = () => {
@@ -393,7 +419,8 @@ const POS = () => {
                 const salePayload = {
                     items: cart.map(item => {
                         const itemSalePrice = getCartItemPriceInSaleCurrency(item);
-                        const variationSummary = formatVariantSummary(item.selectedVariantes || []);
+                        const cleanVariantes = dedupeSelectedVariantes(item.selectedVariantes || []);
+                        const variationSummary = formatVariantSummary(cleanVariantes);
                         const normalizedName = variationSummary ? `${item.nom} (${variationSummary})` : item.nom;
                         return {
                             id: item.id,
@@ -404,8 +431,8 @@ const POS = () => {
                         prixAchat: item.prixAchat || 0,
                         deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                         quantite: item.quantite,
-                        selectedVariantes: item.selectedVariantes || [],
-                        metadata: (item.selectedVariantes || []).reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
+                        selectedVariantes: cleanVariantes,
+                        metadata: cleanVariantes.reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
                             acc[v.nom] = v.valeur;
                             return acc;
                         }, {})
@@ -637,7 +664,7 @@ toast.info(syncMsg);
                                                                             <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
                                                                             {item.selectedVariantes && item.selectedVariantes.length > 0 && (
                                                                                 <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                                                                                    {item.selectedVariantes.map((v, idx) => (
+                                                                                    {dedupeSelectedVariantes(item.selectedVariantes).map((v, idx) => (
                                                                                         <span key={idx} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'var(--primary-glow)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 800 }}>{v.nom}: {v.valeur}</span>
                                                                                     ))}
                                                                                 </div>

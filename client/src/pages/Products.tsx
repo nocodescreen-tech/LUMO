@@ -394,6 +394,24 @@ const Products = () => {
   const currentItems = products.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(products.length / itemsPerPage);
 
+  // Regroupe les variantes par nom et fusionne les valeurs uniques.
+  // Ex: [RAM:6GB, SSD:1TR, SSD:1TR, RAM:6GB, RAM:8GB] -> [RAM: "6GB, 8GB", SSD: "1TR"]
+  const normalizeVariantesForSave = (variantes: any[] = []): { nom: string; valeur: string }[] => {
+    const map: Record<string, string[]> = {};
+    (Array.isArray(variantes) ? variantes : []).forEach((v: any) => {
+      if (!v || !v.nom) return;
+      const nom = String(v.nom).trim();
+      if (!nom) return;
+      const valeurs = String(v.valeur || '')
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if (!map[nom]) map[nom] = [];
+      valeurs.forEach((val: string) => { if (!map[nom].includes(val)) map[nom].push(val); });
+    });
+    return Object.entries(map).map(([nom, valeurs]) => ({ nom, valeur: valeurs.join(', ') }));
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -407,7 +425,12 @@ const Products = () => {
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData();
-    Object.entries(newProduct).forEach(([key, value]) => {
+    // Normaliser les variantes : regrouper par nom et fusionner les valeurs uniques
+    const normalizedProduct = {
+      ...newProduct,
+      variantes: normalizeVariantesForSave(newProduct.variantes)
+    };
+    Object.entries(normalizedProduct).forEach(([key, value]) => {
       if (key === 'codeBarre' && !value) return;
       formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value.toString());
     });
@@ -432,7 +455,12 @@ const Products = () => {
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData();
-    Object.entries(selectedProduct).forEach(([key, value]) => {
+    // Normaliser les variantes à l'édition aussi
+    const normalizedProduct = {
+      ...selectedProduct,
+      variantes: normalizeVariantesForSave(selectedProduct.variantes)
+    };
+    Object.entries(normalizedProduct).forEach(([key, value]) => {
       // Don't skip codeBarre if it has a value
       if (key !== 'image' && value !== null && value !== undefined) {
         if (key === 'variantes' || key === 'metadata') {
@@ -1028,7 +1056,7 @@ const Products = () => {
                     const newV = [...newProduct.variantes];
                     newV[i].valeur = e.target.value;
                     setNewProduct({ ...newProduct, variantes: newV });
-                  }} style={{ flex: 1, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
+                  }} style={{ flex: 1.4, padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: '600' }} />
                   <button type="button" onClick={() => setNewProduct({ ...newProduct, variantes: newProduct.variantes.filter((_, idx) => idx !== i) })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><X size={18} /></button>
                 </div>
               ))}
