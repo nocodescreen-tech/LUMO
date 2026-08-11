@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || window.location.origin;
+const SOCKET_URL = import.meta.env.VITE_API_URL || (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : window.location.origin);
 
 class SocketService {
   private socket: Socket | null = null;
