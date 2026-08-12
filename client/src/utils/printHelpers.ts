@@ -74,7 +74,19 @@ const formatAltAmount = (amount: number, currency: string) =>
   `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`;
 
 const openPrintWindow = (lang: Lang, fr: string, en: string) => {
-  const printWindow = window.open('', '_blank');
+  // Tauri/WebView2 bloque window.open() -> on utilise une iframe d'impression
+  // invisible (fonctionne dans le navigateur ET dans l'app desktop, sans popup).
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '800px';
+  iframe.style.height = '600px';
+  iframe.style.border = 'none';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.title = 'print';
+  document.body.appendChild(iframe);
+  const printWindow = iframe.contentWindow;
   if (!printWindow) {
     alert(t(lang, fr, en));
     return null;
