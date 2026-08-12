@@ -29,7 +29,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
 import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
@@ -254,7 +254,7 @@ const Clients = () => {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => exportToExcel(clients, 'Clients_Report')} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
+          <button onClick={() => exportToPDF(clients, user?.preferences?.language === 'en' ? 'Clients Report' : 'Rapport des Clients', user)} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
             <Download size={18} /> {t('report')}
           </button>
           

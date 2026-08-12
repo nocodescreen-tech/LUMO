@@ -29,10 +29,12 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
 import { useTranslation } from '../hooks';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
+import { useAuthStore } from '../store/useAuthStore';
 
 const Activities = () => {
     const { t } = useTranslation();
+    const user = useAuthStore(state => state.user);
     const [activities, setActivities] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -157,7 +159,7 @@ const Activities = () => {
                                 [t('exportColUser') || 'Utilisateur']: a.userNom || t('systemUserLabel'),
                                 [t('exportColDate') || 'Date']: new Date(a.createdAt).toLocaleString()
                             }));
-                            exportToExcel(rows, 'Activites_Report');
+                            exportToPDF(rows, t('exportColDescription') ? 'Rapport des Activités' : 'Rapport des Activités', user);
                         }}
                         className="btn-hover"
                         style={{ padding: '16px 32px', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', fontWeight: '800', cursor: 'pointer', background: 'var(--bg-card)', fontSize: '1rem' }}

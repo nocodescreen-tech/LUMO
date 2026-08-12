@@ -12,7 +12,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/axios';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { generateMonthlyReport } from '../utils/printHelpers';
 import { useCurrency, getDisplayAmount } from '../utils/currencyHelpers';
 import { toast } from 'sonner';
@@ -99,12 +99,12 @@ const Stats = () => {
                           { Section: isEn ? `Monthly Revenue (6 months) - ${displayCurrency}` : `Revenus Mensuels (6 mois) - ${displayCurrency}` },
                           ...(data.monthlyRevenue?.labels || []).map((label: string, idx: number) => ({ [isEn ? 'Month' : 'Mois']: label, [isEn ? 'Total' : 'Total']: data.monthlyRevenue.values[idx] || 0 }))
                         ];
-                        exportToExcel(exportData, isEn ? 'Advanced_Statistics_Report' : 'Statistiques_Avancees_Report');
+                        exportToPDF(exportData, isEn ? 'Advanced Statistics Report' : 'Statistiques Avancées', user);
                         }}
                         className="btn-premium"
                         style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}
                     >
-                        <Download size={18} /> Excel
+                        <Download size={18} /> PDF
                     </button>
                     <button 
                         onClick={() => {

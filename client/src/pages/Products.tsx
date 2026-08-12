@@ -33,7 +33,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { exportToExcel } from '../utils/exportUtils';
+import { saveBlob } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import * as XLSX from 'xlsx';
 import { BUSINESS_TYPES } from '../constants/businessTypes';
 import { useTranslation } from '../hooks/useTranslation';
@@ -131,7 +132,7 @@ const Products = () => {
 
       return baseRow;
     });
-    exportToExcel(dataToExport, language === 'en' ? 'Products_Report' : 'Produits_Report');
+    exportToPDF(dataToExport, language === 'en' ? 'Products Report' : 'Rapport des Produits', user);
   };
 
   const handleDownloadTemplate = () => {
@@ -139,25 +140,91 @@ const Products = () => {
     const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
 
     const isEn = language === 'en';
-    const templateRow: any = {
-      [isEn ? 'Name' : 'Nom']: isEn ? 'Example Product (Required)' : 'Exemple Produit (Obligatoire)',
-      [isEn ? 'Category' : 'Categorie']: isEn ? 'Electronics (Optional)' : 'Électronique (Optionnel)',
-      [isEn ? 'SalePrice' : 'PrixVente']: 1500,
-      [isEn ? 'PurchasePrice' : 'PrixAchat']: 1000,
-      [isEn ? 'Stock' : 'Stock']: 50,
-      [isEn ? 'Currency' : 'Devise']: 'USD'
-    };
+    const L = (fr: string, en: string) => (isEn ? en : fr);
 
-    businessFields.forEach((field) => {
-      let example = getFieldPlaceholder(field) || '...';
-      if (field.type === 'boolean') example = language === 'en' ? 'Yes / No' : 'Oui / Non';
+    // ── Colonnes standard du produit ──
+    const standardCols = [
+      { key: 'Nom', example: L('Exemple Produit (Obligatoire)', 'Example Product (Required)'), note: L('Obligatoire', 'Required') },
+      { key: 'Categorie', example: L('Électronique (Optionnel)', 'Electronics (Optional)'), note: L('Optionnel', 'Optional') },
+      { key: 'PrixVente', example: 1500, note: L('Nombre (obligatoire)', 'Number (required)') },
+      { key: 'PrixAchat', example: 1000, note: L('Nombre', 'Number') },
+      { key: 'Stock', example: 50, note: L('Nombre entier', 'Whole number') },
+      { key: 'Devise', example: 'USD', note: L('USD ou CDF (FC accepté)', 'USD or CDF (FC accepted)') },
+      { key: 'CodeBarre', example: L('(optionnel)', '(optional)'), note: L('Code-barres / EAN', 'Barcode / EAN') },
+      { key: 'Description', example: L('(optionnel)', '(optional)'), note: L('Texte libre', 'Free text') },
+    ];
+
+    // ── Colonnes métier (type d'activité) ──
+    const businessCols = businessFields.map((field: any) => {
+      let example: any = getFieldPlaceholder(field) || '...';
+      if (field.type === 'boolean') example = isEn ? 'Yes / No' : 'Oui / Non';
       if (field.type === 'date') example = 'YYYY-MM-DD';
-      if (field.options) example = field.options.map((opt, idx) => getFieldOptionLabel(field, opt, idx)).join(' / ');
-      templateRow[getFieldLabel(field)] = example;
+      if (field.options) example = field.options.map((opt: string, idx: number) => getFieldOptionLabel(field, opt, idx)).join(' / ');
+      return { key: getFieldLabel(field), example, note: field.required ? L('Obligatoire', 'Required') : L('Optionnel', 'Optional') };
     });
 
-    const templateData = [templateRow];
-    exportToExcel(templateData, isEn ? 'Product_Import_Template' : 'Modele_Import_Produits');
+    const allCols = [...standardCols, ...businessCols];
+
+    // ── Feuille 2 : Produits (ligne d'exemple + en-têtes) ──
+    const exampleRow: any = {};
+    allCols.forEach((c) => {
+      exampleRow[c.key] = c.example;
+    });
+    const ws = XLSX.utils.json_to_sheet([exampleRow], { header: allCols.map((c) => c.key) });
+
+    // Largeurs de colonnes
+    ws['!cols'] = allCols.map((c) => ({ wch: Math.max(c.key.length + 2, String(c.example).length + 4) }));
+
+    // Style en-tête (gras + fond vert)
+    const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!ws[addr]) continue;
+      ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '155E58' } } };
+    }
+
+    // Validation de liste pour la colonne Devise
+    const deviseIdx = allCols.findIndex((c) => c.key.toLowerCase().includes('devise') || c.key.toLowerCase() === 'currency');
+    if (deviseIdx >= 0) {
+      ws['!dataValidation'] = ws['!dataValidation'] || [];
+      ws['!dataValidation'].push({
+        type: 'list',
+        formula1: '"USD,CDF,FC"',
+        allowBlank: true,
+        showErrorMessage: true,
+        errorTitle: 'Devise invalide',
+        error: 'Utilisez USD, CDF ou FC',
+        sqref: `${XLSX.utils.encode_cell({ r: 1, c: deviseIdx })}:${XLSX.utils.encode_cell({ r: 200, c: deviseIdx })}`,
+      });
+    }
+
+    // ── Feuille 1 : Instructions ──
+    const instructions = [
+      [L('IMPORT DES PRODUITS — MODE D\'EMPLOI', 'PRODUCT IMPORT — INSTRUCTIONS'), ''],
+      ['', ''],
+      [L('Étape', 'Step'), L('Détails', 'Details')],
+      ['1', L('Remplissez la feuille « Produits » avec vos articles.', 'Fill in the "Products" sheet with your items.')],
+      ['2', L('Ne modifiez pas les en-têtes de colonnes (ligne 1).', 'Do not change the column headers (row 1).')],
+      ['3', L('Le Nom et le PrixVente sont obligatoires pour chaque ligne.', 'Name and SalePrice are required for each row.')],
+      ['4', L('Devise : USD, CDF ou FC. Si vide, la devise par défaut est utilisée.', 'Currency: USD, CDF or FC. If empty, the default currency is used.')],
+      ['5', L('Les doublons (même nom ou même code-barres) sont ignorés automatiquement.', 'Duplicates (same name or barcode) are ignored automatically.')],
+      ['6', L('Pour les champs à choix (Oui/Non, options), utilisez les valeurs affichées dans l\'en-tête.', 'For choice fields (Yes/No, options), use the values shown in the header.')],
+      ['7', L('Dates au format AAAA-MM-JJ (ex: 2026-12-31).', 'Dates as YYYY-MM-DD (e.g. 2026-12-31).')],
+      ['8', L('Maximum 1000 produits par import.', 'Maximum 1000 products per import.')],
+      ['', ''],
+      [L('Exemple', 'Example'), ''],
+      [L('Ligne de la feuille Produits :', 'Products sheet row:'), `${allCols.map((c) => c.key + '=' + c.example).join(' | ')}`],
+    ];
+    const wsInstr = XLSX.utils.aoa_to_sheet(instructions);
+    wsInstr['!cols'] = [{ wch: 18 }, { wch: 110 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInstr, L('Instructions', 'Instructions'));
+    XLSX.utils.book_append_sheet(wb, ws, L('Produits', 'Products'));
+
+    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveBlob(blob, (isEn ? 'Product_Import_Template' : 'Modele_Import_Produits') + '.xlsx');
   };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,10 +252,30 @@ const Products = () => {
           throw new Error('Empty sheet');
         }
 
+        // ── Normalisation des clés : minuscules, sans accents, espaces retirés ──
+        const normalizeKey = (k: string) =>
+          String(k)
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+
+        const pick = (row: any, ...keys: string[]) => {
+          const norm = Object.keys(row).reduce((acc: Record<string, any>, k) => {
+            acc[normalizeKey(k)] = row[k];
+            return acc;
+          }, {});
+          for (const k of keys) {
+            const nk = normalizeKey(k);
+            if (norm[nk] !== undefined && norm[nk] !== null && String(norm[nk]).trim() !== '') return norm[nk];
+          }
+          return undefined;
+        };
+
         const hasRequiredColumns = parsedData.some((row: any) => {
-          const name = row.Nom || row.nom || row.Name || row.name;
-          const price = row.PrixVente || row.prixVente || row.prix || row.SalePrice || row.price;
-          const stock = row.Stock || row.stock;
+          const name = pick(row, 'Nom', 'Name', 'nom', 'name', 'Produit', 'Product');
+          const price = pick(row, 'PrixVente', 'Prix', 'SalePrice', 'Price', 'PU');
+          const stock = pick(row, 'Stock', 'Quantite', 'Quantity', 'Qte');
           return name && price !== undefined && stock !== undefined;
         });
 
@@ -199,50 +286,101 @@ const Products = () => {
         const activityType = normalizeActivityType(user?.typeActivite);
         const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
 
-        const validProducts = parsedData
-          .map(row => {
-          const price = Number(row.PrixVente || row.prixVente || row.prix || row.SalePrice || row.price);
-          const purchasePrice = Number(row.PrixAchat || row.prixAchat || row.PurchasePrice || row.cost || 0);
-          const stock = Number(row.Stock || row.stock);
-          const devise = normalizeCurrency(row.Devise || row.devise || row.Currency || currency);
-          const nom = String(row.Nom || row.nom || row.Name || row.name || '').trim();
+        const errors: string[] = [];
+        const validProducts: any[] = [];
+        const seenNames = new Set<string>();
+        const seenBarcodes = new Set<string>();
+        let duplicatesInFile = 0;
 
-          const metadata: Record<string, any> = typeof row.Metadata === 'string'
-            ? (() => { try { return JSON.parse(row.Metadata); } catch { return {}; } })()
-            : (row.Metadata && typeof row.Metadata === 'object' ? row.Metadata : {});
+        parsedData.forEach((row: any, idx: number) => {
+          const lineNo = idx + 2; // ligne Excel réelle (en-tête = ligne 1)
+
+          // Ligne vide ou séparateur
+          const rawName = pick(row, 'Nom', 'Name', 'nom', 'name', 'Produit', 'Product');
+          if (rawName === undefined && !Object.values(row).some((v: any) => v !== undefined && v !== null && String(v).trim() !== '')) return;
+
+          const nom = String(rawName || '').trim();
+          if (!nom) {
+            errors.push(`${lineNo}: ${language === 'en' ? 'missing product name' : 'nom du produit manquant'}`);
+            return;
+          }
+
+          const price = Number(pick(row, 'PrixVente', 'Prix', 'SalePrice', 'Price', 'PU'));
+          const purchasePrice = Number(pick(row, 'PrixAchat', 'PurchasePrice', 'Cost', 'Cout') || 0);
+          const stock = Number(pick(row, 'Stock', 'Quantite', 'Quantity', 'Qte'));
+          const devise = normalizeCurrency(String(pick(row, 'Devise', 'Currency', 'Monnaie') || currency));
+          const codeBarre = String(pick(row, 'CodeBarre', 'Barcode', 'EAN', 'Code') || '').trim() || null;
+
+          if (!Number.isFinite(price) || price <= 0) {
+            errors.push(`${lineNo}: ${language === 'en' ? 'invalid sale price' : 'prix de vente invalide'} (« ${nom} »)`);
+            return;
+          }
+          if (!Number.isFinite(stock) || stock < 0) {
+            errors.push(`${lineNo}: ${language === 'en' ? 'invalid stock' : 'stock invalide'} (« ${nom} »)`);
+            return;
+          }
+
+          // Doublons dans le FICHIER lui-même (même nom ou même code-barres)
+          const nameKey = nom.toLowerCase().trim();
+          if (seenNames.has(nameKey) || (codeBarre && seenBarcodes.has(codeBarre))) {
+            duplicatesInFile++;
+            return;
+          }
+          seenNames.add(nameKey);
+          if (codeBarre) seenBarcodes.add(codeBarre);
+
+          const metadata: Record<string, any> = (() => {
+            const raw = pick(row, 'Metadata', 'Metadonnees', 'Attributs');
+            if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return {}; } }
+            return (raw && typeof raw === 'object' ? raw : {});
+          })();
 
           businessFields.forEach((field: any) => {
             const label = getFieldLabel(field);
-            const val = row[label] ?? row[field.name];
+            const val = pick(row, label, field.name);
             if (val !== undefined && val !== null && String(val).trim() !== '') {
               metadata[field.name] = field.type === 'boolean'
-                ? ['oui', 'yes', 'true', '1'].includes(String(val).toLowerCase())
+                ? ['oui', 'yes', 'true', '1', 'vrai'].includes(String(val).toLowerCase())
                 : val;
             }
           });
 
-          return {
-            nom: nom || (language === 'en' ? 'Unknown Product' : 'Produit Inconnu'),
-            categorie: String(row.Categorie || row.categorie || row.Category || row.category || 'General').trim(),
+          validProducts.push({
+            nom,
+            categorie: String(pick(row, 'Categorie', 'Category', 'CategorieProduit') || 'Général').trim(),
             prix: Number.isFinite(price) ? price : 0,
             prixAchat: Number.isFinite(purchasePrice) ? purchasePrice : 0,
             stock: Number.isFinite(stock) ? stock : 0,
             devise,
-            codeBarre: String(row.CodeBarre || row.codeBarre || row.Barcode || row.barcode || '').trim() || null,
-            description: String(row.Description || row.description || '').trim() || '',
+            codeBarre,
+            description: String(pick(row, 'Description', 'Descriptif') || '').trim() || '',
             metadata
-          };
-        })
-          .filter(p => p.nom && p.prix > 0 && p.stock >= 0);
+          });
+        });
 
         if (!validProducts.length) {
-          throw new Error('No valid rows');
+          const detail = errors.slice(0, 3).join(' · ');
+          toast.error(language === 'en'
+            ? `No valid rows to import${detail ? ' — ' + detail : ''}`
+            : `Aucune ligne valide à importer${detail ? ' — ' + detail : ''}`);
+          return;
         }
 
         const res = await api.post('/products/bulk', { products: validProducts });
         const importedCount = res.data.success ? res.data.data.length : res.data.length;
         const serverMsg = res.data?.message || '';
-        toast.success(serverMsg || t('productsImportedCount').replace('{count}', String(importedCount)));
+
+        // Rapport d'import détaillé
+        const report: string[] = [serverMsg || `${importedCount} ${language === 'en' ? 'products imported' : 'produits importés'}`];
+        if (errors.length) {
+          report.push(`${errors.length} ${language === 'en' ? 'error(s) ignored' : 'erreur(s) ignorée(s)'}`);
+          errors.slice(0, 3).forEach((e) => report.push('  • ' + e));
+          if (errors.length > 3) report.push(`  … +${errors.length - 3} autres`);
+        }
+        if (duplicatesInFile) {
+          report.push(`${duplicatesInFile} ${language === 'en' ? 'duplicate(s) in the file ignored' : 'doublon(s) dans le fichier ignoré(s)'}`);
+        }
+        toast.success(report.join('\n'));
         fetchProducts();
       } catch (err) {
         toast.error(t('importExcelError'));

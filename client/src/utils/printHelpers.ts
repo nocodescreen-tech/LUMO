@@ -73,7 +73,7 @@ const formatAmount = (amount: number, currency: string) =>
 const formatAltAmount = (amount: number, currency: string) =>
   `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${currency}`;
 
-const openPrintWindow = (lang: Lang, fr: string, en: string) => {
+export const openPrintWindow = (lang: Lang, fr: string, en: string) => {
   // Tauri/WebView2 bloque window.open() -> on utilise une iframe d'impression
   // invisible (fonctionne dans le navigateur ET dans l'app desktop, sans popup).
   const iframe = document.createElement('iframe');
@@ -99,7 +99,7 @@ const openPrintWindow = (lang: Lang, fr: string, en: string) => {
 // (script-src 'self' sans 'unsafe-inline') le bloque silencieusement, donc
 // window.print() n'est jamais appelé et « rien ne se passe » (bug Chrome/mobile).
 // On écrit le document, on laisse les styles/fonts se poser, puis on imprime.
-const writeAndPrint = (printWindow: Window, html: string) => {
+export const writeAndPrint = (printWindow: Window, html: string) => {
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();

@@ -17,13 +17,13 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api/axios';
 import { useAuthStore } from '../store/useAuthStore';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { toast } from 'sonner';
 import { useTranslation } from '../hooks/useTranslation';
 
 const StockHistory = () => {
     const { t, language } = useTranslation();
-    const { currency } = useAuthStore();
+    const { currency, user } = useAuthStore();
     
     const translateReason = (reason: string) => {
         if (!reason) return '';
@@ -117,12 +117,12 @@ const StockHistory = () => {
                                 "Nouveau Stock": m.nouveauStock,
                                 "Raison": m.raison
                             }));
-                            exportToExcel(rows, 'Historique_Stock');
+                            exportToPDF(rows, t('stockHistoryTitle'), user);
                         }}
                         className="btn-premium"
                         style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}
                     >
-                        <Download size={18} /> {t('exportExcel')}
+                        <Download size={18} /> PDF
                     </button>
                     <button onClick={fetchMovements} className="btn-premium primary">
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> {t('refresh')}

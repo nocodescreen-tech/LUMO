@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 
 interface Sale {
     id: number;
@@ -221,7 +221,7 @@ const Sales = () => {
             [t('salesExcelRate')]: s.tauxChange || exchangeRate
         }));
 
-        exportToExcel(rows, `${t('salesReportFilePrefix')}_${currency}`);
+        exportToPDF(rows, `${t('salesReportFilePrefix')} ${currency}`, user);
         toast.success(t('excelExportSuccess'));
     };
 

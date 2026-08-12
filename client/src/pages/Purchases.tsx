@@ -22,12 +22,12 @@ import { normalizeAmount } from '../utils/currencyHelpers';
 import { getDisplayAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { useTranslation } from '../hooks/useTranslation';
 
 const Purchases = () => {
     const { t } = useTranslation();
-    const { currency } = useAuthStore();
+    const { currency, user } = useAuthStore();
     const [purchases, setPurchases] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -213,7 +213,7 @@ const Purchases = () => {
                             "Statut": p.statut,
                             "Montant": p.montantTotal
                         }));
-                        exportToExcel(rows, 'Achats_Report');
+                        exportToPDF(rows, 'Rapport des Achats', user);
                     }} 
                     className="btn-hover"
                     style={{ padding: '14px 24px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}

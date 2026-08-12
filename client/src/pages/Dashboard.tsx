@@ -28,7 +28,7 @@ import AIChat from '../components/dashboard/AIChat';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const KpiCard = ({ title, value, subValue, icon: Icon, trend, color, delay }: any) => (
@@ -252,7 +252,7 @@ const Dashboard = () => {
                     { Key: 'Alertes Stock', Value: stats?.summary?.lowStockCount || 0 },
                     { Key: 'Généré le', Value: new Date().toLocaleString() }
                 ];
-                exportToExcel(rows, 'Dashboard_Analytics_Report');
+                exportToPDF(rows, user?.preferences?.language === 'en' ? 'Dashboard Analytics' : 'Analyse du Tableau de Bord', user);
             }} 
             className="btn-premium secondary" 
             style={{ padding: '16px 28px', borderRadius: '18px' }}

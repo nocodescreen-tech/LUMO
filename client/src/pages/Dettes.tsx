@@ -39,7 +39,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '../api/axios';
 import { useTranslation } from '../hooks/useTranslation';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { Download } from 'lucide-react';
 
 // ──────────────────────────────────────────────
@@ -269,7 +269,7 @@ const Dettes = () => {
               "Téléphone": c.telephone || 'N/A',
               "Dette Restante": c.detteTotale
             }));
-            exportToExcel(rows, 'Dettes_Report');
+            exportToPDF(rows, user?.preferences?.language === 'en' ? 'Debts Report' : 'Rapport des Dettes', user);
           }}>
             <Download size={16} /> {t('report')}
           </button>

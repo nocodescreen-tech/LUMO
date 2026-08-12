@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportToPDF } from '../utils/reportPDF';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTranslation } from '../hooks/useTranslation';
 import Modal from '../components/common/Modal';
@@ -202,7 +202,7 @@ const Fournisseurs = () => {
           />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => exportToExcel(suppliers, 'Fournisseurs_Report')} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
+          <button onClick={() => exportToPDF(suppliers, user?.preferences?.language === 'en' ? 'Suppliers Report' : 'Rapport des Fournisseurs', user)} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
             <Download size={18} /> {t('report')}
           </button>
 

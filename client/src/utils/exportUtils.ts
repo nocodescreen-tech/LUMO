@@ -5,7 +5,7 @@ const isTauriEnv = () =>
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 // Sauvegarde un Blob : boîte "Enregistrer sous" native dans Tauri, téléchargement classique sur le web.
-const saveBlob = async (blob: Blob, fileName: string) => {
+export const saveBlob = async (blob: Blob, fileName: string) => {
   if (isTauriEnv()) {
     const { save } = await import('@tauri-apps/plugin-dialog');
     const { writeFile } = await import('@tauri-apps/plugin-fs');
