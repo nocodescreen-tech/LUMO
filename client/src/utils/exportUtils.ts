@@ -1,5 +1,35 @@
 import { useAuthStore } from '../store/useAuthStore';
-import { getDisplayAmount } from './currencyHelpers';
+import { getDisplayAmount, getEffectiveRate } from './currencyHelpers';
+
+const isTauriEnv = () =>
+  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+// Sauvegarde un Blob : boîte "Enregistrer sous" native dans Tauri, téléchargement classique sur le web.
+const saveBlob = async (blob: Blob, fileName: string) => {
+  if (isTauriEnv()) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    const path = await save({
+      defaultPath: fileName,
+      filters: [
+        { name: 'Excel', extensions: ['xls', 'xlsx'] },
+        { name: 'Tous les fichiers', extensions: ['*'] },
+      ],
+    });
+    if (!path) return;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    await writeFile(path, bytes);
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 export const exportToExcel = (data: any[], fileName: string, moduleName: string = 'Rapport') => {
     if (!data || data.length === 0) return;
@@ -64,14 +94,7 @@ export const exportToExcel = (data: any[], fileName: string, moduleName: string 
     ].join('');
 
     const blob = new Blob([tableHtml], { type: 'application/vnd.ms-excel' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName + '_' + new Date().toISOString().split('T')[0] + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveBlob(blob, fileName + '_' + new Date().toISOString().split('T')[0] + '.xls');
 };
 
 export const exportMultiSheetExcel = (sheetsData: { name: string, data: any[] }[], fileName: string) => {
@@ -88,6 +111,8 @@ export const exportMultiSheetExcel = (sheetsData: { name: string, data: any[] }[
 
             XLSX.utils.book_append_sheet(workbook, worksheet, sheetInfo.name.substring(0, 31));
         });
-        XLSX.writeFile(workbook, fileName + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        const out = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveBlob(blob, fileName + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
     });
 };
