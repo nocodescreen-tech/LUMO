@@ -248,11 +248,11 @@ const Dashboard = () => {
                 const rows = [
                     { Key: 'CA Total Période', Value: stats?.summary?.revenue || 0 },
                     { Key: 'Estimation Profits', Value: stats?.summary?.profitNetEstimation || 0 },
-                    { Key: 'Nombre de Clients', Value: stats?.summary?.totalClients || 0 },
-                    { Key: 'Alertes Stock', Value: stats?.summary?.lowStockCount || 0 },
+                    { Key: 'Nombre de Clients', Value: String(stats?.summary?.totalClients || 0) },
+                    { Key: 'Alertes Stock', Value: String(stats?.summary?.lowStockCount || 0) },
                     { Key: 'Généré le', Value: new Date().toLocaleString() }
                 ];
-                exportToPDF(rows, user?.preferences?.language === 'en' ? 'Dashboard Analytics' : 'Analyse du Tableau de Bord', user);
+                exportToPDF(rows, user?.preferences?.language === 'en' ? 'Dashboard Analytics' : 'Analyse du Tableau de Bord', user, { moneyKeys: ['Value'] });
             }} 
             className="btn-premium secondary" 
             style={{ padding: '16px 28px', borderRadius: '18px' }}

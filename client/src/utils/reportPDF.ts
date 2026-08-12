@@ -71,8 +71,10 @@ const isMoneyKey = (key: string, moneyKeys?: string[]) => {
     k.includes('gain') ||
     k.includes('perte') ||
     k.includes('loss') ||
-    k === 'key' || // Dashboard { Key, Value } — Value est souvent un montant
-    k === 'value'
+    k === 'ca' ||
+    k === 'ca total' ||
+    k === 'total ventes' ||
+    k === 'chiffre'
   );
 };
 
@@ -103,14 +105,21 @@ const formatDate = (val: any, lang: Lang) => {
   });
 };
 
-// Déduit les colonnes depuis la première ligne de données
-const inferColumns = (data: any[]): ReportColumn[] => {
+// Déduit les colonnes depuis l'UNION des clés de toutes les lignes
+// (les données peuvent être hétérogènes, ex: Stats avec lignes de section)
+const inferColumns = (data: any[], moneyKeys?: string[]): ReportColumn[] => {
   if (!data?.length) return [];
-  return Object.keys(data[0]).map((key) => ({
+  const keys: string[] = [];
+  data.forEach((row) => {
+    Object.keys(row).forEach((k) => {
+      if (!keys.includes(k)) keys.push(k);
+    });
+  });
+  return keys.map((key) => ({
     key,
     label: key,
-    align: isMoneyKey(key) ? 'right' : 'left',
-    money: isMoneyKey(key),
+    align: isMoneyKey(key, moneyKeys) ? 'right' : 'left',
+    money: isMoneyKey(key, moneyKeys),
     date: isDateKey(key),
   }));
 };
@@ -131,7 +140,7 @@ export const generateReportPDF = (data: any[], opts: ReportOptions) => {
   const rows = Array.isArray(data) ? data : [];
   if (!rows.length) return;
 
-  const columns = opts.columns && opts.columns.length ? opts.columns : inferColumns(rows);
+  const columns = opts.columns && opts.columns.length ? opts.columns : inferColumns(rows, opts.moneyKeys);
   const shopCurrency = normalizeCurrency(opts.user?.entreprise?.devise || 'CDF');
   const displayCurrency = normalizeCurrency(opts.user?.preferences?.currency || shopCurrency);
   const rate = getEffectiveRate();
