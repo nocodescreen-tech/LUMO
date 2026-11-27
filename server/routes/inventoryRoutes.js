@@ -1,6 +1,6 @@
 const router=require('express').Router();
 const {protect,authorize}=require('../middleware/authMiddleware');
-const {Product,Organization,Warehouse,WarehouseBalance,InventoryTransfer}=require('../models');
+const {Product,Organization,Warehouse,WarehouseBalance,InventoryTransfer,InventoryCount}=require('../models');
 const {sequelize}=require('../config/database');
 const {Transaction,Op}=require('sequelize');
 const {sendResponse}=require('../utils/response');
@@ -21,4 +21,6 @@ router.get('/balances',async(req,res,next)=>{try{
 }catch(e){next(e)}});
 router.get('/transfers',async(req,res,next)=>{try{const {page,limit}=paging(req.query),r=await InventoryTransfer.findAndCountAll({where:{userId:req.user.tenantId},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Transferts');}catch(e){next(e)}});
 router.post('/transfers',async(req,res,next)=>{try{const result=await inventory.transfer(req);await invalidateCache('products');return sendResponse(res,result.replayed?200:201,result.row,'Transfert enregistré');}catch(e){next(e)}});
+router.get('/counts',async(req,res,next)=>{try{const {page,limit}=paging(req.query),r=await InventoryCount.findAndCountAll({where:{userId:req.user.tenantId},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Inventaires physiques');}catch(e){next(e)}});
+router.post('/counts',async(req,res,next)=>{try{const result=await inventory.reconcile(req);await invalidateCache('products');await invalidateCache('stats');return sendResponse(res,result.replayed?200:201,result.row,'Inventaire enregistré');}catch(e){next(e)}});
 module.exports=router;

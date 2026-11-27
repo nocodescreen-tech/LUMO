@@ -251,6 +251,21 @@ suite('Commercial PostgreSQL integration',()=>{
  const rows=catalog.body.data.items||catalog.body.data.products||catalog.body.data.data||catalog.body.data.rows||catalog.body.data;
  const row=rows.find(x=>x.id===product.id);expect(Number(row.unallocatedStock)).toBe(2);
  });
+ test('physical count reconciles warehouse stock, rejects stale counts and journals losses',async()=>{
+ const {Warehouse,Organization,WarehouseBalance,InventoryCount}=require('../models');
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ const product=await Product.create({nom:'Physical count',prix:10,prixAchat:4,devise:'USD',stock:10,userId:a.id});
+ expect((await post('/inventory/transfers',{productId:product.id,fromWarehouseId:null,toWarehouseId:wh.id,quantity:6,reason:'Count allocation',operationId:'count-allocation-001'})).status).toBe(201);
+ const body={productId:product.id,warehouseId:wh.id,expected:6,counted:4,reason:'Missing items',operationId:'physical-count-0001'};
+ const first=await post('/inventory/counts',body);expect(first.status).toBe(201);expect((await post('/inventory/counts',body)).status).toBe(200);
+ expect((await product.reload()).stock).toBe(8);
+ expect((await WarehouseBalance.findOne({where:{productId:product.id,warehouseId:wh.id}})).quantity).toBe(4);
+ expect((await post('/inventory/counts',{...body,operationId:'physical-count-0002'})).status).toBe(409);
+ const gain=await post('/inventory/counts',{...body,expected:4,counted:7,operationId:'physical-count-0003'});expect(gain.status).toBe(201);expect((await product.reload()).stock).toBe(11);
+ const j=await JournalEntry.findOne({where:{userId:a.id,event:'INVENTORY_COUNT',reference:String(first.body.data.id)}});expect(j.debitAccount).toBe('INVENTORY_LOSS');
+ const count=await InventoryCount.findByPk(first.body.data.id);await expect(count.destroy()).rejects.toThrow();
+ const catalog=await request(app).get('/test-products?limit=100&warehouseId='+wh.id).set('Authorization','Bearer '+ta);expect(catalog.status).toBe(200);expect(Number(catalog.body.data.data.find(p=>p.id===product.id).availableStock)).toBe(7);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

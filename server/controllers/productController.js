@@ -19,12 +19,15 @@ exports.getProducts = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
     const { page, limit } = req.query;
-    const { limit: l, offset } = getPagination(page, limit);
+    const { limit: l, offset } = getPagination(Math.max(1,Math.min(100000,parseInt(page)||1)),Math.max(1,Math.min(100,parseInt(limit)||10)));
+    if(req.query.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+    const wh=await inventory.warehouse(tenantId,req.query.warehouseId);
+    const locationSql=wh?'COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id AND w."warehouseId"='+Number(wh.id)+'),0)':'("Product".stock - COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id),0))';
 
     const data = await Product.findAndCountAll({
       where: { userId: tenantId },
-      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock']]},
-      order: [['createdAt', 'DESC']],
+      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock'],[sequelize.literal(locationSql),'availableStock']]},
+      order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset
     });
