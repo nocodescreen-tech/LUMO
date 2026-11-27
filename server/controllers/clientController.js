@@ -1,4 +1,5 @@
-const { pick }=require('../utils/transactionSafety');
+const { pick, fail, money, currency, round }=require('../utils/transactionSafety');
+const {sequelize}=require('../config/database');
 const Client = require('../models/Client');
 const { validateClient } = require('../middleware/validators');
 const { sendEmail, getDebtReminderTemplate } = require('../utils/emailService');
@@ -76,24 +77,22 @@ exports.deleteClient = async (req, res, next) => {
   }
 };
 
-exports.settleDebt = async (req, res, next) => {
-  try {
-    const userId = req.user.tenantId;
-    const { montant } = req.body;
-    if (!montant || isNaN(parseFloat(montant)) || parseFloat(montant) <= 0) {
-      return res.status(400).json({ message: 'Montant de règlement invalide.' });
-    }
-    const client = await Client.findOne({ where: { id: req.params.id, userId } });
-    if (!client) return res.status(404).json({ message: 'Client non trouvé' });
-    // B6 Fix: prevent negative debt
-    client.detteTotale = Math.max(0, Number(client.detteTotale) - parseFloat(montant));
-    await client.save();
-    await logActivite(req.user.id, 'CLIENT', `Règlement dette client ${client.nom}: ${montant}`, 'System', userId);
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, client, 'Dette réglée');
-  } catch (error) {
-    next(error);
-  }
+exports.settleDebt=async(req,res,next)=>{
+ try{
+ const userId=req.user.tenantId;
+ const result=await sequelize.transaction(async transaction=>{
+  const {User,CashSession}=require('../models');const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+  const amount=round(money(req.body.montant),currency(owner.entreprise?.devise));if(amount<=0)throw fail('Montant de règlement invalide');
+  const client=await Client.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!client)throw fail('Client introuvable',404);
+  if(amount>Number(client.detteTotale))throw fail('Le règlement dépasse la dette',409);
+  const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+  if(!session)throw fail('Ouvrez une caisse pour enregistrer le règlement',409);
+  client.detteTotale=Number(client.detteTotale)-amount;await client.save({transaction});
+  session.totalSales=Number(session.totalSales||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)+amount;await session.save({transaction});return {client,amount};
+ });
+ await logActivite(req.user.id,'CLIENT',`Règlement dette client ${result.client.nom}: ${result.amount}`,'System',userId);
+ return require('../utils/response').sendResponse(res,200,result.client,'Dette réglée');
+ }catch(e){next(e)}
 };
 
 exports.sendReminder = async (req, res, next) => {

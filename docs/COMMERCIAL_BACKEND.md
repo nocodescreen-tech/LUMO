@@ -3,3 +3,5 @@
 - Bulk sales purge and permanent purchase deletion are blocked until audited reversal workflows exist. Payment types restricted to current POS cash/credit.
 - No migration or production deployment. Remaining: actual integration tests with isolated PostgreSQL, cash reconciliation, cancellation and refunds ledger, decimal migrations, idempotency, permissions review, CSRF, backups and AI tools, organization model and subscriptions.
 - Existing sessions without session IDs will need to authenticate again. Production CLIENT_URL must explicitly contain the trusted frontend origin.
+
+Phase 2: serialized cash open/close, stored cash totals, transactional debt settlement, restricted refunds and no permanent financial deletion; received purchases update inventory, pending/shipped purchases do not. Pending orders need a dedicated receiving workflow. Historic open sessions require reconciliation. Cache scoped by user/role/permissions. Server lockfile currently stale: CI uses npm install as a temporary workaround. Do not deploy until PostgreSQL integration tests pass.

@@ -27,7 +27,7 @@ exports.getProducts = async (req, res, next) => {
     });
 
     // Sécurité : masquer le prix d'achat pour les caissiers
-    if (req.user.role === 'caissier') {
+    if (['caissier','vendeur'].includes(req.user.role)||(!['admin','superadmin'].includes(req.user.role)&&!(req.user.permissions||[]).includes('products.view_purchase_price'))) {
       data.rows = data.rows.map(p => {
         const product = p.get({ clone: true });
         delete product.prixAchat;

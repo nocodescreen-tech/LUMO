@@ -17,6 +17,6 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: server/package-lock.json
-      - run: npm ci --legacy-peer-deps
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
       - run: find controllers middleware routes models utils -name '*.js' -print0 | xargs -0 -n1 node --check
       - run: npm test -- --runInBand tests/transactionSafety.unit.test.js

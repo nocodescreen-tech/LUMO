@@ -6,7 +6,7 @@ const { logActivite } = require('./activiteController');
 const { convertCurrency } = require('../utils/currency');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
-const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round } = require('../utils/transactionSafety');
+const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round, money } = require('../utils/transactionSafety');
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
   REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
@@ -178,7 +178,7 @@ exports.createSale = async (req, res, next) => {
     profitNormalized -= remise;
 
     // Arrondi à 2 décimales — toutes les valeurs sont déjà en CDF
-    let profitNet = Math.round(profitNormalized * 100) / 100;
+    let profitNet = shopCurrency==='USD' ? Math.round(profitNormalized/finalRate*100)/100 : Math.round(profitNormalized*100)/100;
 
     // Résoudre le client avant création de la vente
     let resolvedClientId = clientId || null;
@@ -209,6 +209,8 @@ exports.createSale = async (req, res, next) => {
     const credit = creditMethod(methodePaiement);
     if (!credit && !isCash(methodePaiement)) throw fail('Moyen de paiement non pris en charge');
     if (credit && !resolvedClientId) throw fail('Un client est obligatoire pour une vente à crédit');
+    if(!credit && montantRecu!=null && money(montantRecu)<montantTotalNormalized)throw fail('Montant reçu insuffisant');
+    if(!credit && devisePaiement && devisePaiement!==saleCurrency)throw fail('Le paiement doit utiliser la devise de vente pour le moment');
     const {CashSession}=require('../models');
     const activeSession=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
     if(activeSession && !credit){const amount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);activeSession.totalSales=Number(activeSession.totalSales||0)+amount;activeSession.expectedBalance=Number(activeSession.expectedBalance||0)+amount;await activeSession.save({transaction});}
@@ -237,6 +239,7 @@ exports.createSale = async (req, res, next) => {
     }
     await transaction.commit();
     await invalidateCache('stats');
+    await invalidateCache('products');
     await logActivite(req.user.id, 'VENTE', `Vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, sale, 'Vente enregistrée avec succès');
@@ -246,76 +249,7 @@ exports.createSale = async (req, res, next) => {
   }
 };
 
-exports.deleteSale = async (req, res, next) => {
-  let transaction;
-  try {
-    transaction = await sequelize.transaction();
-    const sale = await Sale.findOne({where:{id:req.params.id,userId:req.user.tenantId},transaction,lock:transaction.LOCK.UPDATE});
-    if (!sale) {
-      await transaction.rollback();
-      return res.status(404).json({ message: "Vente non trouvée" });
-    }
-
-    // Sécurité : seul le propriétaire (admin) ou le superadmin peut supprimer
-    if (sale.userId !== req.user.tenantId && req.user.role !== 'superadmin') {
-      await transaction.rollback();
-      return res.status(403).json({ message: 'Accès refusé : cette vente ne vous appartient pas' });
-    }
-
-    // Restitution du stock optimisée
-    const saleArticles = safeParseArticles(sale.articles);
-    if (!isRefundedStatus(sale.statut) && saleArticles.length > 0) {
-      const productIds = saleArticles.map(item => item.id);
-      const products = await Product.findAll({ where: { id: productIds, userId: sale.userId }, transaction, lock: transaction.LOCK.UPDATE });
-      
-      for (const item of saleArticles) {
-        const product = products.find(p => p.id === item.id);
-        if (product) {
-          product.stockUpdateRaison = 'Suppression Vente';
-          product.stock += item.quantite;
-          await product.save({ transaction });
-        }
-      }
-    }
-
-    // Restitution de la dette client si applicable
-    const isCredit = (sale.methodePaiement && (
-      sale.methodePaiement.toLowerCase().includes('crédit') ||
-      sale.methodePaiement.toLowerCase().includes('credit')
-    )) || sale.statut === 'Dette';
-
-    if (sale.clientId && isCredit && !isRefundedStatus(sale.statut)) {
-        const client = await Client.findOne({where:{id:sale.clientId,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
-        if (client) {
-          // Réduire la dette du client en convertissant dans la devise de la boutique
-          const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
-          const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
-          const effectiveDevise = sale.devise || 'USD';
-          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
-          if (!Number.isFinite(rate) || rate <= 0) {
-            await transaction.rollback();
-            return res.status(400).json({ message: "Taux de change invalide pour recalcul de dette." });
-          }
-          let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
-          if (effectiveDevise !== shopCurrency) {
-            debtToSubtract = convertCurrency(debtToSubtract, effectiveDevise, shopCurrency, rate);
-          }
-            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
-            await client.save({ transaction });
-        }
-    }
-
-    await sale.destroy({ transaction });
-    await transaction.commit();
-    await invalidateCache('stats');
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, null, 'Vente supprimée avec succès');
-  } catch (error) {
-    if (transaction && !transaction.finished) await transaction.rollback();
-    next(error);
-  }
-};
-
+exports.deleteSale=async(req,res)=>res.status(409).json({message:'La suppression définitive est désactivée. Utilisez un remboursement autorisé.'});
 
 exports.deleteAllSales = async (req,res) => res.status(409).json({message:"La purge de l'historique financier est désactivée. Conservez les transactions pour la traçabilité."});
 
@@ -343,72 +277,27 @@ exports.updateSale = async (req, res, next) => {
   }
 };
 
-exports.refundSale = async (req, res, next) => {
-  let transaction;
-  try {
-    const userId = req.user.tenantId;
-    transaction = await sequelize.transaction();
-    const sale = await Sale.findOne({ where: { id: req.params.id, userId }, transaction, lock: transaction.LOCK.UPDATE });
-    if (!sale) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Vente non trouvée' });
-    }
-    
-    if (isRefundedStatus(sale.statut)) {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Vente déjà remboursée' });
-    }
-    
-    // Restitution du stock
-    if (sale.articles && Array.isArray(sale.articles)) {
-      for (const item of sale.articles) {
-        const product = await Product.findOne({where:{id:item.id,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
-        if (product) {
-          product.stockUpdateRaison = 'Remboursement Vente';
-          product.stock += item.quantite;
-          await product.save({ transaction });
-        }
-      }
-    }
-    
-    // Restitution de la dette client si applicable
-    const isCredit = (sale.methodePaiement && (
-      sale.methodePaiement.toLowerCase().includes('crédit') ||
-      sale.methodePaiement.toLowerCase().includes('credit')
-    )) || sale.statut === 'Dette';
-
-    if (sale.clientId && isCredit) {
-        const client = await Client.findOne({where:{id:sale.clientId,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
-        if (client) {
-          // Convertir le montant dans la devise de la boutique avant de réduire la dette
-          const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
-          const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
-          const effectiveDevise = sale.devise || 'USD';
-          const rate = Number(sale.tauxChange || owner?.preferences?.exchangeRate);
-          if (!Number.isFinite(rate) || rate <= 0) {
-            await transaction.rollback();
-            return res.status(400).json({ message: "Taux de change invalide pour remboursement de dette." });
-          }
-          let debtToSubtract = Number(sale.montantTotal - (sale.remise || 0));
-          if (effectiveDevise !== shopCurrency) {
-            debtToSubtract = convertCurrency(debtToSubtract, effectiveDevise, shopCurrency, rate);
-          }
-            client.detteTotale = Math.max(0, Number(client.detteTotale || 0) - debtToSubtract);
-            await client.save({ transaction });
-        }
-    }
-
-    sale.statut = 'Remboursée';
-    await sale.save({ transaction });
-
-    // Log activité remboursement
-    await logActivite(req.user.id, 'REMBOURSEMENT', `Remboursement vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
-    await transaction.commit();
-    await invalidateCache('stats');
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, sale, 'Vente remboursée et stock restitué');
-  } catch (error) {
-    if (transaction && !transaction.finished) await transaction.rollback();
-    next(error);
-  }
+exports.refundSale=async(req,res,next)=>{
+ try{
+ const userId=req.user.tenantId;
+ const sale=await sequelize.transaction(async transaction=>{
+  const {User,CashSession}=require('../models');
+  const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+  const row=await Sale.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!row)throw fail('Vente introuvable',404);
+  if(isRefundedStatus(row.statut))throw fail('Vente déjà remboursée',409);
+  const rate=Number(row.tauxChange);if(!Number.isFinite(rate)||rate<=0)throw fail('Taux historique manquant; rapprochement nécessaire',409);
+  const amount=convertCurrency(Number(row.montantTotal)-Number(row.remise||0),normalizeCurrency(row.devise),normalizeCurrency(owner.entreprise?.devise),rate);
+  if(creditMethod(row.methodePaiement)||row.statut==='Dette')throw fail('Remboursement crédit indisponible avant rapprochement des créances',409);
+  if(!isCash(row.methodePaiement))throw fail('Moyen de paiement non pris en charge',409);
+  const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+  if(!session||new Date(row.createdAt)<new Date(session.openingTime))throw fail('Le remboursement d’une vente d’une ancienne caisse nécessite un mouvement comptable dédié',409);
+  if(Number(session.expectedBalance)<amount||Number(session.totalSales)<amount)throw fail('Rapprochement de caisse nécessaire avant remboursement',409);
+  const articles=safeParseArticles(row.articles);if(!articles.length)throw fail('Articles historiques indisponibles',409);
+  for(const item of articles){const product=await Product.findOne({where:{id:item.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit historique introuvable',409);product.stockUpdateRaison='Remboursement Vente';product.stock=Number(product.stock)+Number(item.quantite);await product.save({transaction});}
+  session.totalSales=Number(session.totalSales)-amount;session.expectedBalance=Number(session.expectedBalance)-amount;await session.save({transaction});
+  row.statut='Remboursée';await row.save({transaction});return row;
+ });
+ await invalidateCache('stats');await invalidateCache('products');await logActivite(req.user.id,'REMBOURSEMENT',`Remboursement vente #${sale.id}`,'Ventes',userId);
+ return require('../utils/response').sendResponse(res,200,sale,'Vente remboursée et stock restitué');
+ }catch(e){next(e)}
 };

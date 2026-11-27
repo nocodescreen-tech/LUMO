@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const cashController = require('../controllers/cashController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect,checkPermission } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
-router.get('/current', cashController.getCurrentSession);
-router.post('/open', cashController.openSession);
-router.post('/close', cashController.closeSession);
-router.get('/history', cashController.getSessions);
-router.delete('/:id', cashController.deleteSession);
+router.get('/current', checkPermission('cash'),cashController.getCurrentSession);
+router.post('/open', checkPermission('cash.open'),cashController.openSession);
+router.post('/close', checkPermission('cash.close'),cashController.closeSession);
+router.get('/history', checkPermission('cash.view'),cashController.getSessions);
+router.delete('/:id', checkPermission('cash.delete_session'),cashController.deleteSession);
 
 module.exports = router;

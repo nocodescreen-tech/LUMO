@@ -43,15 +43,16 @@ exports.createPurchase = async (req,res,next)=>{
    const products=await Product.findAll({where:{id:ids,userId},transaction,lock:transaction.LOCK.UPDATE,order:[['id','ASC']]});
    if(products.length!==ids.length)throw fail('Produit introuvable dans cette entreprise',404);
    const map=new Map(products.map(x=>[Number(x.id),x]));
+   const statut=req.body.statut||'Payé';if(!['Payé','Reçu','Expédié','En attente'].includes(statut))throw fail('Statut d’achat invalide');
+   const received=['Payé','Reçu'].includes(statut);
    let total=0;const articles=[];
    for(const item of req.body.articles){
     const qty=positiveQuantity(item.quantite),cost=money(item.prixAchat);let product;
-    if(item.id){product=map.get(Number(item.id));product.stockUpdateRaison='Achat Fournisseur';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});}
-    else {if(typeof item.nom!=='string'||!item.nom.trim())throw fail('Nom du produit obligatoire');product=await Product.create({userId,creatorId:req.user.id,nom:item.nom.trim(),prix:money(item.prix??cost),prixAchat:cost,stock:qty,devise},{transaction});}
-    articles.push({id:product.id,nom:product.nom,quantite:qty,prixAchat:cost});total+=qty*cost;
+    if(item.id){product=map.get(Number(item.id));if(received){product.stockUpdateRaison='Achat Fournisseur';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});}}
+    else {if(typeof item.nom!=='string'||!item.nom.trim())throw fail('Nom du produit obligatoire');if(received)product=await Product.create({userId,creatorId:req.user.id,nom:item.nom.trim(),prix:money(item.prix??cost),prixAchat:cost,stock:qty,devise},{transaction});}
+    articles.push({id:product?.id??null,nom:product?.nom??item.nom.trim(),quantite:qty,prixAchat:cost,received});total+=qty*cost;
    }
    total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
-   const statut=req.body.statut||'Payé';if(!['Payé','En attente','Partiel','Impayé','Non payé'].includes(statut))throw fail('Statut d’achat invalide');
    const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles},{transaction});
    const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
    if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}

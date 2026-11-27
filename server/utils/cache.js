@@ -6,7 +6,7 @@ const cacheMiddleware = (duration) => async (req, res, next) => {
         return next();
     }
 
-    const key = `cache:${req.originalUrl || req.url}:${req.user.tenantId}`;
+    const key = `cache:${req.originalUrl || req.url}:${req.user.tenantId}:${req.user.id}:${req.user.role}:${JSON.stringify(req.user.permissions||[])}`;
     
     try {
         const cachedData = await redis.get(key);
@@ -18,7 +18,7 @@ const cacheMiddleware = (duration) => async (req, res, next) => {
         const originalJson = res.json;
         res.json = function(data) {
             if (res.statusCode === 200) {
-                redis.setex(key, duration, JSON.stringify(data));
+                Promise.resolve(redis.setex(key,duration,JSON.stringify(data))).catch(()=>{});
             }
             return originalJson.call(this, data);
         };
@@ -31,6 +31,7 @@ const cacheMiddleware = (duration) => async (req, res, next) => {
 const invalidateCache = async (pattern) => {
     if (!redis) return;
 
+    try {
     const keysA = await redis.keys(`cache:${pattern}*`);
     const keysB = await redis.keys(`cache:*${pattern}*`);
     const keys = Array.from(new Set([...(keysA || []), ...(keysB || [])]));
@@ -38,6 +39,7 @@ const invalidateCache = async (pattern) => {
     if (keys.length > 0) {
         await redis.del(...keys);
     }
+    } catch(error) { console.warn('Cache invalidation unavailable'); }
 };
 
 module.exports = { cacheMiddleware, invalidateCache, redis };
