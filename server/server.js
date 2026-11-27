@@ -88,6 +88,7 @@ setupSwagger(app);
 
 // Middlewares de base
 app.use(require('./utils/operationalMetrics').observe);
+app.use(['/api/backup/preview','/api/v1/backup/preview'],express.json({limit:'8mb'}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());

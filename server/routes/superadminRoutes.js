@@ -40,6 +40,7 @@ router.use(protect, authorize('superadmin'));
  */
 const consoleController=require('../controllers/platformConsoleController');
 router.use('/operations',require('./platformOperationsRoutes'));
+router.use('/backups',require('./platformBackupRoutes'));
 router.get('/console/overview',consoleController.overview);
 router.get('/console/accounts',consoleController.accounts);
 router.get('/console/audit',consoleController.audit);

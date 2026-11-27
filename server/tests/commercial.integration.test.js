@@ -29,6 +29,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/backup',require('../routes/backupRoutes'));
  app.use('/support',require('../routes/supportRoutes'));
  app.use('/superadmin',require('../routes/superadminRoutes'));
  app.use('/finance',require('../routes/financeRoutes'));
@@ -196,6 +197,22 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await flag(true)).status).toBe(200);
  expect((await post('/support',{subject:'Enabled',category:'TECHNICAL',body:'Test'})).status).toBe(201);
  const audit=await request(app).get('/superadmin/console/audit?scope=platform').set('Authorization','Bearer '+token);expect(audit.body.data.rows.some(e=>e.type==='PLATFORM_FLAG_UPDATE')).toBe(true);
+ });
+ test('encrypted backup is authenticated, tenant bound and includes ledger without credentials',async()=>{
+ const previous=process.env.LUMO_BACKUP_KEY_HEX;process.env.LUMO_BACKUP_KEY_HEX=require('crypto').randomBytes(32).toString('hex');
+ try{
+ const r=await request(app).get('/backup/export').set('Authorization','Bearer '+ta);expect(r.status).toBe(200);
+ const envelope=r.body;expect(envelope.format).toBe('LUMO-ARCHIVE-2');expect(envelope.ciphertext).toBeTruthy();
+ const payload=require('../utils/backupArchive').open(envelope,a.id);expect(payload.data.products.every(x=>x.userId===a.id)).toBe(true);expect(payload.data.journal.length).toBeGreaterThan(0);
+ expect(JSON.stringify(payload.data.subUsers)).not.toContain('motDePasse');expect(payload.owner).not.toHaveProperty('activeSessions');
+ expect((await post('/backup/preview',envelope)).status).toBe(200);
+ const tampered={...envelope,tag:Buffer.alloc(16).toString('base64')};expect((await post('/backup/preview',tampered)).status).toBe(400);
+ const tb=generateToken(b.id,'support-test').accessToken;expect((await request(app).post('/backup/preview').set('Authorization','Bearer '+tb).send(envelope)).status).toBe(400);
+ expect((await post('/backup/import',envelope)).status).toBe(409);
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ expect((await request(app).get('/superadmin/backups').set('Authorization','Bearer '+ta)).status).toBe(403);
+ const meta=await request(app).get('/superadmin/backups').set('Authorization','Bearer '+token);expect(meta.status).toBe(200);expect(meta.body.data.rows.some(x=>x.status==='GENERATED')).toBe(true);expect(JSON.stringify(meta.body)).not.toContain(envelope.ciphertext);
+ }finally{if(previous===undefined)delete process.env.LUMO_BACKUP_KEY_HEX;else process.env.LUMO_BACKUP_KEY_HEX=previous;}
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
