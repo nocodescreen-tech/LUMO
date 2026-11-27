@@ -1,3 +1,6 @@
+import './inventory-commercial.css';
+import './customer-commercial.css';
+import {Link} from 'react-router-dom';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect } from 'react';
@@ -37,7 +40,9 @@ import { useTranslation } from '../hooks/useTranslation';
 import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
 const Clients = () => {
-  const { t } = useTranslation();
+  const { t,language } = useTranslation();
+  const [view,setView]=useState<'table'|'grid'>('table'),[debt,setDebt]=useState(''),[query,setQuery]=useState(''),[total,setTotal]=useState(0);
+  const [historyError,setHistoryError]=useState(false),historyRef=React.useRef<AbortController|null>(null),listRef=React.useRef<AbortController|null>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [allClients, setAllClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +51,7 @@ const Clients = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 8;
-  const { user, currency } = useAuthStore(state => ({ user: state.user, currency: state.currency }));
+  const user=useAuthStore(state=>state.user),currency=useAuthStore(state=>state.currency);
   const exchangeRate = getEffectiveRate();
   const displayCurrency = currency || user?.entreprise?.devise || 'CDF';
 
@@ -80,9 +85,11 @@ const Clients = () => {
   });
 
   const fetchClients = async () => {
+    listRef.current?.abort();const ctl=new AbortController();listRef.current=ctl;
     try {
       setLoading(true);
-      const response = await api.get(`/clients?page=${currentPage}&limit=${itemsPerPage}&_t=${Date.now()}`);
+      const response = await api.get('/clients',{params:{page:currentPage,limit:itemsPerPage,q:query,debt},signal:ctl.signal});
+      if(ctl.signal.aborted)return;
       const resData = response.data;
 
       let clientsList = [];
@@ -104,34 +111,21 @@ const Clients = () => {
 
       setClients(clientsList);
       setAllClients(clientsList);
-      setTotalPages(pages);
+      const meta=resData.pagination||resData.data?.pagination;pages=meta?.pages??pages;setTotal(meta?.total??clientsList.length);
+      setTotalPages(Math.max(1,pages));if(currentPage>Math.max(1,pages))setCurrentPage(Math.max(1,pages));
             setLoadError(false);
     } catch (error) {
-      setLoadError(true); toast.error(t('clientsLoadError'));
+      if(!ctl.signal.aborted){setLoadError(true);toast.error(t('clientsLoadError'));}
     } finally {
-      setLoading(false);
+      if(!ctl.signal.aborted)setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchClients();
-  }, [currentPage]);
+  useEffect(() => {fetchClients();return()=>listRef.current?.abort()}, [currentPage,query,debt]);
 
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setClients(allClients);
-      setCurrentPage(1);
-      return;
-    }
-    const filtered = allClients.filter((c: any) =>
-      c.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.telephone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setClients(filtered);
-    setCurrentPage(1);
-  }, [searchTerm, allClients]);
-
+  useEffect(()=>{const timer=setTimeout(()=>{setQuery(searchTerm.trim());setCurrentPage(1)},300);return()=>clearTimeout(timer)},[searchTerm]);
+  useEffect(()=>()=>historyRef.current?.abort(),[]);
+  const openClient=(c:any)=>{historyRef.current?.abort();const ctl=new AbortController();historyRef.current=ctl;setSelectedClient(c);setShowDetailsModal(true);setClientHistory([]);setHistoryError(false);setHistoryLoading(true);api.get('/clients/'+c.id+'/sales',{params:{page:1,limit:10},signal:ctl.signal}).then(res=>{if(!ctl.signal.aborted){const d=res.data,list=Array.isArray(d)?d:d.data?.data||d.data||[];setClientHistory(Array.isArray(list)?list:[])}}).catch(()=>{if(!ctl.signal.aborted)setHistoryError(true)}).finally(()=>{if(!ctl.signal.aborted)setHistoryLoading(false)})};
   const currentItems = clients;
 
   const handleAddClient = async (e: React.FormEvent) => {
@@ -193,12 +187,12 @@ const Clients = () => {
     });
   };
 
-  const totalClients = allClients.length;
+  const totalClients = total;
   const clientsWithDebt = allClients.filter(c => (c.detteTotale || 0) > 0).length;
 
   if (!loading && loadError) return <LoadFailure onRetry={fetchClients} />;
     return (
-    <motion.div
+    <motion.div className="ic-page cc-page"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
@@ -263,12 +257,6 @@ const Clients = () => {
             <Download size={18} /> {t('report')}
           </button>
           
-          {clients.length > 0 && canDo('clients.delete') && (
-            <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(214, 69, 69, 0.2)', fontWeight: '600' }}>
-              <Trash2 size={18} /> {t('deleteAll')}
-            </button>
-          )}
-          
           <button onClick={fetchClients} className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
             <RefreshCw size={18} />
           </button>
@@ -291,8 +279,8 @@ const Clients = () => {
         </div>
       </div>
 
-      <div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ overflowX: 'auto' }}>
+      <div className="ic-filters"><label>{language==='en'?'Legacy balance':'Solde historique'}<select value={debt} onChange={e=>{setDebt(e.target.value);setCurrentPage(1)}}><option value="">Tous</option><option value="open">Positif</option><option value="none">Nul ou négatif</option></select></label><span>{total} résultats · {clientsWithDebt} soldes positifs sur cette page</span><div className="ic-view-switch"><button aria-pressed={view==='table'} onClick={()=>setView('table')}>Tableau</button><button aria-pressed={view==='grid'} onClick={()=>setView('grid')}>Grille</button></div></div><div className="cc-disclosure">Les soldes historiques ne sont pas des créances certifiées par devise. {user?.role==='admin'&&<Link to="/receivables">Consulter les créances suivies</Link>}</div><div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
+        {view==='grid'?<div className="ic-grid">{loading?<PageSkeleton/>:!currentItems.length?<p className="ic-empty">Aucun client correspondant.</p>:currentItems.map(c=><article key={c.id} className="ic-card"><div className="ic-card-body"><span className="ic-supplier-icon">{String(c.nom||'?').slice(0,2).toUpperCase()}</span><small>CLIENT #{c.id}</small><h3>{c.nom}</h3><div className="ic-contact-line"><Phone size={15}/><span>{c.telephone||'—'}</span></div><div className="ic-contact-line"><Mail size={15}/><span>{c.email||'—'}</span></div><div className="ic-contact-line"><MapPin size={15}/><span>{c.adresse||'—'}</span></div><small>Solde historique : {Number(c.detteTotale||0).toLocaleString('fr-FR')} (devise non vérifiée)</small><div className="ic-card-actions"><button aria-label="Fiche client" onClick={()=>openClient(c)}><History size={17}/></button>{canDo('clients.edit')&&<button aria-label="Modifier" onClick={()=>{setSelectedClient(c);setShowEditModal(true)}}><Edit size={17}/></button>}{user?.role==='admin'&&<Link to={'/receivables?clientId='+c.id}>Créances</Link>}</div></div></article>)}</div>:<div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -357,7 +345,7 @@ const Clients = () => {
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ fontSize: '1rem', fontWeight: '700', color: c.detteTotale > 0 ? 'var(--danger)' : 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {toDisplayCurrency(c.detteTotale || 0, displayCurrency).toLocaleString()} <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{displayCurrency}</span>
+                      {Number(c.detteTotale||0).toLocaleString('fr-FR')} <span style={{fontSize:'.7rem'}}>historique</span>
                       {c.detteTotale > 0 && <AlertCircle size={14} />}
                     </div>
                   </td>
@@ -369,16 +357,7 @@ const Clients = () => {
                   <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button
-                        onClick={() => {
-                          setSelectedClient(c);
-                          setShowDetailsModal(true);
-                          setHistoryLoading(true);
-                          api.get(`/clients/${c.id}/sales?_t=${Date.now()}`).then(res => {
-                            const data = res.data;
-                            const list = Array.isArray(data) ? data : (data.data?.data || data.data || []);
-                            setClientHistory(list);
-                          }).catch(err => console.error(err)).finally(() => setHistoryLoading(false));
-                        }}
+                        onClick={()=>openClient(c)}
                         className="glass btn-hover"
                         style={{ padding: '0 12px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600', fontSize: '0.85rem' }}
                         title={t('fullFile')}
@@ -394,29 +373,21 @@ const Clients = () => {
                           <Edit size={16} />
                         </button>
                       )}
-                      {canDo('clients.delete') && (
-                        <button
-                          onClick={() => handleDeleteClient(c.id, c.nom)}
-                          className="glass btn-hover"
-                          style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      {user?.role==='admin'&&<Link className="cc-link" to={'/receivables?clientId='+c.id}>Créances</Link>}
                     </div>
                   </td>
                 </motion.tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
             {t('showingClients')
               .replace('{start}', (clients.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1).toString())
-              .replace('{end}', Math.min(currentPage * itemsPerPage, clients.length).toString())
-              .replace('{total}', clients.length.toString())}
+              .replace('{end}', Math.min((currentPage-1)*itemsPerPage+clients.length,total).toString())
+              .replace('{total}', total.toString())}
           </div>
           
           {totalPages > 1 && (
@@ -570,7 +541,7 @@ const Clients = () => {
 
       <Modal
         isOpen={showDetailsModal}
-        onClose={() => { setShowDetailsModal(false); setClientHistory([]); }}
+        onClose={() => { historyRef.current?.abort();setShowDetailsModal(false);setClientHistory([]); }}
         title={t('clientDetailsTitle').replace('{name}', selectedClient?.nom || '')}
         icon={History}
         maxWidth="700px"
@@ -579,7 +550,7 @@ const Clients = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
               <div className="glass" style={{ padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>{t('totalPurchases')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Achats affichés (10 max, indicatif)</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
                   {(Array.isArray(clientHistory) ? clientHistory : [])
                     .reduce((acc, curr) => acc + toDisplayCurrency(parseFloat(curr.montantTotal) || 0, curr.devise || displayCurrency), 0)
@@ -590,13 +561,11 @@ const Clients = () => {
               <div className="glass" style={{ padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>{t('remainingDebt')}</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: selectedClient.detteTotale > 0 ? 'var(--danger)' : 'var(--success)', marginTop: '4px' }}>
-                  {toDisplayCurrency(selectedClient.detteTotale || 0, displayCurrency)
-                    .toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  {' '}<span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{displayCurrency}</span>
+                  {Number(selectedClient.detteTotale||0).toLocaleString('fr-FR')} <small>historique, devise non vérifiée</small>
                 </div>
               </div>
               <div className="glass" style={{ padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>{t('numberOfVisits')}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Transactions affichées (10 max)</span>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>
                   {t('visitsCount')
                     .replace('{count}', clientHistory.length.toString())
@@ -611,7 +580,7 @@ const Clients = () => {
               </h4>
               {historyLoading ? (
                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}><Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: 'var(--primary)' }} /></div>
-              ) : clientHistory.length === 0 ? (
+              ) : historyError?<div role="alert" className="cc-disclosure">Historique indisponible. <button onClick={()=>openClient(selectedClient)}>Réessayer</button></div>: clientHistory.length === 0 ? (
                 <div className="glass" style={{ padding: '40px', textAlign: 'center', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
                   {t('noPurchasesFound')}
                 </div>

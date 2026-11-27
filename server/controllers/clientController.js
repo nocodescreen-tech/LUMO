@@ -2,6 +2,7 @@ const ledger=require('../utils/commercialLedger');
 const { pick, fail, money, currency, round }=require('../utils/transactionSafety');
 const {sequelize}=require('../config/database');
 const Client = require('../models/Client');
+const {Op}=require('sequelize');
 const { validateClient } = require('../middleware/validators');
 const { sendEmail, getDebtReminderTemplate } = require('../utils/emailService');
 const { logActivite } = require('./activiteController');
@@ -10,12 +11,23 @@ const { getPagination, getPagingData } = require('../utils/pagination');
 exports.getClients = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
-    const { page, limit } = req.query;
+    const page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),l=Math.max(1,Math.min(100,parseInt(req.query.limit)||10)),offset=(page-1)*l;
+    const where={userId};
+    if(typeof req.query.q==='string'&&req.query.q.trim()){
+      const q=req.query.q.trim().slice(0,100),pattern='%'+q.replace(/[\\%_]/g,'\\    const { page, limit } = req.query;
     const { limit: l, offset } = getPagination(page, limit);
 
     const data = await Client.findAndCountAll({
       where: { userId },
-      order: [['nom', 'ASC']],
+      order: [['nom', 'ASC']],')+'%';
+      where[Op.or]=['nom','email','telephone','adresse'].map(k=>({[k]:{[Op.iLike]:pattern}}));
+      if(/^#?\d+$/.test(q)&&Number.isSafeInteger(Number(q.replace('#','')))&&Number(q.replace('#',''))<=2147483647)where[Op.or].push({id:Number(q.replace('#',''))});
+    }
+    if(req.query.debt==='open')where.detteTotale={[Op.gt]:0};
+    if(req.query.debt==='none')where.detteTotale={[Op.lte]:0};
+    const data = await Client.findAndCountAll({
+      where,
+      order: [['nom', 'ASC'],['id','ASC']],
       limit: l,
       offset
     });

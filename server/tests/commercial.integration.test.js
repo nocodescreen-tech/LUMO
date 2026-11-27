@@ -27,6 +27,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.get('/cash/current',protect,cash.getCurrentSession);
  app.get('/cash/history',protect,cash.getSessions);
  app.post('/cash/close',protect,checkPermission('cash.close'),cash.closeSession);
+ app.get('/clients',protect,clients.getClients);
  app.post('/clients/:id/settle',protect,clients.settleDebt);
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
@@ -819,6 +820,19 @@ suite('Commercial PostgreSQL integration',()=>{
  await expect(rights.reserveAI(owner.id)).rejects.toMatchObject({statusCode:403});expect((await request(app).get('/workspace/subscription').set('Authorization','Bearer '+ct)).status).toBe(200);
  expect((await request(app).get(crm).set('Authorization','Bearer '+ct)).status).toBe(200);
  await expect((await PlanEntitlement.findByPk(saved.body.data.id)).destroy()).rejects.toThrow();
+ });
+ test('commercial registers filter server-side and preserve tenant boundaries',async()=>{
+ const get=(path,token=ta)=>request(app).get(path).set('Authorization','Bearer '+token);
+ const {Client,CommercialDocument,Receivable}=require('../models');
+ const target=await Client.create({nom:'ZZZ FilterTarget',userId:a.id,detteTotale:11});
+ await Client.create({nom:'ZZZ FilterTarget foreign',userId:b.id,detteTotale:99});
+ const list=await get('/clients?q=FilterTarget&debt=open&limit=1');expect(list.status).toBe(200);expect(list.body.pagination.total).toBe(1);expect(list.body.data[0].id).toBe(target.id);
+ expect((await get('/clients?q=FilterTarget&debt=none')).body.pagination.total).toBe(0);
+ const doc=await CommercialDocument.findOne({where:{userId:a.id,type:'INVOICE'}});
+ expect((await get('/documents?type=INVOICE&status='+doc.status+'&currency='+doc.currency)).body.data.rows.some(x=>x.id===doc.id)).toBe(true);
+ const debt=await Receivable.findOne({where:{userId:a.id}});
+ const filtered=await get('/finance/receivables?saleId='+debt.saleId+'&currency='+debt.currency);expect(filtered.status).toBe(200);expect(filtered.body.data.rows.every(x=>x.saleId===debt.saleId&&x.currency===debt.currency)).toBe(true);
+ expect((await get('/finance/receivables?saleId=bad')).status).toBe(400);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
