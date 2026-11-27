@@ -38,7 +38,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   cart: [],
   addToCart: (product, globalCurrency = 'CDF', exchangeRate = 2250, selectedVariantes = []) => {
     const { cart } = get();
-    const rawPrice = product.prixVente || product.prix || 0;
+    const available=Number(product.stock);
+    if(Number.isFinite(available)&&cart.filter(i=>i.id===product.id).reduce((sum,i)=>sum+i.quantite,0)>=available)return;
+    const rawPrice = product.prixVente ?? product.prix ?? 0;
     const productDevise = product.devise || globalCurrency;
     const normalizedPrice = normalize(rawPrice, productDevise, globalCurrency, exchangeRate);
 
@@ -70,6 +72,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ cart: get().cart.filter(item => item.cartId !== cartId) });
   },
   updateQuantity: (cartId, qte) => {
+    if(!Number.isSafeInteger(qte)||qte<1)return;
     set({ cart: get().cart.map(item => item.cartId === cartId ? { ...item, quantite: qte } : item) });
   },
   clearCart: () => set({ cart: [] }),

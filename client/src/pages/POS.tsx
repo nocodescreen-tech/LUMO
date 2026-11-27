@@ -1,3 +1,4 @@
+import '../design-system/warehouse.css';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +26,7 @@ import api from '../api/axios';
 import { postFinancial } from '../api/financialOperation';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import {useWarehouseOptions} from '../hooks/useWarehouseOptions';
 import { toast } from 'sonner';
 import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
@@ -44,6 +46,10 @@ const POS = () => {
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
+    const [warehouseId,setWarehouseId]=useState('');
+    const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
+    const catalogRequest=React.useRef(0);
+    const [catalogError,setCatalogError]=useState(false);
     // Taux vivant : sync avec le store + fallback + rechargement au focus
     const [liveRate, setLiveRate] = useState(Number(storeRate) || 2250);
 
@@ -96,12 +102,14 @@ const POS = () => {
             setCheckingSession(true);
             // M5 Fix: Force fresh auth state to avoid stale localStorage issues
             try { await useAuthStore.getState().checkAuth(false); } catch(e) {}
-            await Promise.all([fetchProducts(), checkCashSession()]);
+            await checkCashSession();
             setCheckingSession(false);
         };
         init();
     }, []);
 
+    useEffect(()=>{clearCart();setWarehouseId('');},[user?.id]);
+    useEffect(()=>{void fetchProducts(warehouseId);return()=>{catalogRequest.current++}},[warehouseId,user?.id]);
     const [showClientModal, setShowClientModal] = useState(false);
     const [allClients, setAllClients] = useState<any[]>([]);
     const [filteredClients, setFilteredClients] = useState<any[]>([]);
@@ -238,37 +246,22 @@ const POS = () => {
         }
     };
 
-    const fetchProducts = async () => {
+    const fetchProducts = async (location=warehouseId) => {
+        const run=++catalogRequest.current;
+        setLoading(true);setCatalogError(false);
         try {
-            const response = await api.get(`/products?_t=${Date.now()}`);
-            const resData = response.data;
-            
-            let productsList = [];
-            
-            // Structure standard: { success, data: { data: [] } }
-            if (resData.success && resData.data) {
-                if (Array.isArray(resData.data.data)) {
-                    productsList = resData.data.data;
-                } else if (Array.isArray(resData.data)) {
-                    productsList = resData.data;
-                } else if (typeof resData.data === 'object') {
-                    productsList = resData.data.products || resData.data.items || resData.data.data || [];
-                }
-            }
-            // Fallback
-            else {
-                const data = resData;
-                if (Array.isArray(data)) productsList = data;
-                else if (data && Array.isArray(data.data)) productsList = data.data;
-                else if (data && Array.isArray(data.products)) productsList = data.products;
-            }
-            
-            setProducts(productsList.map(p=>({...p,stock:p.unallocatedStock==null?p.stock:Number(p.unallocatedStock)})));
-        } catch (error) {
-            toast.error(t('errorLoadingProducts'));
-        } finally {
-            setLoading(false);
-        }
+            const list:any[]=[];let page=1,pages=1;
+            do{
+                const {data}=await api.get('/products',{params:{page,limit:100,...(location?{warehouseId:Number(location)}:{}),_t:Date.now()}});
+                if(run!==catalogRequest.current)return;
+                const rows=data?.data?.data;
+                if(!Array.isArray(rows))throw new Error('Catalogue invalide');
+                list.push(...rows);pages=Number(data.data.pagination?.pages||1);page++;
+                if(pages>200)throw new Error('Catalogue trop volumineux pour ce POS');
+            }while(page<=pages);
+            if(run===catalogRequest.current)setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));
+        }catch(e){if(run===catalogRequest.current){setProducts([]);setCatalogError(true);toast.error(t('errorLoadingProducts'));}}
+        finally{if(run===catalogRequest.current)setLoading(false)}
     };
 
     const filteredProducts = products.filter(p =>
@@ -277,6 +270,7 @@ const POS = () => {
     );
 
     const handleProductClick = (product: any) => {
+            if(Number(product.stock)<=cart.filter(i=>i.id===product.id).reduce((sum,i)=>sum+i.quantite,0)){toast.error(language==='fr'?'Stock disponible insuffisant':'Insufficient available stock');return;}
             if (product.variantes && product.variantes.length > 0) {
                 // Modèle configurations : chaque ligne = UNE configuration complète (Y7, Y9...), on garde la liste telle quelle
                 setSelectedProductForVariants({ ...product, variantes: product.variantes });
@@ -415,6 +409,7 @@ const POS = () => {
         
         const saleTotal = getSaleTotal();
                 const salePayload = {
+                    warehouseId:warehouseId?Number(warehouseId):null,
                     items: cart.map(item => {
                         const itemSalePrice = getCartItemPriceInSaleCurrency(item);
                         const cleanVariantes = dedupeSelectedVariantes(item.selectedVariantes || []);
@@ -459,7 +454,7 @@ const POS = () => {
             setShowSuccess(true);
             setShowClientModal(false);
             clearCart();
-            await checkCashSession();
+            await Promise.all([checkCashSession(),fetchProducts(warehouseId)]);
         } catch (error: any) {
             if(!error.response && (error.code==='ERR_NETWORK'||!navigator.onLine)){
                 toast.error(language==='fr'?'Résultat incertain. Conservez le panier et réessayez la même vente après reconnexion.':'Result uncertain. Keep the cart and retry the same sale after reconnecting.');
@@ -481,6 +476,8 @@ const POS = () => {
         <div className="responsive-grid lumo-pos" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
             {/* Catalog */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
+                {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
+                {catalogError&&<button className="btn-premium" onClick={()=>fetchProducts(warehouseId)}>Recharger le catalogue</button>}
                 <div className="glass lumo-pos-toolbar" style={{ padding: '12px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                         <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={20} />

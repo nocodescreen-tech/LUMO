@@ -1,3 +1,4 @@
+import '../design-system/warehouse.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
@@ -24,6 +25,7 @@ import { normalizeAmount } from '../utils/currencyHelpers';
 import { getDisplayAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
 import { postFinancial } from '../api/financialOperation';
+import {useWarehouseOptions} from '../hooks/useWarehouseOptions';
 import { toast } from 'sonner';
 import { exportToPDF } from '../utils/reportPDF';
 import { useTranslation } from '../hooks/useTranslation';
@@ -31,6 +33,8 @@ import { useTranslation } from '../hooks/useTranslation';
 const Purchases = () => {
     const { t } = useTranslation();
     const { currency, user } = useAuthStore();
+    const [warehouseId,setWarehouseId]=useState('');
+    const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
     const [purchases, setPurchases] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -135,6 +139,7 @@ const Purchases = () => {
 
             await postFinancial('/purchases', {
                 ...formData,
+                warehouseId:warehouseId?Number(warehouseId):null,
                 fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
                 montantTotal: Number(formData.montantTotal),
                 articles: items.map(item => ({
@@ -157,6 +162,7 @@ const Purchases = () => {
                 devise: 'USD'
             });
             setItems([]);
+            setWarehouseId('');
         } catch (error: any) {
             toast.error(error.response?.data?.message || error.message || t('purchaseSaveError'));
         } finally {
@@ -458,6 +464,7 @@ const Purchases = () => {
                                     )}
                                 </div>
 
+                                {user?.role==='admin'&&<div className="lumo-pos-location"><label>Entrepôt de réception<select value={warehouseId} disabled={submitting||warehouseOptions.loading} onChange={e=>setWarehouseId(e.target.value)}><option value="">Stock non affecté</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button type="button" onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}<small>La réception ultérieure conserve cet emplacement.</small></div>}
                                 {/* Facture + Statut */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
