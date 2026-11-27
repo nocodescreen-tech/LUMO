@@ -10,7 +10,7 @@ const VALID_PERMISSIONS = new Set([
   'stock-history', 'stock-history.view', 'stock-history.export',
   'cash', 'cash.open', 'cash.close', 'cash.view', 'cash.delete_session',
   'debts', 'debts.settle', 'debts.delete', 'debts.send_reminder',
-  'stats', 'activities', 'expenses.request', 'expenses.review',
+  'stats', 'activities', 'expenses.request', 'expenses.review', 'crm.manage',
   'settings', 'settings.view', 'settings.edit', 'settings.profile', 'settings.appearance', 'settings.exchange_rate',
   'team', 'team.add', 'team.edit', 'team.delete', 'team.view_activity'
 ]);

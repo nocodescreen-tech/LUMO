@@ -722,6 +722,31 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await get('/notifications/summary')).body.data.unread).toBe(await Notification.count({where:{...svc.visibility(a),lu:false}}));
  expect((await get('/notifications/center',token)).body.data.rows.every(x=>x.userId===staff.id)).toBe(true);
  });
+ test('CRM assignment, versioning and financial targets use tenant-scoped journal data',async()=>{
+ const {Opportunity,OpportunityEvent,SalesTarget}=require('../models'),url='/workspace/crm';
+ const make=async(email,sid)=>{const u=await User.create({nom:email,email,motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['crm.manage'],activeSessions:[{sessionId:sid}]});return {u,token:generateToken(u.id,sid).accessToken}};
+ const x=await make('crm-seller-one@example.com','crm-one-session'),y=await make('crm-seller-two@example.com','crm-two-session');
+ const as=(actor,path,body)=>request(app).post(path).set('Authorization','Bearer '+actor.token).send(body);
+ const get=(path,t=ta)=>request(app).get(path).set('Authorization','Bearer '+t);
+ const body={title:'Office contract',contactName:'Prospect',amount:5000,currency:'CDF',assigneeId:x.u.id,clientId:ca.id,operationId:'crm-create-test-001'};
+ expect((await as(y,url+'/opportunities',body)).status).toBe(403);
+ expect((await post(url+'/opportunities',{...body,clientId:cb.id})).status).toBe(404);
+ const first=await post(url+'/opportunities',body);expect(first.status).toBe(201);const id=first.body.data.id;
+ expect((await post(url+'/opportunities',body)).status).toBe(200);
+ expect((await get(url+'/opportunities/'+id+'/events',y.token)).status).toBe(404);
+ const path=url+'/opportunities/'+id+'/actions',move={action:'MOVE',stage:'QUALIFIED',expectedVersion:1,note:'Contact confirmed',operationId:'crm-move-test-001'};
+ expect((await as(x,path,move)).status).toBe(201);
+ expect((await as(x,path,{...move,operationId:'crm-move-test-002'})).status).toBe(409);
+ expect((await as(x,path,{...move,stage:'WON',expectedVersion:2,confirm:true,operationId:'crm-won-test-001'})).status).toBe(201);
+ expect(await OpportunityEvent.count({where:{opportunityId:id}})).toBe(3);
+ const m=require('../utils/lotService').today().slice(0,7)+'-01';
+ const target={sellerKey:x.u.id,month:m,currency:'CDF',amount:10000,reason:'Monthly plan',expectedTargetId:null,confirm:true,operationId:'crm-target-test-001'};
+ expect((await as(x,url+'/targets',target)).status).toBe(403);const saved=await post(url+'/targets',target);expect(saved.status).toBe(201);
+ const perf=await get(url+'/performance?month='+m+'&currency=CDF',x.token);expect(perf.status).toBe(200);expect(perf.body.data.rows).toHaveLength(1);expect(Number(perf.body.data.rows[0].net)).toBe(0);expect(Number(perf.body.data.rows[0].target.amount)).toBe(10000);
+ expect((await get(url+'/segments?currency=CDF',x.token)).status).toBe(403);
+ expect((await get(url+'/segments?currency=CDF')).status).toBe(200);
+ await expect((await Opportunity.findByPk(id)).destroy()).rejects.toThrow();await expect((await SalesTarget.findByPk(saved.body.data.id)).destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
