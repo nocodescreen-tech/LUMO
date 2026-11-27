@@ -103,6 +103,7 @@ exports.createSale = async (req, res, next) => {
     const prior=await ledger.replay(req,'sale.create',transaction);
     if(prior){const existing=await Sale.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);await transaction.commit();return require('../utils/response').sendResponse(res,200,publicSale(existing,req.user),'Vente déjà enregistrée');}
     if(req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+    const quote=await require('../utils/documentService').validateQuoteSale(req,transaction);
     const wh=await inventory.warehouse(userId,req.body.warehouseId,transaction);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
@@ -265,6 +266,7 @@ exports.createSale = async (req, res, next) => {
     const baseCost=articles.reduce((sum,item)=>sum+convertCurrency(item.prixAchat*item.quantite,item.deviseProduit,shopCurrency,finalRate),0);
     await ledger.post(req,transaction,{event:'SALE',reference:sale.id,debit:credit?'RECEIVABLE':'CASH',credit:'REVENUE',amount:baseAmount,devise:shopCurrency,rate:finalRate,session:credit?null:activeSession});
     await ledger.post(req,transaction,{event:'SALE_COST',reference:sale.id,debit:'COST_OF_GOODS',credit:'INVENTORY',amount:baseCost,devise:shopCurrency,rate:finalRate});
+    await require('../utils/documentService').convert(req,quote,sale,transaction);
     await ledger.remember(req,'sale.create',sale.id,transaction);
     await transaction.commit();
     await invalidateCache('stats');

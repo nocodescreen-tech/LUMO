@@ -36,6 +36,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.use('/workspace',require('../routes/workspaceRoutes'));
  app.use('/inventory',require('../routes/inventoryRoutes'));
  app.use('/repairs',require('../routes/repairRoutes'));
+ app.use('/documents',require('../routes/documentRoutes'));
  app.get('/test-products',protect,require('../controllers/productController').getProducts);
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
@@ -352,6 +353,32 @@ suite('Commercial PostgreSQL integration',()=>{
  const row=await RepairOrder.findByPk(id);expect(row.status).toBe('DELIVERED');expect((await unit.reload()).status).toBe('SOLD');expect((await product.reload()).stock).toBe(1);
  const event=await RepairEvent.findOne({where:{orderId:id}});await expect(event.destroy()).rejects.toThrow();
  expect((await action('DELIVERED',{action:'note'})).status).toBe(409);
+ });
+ test('commercial documents preserve snapshots, convert once, and never duplicate financial postings',async()=>{
+ const {CommercialDocument,DocumentEvent}=require('../models');
+ const p=await Product.create({nom:'Quote product',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id});
+ const client=await Client.create({nom:'Quote customer',userId:a.id});
+ const body={clientId:client.id,currency:'USD',validUntil:'2099-12-31',items:[{id:p.id,quantity:2,unitPrice:1}],operationId:'quote-create-test-001'};
+ const before=await JournalEntry.count({where:{userId:a.id}});
+ const r=await post('/documents/quotes',body);expect(r.status).toBe(201);expect(Number(r.body.data.total)).toBe(20);const id=r.body.data.id;
+ expect((await post('/documents/quotes',body)).status).toBe(200);expect((await p.reload()).stock).toBe(5);
+ const action=(expectedStatus,status,extra={})=>post('/documents/'+id+'/status',{expectedStatus,status,reason:'Test',operationId:'quote-'+status+'-test-0001',...extra});
+ expect((await action('DRAFT','ISSUED')).status).toBe(201);
+ expect((await action('ISSUED','ACCEPTED')).status).toBe(409);
+ expect((await action('ISSUED','ACCEPTED',{confirmCustomer:true})).status).toBe(201);
+ expect(await JournalEntry.count({where:{userId:a.id}})).toBe(before);
+ expect((await post('/sales',payload(p,1,10,{quoteId:id,clientId:client.id}))).status).toBe(409);
+ const sale=await post('/sales',payload(p,2,10,{quoteId:id,clientId:client.id}));expect(sale.status).toBe(201);
+ expect((await post('/sales',payload(p,2,10,{quoteId:id,clientId:client.id}))).status).toBe(409);
+ const after=await JournalEntry.count({where:{userId:a.id}});expect(after).toBeGreaterThan(before);
+ const invoice=await post('/documents/issue',{type:'INVOICE',saleId:sale.body.data.id,operationId:'invoice-create-0001'});expect(invoice.status).toBe(201);
+ const second=await post('/documents/issue',{type:'INVOICE',saleId:sale.body.data.id,operationId:'invoice-create-0002'});expect(second.body.data.id).toBe(invoice.body.data.id);
+ expect((await post('/documents/issue',{type:'DELIVERY',saleId:sale.body.data.id,reason:'Test',operationId:'delivery-test-0001'})).status).toBe(400);
+ expect((await post('/documents/issue',{type:'DELIVERY',saleId:sale.body.data.id,reason:'Test',handoverConfirmed:true,operationId:'delivery-test-0002'})).status).toBe(201);
+ expect(await JournalEntry.count({where:{userId:a.id}})).toBe(after);expect((await p.reload()).stock).toBe(3);
+ const doc=await CommercialDocument.findByPk(id);expect(doc.status).toBe('CONVERTED');await expect(doc.update({total:1})).rejects.toThrow();
+ const event=await DocumentEvent.findOne({where:{documentId:id}});await expect(event.destroy()).rejects.toThrow();
+ const foreign=generateToken(b.id,'support-test').accessToken;expect((await request(app).get('/documents/'+id).set('Authorization','Bearer '+foreign)).status).toBe(404);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
