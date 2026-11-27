@@ -284,7 +284,7 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={loading}
-                style={{ padding: '18px', borderRadius: '18px', background: '#155e58', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)' }}
+                style={{ padding: '18px', borderRadius: '18px', background: 'var(--action-bg)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)' }}
               >
                 {loading ? t.loginLoading : (<>{t.loginSubmit} <ArrowRight size={22} /></>)}
               </motion.button>
@@ -320,7 +320,7 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading || twoFACode.length !== 6}
-                style={{ padding: '18px', borderRadius: '18px', background: '#155e58', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
+                style={{ padding: '18px', borderRadius: '18px', background: 'var(--action-bg)', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
               >
                 {loading ? t.verifyLoading : (<><Shield size={22} /> {t.login2faSubmit}</>)}
               </motion.button>

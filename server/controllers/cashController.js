@@ -20,7 +20,9 @@ exports.closeSession=async(req,res,next)=>{
  const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
  const row=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});if(!row)throw fail('Aucune session ouverte',404);
  if(row.currency!==currency(owner.entreprise?.devise))throw fail('Rapprochement de la devise de caisse nécessaire',409);
- const balance=expected(row),actual=req.body.closingBalance==null?balance:round(money(req.body.closingBalance),currency(owner.entreprise?.devise));
+ if(req.body.closingBalance==null)throw fail('Saisissez le montant réellement compté en caisse');
+ const balance=expected(row),actual=round(money(req.body.closingBalance),currency(owner.entreprise?.devise));
+ if(actual!==balance&&(!req.body.note||typeof req.body.note!=='string'||!req.body.note.trim()))throw fail('Justifiez l’écart de caisse avant la clôture');
  await row.update({closingTime:new Date(),closingBalance:actual,expectedBalance:balance,status:'CLOSED',note:req.body.note??row.note},{transaction});return row;
  });await logActivite(req.user.id,'CAISSE',`Fermeture de caisse #${session.id}`,'Caisse',userId);return res.json(session);
  }catch(e){next(e)}

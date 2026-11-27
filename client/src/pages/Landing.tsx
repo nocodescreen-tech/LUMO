@@ -627,10 +627,10 @@ export default function Landing() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap');
         .lp-root {
-          /* THÈME A — Terre & Fleuve clair, haute lisibilité (WCAG AA) */
-          --bg: #F8FAFC; --surface: #FFFFFF; --ink: #101828; --muted: #475467;
-          --fleuve: #155E58; --fleuve-deep: #0F4A45; --terre: #A84420; --or: #A97411;
-          --line: rgba(23,19,12,0.16); --chip: rgba(21,94,88,0.12);
+          /* LUMO / 5DEV brand tokens */
+          --bg: var(--bg-main); --surface: var(--bg-card); --ink: var(--text-main); --muted: var(--text-muted);
+          --fleuve: var(--primary); --fleuve-deep: var(--action-hover); --terre: var(--action-bg); --or: var(--warning);
+          --line: var(--border); --chip: var(--primary-glow);
           --shadow: 0 20px 60px -30px rgba(23,19,12,0.35);
           background: var(--bg); color: var(--ink); min-height: 100vh;
           font-family: 'Space Grotesk', system-ui, sans-serif;
@@ -640,9 +640,9 @@ export default function Landing() {
         }
         html[data-theme='dark'] .lp-root {
           /* Variante sombre (toggle) */
-          --bg: #101828; --surface: #182334; --ink: #F1F5F9; --muted: #B0BDCC;
-          --fleuve: #46B0A7; --fleuve-deep: #2C7A73; --terre: #E0845A; --or: #E0A93D;
-          --line: rgba(237,227,206,0.16); --chip: rgba(62,156,148,0.14);
+          --bg: var(--bg-main); --surface: var(--bg-card); --ink: var(--text-main); --muted: var(--text-muted);
+          --fleuve: var(--primary); --fleuve-deep: var(--action-hover); --terre: var(--action-bg); --or: var(--warning);
+          --line: var(--border); --chip: var(--primary-glow);
           --shadow: 0 24px 70px -30px rgba(0,0,0,0.65);
         }
         * { box-sizing: border-box; }

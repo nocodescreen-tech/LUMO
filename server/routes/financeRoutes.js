@@ -16,4 +16,28 @@ router.get('/trial-balance',protect,authorize('admin','superadmin'),async(req,re
  return sendResponse(res,200,{rows,coverage:'commercial-v2-postings-only'},'Balance des écritures');
  }catch(e){next(e);}
 });
+const {fail}=require('../utils/transactionSafety');
+const {Op}=require('sequelize');
+function period(query){
+ const from=query.from,to=query.to;
+ if(!from||!to||!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))throw fail('Dates ISO requises (YYYY-MM-DD)');
+ const start=new Date(from+'T00:00:00.000Z'),end=new Date(to+'T00:00:00.000Z');
+ if(!Number.isFinite(+start)||!Number.isFinite(+end)||start.toISOString().slice(0,10)!==from||end.toISOString().slice(0,10)!==to||end<start||end-start>366*86400000)throw fail('Période invalide (366 jours maximum)');
+ end.setUTCDate(end.getUTCDate()+1);return {start,end};
+}
+router.get('/income-statement',protect,authorize('admin','superadmin'),async(req,res,next)=>{
+ try{const {start,end}=period(req.query);
+ const [rows]=await sequelize.query(`WITH movements AS (
+ SELECT currency,"creditAccount" AS account,amount AS value FROM "JournalEntries" WHERE "userId"=:userId AND "createdAt">=:start AND "createdAt"<:end
+ UNION ALL SELECT currency,"debitAccount" AS account,-amount AS value FROM "JournalEntries" WHERE "userId"=:userId AND "createdAt">=:start AND "createdAt"<:end
+ ) SELECT currency,COALESCE(SUM(value) FILTER(WHERE account='REVENUE'),0) AS revenue,-COALESCE(SUM(value) FILTER(WHERE account='COST_OF_GOODS'),0) AS "costOfGoods",-COALESCE(SUM(value) FILTER(WHERE account='OPERATING_EXPENSE'),0) AS "operatingExpenses",-COALESCE(SUM(value) FILTER(WHERE account='PAYROLL_EXPENSE'),0) AS payroll,COALESCE(SUM(value) FILTER(WHERE account IN ('REVENUE','COST_OF_GOODS','OPERATING_EXPENSE','PAYROLL_EXPENSE')),0) AS "recordedResult" FROM movements GROUP BY currency ORDER BY currency`,{replacements:{userId:req.user.tenantId,start,end}});
+ return sendResponse(res,200,{rows,from:req.query.from,to:req.query.to,timezone:'UTC',coverage:'commercial-v2-postings-only',complete:false},'Résultat des écritures enregistrées');
+ }catch(e){next(e);}
+});
+router.get('/cash-flow',protect,authorize('admin','superadmin'),async(req,res,next)=>{
+ try{const {start,end}=period(req.query);
+ const [rows]=await sequelize.query(`SELECT currency,event,COALESCE(SUM(amount) FILTER(WHERE "debitAccount"='CASH'),0) AS inflow,COALESCE(SUM(amount) FILTER(WHERE "creditAccount"='CASH'),0) AS outflow FROM "JournalEntries" WHERE "userId"=:userId AND "createdAt">=:start AND "createdAt"<:end AND ("debitAccount"='CASH' OR "creditAccount"='CASH') GROUP BY currency,event ORDER BY currency,event`,{replacements:{userId:req.user.tenantId,start,end}});
+ return sendResponse(res,200,{rows,from:req.query.from,to:req.query.to,timezone:'UTC',coverage:'commercial-v2-postings-only',complete:false},'Flux de caisse enregistrés');
+ }catch(e){next(e);}
+});
 module.exports=router;

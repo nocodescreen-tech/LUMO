@@ -59,7 +59,7 @@ const Register = () => {
       id: 'commerce-general',
       label: language === 'fr' ? 'Commerce general' : 'General commerce',
       icon: Store,
-      color: '#155E58',
+      color: 'var(--primary)',
       desc: language === 'fr'
         ? 'Gestion standard des ventes, stocks et clients.'
         : 'Standard management of sales, stock and customers.'
@@ -430,7 +430,7 @@ const Register = () => {
                   width: '100%', 
                   padding: '18px', 
                   borderRadius: '18px', 
-                  background: '#155e58', 
+                  background: 'var(--action-bg)', 
                   color: 'white', 
                   border: 'none', 
                   fontWeight: '700', 
@@ -587,7 +587,7 @@ const Register = () => {
                   disabled={!formData.nom || !formData.email || !formData.motDePasse}
                   onClick={nextStep}
                   style={{ 
-                      flex: 1.5, padding: '18px', borderRadius: '18px', background: '#155e58', 
+                      flex: 1.5, padding: '18px', borderRadius: '18px', background: 'var(--action-bg)', 
                       color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', 
                       justifyContent: 'center', gap: '10px', boxShadow: '0 15px 35px -8px rgba(168, 68, 32, 0.4)' 
                   }}

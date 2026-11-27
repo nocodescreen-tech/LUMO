@@ -27,6 +27,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
@@ -111,6 +112,15 @@ suite('Commercial PostgreSQL integration',()=>{
  const grant=()=>request(app).post('/platform/billing/subscriptions/'+a.id+'/grant').set('Authorization','Bearer '+token).send({plan:'BUSINESS',days:30,reference:'manual-grant-1',reason:'Integration test'});
  expect((await grant()).status).toBe(200);expect((await grant()).status).toBe(409);
  expect((await post('/workspace/branches',{name:'Other branch',code:'OTHER'})).status).toBe(201);
+ });
+ test('financial reports are scoped and report coverage',async()=>{
+ const today=new Date().toISOString().slice(0,10);
+ const url='/finance/income-statement?from='+today+'&to='+today;
+ const get=(u,token=ta)=>request(app).get(u).set('Authorization','Bearer '+token);
+ const report=await get(url);expect(report.status).toBe(200);expect(report.body.data.complete).toBe(false);expect(report.body.data.rows.length).toBeGreaterThan(0);
+ const foreign=await get(url,generateToken(b.id,'test-session').accessToken);expect(foreign.status).toBe(200);expect(foreign.body.data.rows).toEqual([]);
+ expect((await get('/finance/cash-flow?from=2026-02-30&to='+today)).status).toBe(400);
+ expect((await get('/finance/cash-flow?from='+today+'&to='+today)).status).toBe(200);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
