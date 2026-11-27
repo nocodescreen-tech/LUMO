@@ -1,4 +1,5 @@
 import '../design-system/warehouse.css';
+import './checkout-commercial.css';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -482,9 +483,10 @@ const POS = () => {
     if (loading) return <PageSkeleton />;
 
     return (
-        <div className="responsive-grid lumo-pos" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
+        <div className="responsive-grid lumo-pos lumo-pos-commercial" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
             {/* Catalog */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
+            <div className="pc-catalog-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
+                <header className="pc-heading"><div><small>LUMO / POS</small><h1>{language==='fr'?'Point de vente':'Point of sale'}</h1></div><span className={cashSession?'pc-status open':'pc-status'} role="status">{checkingSession?(language==='fr'?'Vérification…':'Checking…'):cashSession?(language==='fr'?'Caisse ouverte':'Register open'):(language==='fr'?'Caisse fermée':'Register closed')}</span></header>
                 {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);cashBranchRef.current=null;setCashBranch(null);setCashSession(null);setShowCashModal(false);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
                 {staffMode&&<div className="lumo-pos-location"><strong>Emplacement de vente : {staffLocation?.actor===user?.id?(staffLocation?.name||'Stock non affecté'):'Vérification requise'}</strong><small>Défini par le responsable. Rechargez le catalogue si votre affectation change.</small><button onClick={()=>fetchProducts('')}>Actualiser l’affectation</button></div>}
                 {catalogError&&<button className="btn-premium" onClick={()=>fetchProducts(warehouseId)}>Recharger le catalogue</button>}
@@ -528,7 +530,7 @@ const POS = () => {
                     </button>
                 </div>
 
-                <div className="lumo-pos-catalog" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 100%), 1fr))', gap: '12px', alignContent: 'start', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
+                <div className="lumo-pos-catalog pc-products" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 100%), 1fr))', gap: '12px', alignContent: 'start', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
                     {filteredProducts.length === 0 && <div className="lumo-pos-empty"><Package size={32}/><p>{language==='fr'?'Aucun produit trouvé':'No products found'}</p></div>}
                     {filteredProducts.map((product) => (
                         <motion.button
@@ -576,7 +578,7 @@ const POS = () => {
             </div>
 
             {/* Cart */}
-            <div id="lumo-pos-cart" className="glass lumo-pos-cart" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <div id="lumo-pos-cart" className="glass lumo-pos-cart pc-cart" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
                 <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', backgroundColor: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -653,8 +655,8 @@ const POS = () => {
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '6px' }}>{t('saleCurrency')}</div>
                             <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border)', gap: '4px' }}>
-                                <button onClick={() => {setSaleCurrency('USD');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
-                                <button onClick={() => {setSaleCurrency('CDF');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
+                                <button aria-pressed={saleCurrency==='USD'} onClick={() => {setSaleCurrency('USD');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
+                                <button aria-pressed={saleCurrency==='CDF'} onClick={() => {setSaleCurrency('CDF');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -673,6 +675,7 @@ const POS = () => {
                             ].filter(m => !m.module || enabledModules?.includes(m.module)).map(m => (
                                 <button
                                     key={m.value}
+                                    aria-pressed={paymentMethod===m.value}
                                     onClick={() => {setPaymentMethod(m.value);setDeposit('');setDueOn('');}}
                                     style={{
                                         padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', flex: 1,
