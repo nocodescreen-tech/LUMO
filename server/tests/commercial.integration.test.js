@@ -526,6 +526,28 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await request(app).post(base+employee.id+'/attendance').set('Authorization','Bearer '+foreign).send({...attendance,operationId:'hr-foreign-write-001'})).status).toBe(404);
  const staffToken=generateToken(employee.id,'staff-test').accessToken;expect((await request(app).get(base+'team').set('Authorization','Bearer '+staffToken)).status).toBe(403);
  });
+ test('monthly payroll accrues expense once, applies advances and prevents duplicate cash payments',async()=>{
+ const {PayrollSlip,PayrollMovement}=require('../models'),u=await User.findOne({where:{email:'warehouse-employee@example.com'}}),month=require('../utils/lotService').today().slice(0,7),url='/workspace/hr/payroll/',session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const rate={effectiveMonth:month,base:10000,currency:'CDF',reason:'Agreed pay',expectedRateId:null,confirm:true,operationId:'payroll-rate-test-01'};
+ const r=await post(url+'rates/'+u.id,rate);expect(r.status).toBe(201);expect((await post(url+'rates/'+u.id,rate)).status).toBe(200);
+ const body={staffId:u.id,month,bonus:1000,allowance:500,expectedRateId:r.body.data.id,reason:'Monthly pay',operationId:'payroll-slip-test-01'};
+ const s=await post(url+'slips',body);expect(s.status).toBe(201);expect(Number(s.body.data.total)).toBe(11500);expect((await post(url+'slips',{...body,operationId:'payroll-duplicate-01'})).status).toBe(409);
+ const endpoint=url+'slips/'+s.body.data.id+'/',move={expectedStatus:'DRAFT',expectedPaid:0,amount:2000,currency:'CDF',reason:'Advance paid',confirm:true,operationId:'payroll-advance-001'};
+ const p=await post(endpoint+'pay',move);expect(p.status).toBe(201);expect((await post(endpoint+'pay',move)).status).toBe(200);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'PAYROLL_APPROVAL'}})).toBe(0);
+ const reverse={expectedStatus:'DRAFT',expectedPaid:2000,paymentId:p.body.data.id,currency:'CDF',reason:'Cash returned',confirm:true,operationId:'payroll-reverse-001'};
+ expect((await post(endpoint+'reverse',reverse)).status).toBe(201);expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ expect((await post(endpoint+'pay',{...move,operationId:'payroll-advance-002'})).status).toBe(201);
+ const approve={expectedStatus:'DRAFT',expectedPaid:2000,reason:'Approved pay',confirm:true,operationId:'payroll-approve-001'};
+ expect((await post(endpoint+'approve',approve)).status).toBe(201);expect((await post(endpoint+'approve',approve)).status).toBe(200);
+ expect((await post(endpoint+'pay',{...move,expectedStatus:'APPROVED',expectedPaid:2000,amount:9501,operationId:'payroll-excess-0001'})).status).toBe(409);
+ expect((await post(endpoint+'pay',{...move,expectedStatus:'APPROVED',expectedPaid:2000,amount:9500,operationId:'payroll-final-0001'})).status).toBe(201);
+ expect(Number((await PayrollSlip.findByPk(s.body.data.id)).paid)).toBe(11500);expect(Number((await session.reload()).expectedBalance)).toBe(before-11500);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'PAYROLL_APPROVAL'}})).toBe(1);
+ expect((await post('/staff-payments',{staffId:u.id,amount:1000,devise:'CDF',operationId:'payroll-legacy-0001'})).status).toBe(409);
+ await expect((await PayrollMovement.findByPk(p.body.data.id)).destroy()).rejects.toThrow();
+ const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),token=generateToken(foreign.id,'hr-foreign-session').accessToken;expect((await request(app).get(url+'slips/'+s.body.data.id).set('Authorization','Bearer '+token)).status).toBe(404);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

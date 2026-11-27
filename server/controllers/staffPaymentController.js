@@ -14,6 +14,7 @@ exports.createPayment=async(req,res,next)=>{try{
   const prior=await ledger.replay(req,'staff.payment',transaction);
   if(prior){const payment=await StaffPayment.findOne({where:{id:prior.resourceId,userId},transaction});if(!payment)throw fail('Paiement historique indisponible',409);return {payment,replayed:true};}
   const member=await User.findOne({where:{id:staffId,parentId:userId},transaction});if(!member)throw fail('Membre d’équipe non trouvé',404);
+  if(await require('../models').PayRate.findOne({where:{userId,staffId},transaction}))throw fail('Collaborateur géré par la paie mensuelle : utilisez son bulletin',409);
   const ctx=await prepare(req,transaction,amount,devise);
   const payment=await StaffPayment.create({userId,staffId,amount:ctx.amount,devise:ctx.devise,type,date:new Date(),note:typeof note==='string'?note.slice(0,1000):null},{transaction});
   await pay(req,transaction,ctx,'STAFF_PAYMENT',payment.id,'PAYROLL_EXPENSE');

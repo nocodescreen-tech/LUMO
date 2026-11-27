@@ -15,6 +15,7 @@ const integer=v=>{if(!Number.isSafeInteger(v)||v<=0)throw fail('Identifiant inva
 const paging=q=>({page:Math.max(1,Math.min(100000,parseInt(q.page)||1)),limit:Math.max(1,Math.min(100,parseInt(q.limit)||20))});
 async function member(uid,id,transaction){const row=await User.findOne({where:{id,parentId:uid},attributes:['id','nom','role','isSuspended'],transaction});if(!row)throw fail('Collaborateur introuvable',404);return row;}
 router.use(protect,authorize('admin'));
+router.use('/payroll',require('./payrollRoutes'));
 router.get('/team',async(req,res,next)=>{try{const uid=req.user.tenantId,{page,limit}=paging(req.query),day=date(req.query.day||today()),where={parentId:uid};if(typeof req.query.q==='string'&&req.query.q.trim())where.nom={[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'};
  const data=await sequelize.transaction({isolationLevel:'REPEATABLE READ'},async transaction=>{
  const r=await User.findAndCountAll({where,attributes:['id','nom','role','isSuspended'],order:[['nom','ASC'],['id','ASC']],limit,offset:(page-1)*limit,transaction}),ids=r.rows.map(x=>x.id);
