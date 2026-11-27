@@ -21,6 +21,7 @@ router.get('/staff-assignments/history',async(req,res,next)=>{try{const uid=req.
 router.post('/staff-assignments',async(req,res,next)=>{try{const r=await scope.assign(req);return sendResponse(res,r.replayed?200:201,r.row,'Affectation enregistrée')}catch(e){next(e)}});
 router.use('/hr',require('./hrRoutes'));
 router.use('/budgets',require('./budgetRoutes'));
+router.use('/executive',require('./executiveRoutes'));
 router.get('/context',async(req,res,next)=>{try{return sendResponse(res,200,await svc.context(req.user.tenantId),'Espace de travail');}catch(e){next(e)}});
 router.put('/organization',async(req,res,next)=>{try{
  const org=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction);await org.update({name:svc.label(req.body.name)},{transaction});return org;});return sendResponse(res,200,org,'Entreprise mise à jour');

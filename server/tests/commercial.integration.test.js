@@ -747,6 +747,19 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await get(url+'/segments?currency=CDF')).status).toBe(200);
  await expect((await Opportunity.findByPk(id)).destroy()).rejects.toThrow();await expect((await SalesTarget.findByPk(saved.body.data.id)).destroy()).rejects.toThrow();
  });
+ test('executive dashboard reconciles journal, comparison, tenant scope and currency',async()=>{
+ const u=await User.create({nom:'Executive test',email:'executive-test@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'executive-test-session'}],entreprise:{nom:'Executive',devise:'CDF'}});
+ const token=generateToken(u.id,'executive-test-session').accessToken,day=require('../utils/lotService').today(),start=day.slice(0,7)+'-01';
+ const s=await Sale.create({userId:u.id,sellerId:u.id,montantTotal:1000,devise:'CDF',accountingCurrency:'CDF'});
+ for(const [event,debitAccount,creditAccount,amount,currency] of [['SALE','CASH','REVENUE',1000,'CDF'],['SALE_COST','COST_OF_GOODS','INVENTORY',400,'CDF'],['REFUND_SALE','REVENUE','CASH',200,'CDF'],['EXPENSE','OPERATING_EXPENSE','CASH',100,'CDF'],['SERVICE_PAYMENT','CASH','SERVICE_REVENUE',20,'USD']])await JournalEntry.create({userId:u.id,actorId:u.id,event,reference:String(s.id),debitAccount,creditAccount,amount,currency});
+ const get=(c,t=token)=>request(app).get('/workspace/executive?kind=MONTH&start='+start+'&currency='+c).set('Authorization','Bearer '+t);
+ const r=await get('CDF');expect(r.status).toBe(200);const data=r.body.data;
+ expect(Number(data.current.revenue)).toBe(800);expect(Number(data.current.goodsMargin)).toBe(400);expect(Number(data.current.recordedResult)).toBe(300);
+ expect(Number(data.current.cashNet)).toBe(700);expect(Number(data.locations[0].net)).toBe(800);expect(Number(data.sellers[0].net)).toBe(800);
+ expect(data.trend.reduce((n,v)=>n+Number(v.revenue),0)).toBe(800);expect(Number((await get('USD')).body.data.current.serviceRevenue)).toBe(20);
+ const staff=await User.findOne({where:{email:'crm-seller-one@example.com'}});expect((await get('CDF',generateToken(staff.id,'crm-one-session').accessToken)).status).toBe(403);
+ expect((await get('CDF',ta)).body.data.sellers.every(v=>v.sellerKey!==u.id)).toBe(true);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
