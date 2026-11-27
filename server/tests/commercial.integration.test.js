@@ -287,6 +287,23 @@ suite('Commercial PostgreSQL integration',()=>{
  const rule=await put('/inventory/lots/reorder',{productId:product.id,warehouseId:null,minimum:6});expect(rule.status).toBe(200);
  const alert=await request(app).get('/inventory/lots/reorder').set('Authorization','Bearer '+ta);expect(alert.status).toBe(200);expect(alert.body.data.rows.find(x=>x.productId===product.id).needsReorder).toBe(true);
  });
+ test('lot-specific transfers retain identity and ordinary transfers cannot bypass lots',async()=>{
+ const {Organization,Warehouse,InventoryLot,WarehouseBalance}=require('../models');
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ const product=await Product.create({nom:'Transfer batch',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id});
+ expect((await post('/inventory/lots/assign',{productId:product.id,warehouseId:null,code:'BATCH-T',expiresOn:'2099-12-31',quantity:5,reason:'Traceability',operationId:'lot-transfer-assign1'})).status).toBe(201);
+ const lot=await InventoryLot.findOne({where:{userId:a.id,productId:product.id,locationKey:0}});
+ expect((await post('/inventory/transfers',{productId:product.id,fromWarehouseId:null,toWarehouseId:wh.id,quantity:1,reason:'Ordinary transfer',operationId:'lot-ordinary-transfer'})).status).toBe(409);
+ const body={productId:product.id,lotId:lot.id,toWarehouseId:wh.id,quantity:3,reason:'Delivery',operationId:'lot-relocate-00001'};
+ expect((await post('/inventory/lots/transfer',body)).status).toBe(201);expect((await post('/inventory/lots/transfer',body)).status).toBe(200);
+ const target=await InventoryLot.findOne({where:{userId:a.id,productId:product.id,locationKey:wh.id}});
+ expect(target.code).toBe(lot.code);expect(target.expiresOn).toBe(lot.expiresOn);expect(target.quantity).toBe(3);
+ expect((await lot.reload()).quantity).toBe(2);expect((await product.reload()).stock).toBe(5);
+ expect((await WarehouseBalance.findOne({where:{warehouseId:wh.id,productId:product.id}})).quantity).toBe(3);
+ await expect(product.update({stock:3})).rejects.toThrow();
+ const foreign=generateToken(b.id,'support-test').accessToken;
+ expect((await request(app).post('/inventory/lots/transfer').set('Authorization','Bearer '+foreign).send({...body,operationId:'foreign-lot-test-001'})).status).toBe(404);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
