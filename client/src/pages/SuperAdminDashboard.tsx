@@ -35,7 +35,7 @@ export default function SuperAdminDashboard(){
  const [working,setWorking]=useState(false),[broadcast,setBroadcast]=useState({titre:'',message:'',type:'INFO',confirm:false}),[settings,setSettings]=useState<Record<string,string>>({}),[settingConfirm,setSettingConfirm]=useState<{key:string;value:string}|null>(null);
  const [draft,setDraft]=useState({newsletter_title:'',newsletter_body:'',newsletter_logo:''});
  const refresh=()=>setVersion(n=>n+1);
- const changeTab=(next:Tab)=>{setTab(next);setPage(1);setQuery('');setSearch('');setFilter('all');setError(false);setData(null)};
+ const changeTab=(next:Tab)=>{if(next===tab)return;setTab(next);setPage(1);setQuery('');setSearch('');setFilter('all');setError(false);setData(null)};
  useEffect(()=>{const timer=setTimeout(()=>{setSearch(query);setPage(1)},300);return()=>clearTimeout(timer)},[query]);
  useEffect(()=>{const abort=new AbortController();api.get('/superadmin/console/overview',{signal:abort.signal}).then(r=>{if(!abort.signal.aborted)setOverview(unwrap(r))}).catch(()=>{});return()=>abort.abort()},[version]);
  const load=useCallback(async(signal:AbortSignal)=>{
