@@ -61,7 +61,7 @@ exports.createPurchase = async (req,res,next)=>{
    }
    total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
    const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles,warehouseId:wh?.id??null,tauxChange:rate,accountingCurrency:shopCurrency},{transaction});
-   const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+   const session=await require('../utils/cashScope').open(userId,wh?.branchId??0,transaction);
    ledger.assertSessionCurrency(session,shopCurrency);
    if(statut==='Payé'&&!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
    if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);if(Number(session.expectedBalance)<amount)throw fail('Solde de caisse insuffisant',409);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}
@@ -109,7 +109,8 @@ exports.updatePurchase=async(req,res,next)=>{
      if(row.articles.some(a=>!a.received))await ledger.post(req,transaction,{event:'PURCHASE_RECEIPT',reference:row.id,debit:'INVENTORY',credit:'PAYABLE',amount:convertCurrency(Number(row.montantTotal),devise,shopCurrency,rate),devise:shopCurrency,rate});
     }
     if(fields.statut==='Payé'){
-     const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+     const paymentWarehouse=await inventory.warehouse(userId,row.warehouseId,transaction);
+     const session=await require('../utils/cashScope').open(userId,paymentWarehouse?.branchId??0,transaction);
      if(!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
      ledger.assertSessionCurrency(session,shopCurrency);
      const amount=convertCurrency(Number(row.montantTotal),devise,shopCurrency,rate);

@@ -12,6 +12,9 @@ const CashSession = sequelize.define('CashSession', {
     allowNull: false
   },
   currency:{type:DataTypes.STRING(3),allowNull:true},
+  branchKey:{type:DataTypes.INTEGER,allowNull:false,defaultValue:0},
+  openedBy:{type:DataTypes.INTEGER,allowNull:true},
+  closedBy:{type:DataTypes.INTEGER,allowNull:true},
   openingTime: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -52,7 +55,7 @@ const CashSession = sequelize.define('CashSession', {
   indexes: [
     { fields: ['userId'] },
     { fields: ['status'] },
-    { name:'cash_one_open_per_tenant',unique:true,fields:['userId'],where:{status:'OPEN'} }
+    { name:'cash_one_open_per_branch',unique:true,fields:['userId','branchKey'],where:{status:'OPEN'} }
   ]
 });
 

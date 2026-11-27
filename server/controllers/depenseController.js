@@ -36,7 +36,7 @@ exports.reverse=async(req,res,next)=>{try{
   if(!expense)throw fail('Dépense introuvable',404);
   if(expense.status==='REVERSED')throw fail('Dépense déjà annulée',409);
   if(!text(req.body.reason,250))throw fail('Motif d’annulation requis');
-  const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+  const session=await CashSession.findOne({where:{userId,id:expense.cashSessionId,branchKey:0,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
   if(!session||session.id!==expense.cashSessionId)throw fail('Annulation d’une caisse ancienne: rapprochement nécessaire',409);
   ledger.assertSessionCurrency(session,expense.accountingCurrency);
   const entry=await JournalEntry.findOne({where:{userId,event:'EXPENSE',reference:String(expense.id)},transaction});if(!entry)throw fail('Écriture originale manquante',409);

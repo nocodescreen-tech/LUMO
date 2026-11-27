@@ -25,6 +25,8 @@ suite('Commercial PostgreSQL integration',()=>{
  app.put('/purchases/:id',protect,checkPermission('purchases.edit'),purchase.updatePurchase);
  app.post('/cash/open',protect,checkPermission('cash.open'),cash.openSession);
  app.get('/cash/current',protect,cash.getCurrentSession);
+ app.get('/cash/history',protect,cash.getSessions);
+ app.post('/cash/close',protect,checkPermission('cash.close'),cash.closeSession);
  app.post('/clients/:id/settle',protect,clients.settleDebt);
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
@@ -57,12 +59,12 @@ suite('Commercial PostgreSQL integration',()=>{
  test('foreign product rejected',async()=>{expect((await post('/sales',payload(pb,1,10))).status).toBe(404);expect((await pb.reload()).stock).toBe(10)});
  test('foreign client rolls back stock and sale',async()=>{expect((await post('/sales',payload(pa,1,10,{clientId:cb.id}))).status).toBe(404);expect((await pa.reload()).stock).toBe(10);expect(await Sale.count()).toBe(0)});
  test('manipulated price rejected',async()=>{expect((await post('/sales',payload(pa,1,1))).status).toBe(409);expect((await pa.reload()).stock).toBe(10)});
- test('concurrent cash open gives one register',async()=>{const r=await Promise.all([post('/cash/open',{openingBalance:100000}),post('/cash/open',{openingBalance:100000})]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect(await CashSession.count({where:{userId:a.id,status:'OPEN'}})).toBe(1)});
+ test('concurrent cash open gives one register',async()=>{const r=await Promise.all([post('/cash/open',{openingBalance:100000}),post('/cash/open',{openingBalance:100000})]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect(await CashSession.count({where:{userId:a.id,branchKey:0,status:'OPEN'}})).toBe(1)});
  test('cash sale converts amount; credit does not inflate cash; repayment is recorded',async()=>{
   expect((await post('/sales',payload(pa,2,10))).status).toBe(201);
   expect((await post('/sales',payload(pa,1,10,{methodePaiement:'Crédit',clientId:ca.id}))).status).toBe(201);
   expect(Number((await ca.reload()).detteTotale)).toBe(25000);
-  let row=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}});expect(Number(row.totalSales)).toBe(50000);
+  let row=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}});expect(Number(row.totalSales)).toBe(50000);
   expect((await post('/clients/'+ca.id+'/settle',{montant:10000})).status).toBe(200);
   expect(Number((await ca.reload()).detteTotale)).toBe(15000);
   row=await row.reload();expect(Number(row.expectedBalance)).toBe(160000);
@@ -81,11 +83,11 @@ suite('Commercial PostgreSQL integration',()=>{
   expect((await pa.reload()).stock).toBe(before+2);
   expect((await put('/purchases/'+row.id,{statut:'Payé'})).status).toBe(200);
   expect((await pa.reload()).stock).toBe(before+2);
-  expect(Number((await CashSession.findOne({where:{userId:a.id,status:'OPEN'}})).totalExpenses)).toBe(20000);
+  expect(Number((await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}})).totalExpenses)).toBe(20000);
  });
  test('duplicate sale operation is replayed without another stock decrement',async()=>{const before=(await pa.reload()).stock;const body=payload(pa,1,10,{operationId:'sale-idempotency-0001'});const r=await Promise.all([post('/sales',body),post('/sales',body)]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect((await pa.reload()).stock).toBe(before-1);expect((await post('/sales',{...body,montantTotal:999})).status).toBe(409);const entries=await JournalEntry.findAll({where:{userId:a.id,event:'SALE'}});expect(entries.length).toBeGreaterThan(0);expect(entries.every(e=>e.debitAccount!==e.creditAccount)).toBe(true)});
  test('expense posts once, reversal is traceable',async()=>{
- const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}});
+ const session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}});
  const before=Number(session.expectedBalance),body={description:'Transport',categorie:'Transport',montant:5000,devise:'CDF',operationId:'expense-test-key-0001'};
  const first=await post('/expenses',body);expect(first.status).toBe(201);
  expect((await post('/expenses',body)).status).toBe(200);
@@ -113,6 +115,7 @@ suite('Commercial PostgreSQL integration',()=>{
  const foreign=await request(app).post('/workspace/warehouses').set('Authorization','Bearer '+tb).send({name:'Foreign',code:'WH1',branchId:branch.id});
  expect(foreign.status).toBe(404);
  expect((await post('/workspace/warehouses',{name:'Main',code:'WH1',branchId:branch.id})).status).toBe(201);
+ const opened=await Promise.all([post('/cash/open',{branchKey:branch.id,openingBalance:100000}),post('/cash/open',{branchKey:branch.id,openingBalance:100000})]);expect(opened.map(r=>r.status).sort()).toEqual([200,201]);
  expect((await get('/platform/billing/plans')).status).toBe(403);
  });
  test('manual subscription grant is platform only and replay protected',async()=>{
@@ -386,7 +389,7 @@ suite('Commercial PostgreSQL integration',()=>{
  test('credit deposit and targeted partial payments preserve revenue, cash and customer balance',async()=>{
  const {Receivable,ReceivablePayment}=require('../models');
  const p=await Product.create({nom:'Credit stock',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id}),client=await Client.create({nom:'Credit client',userId:a.id});
- const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),cashBefore=Number(session.expectedBalance);
+ const session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),cashBefore=Number(session.expectedBalance);
  const body=payload(p,2,10,{methodePaiement:'Crédit',clientId:client.id,acompte:5,dueOn:'2099-12-31',operationId:'credit-deposit-0001'});
  const sale=await post('/sales',body);expect(sale.status).toBe(201);expect((await post('/sales',body)).status).toBe(200);
  const row=await Receivable.findOne({where:{userId:a.id,saleId:sale.body.data.id}});expect(Number(row.original)).toBe(50000);expect(Number(row.balance)).toBe(37500);
@@ -409,7 +412,7 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await act('RECEIVED',{action:'transition',status:'DIAGNOSIS'})).status).toBe(201);
  expect((await act('DIAGNOSIS',{action:'estimate',diagnosis:'Test',estimate:20,currency:'USD'})).status).toBe(201);
  expect((await act('WAITING_APPROVAL',{action:'approval',decision:'APPROVED',confirmCustomer:true})).status).toBe(201);
- const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),before=Number(session.expectedBalance);
  const url='/repairs/'+id+'/billing/',deposit={amount:10000,currency:'CDF',note:'Deposit',confirmCash:true,operationId:'sav-deposit-test-001'};
  const first=await post(url+'pay',deposit);expect(first.status).toBe(201);expect((await post(url+'pay',deposit)).status).toBe(200);
  const bill=await RepairBill.findOne({where:{userId:a.id,orderId:id}});expect(Number(bill.total)).toBe(50000);expect(Number(bill.paid)).toBe(10000);
@@ -451,7 +454,7 @@ suite('Commercial PostgreSQL integration',()=>{
  const bank=await create('Bank test','BANK','treasury-bank-test01');expect(bank.status).toBe(201);
  expect((await create('Bank test','BANK','treasury-bank-test01')).status).toBe(200);
  const wallet=await create('Wallet test','MOBILE_MONEY','treasury-wallet-test01'),second=await create('Bank second','BANK','treasury-bank-test02');expect(wallet.status).toBe(201);expect(second.status).toBe(201);
- const b1=bank.body.data.id,b2=second.body.data.id,w=wallet.body.data.id,session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const b1=bank.body.data.id,b2=second.body.data.id,w=wallet.body.data.id,session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),before=Number(session.expectedBalance);
  const flow=(fromAccountId,toAccountId,amount,operationId)=>({fromAccountId,toAccountId,amount,currency:'CDF',note:'Transfer test',confirmExecuted:true,operationId});
  const deposit=flow(null,b1,10000,'treasury-deposit-0001');expect((await post(base+'transfers',deposit)).status).toBe(201);expect((await post(base+'transfers',deposit)).status).toBe(200);
  expect((await post(base+'transfers',flow(b1,b2,3000,'treasury-internal-001'))).status).toBe(201);
@@ -489,6 +492,24 @@ suite('Commercial PostgreSQL integration',()=>{
  const cleared=await post('/workspace/staff-assignments',{...body,warehouseId:null,expectedAssignmentId:result.body.data.id,operationId:'staff-clear-000001'});expect(cleared.status).toBe(201);
  expect((await call(payload(p,1,10,{warehouseId:wh.id}))).status).toBe(403);
  const record=await StaffAssignment.findByPk(result.body.data.id);await expect(record.destroy()).rejects.toThrow();
+ });
+ test('branch cash sales and closure isolate money and verify current session',async()=>{
+ const {Organization,Warehouse}=require('../models'),org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}}),branchKey=wh.branchId;
+ const central=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),local=await CashSession.findOne({where:{userId:a.id,branchKey,status:'OPEN'}}),before=Number(local.expectedBalance),centralBefore=Number(central.expectedBalance);
+ const product=await Product.create({nom:'Branch cash test',prix:10,prixAchat:4,devise:'USD',stock:3,userId:a.id});
+ expect((await post('/inventory/transfers',{productId:product.id,fromWarehouseId:null,toWarehouseId:wh.id,quantity:2,reason:'Allocation',operationId:'branch-cash-stock-001'})).status).toBe(201);
+ const sale=await post('/sales',payload(product,1,10,{warehouseId:wh.id}));expect(sale.status).toBe(201);expect(sale.body.data.cashSessionId).toBe(local.id);
+ expect(Number((await local.reload()).expectedBalance)).toBe(before+25000);expect(Number((await central.reload()).expectedBalance)).toBe(centralBefore);
+ const employee=await User.findOne({where:{email:'warehouse-employee@example.com'}}),{StaffAssignment}=require('../models'),last=await StaffAssignment.findOne({where:{staffId:employee.id,userId:a.id},order:[['id','DESC']]});
+ expect((await post('/workspace/staff-assignments',{staffId:employee.id,warehouseId:wh.id,expectedAssignmentId:last.id,reason:'Branch duty',operationId:'branch-cash-assign-01'})).status).toBe(201);
+ const token=generateToken(employee.id,'staff-test').accessToken;
+ expect((await request(app).get('/cash/current?branchKey=0').set('Authorization','Bearer '+token)).status).toBe(403);
+ expect((await request(app).get('/cash/current').set('Authorization','Bearer '+token)).body.id).toBe(local.id);
+ expect((await post('/cash/close',{branchKey,sessionId:central.id,closingBalance:0,note:'Wrong session'})).status).toBe(409);
+ expect((await post('/cash/close',{branchKey,sessionId:local.id,closingBalance:0})).status).toBe(400);
+ expect((await post('/cash/close',{branchKey,sessionId:local.id,closingBalance:Number(local.expectedBalance)})).status).toBe(200);
+ expect((await central.reload()).status).toBe('OPEN');
+ expect((await post('/sales',payload(product,1,10,{warehouseId:wh.id}))).status).toBe(409);expect((await product.reload()).stock).toBe(2);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

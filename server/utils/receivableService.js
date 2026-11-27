@@ -22,11 +22,12 @@ async function apply(req,client,row,amount,session,devise,kind,description,trans
  return payment;
 }
 async function context(req,transaction){const owner=await User.findByPk(req.user.tenantId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);const devise=currency(owner.entreprise?.devise),amount=round(money(req.body.montant),devise);if(amount<=0||req.body.currency&&currency(req.body.currency)!==devise)throw fail('Montant ou devise invalide');return {owner,devise,amount};}
-async function openSession(uid,devise,transaction){const session=await CashSession.findOne({where:{userId:uid,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});if(!session)throw fail('Ouvrez une caisse pour enregistrer le règlement',409);ledger.assertSessionCurrency(session,devise);return session;}
+async function openSession(uid,devise,transaction){const session=await require('./cashScope').open(uid,0,transaction);if(!session)throw fail('Ouvrez une caisse pour enregistrer le règlement',409);ledger.assertSessionCurrency(session,devise);return session;}
 async function settle(req,targeted=false){const op=targeted?'receivable.pay':'debt.settle';if(targeted&&!req.body.operationId)throw fail('Clé de transaction requise');
  return sequelize.transaction(async transaction=>{
  const {owner,devise,amount}=await context(req,transaction),uid=owner.id,prior=await ledger.replay(req,op,transaction);
  if(prior){const row=targeted?await ReceivablePayment.findOne({where:{id:prior.resourceId,userId:uid},transaction}):await Client.findOne({where:{id:prior.resourceId,userId:uid},transaction});if(!row)throw fail('Règlement historique indisponible',409);return {row,replayed:true,amount:0};}
+ await require('./staffScope').restrictMutation(req.user,transaction);
  const target=targeted?await Receivable.findOne({where:{id:req.params.id,userId:uid},transaction,lock:transaction.LOCK.UPDATE}):null;
  if(targeted&&!target)throw fail('Créance introuvable',404);
  const client=await Client.findOne({where:{id:targeted?target.clientId:req.params.id,userId:uid},transaction,lock:transaction.LOCK.UPDATE});if(!client)throw fail('Client introuvable',404);

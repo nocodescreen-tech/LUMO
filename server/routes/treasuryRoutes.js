@@ -8,7 +8,7 @@ const svc=require('../utils/treasuryService');
 router.use(protect,authorize('admin'));
 const paging=q=>({page:Math.max(1,Math.min(100000,parseInt(q.page)||1)),limit:Math.max(1,Math.min(100,parseInt(q.limit)||20))});
 router.get('/accounts',async(req,res,next)=>{try{const uid=req.user.tenantId,result=await sequelize.transaction({isolationLevel:'REPEATABLE READ'},async transaction=>{
- const owner=await User.findByPk(uid,{transaction,attributes:['entreprise']}),rows=await TreasuryAccount.findAll({where:{userId:uid},order:[['name','ASC']],transaction}),session=await CashSession.findOne({where:{userId:uid,status:'OPEN'},attributes:['id','currency','expectedBalance'],transaction});
+ const owner=await User.findByPk(uid,{transaction,attributes:['entreprise']}),rows=await TreasuryAccount.findAll({where:{userId:uid},order:[['name','ASC']],transaction}),session=await CashSession.findOne({where:{userId:uid,branchKey:0,status:'OPEN'},attributes:['id','currency','expectedBalance'],transaction});
  const [controls]=await sequelize.query(`SELECT a.id,a.balance-COALESCE(SUM(CASE WHEN t."toAccountId"=a.id THEN t.amount ELSE -t.amount END),0) AS "controlDifference" FROM "TreasuryAccounts" a LEFT JOIN "TreasuryTransfers" t ON t."userId"=a."userId" AND (t."fromAccountId"=a.id OR t."toAccountId"=a.id) WHERE a."userId"= :uid GROUP BY a.id,a.balance`,{replacements:{uid},transaction});
  // A left-join row without a transfer contributes NULL, not a fictitious movement.
  return {rows:rows.map(r=>({...r.toJSON(),controlDifference:controls.find(c=>c.id===r.id)?.controlDifference??null})),cash:session,accountingCurrency:currency(owner.entreprise?.devise),mode:'manual-recording',openingBalancesIncluded:false};

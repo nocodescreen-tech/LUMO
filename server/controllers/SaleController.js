@@ -241,7 +241,7 @@ exports.createSale = async (req, res, next) => {
     if(!credit && montantRecu!=null && money(montantRecu)<montantTotalNormalized)throw fail('Montant reçu insuffisant');
     if(!credit && devisePaiement && devisePaiement!==saleCurrency)throw fail('Le paiement doit utiliser la devise de vente pour le moment');
     const {CashSession}=require('../models');
-    const activeSession=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+    const activeSession=await require('../utils/cashScope').open(userId,wh?.branchId??0,transaction);
     if((!credit||deposit>0)&&!activeSession)throw fail('Ouvrez une caisse avant d’enregistrer une vente',409);
     ledger.assertSessionCurrency(activeSession,shopCurrency);
     if(activeSession && !credit){const amount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);activeSession.totalSales=Number(activeSession.totalSales||0)+amount;activeSession.expectedBalance=Number(activeSession.expectedBalance||0)+amount;await activeSession.save({transaction});}
@@ -328,7 +328,8 @@ exports.refundSale=async(req,res,next)=>{
   const amount=convertCurrency(Number(row.montantTotal)-Number(row.remise||0),normalizeCurrency(row.devise),normalizeCurrency(owner.entreprise?.devise),rate);
   if(creditMethod(row.methodePaiement)||row.statut==='Dette')throw fail('Remboursement crédit indisponible avant rapprochement des créances',409);
   if(!isCash(row.methodePaiement))throw fail('Moyen de paiement non pris en charge',409);
-  const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+  const session=await CashSession.findOne({where:{userId,id:row.cashSessionId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+  if(session&&req.user.parentId&&session.branchKey!==await require('../utils/cashScope').resolve(req.user,undefined,transaction))throw fail('Caisse de remboursement hors affectation',403);
   if(!row.accountingCurrency||row.accountingCurrency!==normalizeCurrency(owner.entreprise?.devise))throw fail('Vente historique: rapprochement comptable nécessaire',409);
   ledger.assertSessionCurrency(session,row.accountingCurrency);
   if(!session||row.cashSessionId!==session.id||new Date(row.createdAt)<new Date(session.openingTime))throw fail('Le remboursement d’une vente d’une ancienne caisse nécessite un mouvement comptable dédié',409);

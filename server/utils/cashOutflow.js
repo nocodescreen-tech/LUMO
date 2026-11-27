@@ -7,7 +7,8 @@ async function prepare(req,transaction,rawAmount,rawCurrency){
  const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
  const base=currency(owner.entreprise?.devise),devise=currency(rawCurrency||base),rate=rateFor(owner),amount=round(money(rawAmount),devise);
  if(amount<=0)throw fail('Montant strictement positif requis');
- const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+ await require('./staffScope').restrictMutation(req.user,transaction);
+ const session=await require('./cashScope').open(userId,0,transaction);
  if(!session)throw fail('Ouvrez une caisse avant de payer',409);ledger.assertSessionCurrency(session,base);
  const converted=round(convertCurrency(amount,devise,base,rate),base);
  if(converted<=0||Number(session.expectedBalance)<converted)throw fail('Solde de caisse insuffisant',409);

@@ -13,7 +13,7 @@ async function transfer(req){const from=accountId(req.body.fromAccountId),to=acc
  return mutate(req,'treasury.transfer',TreasuryTransfer,async(owner,devise,transaction)=>{
  const uid=owner.id;if(req.body.currency!==devise)throw fail('Devise comptable requise');const amount=amountOf(req.body.amount,devise);
  const source=await account(uid,from,devise,transaction),destination=await account(uid,to,devise,transaction);
- const session=from===null||to===null?await CashSession.findOne({where:{userId:uid,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE}):null;
+ const session=from===null||to===null?await CashSession.findOne({where:{userId:uid,branchKey:0,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE}):null;
  if((from===null||to===null)&&!session)throw fail('Caisse ouverte requise',409);ledger.assertSessionCurrency(session,devise);
  if(Number(source?source.balance:session.expectedBalance)<amount)throw fail('Solde disponible insuffisant',409);
  if(destination&&Number(destination.balance)+amount>1e12)throw fail('Solde maximal dépassé');

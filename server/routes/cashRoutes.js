@@ -5,6 +5,7 @@ const { protect,checkPermission } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
+router.get('/locations',checkPermission('cash'),cashController.getLocations);
 router.get('/current', checkPermission('cash'),cashController.getCurrentSession);
 router.post('/open', checkPermission('cash.open'),cashController.openSession);
 router.post('/close', checkPermission('cash.close'),cashController.closeSession);
