@@ -29,7 +29,7 @@ jobs:
           npm audit --omit=dev --package-lock-only --audit-level=high --json > dependency-audit.json
           status=$?
           set -e
-          node -e 'const r=require("./dependency-audit.json"); if(!r.metadata?.vulnerabilities) throw new Error("Audit unavailable"); console.log(JSON.stringify(r.metadata.vulnerabilities));'
+          node -e 'const r=require("./dependency-audit.json"); if(!r.metadata?.vulnerabilities) throw new Error("Audit unavailable"); console.log(JSON.stringify(r.metadata.vulnerabilities)); for(const [name,v] of Object.entries(r.vulnerabilities||{})) console.log(JSON.stringify({name,severity:v.severity,range:v.range,direct:v.isDirect,fixAvailable:v.fixAvailable}));'
           exit "$status"
       - uses: actions/upload-artifact@v4
         if: always()

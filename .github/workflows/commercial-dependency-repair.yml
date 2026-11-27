@@ -1,0 +1,89 @@
+name: Commercial dependency repair candidate
+on:
+  push:
+    branches: [commercial-v2]
+    paths: [.github/workflows/commercial-dependency-repair.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: commercial-dependency-repair
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/commercial-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Synchronize lockfiles and apply compatible npm fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in server client; do
+            (
+              cd "$dir"
+              npm install --package-lock-only --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+              # Nonzero means unresolved findings may remain. Never force major upgrades.
+              npm audit fix --package-lock-only --ignore-scripts --legacy-peer-deps --no-fund || true
+              npm audit --omit=dev --package-lock-only --audit-level=high --json > dependency-repair-audit.json || true
+              node -e 'const r=require("./dependency-repair-audit.json");if(!r.metadata?.vulnerabilities)throw Error("Audit unavailable");console.log(JSON.stringify(r.metadata.vulnerabilities));for(const [name,v] of Object.entries(r.vulnerabilities||{}))console.log(JSON.stringify({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable}));'
+            )
+          done
+          git diff --exit-code -- server/package.json client/package.json
+      - name: Verify locked installation and existing unit tests
+        run: |
+          set -euo pipefail
+          (cd server && npm ci --legacy-peer-deps --no-audit --no-fund && npm test -- --runInBand tests/transactionSafety.unit.test.js tests/pagination.test.js tests/sessionOrigin.test.js && node -e 'require("nodemailer");require("firebase-admin");require("resend")')
+          (cd client && npm ci --legacy-peer-deps --no-audit --no-fund && npm run test -- --run && npm run build && node -e 'const x=require("xlsx");if(x.version!=="0.20.3")throw Error("Unexpected SheetJS version");const w=x.utils.book_new();x.utils.book_append_sheet(w,x.utils.aoa_to_sheet([["amount"],[42]]),"Test");const r=x.read(x.write(w,{type:"buffer",bookType:"xlsx"}),{type:"buffer"});if(x.utils.sheet_to_json(r.Sheets.Test)[0].amount!==42)throw Error("Workbook roundtrip failed")')
+          git diff --exit-code -- server/package.json client/package.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-lockfiles
+          path: |
+            server/package-lock.json
+            client/package-lock.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-security-reports
+          path: |
+            server/dependency-repair-audit.json
+            client/dependency-repair-audit.json
+          if-no-files-found: warn
+  publish:
+    needs: prepare
+    if: github.ref == 'refs/heads/commercial-v2'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - uses: actions/download-artifact@v4
+        with:
+          name: reviewed-lockfiles
+          path: candidate
+      - name: Commit only validated lockfiles, never overwrite a newer branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in server client; do
+            test -f "candidate/$dir/package-lock.json"
+            cp "candidate/$dir/package-lock.json" "$dir/package-lock.json"
+          done
+          git add -- server/package-lock.json client/package-lock.json
+          if git diff --cached --quiet; then echo "Lockfiles unchanged"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(deps): synchronize tested commercial lockfiles'
+          git push origin HEAD:refs/heads/commercial-v2

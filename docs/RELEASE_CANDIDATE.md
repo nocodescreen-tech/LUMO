@@ -25,3 +25,6 @@ This is a checklist, not a certification or deployment authorization.
 
 ## Current status
 CI runs on synthetic data. No staging or production deployment, actual provider verification, visual sign-off, production recovery or load result is implied.
+
+## Dependency remediation pass
+Initial locked audit (run 46082134060) reported server 36 entries (3 critical/22 high), client 10 (6 high). Backend clean install failed because Resend was absent from the lock. Explicit candidate upgrades: firebase-admin 14.5.1 and nodemailer 10.6.1 (as proposed by audit); SheetJS 0.20.3 pinned to official vendor archive because npm registry xlsx 0.18.5 has no fix. The branch-only repair workflow uses npm lock-only compatible fixes without --force, tests installation/unit/UI build and workbook roundtrip before committing only the two lockfiles with a separate write-scoped job. No production deployment or main changes. GitHub token pushes may not trigger other workflows; qualification must run again on the resulting SHA via a subsequent ordinary commit/PR update. Any remaining high/critical report stays blocking; verify provider compatibility and full PostgreSQL integration before release. Do not claim all findings fixed until the new audit is available.
