@@ -114,9 +114,9 @@ const App = () => {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster position="top-right" richColors theme={theme as any} />
       <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', transition: 'background-color 0.5s ease' }}>
-        <ScreenBoundary><Suspense fallback={<LoadingFallback />}>
+        <Suspense fallback={<LoadingFallback />}>
           {!token ? (
-            <Routes>
+            <ScreenBoundary><Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -125,10 +125,10 @@ const App = () => {
               <Route path="/verify-reset-otp" element={<VerifyResetOTP />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<Navigate to="/login" />} />
-            </Routes>
+            </Routes></ScreenBoundary>
         ) : (
           <Layout key={user?.id}>
-            <Routes>
+            <ScreenBoundary><Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               {user?.role==='admin'&&<Route path="/executive" element={<ExecutiveDashboard key={user.id}/>} />}
@@ -167,10 +167,10 @@ const App = () => {
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
               <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
+            </Routes></ScreenBoundary>
           </Layout>
         )}
-        </Suspense></ScreenBoundary>
+        </Suspense>
       </div>
     </BrowserRouter>
     </MotionConfig>

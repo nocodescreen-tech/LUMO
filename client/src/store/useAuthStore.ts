@@ -126,6 +126,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       setStoredToken(token);
 
       const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+      if(!getMemoryToken()){set({hydrating:false});return false;}
       const user = data.user || data;
       const prefs = user.preferences || {};
 
@@ -197,6 +198,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       // Ajout d'un cache-buster (?t=...) pour forcer le réseau et ignorer le cache PWA/Navigateur
       const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+      if(!getMemoryToken()||useAuthStore.getState().user&&useAuthStore.getState().user?.id!==(data.user||data).id)return;
       const user = data.user || data;
       const prefs = user.preferences || {};
 

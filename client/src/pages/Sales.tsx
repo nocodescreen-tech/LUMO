@@ -196,7 +196,7 @@ const Sales = () => {
         });
     };
     const handleRefund = async (sale: any) => {
-        if (sale.statut === 'Remboursée') return;
+        if(String(sale.statut||'').toLowerCase().includes('rembours')||!(user?.role==='admin'||user?.permissions?.includes('sales.refund')))return;
 
         setConfirmModal({
             isOpen: true,
@@ -499,7 +499,7 @@ const Sales = () => {
                                                                 >
                                                                     <Zap size={16} color="var(--warning)" /> {t('receipt')}
                                                                 </button>
-                                                                {sale.statut !== 'Remboursée' && (
+                                                                {!String(sale.statut||'').toLowerCase().includes('rembours')&&(user?.role==='admin'||user?.permissions?.includes('sales.refund')) && (
                                                                     <button
                                                                         onClick={() => { handleRefund(sale); setActionMenuId(null); }}
                                                                         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--secondary)', fontWeight: 700, borderRadius: '10px' }}
