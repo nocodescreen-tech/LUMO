@@ -66,6 +66,8 @@ exports.protect = async (req, res, next) => {
         return res.status(403).json({ message: 'Votre compte a été suspendu par l\'administrateur. Veuillez contacter le support.' });
     }
 
+    if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended)return res.status(403).json({message:'Entreprise indisponible'});}
+
     // Impersonation Support
     if (decoded.isImpersonating) {
         req.isImpersonating = true;

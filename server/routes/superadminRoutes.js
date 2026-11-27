@@ -44,7 +44,7 @@ router.put('/users/:id/suspend', suspendUser);
 router.put('/users/:id/validate', validateUser);
 router.put('/users/:id/verify', verifyUserEmail);
 router.post('/users/:id/impersonate', impersonateUser);
-router.delete('/users/:id', deleteUser);
+router.delete('/users/:id', (req,res)=>res.status(409).json({message:'Utilisez la suspension. La suppression définitive nécessite un processus de conservation des données et de clôture.'}));
 
 router.get('/logs', getSuperadminLogs);
 router.get('/stats', getSuperadminStats);

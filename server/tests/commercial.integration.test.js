@@ -27,6 +27,8 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/workspace',require('../routes/workspaceRoutes'));
+ app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
  const post=(url,body)=>request(app).post(url).set('Authorization','Bearer '+ta).send(body);
  const put=(url,body)=>request(app).put(url).set('Authorization','Bearer '+ta).send(body);
@@ -91,6 +93,25 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await post('/staff-payments',{staffId:member.id,amount:1000,devise:'CDF',operationId:'payroll-test-key-0001'})).status).toBe(200);
  });
  test('journal entries cannot be changed',async()=>{const row=await JournalEntry.findOne();await expect(row.update({amount:99})).rejects.toThrow();});
+ test('workspace trial, concurrent quota and tenant isolation',async()=>{
+ const get=(url,token=ta)=>request(app).get(url).set('Authorization','Bearer '+token);
+ const r=await get('/workspace/context');expect(r.status).toBe(200);expect(r.body.data.subscription.plan).toBe('TRIAL');
+ const results=await Promise.all([post('/workspace/branches',{name:'Matadi',code:'MAT'}),post('/workspace/branches',{name:'Kinshasa',code:'KIN'})]);
+ expect(results.map(r=>r.status).sort()).toEqual([201,409]);
+ const branch=results.find(r=>r.status===201).body.data;
+ const tb=generateToken(b.id,'test-session').accessToken;
+ const foreign=await request(app).post('/workspace/warehouses').set('Authorization','Bearer '+tb).send({name:'Foreign',code:'WH1',branchId:branch.id});
+ expect(foreign.status).toBe(404);
+ expect((await post('/workspace/warehouses',{name:'Main',code:'WH1',branchId:branch.id})).status).toBe(201);
+ expect((await get('/platform/billing/plans')).status).toBe(403);
+ });
+ test('manual subscription grant is platform only and replay protected',async()=>{
+ const admin=await User.create({nom:'Platform',email:'platform@example.com',motDePasse:'TestOnlyPassword123!',role:'superadmin',activeSessions:[{sessionId:'test-session'}]});
+ const token=generateToken(admin.id,'test-session').accessToken;
+ const grant=()=>request(app).post('/platform/billing/subscriptions/'+a.id+'/grant').set('Authorization','Bearer '+token).send({plan:'BUSINESS',days:30,reference:'manual-grant-1',reason:'Integration test'});
+ expect((await grant()).status).toBe(200);expect((await grant()).status).toBe(409);
+ expect((await post('/workspace/branches',{name:'Other branch',code:'OTHER'})).status).toBe(201);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
