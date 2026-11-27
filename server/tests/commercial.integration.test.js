@@ -511,6 +511,20 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await central.reload()).status).toBe('OPEN');
  expect((await post('/sales',payload(product,1,10,{warehouseId:wh.id}))).status).toBe(409);expect((await product.reload()).stock).toBe(2);
  });
+ test('HR revisions are tenant scoped, idempotent and preserve attendance corrections',async()=>{
+ const {StaffProfileRevision,AttendanceRevision}=require('../models'),employee=await User.findOne({where:{email:'warehouse-employee@example.com'}}),base='/workspace/hr/',day=require('../utils/lotService').today();
+ const profile={jobTitle:'Vendeur',department:'Commerce',contractType:'UNSPECIFIED',hiredOn:null,reason:'Initial profile',expectedRevisionId:null,operationId:'hr-profile-test-0001'};
+ const first=await post(base+employee.id+'/profile',profile);expect(first.status).toBe(201);expect((await post(base+employee.id+'/profile',profile)).status).toBe(200);
+ expect((await post(base+employee.id+'/profile',{...profile,operationId:'hr-profile-stale-001'})).status).toBe(409);
+ const attendance={day,status:'PRESENT',workedMinutes:420,branchKey:0,reason:'Verified attendance',expectedRevisionId:null,operationId:'hr-attendance-00001'};
+ const ar=await post(base+employee.id+'/attendance',attendance);expect(ar.status).toBe(201);
+ expect((await post(base+employee.id+'/attendance',{...attendance,status:'ABSENT',operationId:'hr-invalid-minutes-01'})).status).toBe(400);
+ const corrected=await post(base+employee.id+'/attendance',{...attendance,status:'ABSENT',workedMinutes:null,reason:'Correction',expectedRevisionId:ar.body.data.id,operationId:'hr-correction-00001'});expect(corrected.status).toBe(201);
+ const team=await request(app).get(base+'team?day='+day).set('Authorization','Bearer '+ta);expect(team.status).toBe(200);const row=team.body.data.rows.find(x=>x.id===employee.id);expect(row.profile.jobTitle).toBe('Vendeur');expect(row.attendance.status).toBe('ABSENT');
+ expect(await AttendanceRevision.count({where:{staffId:employee.id,day}})).toBe(2);expect((await AttendanceRevision.findByPk(ar.body.data.id)).status).toBe('PRESENT');await expect((await StaffProfileRevision.findByPk(first.body.data.id)).destroy()).rejects.toThrow();
+ const foreign=generateToken(b.id,'test-session').accessToken;expect((await request(app).get(base+employee.id+'/history').set('Authorization','Bearer '+foreign)).status).toBe(404);
+ const staffToken=generateToken(employee.id,'staff-test').accessToken;expect((await request(app).get(base+'team').set('Authorization','Bearer '+staffToken)).status).toBe(403);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
