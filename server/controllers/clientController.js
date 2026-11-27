@@ -14,12 +14,7 @@ exports.getClients = async (req, res, next) => {
     const page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),l=Math.max(1,Math.min(100,parseInt(req.query.limit)||10)),offset=(page-1)*l;
     const where={userId};
     if(typeof req.query.q==='string'&&req.query.q.trim()){
-      const q=req.query.q.trim().slice(0,100),pattern='%'+q.replace(/[\\%_]/g,'\\    const { page, limit } = req.query;
-    const { limit: l, offset } = getPagination(page, limit);
-
-    const data = await Client.findAndCountAll({
-      where: { userId },
-      order: [['nom', 'ASC']],')+'%';
+      const q=req.query.q.trim().slice(0,100),pattern='%'+q.replace(/[\\%_]/g,v=>'\\'+v)+'%';
       where[Op.or]=['nom','email','telephone','adresse'].map(k=>({[k]:{[Op.iLike]:pattern}}));
       if(/^#?\d+$/.test(q)&&Number.isSafeInteger(Number(q.replace('#','')))&&Number(q.replace('#',''))<=2147483647)where[Op.or].push({id:Number(q.replace('#',''))});
     }
