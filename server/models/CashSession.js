@@ -11,6 +11,7 @@ const CashSession = sequelize.define('CashSession', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
+  currency:{type:DataTypes.STRING(3),allowNull:true},
   openingTime: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -50,7 +51,8 @@ const CashSession = sequelize.define('CashSession', {
   timestamps: true,
   indexes: [
     { fields: ['userId'] },
-    { fields: ['status'] }
+    { fields: ['status'] },
+    { name:'cash_one_open_per_tenant',unique:true,fields:['userId'],where:{status:'OPEN'} }
   ]
 });
 

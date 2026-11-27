@@ -147,6 +147,7 @@ v1Routes.use('/superadmin', require('./routes/superadminRoutes'));
 v1Routes.use('/notifications', require('./routes/notificationRoutes'));
 v1Routes.use('/cash-sessions', require('./routes/cashRoutes'));
 v1Routes.use('/cash', require('./routes/cashRoutes'));
+v1Routes.use('/finance', require('./routes/financeRoutes'));
 v1Routes.use('/backup', require('./routes/backupRoutes'));
 v1Routes.use('/ux', require('./routes/uxRoutes'));
 v1Routes.use('/subusers', require('./routes/subUserRoutes'));

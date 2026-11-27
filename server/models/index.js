@@ -12,6 +12,8 @@ const StockMovement = require('./StockMovement');
 const CashSession = require('./CashSession');
 const Feedback = require('./Feedback');
 const StaffPayment = require('./StaffPayment');
+const JournalEntry=require('./JournalEntry');
+const OperationReceipt=require('./OperationReceipt');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -58,5 +60,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment
+  StaffPayment, JournalEntry, OperationReceipt
 };

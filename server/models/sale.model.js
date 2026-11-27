@@ -28,16 +28,16 @@ const Sale = sequelize.define('Sale', {
         defaultValue: []
     },
     montantTotal: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: false,
         defaultValue: 0.0
     },
     remise: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
     profitNet: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
     methodePaiement: {
@@ -60,7 +60,7 @@ const Sale = sequelize.define('Sale', {
         defaultValue: 'USD'
     },
     tauxChange: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 8),
         defaultValue: 1.0
     },
     devisePaiement: {
@@ -68,9 +68,11 @@ const Sale = sequelize.define('Sale', {
         defaultValue: 'USD'
     },
     montantRecu: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
+    accountingCurrency: {type:DataTypes.STRING(3),allowNull:true},
+    cashSessionId: {type:DataTypes.INTEGER,allowNull:true},
     sellerId: {
         type: DataTypes.INTEGER,
         allowNull: true,

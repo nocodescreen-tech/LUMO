@@ -28,10 +28,12 @@ const Purchase = sequelize.define('Purchase', {
         defaultValue: []
     },
     montantTotal: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: false,
         defaultValue: 0.0
     },
+    tauxChange:{type:DataTypes.DECIMAL(20,8),allowNull:true},
+    accountingCurrency:{type:DataTypes.STRING(3),allowNull:true},
     statut: {
         type: DataTypes.STRING,
         defaultValue: 'Payé'

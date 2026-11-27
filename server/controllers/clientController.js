@@ -1,3 +1,4 @@
+const ledger=require('../utils/commercialLedger');
 const { pick, fail, money, currency, round }=require('../utils/transactionSafety');
 const {sequelize}=require('../config/database');
 const Client = require('../models/Client');
@@ -82,15 +83,19 @@ exports.settleDebt=async(req,res,next)=>{
  const userId=req.user.tenantId;
  const result=await sequelize.transaction(async transaction=>{
   const {User,CashSession}=require('../models');const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+  const prior=await ledger.replay(req,'debt.settle',transaction);if(prior){const existing=await Client.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Client introuvable',404);return {client:existing,amount:0,replayed:true};}
   const amount=round(money(req.body.montant),currency(owner.entreprise?.devise));if(amount<=0)throw fail('Montant de règlement invalide');
   const client=await Client.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!client)throw fail('Client introuvable',404);
   if(amount>Number(client.detteTotale))throw fail('Le règlement dépasse la dette',409);
   const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
   if(!session)throw fail('Ouvrez une caisse pour enregistrer le règlement',409);
+  ledger.assertSessionCurrency(session,currency(owner.entreprise?.devise));
   client.detteTotale=Number(client.detteTotale)-amount;await client.save({transaction});
-  session.totalSales=Number(session.totalSales||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)+amount;await session.save({transaction});return {client,amount};
+  session.totalSales=Number(session.totalSales||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)+amount;await session.save({transaction});
+  const reference=require('crypto').randomUUID();await ledger.post(req,transaction,{event:'DEBT_PAYMENT',reference,debit:'CASH',credit:'RECEIVABLE',amount,devise:currency(owner.entreprise?.devise),session});
+  await ledger.remember(req,'debt.settle',client.id,transaction);return {client,amount};
  });
- await logActivite(req.user.id,'CLIENT',`Règlement dette client ${result.client.nom}: ${result.amount}`,'System',userId);
+ if(!result.replayed)await logActivite(req.user.id,'CLIENT',`Règlement dette client ${result.client.nom}: ${result.amount}`,'System',userId);
  return require('../utils/response').sendResponse(res,200,result.client,'Dette réglée');
  }catch(e){next(e)}
 };

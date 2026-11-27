@@ -10,7 +10,7 @@ exports.openSession=async(req,res,next)=>{
  const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
  const existing=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});if(existing)return {session:existing,created:false};
  const opening=round(money(req.body.openingBalance??0),currency(owner.entreprise?.devise));
- const session=await CashSession.create({userId,openingBalance:opening,expectedBalance:opening,totalSales:0,totalExpenses:0,note:req.body.note,status:'OPEN'},{transaction});return {session,created:true};
+ const session=await CashSession.create({userId,currency:currency(owner.entreprise?.devise),openingBalance:opening,expectedBalance:opening,totalSales:0,totalExpenses:0,note:req.body.note,status:'OPEN'},{transaction});return {session,created:true};
  });if(result.created)await logActivite(req.user.id,'CAISSE',`Ouverture de caisse #${result.session.id}`,'Caisse',userId);
  return sendResponse(res,result.created?201:200,result.session,result.created?'Caisse ouverte':'Session déjà ouverte');
  }catch(e){next(e)}
@@ -19,6 +19,7 @@ exports.closeSession=async(req,res,next)=>{
  try{const userId=req.user.tenantId;const session=await sequelize.transaction(async transaction=>{
  const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
  const row=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});if(!row)throw fail('Aucune session ouverte',404);
+ if(row.currency!==currency(owner.entreprise?.devise))throw fail('Rapprochement de la devise de caisse nécessaire',409);
  const balance=expected(row),actual=req.body.closingBalance==null?balance:round(money(req.body.closingBalance),currency(owner.entreprise?.devise));
  await row.update({closingTime:new Date(),closingBalance:actual,expectedBalance:balance,status:'CLOSED',note:req.body.note??row.note},{transaction});return row;
  });await logActivite(req.user.id,'CAISSE',`Fermeture de caisse #${session.id}`,'Caisse',userId);return res.json(session);

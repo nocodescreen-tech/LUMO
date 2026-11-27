@@ -1,7 +1,7 @@
 const express=require('express');
 const request=require('supertest');
 const {sequelize}=require('../config/database');
-const {User,Product,Client,Sale,Purchase,CashSession}=require('../models');
+const {User,Product,Client,Sale,Purchase,CashSession,JournalEntry}=require('../models');
 const sale=require('../controllers/SaleController');
 const purchase=require('../controllers/purchaseController');
 const cash=require('../controllers/cashController');
@@ -29,6 +29,7 @@ suite('Commercial PostgreSQL integration',()=>{
  beforeAll(async()=>{
   if(process.env.DB_NAME_TEST!=='lumo_commercial_test'||process.env.DB_HOST!=='127.0.0.1'||process.env.DATABASE_URL)throw new Error('Dedicated local test DB required');
   await sequelize.sync({force:true});
+  await require('../migrations/run')();await require('../migrations/run')();
   const user=(email)=>User.create({nom:email,email,motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'test-session'}],entreprise:{nom:'Shop',devise:'CDF'},preferences:{exchangeRate:2500}});
   a=await user('a@example.com');b=await user('b@example.com');ta=generateToken(a.id,'test-session').accessToken;
   pa=await Product.create({nom:'Own item',prix:10,prixAchat:4,devise:'USD',stock:10,userId:a.id});
@@ -65,6 +66,7 @@ suite('Commercial PostgreSQL integration',()=>{
   expect((await pa.reload()).stock).toBe(before+2);
   expect(Number((await CashSession.findOne({where:{userId:a.id,status:'OPEN'}})).totalExpenses)).toBe(20000);
  });
+ test('duplicate sale operation is replayed without another stock decrement',async()=>{const before=(await pa.reload()).stock;const body=payload(pa,1,10,{operationId:'sale-idempotency-0001'});const r=await Promise.all([post('/sales',body),post('/sales',body)]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect((await pa.reload()).stock).toBe(before-1);expect((await post('/sales',{...body,montantTotal:999})).status).toBe(409);const entries=await JournalEntry.findAll({where:{userId:a.id,event:'SALE'}});expect(entries.length).toBeGreaterThan(0);expect(entries.every(e=>e.debitAccount!==e.creditAccount)).toBe(true)});
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

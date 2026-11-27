@@ -6,6 +6,7 @@ const { logActivite } = require('./activiteController');
 const { convertCurrency } = require('../utils/currency');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
+const ledger=require('../utils/commercialLedger');
 const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round, money } = require('../utils/transactionSafety');
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
@@ -94,6 +95,8 @@ exports.createSale = async (req, res, next) => {
     const ownerId = req.user.parentId || userId;
     const owner = await require('../models/User').findByPk(ownerId, { transaction, lock: transaction.LOCK.UPDATE });
     if (!owner) throw fail('Entreprise introuvable',404);
+    const prior=await ledger.replay(req,'sale.create',transaction);
+    if(prior){const existing=await Sale.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);await transaction.commit();return require('../utils/response').sendResponse(res,200,existing,'Vente déjà enregistrée');}
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
     const finalRate = rateFor(owner);
@@ -214,6 +217,8 @@ exports.createSale = async (req, res, next) => {
     if(!credit && devisePaiement && devisePaiement!==saleCurrency)throw fail('Le paiement doit utiliser la devise de vente pour le moment');
     const {CashSession}=require('../models');
     const activeSession=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+    if(!credit&&!activeSession)throw fail('Ouvrez une caisse avant d’enregistrer une vente',409);
+    ledger.assertSessionCurrency(activeSession,shopCurrency);
     if(activeSession && !credit){const amount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);activeSession.totalSales=Number(activeSession.totalSales||0)+amount;activeSession.expectedBalance=Number(activeSession.expectedBalance||0)+amount;await activeSession.save({transaction});}
     const sale = await Sale.create({
       userId,
@@ -229,7 +234,7 @@ exports.createSale = async (req, res, next) => {
       devisePaiement: devisePaiement || saleCurrency,
       montantRecu: credit ? 0 : (montantRecu ?? montantTotalNormalized),
       statut: credit ? 'Dette' : 'Complétée',
-      sellerId: req.user.id
+      sellerId: req.user.id, accountingCurrency:shopCurrency,cashSessionId:credit?null:activeSession?.id
     }, { transaction });
 
     if (resolvedClientId && credit) {
@@ -238,6 +243,11 @@ exports.createSale = async (req, res, next) => {
       dbClient.detteTotale=Number(dbClient.detteTotale||0)+convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);
       await dbClient.save({transaction});
     }
+    const baseAmount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);
+    const baseCost=articles.reduce((sum,item)=>sum+convertCurrency(item.prixAchat*item.quantite,item.deviseProduit,shopCurrency,finalRate),0);
+    await ledger.post(req,transaction,{event:'SALE',reference:sale.id,debit:credit?'RECEIVABLE':'CASH',credit:'REVENUE',amount:baseAmount,devise:shopCurrency,rate:finalRate,session:credit?null:activeSession});
+    await ledger.post(req,transaction,{event:'SALE_COST',reference:sale.id,debit:'COST_OF_GOODS',credit:'INVENTORY',amount:baseCost,devise:shopCurrency,rate:finalRate});
+    await ledger.remember(req,'sale.create',sale.id,transaction);
     await transaction.commit();
     await invalidateCache('stats');
     await invalidateCache('products');
@@ -291,11 +301,16 @@ exports.refundSale=async(req,res,next)=>{
   if(creditMethod(row.methodePaiement)||row.statut==='Dette')throw fail('Remboursement crédit indisponible avant rapprochement des créances',409);
   if(!isCash(row.methodePaiement))throw fail('Moyen de paiement non pris en charge',409);
   const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
-  if(!session||new Date(row.createdAt)<new Date(session.openingTime))throw fail('Le remboursement d’une vente d’une ancienne caisse nécessite un mouvement comptable dédié',409);
+  if(!row.accountingCurrency||row.accountingCurrency!==normalizeCurrency(owner.entreprise?.devise))throw fail('Vente historique: rapprochement comptable nécessaire',409);
+  ledger.assertSessionCurrency(session,row.accountingCurrency);
+  if(!session||row.cashSessionId!==session.id||new Date(row.createdAt)<new Date(session.openingTime))throw fail('Le remboursement d’une vente d’une ancienne caisse nécessite un mouvement comptable dédié',409);
   if(Number(session.expectedBalance)<amount||Number(session.totalSales)<amount)throw fail('Rapprochement de caisse nécessaire avant remboursement',409);
   const articles=safeParseArticles(row.articles);if(!articles.length)throw fail('Articles historiques indisponibles',409);
   for(const item of articles){const product=await Product.findOne({where:{id:item.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit historique introuvable',409);product.stockUpdateRaison='Remboursement Vente';product.stock=Number(product.stock)+Number(item.quantite);await product.save({transaction});}
   session.totalSales=Number(session.totalSales)-amount;session.expectedBalance=Number(session.expectedBalance)-amount;await session.save({transaction});
+  const original=await require('../models').JournalEntry.findAll({where:{userId,reference:String(row.id),event:{[Op.in]:['SALE','SALE_COST']}},transaction});
+  if(!original.some(e=>e.event==='SALE')&&amount>0)throw fail('Écriture originale manquante',409);
+  for(const entry of original)await ledger.post(req,transaction,{event:'REFUND_'+entry.event,reference:row.id,debit:entry.creditAccount,credit:entry.debitAccount,amount:Number(entry.amount),devise:entry.currency,rate,session:entry.event==='SALE'?session:null});
   row.statut='Remboursée';await row.save({transaction});return row;
  });
  await invalidateCache('stats');await invalidateCache('products');await logActivite(req.user.id,'REMBOURSEMENT',`Remboursement vente #${sale.id}`,'Ventes',userId);
