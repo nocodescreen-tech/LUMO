@@ -66,6 +66,7 @@ exports.protect = async (req, res, next) => {
         return res.status(403).json({ message: 'Votre compte a été suspendu par l\'administrateur. Veuillez contacter le support.' });
     }
 
+    if(req.user.parentId&&['admin','superadmin'].includes(req.user.role))return res.status(403).json({message:'Rôle collaborateur invalide'});
     if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended)return res.status(403).json({message:'Entreprise indisponible'});}
 
     // Impersonation Support
@@ -121,12 +122,8 @@ exports.checkPermission = (permissionId) => {
       return next();
     }
 
-    // If checking an action (e.g. 'products.add'), also accept the parent module ('products') as sufficient
-    // This allows admins to grant blanket module access without listing all sub-actions
-    const parentModule = permissionId.includes('.') ? permissionId.split('.')[0] : null;
-    if (parentModule && !/(\.add|\.edit|\.delete|\.refund|\.import|\.settle|\.send_reminder|\.open|\.close|\.delete_session|\.view_purchase_price)$/.test(permissionId) && userPerms.includes(parentModule)) {
-      return next();
-    }
+    // Explicit read alias preserves the historic cash module read access only.
+    if(permissionId==='cash.view'&&userPerms.includes('cash'))return next();
 
     return res.status(403).json({ 
       message: `Accès refusé. Permission requise : "${permissionId}".` 

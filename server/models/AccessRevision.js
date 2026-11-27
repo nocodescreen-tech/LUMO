@@ -1,0 +1,2 @@
+const {DataTypes:D}=require('sequelize');const {sequelize}=require('../config/database');
+module.exports=sequelize.define('AccessRevision',{userId:{type:D.INTEGER,allowNull:false},staffId:{type:D.INTEGER,allowNull:false},actorId:{type:D.INTEGER,allowNull:false},kind:{type:D.STRING(16),allowNull:false},before:{type:D.JSONB,allowNull:true},after:{type:D.JSONB,allowNull:false},reason:{type:D.STRING(250),allowNull:false}},{updatedAt:false,indexes:[{fields:['userId','staffId','id']}]});

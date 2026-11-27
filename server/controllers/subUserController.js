@@ -1,217 +1,33 @@
-const {
-  User,
-  Sale,
-  Product,
-  Client,
-  Fournisseur,
-  Purchase,
-  Activite,
-  StockMovement,
-  CashSession,
-  StaffPayment,
-  Feedback,
-  Notification,
-} = require('../models');
-const { sequelize } = require('../config/database');
-const { sendResponse } = require('../utils/response');
-
-// ─── Rôles autorisés pour membres ──────────────────────
-const VALID_ROLES = ['manager', 'caissier', 'vendeur', 'inventoriste', 'superviseur', 'gerant'];
-
-// Permissions officiellement supportées (backend whitelist)
-const VALID_PERMISSIONS = new Set([
-  'pos', 'sales.add', 'sales.refund', 'sales.edit', 'sales.delete', 'sales.export', 'sales',
-  'products', 'products.add', 'products.edit', 'products.delete', 'products.import', 'products.export', 'products.view_purchase_price',
-  'clients', 'clients.add', 'clients.edit', 'clients.delete', 'clients.settle_debt', 'clients.send_reminder',
-  'suppliers', 'suppliers.add', 'suppliers.edit', 'suppliers.delete',
-  'purchases', 'purchases.add', 'purchases.edit', 'purchases.delete', 'purchases.refund',
-  'stock-history', 'stock-history.view', 'stock-history.export',
-  'cash', 'cash.open', 'cash.close', 'cash.view', 'cash.delete_session',
-  'debts', 'debts.settle', 'debts.delete', 'debts.send_reminder',
-  'stats', 'activities',
-  'settings', 'settings.view', 'settings.edit', 'settings.profile', 'settings.appearance', 'settings.exchange_rate',
-  'team', 'team.add', 'team.edit', 'team.delete', 'team.view_activity'
-]);
-
-const sanitizePermissions = (permissions = []) => {
-  if (!Array.isArray(permissions)) return [];
-  return [...new Set(permissions.filter((p) => VALID_PERMISSIONS.has(String(p))))];
-};
-
-// Create a sub-user (cashier/manager)
-exports.createSubUser = async (req, res) => {
-  try {
-    const { nom, email, motDePasse, role, telephone, permissions, limits } = req.body;
-
-    // Only allow valid roles for sub-users
-    if (!VALID_ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Rôle invalide pour un membre. Rôles valides: ' + VALID_ROLES.join(', ') });
-    }
-
-    const userExists = await User.findOne({ where: { email } });
-    if (userExists) {
-      return res.status(400).json({ message: 'Cet email est déjà utilisé' });
-    }
-
-    const finalPermissions = sanitizePermissions(permissions);
-    if (!finalPermissions || finalPermissions.length === 0) {
-      return res.status(400).json({ message: "Sélectionnez au moins une permission pour créer un membre." });
-    }
-
-    const subUser = await User.create({
-      nom,
-      email,
-      motDePasse,
-      role,
-      telephone,
-      permissions: finalPermissions,
-      limits: limits || {},
-      parentId: req.tenantId, // Use the resolved tenantId from middleware
-      entreprise: req.user.entreprise,
-      typeActivite: req.user.typeActivite,
-      isAdminValidated: true,
-      isVerified: true
-    });
-
-    sendResponse(res, 201, subUser, 'Membre d’équipe créé avec succès');
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Get all sub-users for the current admin
-exports.getSubUsers = async (req, res) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, parseInt(req.query.limit) || 20);
-    const offset = (page - 1) * limit;
-
-    const { count, rows } = await User.findAndCountAll({
-      where: { parentId: req.tenantId },
-      attributes: { exclude: ['motDePasse'] },
-      limit,
-      offset,
-      order: [['createdAt', 'DESC']]
-    });
-
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-
-    sendResponse(res, 200, rows, 'Membres récupérés', {
-      total: count,
-      page,
-      limit,
-      pages: Math.ceil(count / limit)
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Update a sub-user
-exports.updateSubUser = async (req, res) => {
-  try {
-    const subUser = await User.findOne({
-      where: { id: req.params.id, parentId: req.user.tenantId }
-    });
-
-    if (!subUser) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
-
-    const { nom, email, role, telephone, isSuspended, permissions, limits, suspendUntil, suspendReason } = req.body;
-
-    if (role && !VALID_ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Rôle invalide. Rôles valides: ' + VALID_ROLES.join(', ') });
-    }
-
-    let updateData = { nom, email, role, telephone, isSuspended };
-
-    // Support suspension scheduling
-    if (suspendUntil !== undefined) updateData.suspendUntil = suspendUntil;
-    if (suspendReason !== undefined) updateData.suspendReason = suspendReason;
-    if (limits !== undefined) updateData.limits = limits;
-
-    // Aucune permission par défaut: l'éditeur décide explicitement
-    if (permissions !== undefined) {
-      const sanitized = sanitizePermissions(permissions);
-      if (sanitized.length === 0) {
-        return res.status(400).json({ message: "Un membre doit garder au moins une permission." });
-      }
-      updateData.permissions = sanitized;
-    }
-
-    await subUser.update(updateData);
-    sendResponse(res, 200, subUser, 'Membre d’équipe mis à jour');
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Get activity log for a specific sub-user
-exports.getSubUserActivity = async (req, res) => {
-  try {
-    const subUser = await User.findOne({
-      where: { id: req.params.id, parentId: req.user.tenantId }
-    });
-    if (!subUser) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
-
-    const activities = await Activite.findAll({
-      where: { UserId: subUser.id },
-      order: [['createdAt', 'DESC']],
-      limit: 20,
-      attributes: ['id', 'type', 'description', 'createdAt', 'module', 'source']
-    });
-
-    res.set('Cache-Control', 'no-store');
-    sendResponse(res, 200, activities, 'Activités récupérées');
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// Delete a sub-user
-exports.deleteSubUser = async (req, res) => {
-  try {
-    const subUser = await User.findOne({
-      where: { id: req.params.id, parentId: req.user.tenantId }
-    });
-
-    if (!subUser) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
-
-    await sequelize.transaction(async (transaction) => {
-      await Promise.all([
-        StockMovement.destroy({ where: { userId: subUser.id }, transaction }),
-        Sale.destroy({ where: { userId: subUser.id }, force: true, transaction }),
-        Sale.update({ sellerId: null }, { where: { sellerId: subUser.id }, transaction }),
-        Purchase.destroy({ where: { userId: subUser.id }, transaction }),
-        CashSession.destroy({ where: { userId: subUser.id }, transaction }),
-        Activite.update({ UserId: null }, { where: { UserId: subUser.id }, transaction }),
-        StaffPayment.destroy({ where: { userId: subUser.id }, transaction }),
-        StaffPayment.destroy({ where: { staffId: subUser.id }, transaction }),
-        Feedback.destroy({ where: { userId: subUser.id }, transaction }),
-        Notification.destroy({ where: { userId: subUser.id }, transaction }),
-      ]);
-
-      await Promise.all([
-        Product.update({ creatorId: null }, { where: { creatorId: subUser.id }, transaction }),
-        Product.destroy({ where: { userId: subUser.id }, force: true, transaction }),
-        Client.destroy({ where: { userId: subUser.id }, force: true, transaction }),
-        Fournisseur.destroy({ where: { userId: subUser.id }, transaction }),
-      ]);
-
-      await subUser.destroy({ transaction });
-    });
-    sendResponse(res, 200, null, 'Membre d’équipe supprimé');
-  } catch (error) {
-    const message = error.name === 'SequelizeForeignKeyConstraintError'
-      ? 'Impossible de supprimer ce membre car des donnees liees existent encore.'
-      : error.message;
-    res.status(500).json({ success: false, message });
-  }
-};
+const {User,Activite,AccessRevision}=require('../models');
+const {sequelize}=require('../config/database');
+const {sendResponse}=require('../utils/response');
+const {fail}=require('../utils/transactionSafety');
+const {VALID_ROLES,VALID_PERMISSIONS}=require('../utils/permissionRegistry');
+const ledger=require('../utils/commercialLedger');
+const {Op}=require('sequelize');
+const safe=['id','nom','email','role','telephone','avatar','permissions','isSuspended','isVerified','isAdminValidated','lastActivity','createdAt','updatedAt'];
+const publicUser=u=>Object.fromEntries(safe.map(k=>[k,u[k]]));
+const state=u=>({role:u.role,permissions:Array.isArray(u.permissions)?[...u.permissions].sort():[],isSuspended:!!u.isSuspended});
+const clean=(v,n)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>n)throw fail('Texte invalide');return v.trim();};
+const perms=v=>{if(!Array.isArray(v)||v.length>VALID_PERMISSIONS.size||v.some(p=>typeof p!=='string'||!VALID_PERMISSIONS.has(p)))throw fail('Permission inconnue');return [...new Set(v)].sort();};
+const role=v=>{if(!VALID_ROLES.includes(v))throw fail('Rôle invalide');return v;};
+const email=v=>{v=clean(v,254).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))throw fail('Email invalide');return v;};
+const ownerOnly=req=>{if(req.user.role!=='admin'||req.user.parentId)throw fail('Gestion des accès réservée au propriétaire',403);return req.user.id;};
+async function lockOwner(req,transaction){const uid=ownerOnly(req),owner=await User.findByPk(uid,{transaction,lock:transaction.LOCK.UPDATE});if(!owner||owner.isSuspended||owner.role!=='admin'||owner.parentId)throw fail('Entreprise indisponible',403);return owner;}
+async function member(uid,id,transaction){const row=await User.findOne({where:{id,parentId:uid},transaction,...(transaction?{lock:transaction.LOCK.UPDATE}:{})});if(!row)throw fail('Membre non trouvé',404);return row;}
+exports.catalog=async(req,res,next)=>{try{ownerOnly(req);return sendResponse(res,200,{roles:VALID_ROLES,permissions:[...VALID_PERMISSIONS],explicitActions:true},'Catalogue de droits');}catch(e){next(e)}};
+exports.createSubUser=async(req,res,next)=>{try{const nom=clean(req.body.nom,160),mail=email(req.body.email),r=role(req.body.role),permissions=perms(req.body.permissions),password=req.body.motDePasse;if(!permissions.length||typeof password!=='string'||Buffer.byteLength(password)<8||Buffer.byteLength(password)>72||/^\$2[aby]\$/.test(password))throw fail('Mot de passe ou permissions invalides');
+ const result=await sequelize.transaction(async transaction=>{const owner=await lockOwner(req,transaction);if(await User.findOne({where:{email:mail},transaction}))throw fail('Cet email est déjà utilisé',409);const row=await User.create({nom,email:mail,motDePasse:password,role:r,telephone:req.body.telephone?clean(req.body.telephone,50):null,permissions,parentId:owner.id,entreprise:owner.entreprise,typeActivite:owner.typeActivite,isAdminValidated:true,isVerified:true},{transaction});await AccessRevision.create({userId:owner.id,staffId:row.id,actorId:req.user.id,kind:'CREATE',before:null,after:state(row),reason:'Création du collaborateur'},{transaction});return row;});return sendResponse(res,201,publicUser(result),'Membre créé');}catch(e){next(e)}};
+exports.getSubUsers=async(req,res,next)=>{try{const uid=ownerOnly(req),page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20)),where={parentId:uid};if(typeof req.query.q==='string'&&req.query.q.trim())where.nom={[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'};
+ const {rows,count}=await User.findAndCountAll({where,attributes:safe,limit,offset:(page-1)*limit,order:[['id','DESC']]});res.set('Cache-Control','no-store');return sendResponse(res,200,rows.map(publicUser),'Membres récupérés',{total:count,page,limit,pages:Math.ceil(count/limit)});}catch(e){next(e)}};
+exports.updateSubUser=async(req,res,next)=>{try{const result=await sequelize.transaction(async transaction=>{const owner=await lockOwner(req,transaction),u=await member(owner.id,req.params.id,transaction);
+ const prior=await ledger.replay(req,'access.update',transaction);if(prior){if(prior.resourceId!==u.id)throw fail('Opération incompatible',409);return u;}
+ const before=state(u),b=req.body,patch={};if(b.role!==undefined)patch.role=role(b.role);if(b.permissions!==undefined)patch.permissions=perms(b.permissions);if(b.isSuspended!==undefined){if(typeof b.isSuspended!=='boolean')throw fail('Suspension invalide');patch.isSuspended=b.isSuspended;}
+ if(b.nom!==undefined)patch.nom=clean(b.nom,160);if(b.telephone!==undefined)patch.telephone=b.telephone?clean(b.telephone,50):null;
+ if(b.email!==undefined&&email(b.email)!==u.email)throw fail('Modification d’email indisponible : procédure de vérification requise',409);
+ const after={...before,...Object.fromEntries(['role','permissions','isSuspended'].filter(k=>k in patch).map(k=>[k,patch[k]]))},changed=JSON.stringify(before)!==JSON.stringify(after);
+ if(changed){if(!b.operationId||b.expectedUpdatedAt!==u.updatedAt.toISOString())throw fail('Version du compte et clé requises : actualisez',409);const reason=clean(b.reason,250);patch.activeSessions=[];patch.twoFactorCode=null;patch.twoFactorExpire=null;await u.update(patch,{transaction});await AccessRevision.create({userId:owner.id,staffId:u.id,actorId:req.user.id,kind:'UPDATE',before,after,reason},{transaction});await ledger.remember(req,'access.update',u.id,transaction);}
+ else if(Object.keys(patch).length)await u.update(patch,{transaction});return u;});return sendResponse(res,200,publicUser(result),'Membre mis à jour');}catch(e){next(e)}};
+exports.getHistory=async(req,res,next)=>{try{const uid=ownerOnly(req);await member(uid,req.params.id);const page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20));const r=await AccessRevision.findAndCountAll({where:{userId:uid,staffId:req.params.id},limit,offset:(page-1)*limit,order:[['id','DESC']]});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Historique des accès');}catch(e){next(e)}};
+exports.getSubUserActivity=async(req,res,next)=>{try{const uid=ownerOnly(req),u=await member(uid,req.params.id);const rows=await Activite.findAll({where:{UserId:u.id},order:[['createdAt','DESC']],limit:20,attributes:['id','type','description','createdAt','module','source']});res.set('Cache-Control','no-store');return sendResponse(res,200,rows,'Activités récupérées');}catch(e){next(e)}};
+exports.deleteSubUser=async(req,res,next)=>{try{await member(ownerOnly(req),req.params.id);throw fail('Suppression désactivée : suspendez le compte pour préserver les historiques financiers et RH',409);}catch(e){next(e)}};

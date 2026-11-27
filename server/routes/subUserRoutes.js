@@ -6,14 +6,16 @@ const {
   getSubUsers,
   updateSubUser,
   deleteSubUser,
-  getSubUserActivity
+  getSubUserActivity, catalog, getHistory
 } = require('../controllers/subUserController');
 
 // Admins + gérants peuvent gérer les sous-utilisateurs
-router.use(protect, authorize('admin', 'superadmin', 'gerant'));
+router.use(protect, authorize('admin'));
 
 router.post('/', createSubUser);
 router.get('/', getSubUsers);
+router.get('/permissions', catalog);
+router.get('/:id/access-history', getHistory);
 router.get('/:id/activity', getSubUserActivity);
 router.put('/:id', updateSubUser);
 router.delete('/:id', deleteSubUser);

@@ -36,6 +36,8 @@ suite('Commercial PostgreSQL integration',()=>{
  app.use('/superadmin',require('../routes/superadminRoutes'));
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
+ app.use('/subusers',require('../routes/subUserRoutes'));
+ app.get('/test-permission',protect,checkPermission('settings.exchange_rate'),(_req,res)=>res.sendStatus(200));
  app.use('/inventory',require('../routes/inventoryRoutes'));
  app.use('/repairs',require('../routes/repairRoutes'));
  app.use('/documents',require('../routes/documentRoutes'));
@@ -547,6 +549,23 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await post('/staff-payments',{staffId:u.id,amount:1000,devise:'CDF',operationId:'payroll-legacy-0001'})).status).toBe(409);
  await expect((await PayrollMovement.findByPk(p.body.data.id)).destroy()).rejects.toThrow();
  const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),token=generateToken(foreign.id,'hr-foreign-session').accessToken;expect((await request(app).get(url+'slips/'+s.body.data.id).set('Authorization','Bearer '+token)).status).toBe(404);
+ });
+ test('access governance denies delegated escalation, removes secrets and preserves audit history',async()=>{
+ const {AccessRevision}=require('../models');
+ const created=await post('/subusers',{nom:'Governance test',email:'governance-test@example.com',motDePasse:'TestOnlyPassword123!',role:'gerant',permissions:['settings','team']});expect(created.status).toBe(201);const u=created.body.data;
+ for(const k of ['motDePasse','activeSessions','twoFactorSecret','verificationCode','resetPasswordToken'])expect(u[k]).toBeUndefined();
+ const account=await User.findByPk(u.id);await account.update({activeSessions:[{sessionId:'gov-test'}]});const token=generateToken(u.id,'gov-test').accessToken;
+ expect((await request(app).get('/subusers').set('Authorization','Bearer '+token)).status).toBe(403);
+ expect((await request(app).get('/test-permission').set('Authorization','Bearer '+token)).status).toBe(403);
+ const change={role:'vendeur',permissions:['pos','products'],expectedUpdatedAt:account.updatedAt.toISOString(),reason:'Least privilege',operationId:'access-governance-001'};
+ expect((await put('/subusers/'+u.id,{...change,permissions:['superadmin']})).status).toBe(400);
+ expect((await put('/subusers/'+u.id,change)).status).toBe(200);expect((await put('/subusers/'+u.id,change)).status).toBe(200);
+ expect((await request(app).get('/test-permission').set('Authorization','Bearer '+token)).status).toBe(401);
+ expect((await put('/subusers/'+u.id,{...change,permissions:[],operationId:'access-stale-test-01'})).status).toBe(409);
+ const log=await AccessRevision.findAll({where:{userId:a.id,staffId:u.id},order:[['id','ASC']]});expect(log.length).toBe(2);expect(log[1].after.permissions).toEqual(['pos','products']);await expect(log[0].destroy()).rejects.toThrow();
+ expect((await request(app).delete('/subusers/'+u.id).set('Authorization','Bearer '+ta)).status).toBe(409);
+ const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),other=generateToken(foreign.id,'hr-foreign-session').accessToken;
+ expect((await request(app).get('/subusers/'+u.id+'/access-history').set('Authorization','Bearer '+other)).status).toBe(404);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
