@@ -1,5 +1,5 @@
 const express=require('express'),platform=express.Router(),customer=express.Router();
-const {User,Organization,Subscription,SubscriptionEvent,Branch,Warehouse,SaasPrice,SaasInvoice,SaasPayment,SaasInvoiceEvent}=require('../models');
+const {User,Organization,Subscription,SubscriptionEvent,Branch,Warehouse,SaasPrice,SaasInvoice,SaasPayment,SaasInvoiceEvent,Product,Client,CashSession,Sale}=require('../models');
 const {sequelize}=require('../config/database');
 const {Op}=require('sequelize');
 const {sendResponse}=require('../utils/response');
@@ -75,8 +75,11 @@ platform.get('/metrics',async(req,res,next)=>{try{const start=req.query.month||t
 customer.use((req,res,next)=>owner(req.user)?next():next(fail('Propriétaire requis',403)));
 customer.get('/',async(req,res,next)=>{try{const context=await svc.context(req.user.id),org=context.organization;
  const [branches,warehouses,openInvoices]=await Promise.all([Branch.count({where:{organizationId:org.id}}),Warehouse.count({where:{organizationId:org.id}}),SaasInvoice.count({where:{ownerId:req.user.id,status:'ISSUED'}})]);
+ const uid=req.user.id;
+ const [products,clients,staff,cashSessions,sales]=await Promise.all([Product.count({where:{userId:uid}}),Client.count({where:{userId:uid}}),User.count({where:{parentId:uid,isSuspended:false}}),CashSession.count({where:{userId:uid}}),Sale.count({where:{userId:uid}})]);
+ const onboarding={profile:!!org.name&&!!org.currency,products:products>0,clients:clients>0,staff:staff>0,cash:cashSessions>0,sales:sales>0};
  const catalog=(await prices()).filter(v=>v.enabled).map(({id,plan,currency,days,amount})=>({id,plan,currency,days,amount}));
- return sendResponse(res,200,{...context,usage:{branches,warehouses},openInvoices,catalog,plans:plans.map(code=>({code,...svc.plans[code]})),enforcement:'registry-only'},'Mon abonnement');}catch(e){next(e)}});
+ return sendResponse(res,200,{...context,usage:{branches,warehouses},onboarding,openInvoices,catalog,plans:plans.map(code=>({code,...svc.plans[code]})),enforcement:'registry-only'},'Mon abonnement');}catch(e){next(e)}});
 customer.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),r=await SaasInvoice.findAndCountAll({where:{ownerId:req.user.id},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Mes factures');}catch(e){next(e)}});
 customer.get('/invoices/:id',(req,res,next)=>detail(req,res,next,false));
 module.exports={platform,customer};

@@ -772,7 +772,9 @@ suite('Commercial PostgreSQL integration',()=>{
  const invoice={ownerId:customer.id,priceId:created.body.data.id,dueOn:require('../utils/lotService').today(),reason:'Subscription invoice',confirm:true,operationId:'saas-invoice-test-001'};
  const issued=await send('/invoices',invoice);expect(issued.status).toBe(201);const iid=issued.body.data.id;
  expect((await send('/invoices',{...invoice,operationId:'saas-invoice-test-002'})).status).toBe(409);
- const before=await get('/workspace/subscription',ct);expect(before.body.data.subscription.plan).toBe('TRIAL');
+ const before=await get('/workspace/subscription',ct);expect(before.body.data.subscription.plan).toBe('TRIAL');expect(before.body.data.onboarding).toEqual({profile:true,products:false,clients:false,staff:false,cash:false,sales:false});
+ await Product.create({nom:'Onboarding product',prix:100,prixAchat:50,devise:'CDF',stock:1,userId:customer.id});
+ const ready=await get('/workspace/subscription',ct);expect(ready.body.data.onboarding.products).toBe(true);expect(ready.body.data.onboarding.sales).toBe(false);
  expect((await get('/workspace/subscription/invoices/'+iid,ta)).status).toBe(404);
  expect((await send('/prices',{...price,amount:15,expectedPriceId:created.body.data.id,operationId:'saas-price-test-002'})).status).toBe(201);
  const pay={action:'PAY',expectedStatus:'ISSUED',amount:12,currency:'USD',method:'BANK',externalReference:'TEST-RECEIPT-1',reason:'Manual receipt confirmed',confirm:true,operationId:'saas-payment-test-001'};
