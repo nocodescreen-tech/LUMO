@@ -445,6 +445,32 @@ suite('Commercial PostgreSQL integration',()=>{
  const lock=await AccountingLock.findOne({where:{userId:a.id}});await expect(lock.destroy()).rejects.toThrow();
  await expect(JournalEntry.create({userId:a.id,actorId:a.id,event:'TEST_BACKDATE',reference:'blocked',debitAccount:'CASH',creditAccount:'REVENUE',amount:1,currency:'CDF',createdAt:new Date(old+'T12:00:00Z')})).rejects.toThrow();
  });
+ test('treasury transfers are neutral to income, reconcile cash and isolate accounts',async()=>{
+ const {TreasuryAccount,TreasuryTransfer,TreasuryReconciliation}=require('../models'),base='/finance/treasury/';
+ const create=(name,kind,key)=>post(base+'accounts',{name,kind,confirmZero:true,operationId:key});
+ const bank=await create('Bank test','BANK','treasury-bank-test01');expect(bank.status).toBe(201);
+ expect((await create('Bank test','BANK','treasury-bank-test01')).status).toBe(200);
+ const wallet=await create('Wallet test','MOBILE_MONEY','treasury-wallet-test01'),second=await create('Bank second','BANK','treasury-bank-test02');expect(wallet.status).toBe(201);expect(second.status).toBe(201);
+ const b1=bank.body.data.id,b2=second.body.data.id,w=wallet.body.data.id,session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const flow=(fromAccountId,toAccountId,amount,operationId)=>({fromAccountId,toAccountId,amount,currency:'CDF',note:'Transfer test',confirmExecuted:true,operationId});
+ const deposit=flow(null,b1,10000,'treasury-deposit-0001');expect((await post(base+'transfers',deposit)).status).toBe(201);expect((await post(base+'transfers',deposit)).status).toBe(200);
+ expect((await post(base+'transfers',flow(b1,b2,3000,'treasury-internal-001'))).status).toBe(201);
+ expect((await post(base+'transfers',flow(b1,w,2000,'treasury-wallet-0001'))).status).toBe(201);
+ expect((await post(base+'transfers',flow(w,null,500,'treasury-withdraw-01'))).status).toBe(201);
+ expect((await post(base+'transfers',flow(b1,w,5001,'treasury-excess-0001'))).status).toBe(409);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before-9500);
+ const rows=await request(app).get(base+'accounts').set('Authorization','Bearer '+ta);expect(rows.status).toBe(200);expect(rows.body.data.rows.every(r=>Number(r.controlDifference)===0)).toBe(true);
+ expect(Number((await TreasuryAccount.findByPk(b1)).balance)).toBe(5000);
+ expect(Number((await TreasuryAccount.findByPk(b2)).balance)).toBe(3000);
+ expect(Number((await TreasuryAccount.findByPk(w)).balance)).toBe(1500);
+ const postings=await JournalEntry.findAll({where:{userId:a.id,event:'TREASURY_TRANSFER'}});expect(postings.length).toBe(3);expect(postings.every(j=>!['REVENUE','SERVICE_REVENUE'].includes(j.creditAccount))).toBe(true);
+ const rec={accountId:b1,expected:5000,observed:4900,statementDate:new Date().toISOString().slice(0,10),note:'Statement observed',confirmObserved:true,operationId:'treasury-recon-0001'};
+ expect((await post(base+'reconciliations',rec)).status).toBe(201);expect((await post(base+'reconciliations',rec)).status).toBe(200);expect((await post(base+'reconciliations',{...rec,expected:0,operationId:'treasury-recon-stale01'})).status).toBe(409);
+ expect(Number((await TreasuryAccount.findByPk(b1)).balance)).toBe(5000);const r=await TreasuryReconciliation.findOne({where:{accountId:b1}});expect(Number(r.difference)).toBe(-100);await expect(r.destroy()).rejects.toThrow();
+ const tr=await TreasuryTransfer.findOne({where:{userId:a.id}});await expect(tr.destroy()).rejects.toThrow();
+ const tb=generateToken(b.id,'support-test').accessToken;expect((await request(app).post(base+'transfers').set('Authorization','Bearer '+tb).send(flow(b1,b2,1,'treasury-foreign-001'))).status).toBe(404);
+ const cash=await request(app).get('/finance/accounting/cash-reconciliation').set('Authorization','Bearer '+ta);expect(Number(cash.body.data.rows[0].journalDifference)).toBe(0);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
