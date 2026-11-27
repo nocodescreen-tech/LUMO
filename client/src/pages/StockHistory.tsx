@@ -1,3 +1,4 @@
+import './inventory-commercial.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
@@ -81,7 +82,7 @@ const StockHistory = () => {
         const matchesType = typeFilter === 'ALL' || m.type === typeFilter;
         let matchesDate = true;
         if (dateFilter) {
-            const moveDate = new Date(m.createdAt).toISOString().split('T')[0];
+            const parsed=new Date(m.createdAt);const moveDate=Number.isFinite(parsed.getTime())?new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Kinshasa',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(parsed).filter(p=>['year','month','day'].includes(p.type)).map(p=>p.value).join('-'):'';
             matchesDate = moveDate === dateFilter;
         }
         return matchesSearch && matchesType && matchesDate;
@@ -90,7 +91,9 @@ const StockHistory = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const totalPages = Math.max(1,Math.ceil(filtered.length / itemsPerPage));
+    useEffect(()=>{setCurrentPage(1)},[searchTerm,typeFilter,dateFilter]);
+    useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
     const getIcon = (type: string) => {
         if (type === 'ENTREE') return <div style={{ background: 'rgba(15, 157, 106, 0.1)', color: 'var(--success)', padding: '10px', borderRadius: '12px' }}><ArrowUpRight size={20} /></div>;
@@ -100,7 +103,7 @@ const StockHistory = () => {
 
     if (!loading && loadError) return <LoadFailure onRetry={fetchMovements} />;
     return (
-        <motion.div 
+        <motion.div className="ic-page ic-history"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
@@ -136,7 +139,7 @@ const StockHistory = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="premium-card" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="ic-metrics">{[{label:language==='en'?'Matching movements':'Mouvements filtrés',n:filtered.length},{label:language==='en'?'Entries':'Entrées',n:filtered.filter(m=>m.type==='ENTREE').length},{label:language==='en'?'Exits':'Sorties',n:filtered.filter(m=>m.type==='SORTIE').length},{label:language==='en'?'Adjustments':'Ajustements',n:filtered.filter(m=>m.type==='AJUSTEMENT').length}].map(v=><article key={v.label}><small>{v.label}</small><strong>{v.n}</strong></article>)}</div><div className="premium-card ic-history-filters" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                     <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input 
@@ -152,6 +155,7 @@ const StockHistory = () => {
                     {['ALL', 'ENTREE', 'SORTIE', 'AJUSTEMENT'].map(tVal => (
                         <button
                             key={tVal}
+                            aria-pressed={typeFilter===tVal}
                             onClick={() => setTypeFilter(tVal)}
                             style={{
                                 padding: '8px 16px',

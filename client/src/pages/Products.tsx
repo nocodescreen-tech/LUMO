@@ -1,3 +1,4 @@
+import './inventory-commercial.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
@@ -59,6 +60,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [view,setView]=useState<'table'|'grid'>('table'),[stockFilter,setStockFilter]=useState('ALL'),[categoryFilter,setCategoryFilter]=useState(''),[sort,setSort]=useState('name');
 
   const user = useAuthStore(state => state.user);
   const currency = useAuthStore(state => state.currency) || 'CDF';
@@ -523,18 +525,20 @@ const Products = () => {
 
   // Search logic
   useEffect(() => {
-    const filtered = allProducts.filter((p: any) =>
-      p.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.categorie.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const q=searchTerm.trim().toLowerCase().replace(/^#/,'');
+    const filtered=allProducts.filter((p:any)=>{
+      const match=[p.nom,p.categorie,p.codeBarre,p.id,String(p.id).padStart(5,'0')].some(v=>String(v??'').toLowerCase().includes(q));
+      const stock=Number(p.stock),threshold=Number(p.stockAlerte??5);
+      return match&&(!categoryFilter||p.categorie===categoryFilter)&&(stockFilter==='ALL'||stockFilter==='OUT'&&stock<=0||stockFilter==='LOW'&&stock>0&&stock<threshold||stockFilter==='OK'&&stock>0&&stock>=threshold);
+    }).sort((a,b)=>sort==='stock'?Number(a.stock)-Number(b.stock):sort==='new'?Number(b.id)-Number(a.id):String(a.nom??'').localeCompare(String(b.nom??'')));
     setProducts(filtered);
     setCurrentPage(1); // Reset to page 1 on search
-  }, [searchTerm, allProducts]);
+  }, [searchTerm, allProducts,stockFilter,categoryFilter,sort]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = products.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const totalPages = Math.max(1,Math.ceil(products.length / itemsPerPage));
 
   // Regroupe les variantes par nom et fusionne les valeurs uniques.
   // Ex: [RAM:6GB, SSD:1TR, SSD:1TR, RAM:6GB, RAM:8GB] -> [RAM: "6GB, 8GB", SSD: "1TR"]
@@ -661,13 +665,13 @@ const Products = () => {
   };
 
   const totalProducts = allProducts.length;
-  const lowStockCount = allProducts.filter((p: any) => p.stock < (p.stockAlerte || 5)).length;
+  const lowStockCount = allProducts.filter((p: any) => p.stock < (p.stockAlerte ?? 5)).length;
   const outOfStockCount = allProducts.filter((p: any) => p.stock <= 0).length;
   const uniqueCategories = Array.from(new Set(allProducts.map((p: any) => p.categorie).filter(Boolean)));
 
   if (!loading && loadError) return <LoadFailure onRetry={fetchProducts} />;
     return (
-    <motion.div
+    <motion.div className="ic-page ic-products"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
@@ -758,7 +762,7 @@ const Products = () => {
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <input type="file" ref={importInputRef} accept=".xlsx,.xls" onChange={handleImportExcel} style={{ display: 'none' }} />
-          {(canDo('products.import') || canDo('products.add')) && (
+          {canDo('products.import') && (
           <>
           <button onClick={handleDownloadTemplate} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }} title={t('downloadExcelTemplate')}>
             <Download size={18} /> {t('template')}
@@ -775,11 +779,6 @@ const Products = () => {
           <button onClick={handleExportExcel} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid var(--border)', fontWeight: '600' }}>
             <Download size={18} /> {t('report')}
           </button>
-          )}
-          {products.length > 0 && canDo('products.delete') && (
-            <button onClick={handleAllDelete} className="glass btn-hover" style={{ padding: '0 24px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: '600' }}>
-              <Trash2 size={18} /> {t('deleteAll')}
-            </button>
           )}
           <button onClick={fetchProducts} className="glass btn-hover" style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}>
             <RefreshCw size={18} />
@@ -802,9 +801,10 @@ const Products = () => {
         </div>
       </div>
 
+      <div className="ic-filters"><label>{language==='en'?'Stock':'Stock'}<select value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="ALL">{language==='en'?'All statuses':'Tous les états'}</option><option value="OUT">{language==='en'?'Out of stock':'Rupture'}</option><option value="LOW">{language==='en'?'Low stock':'Stock faible'}</option><option value="OK">{language==='en'?'Available above threshold':'Disponible au seuil'}</option></select></label><label>{language==='en'?'Category':'Catégorie'}<select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">{language==='en'?'All categories':'Toutes les catégories'}</option>{uniqueCategories.map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}</select></label><label>{language==='en'?'Sort':'Trier'}<select value={sort} onChange={e=>setSort(e.target.value)}><option value="name">{language==='en'?'Name A–Z':'Nom A–Z'}</option><option value="stock">{language==='en'?'Lowest stock':'Stock croissant'}</option><option value="new">{language==='en'?'Newest reference':'Référence récente'}</option></select></label><div className="ic-view-switch"><button aria-pressed={view==='table'} onClick={()=>setView('table')}>{language==='en'?'Table':'Tableau'}</button><button aria-pressed={view==='grid'} onClick={()=>setView('grid')}>{language==='en'?'Cards':'Grille'}</button></div></div>
       {/* Table Section */}
       <div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ overflowX: 'auto' }}>
+        {view==='grid'?<div className="ic-grid">{loading?<PageSkeleton/>:!currentItems.length?<p className="ic-empty">{language==='en'?'No matching products':'Aucun produit correspondant'}</p>:currentItems.map((p:any)=><article className="ic-card" key={p.id}><div className="ic-product-photo">{p.image?<img src={p.image} alt={p.nom} loading="lazy" decoding="async"/>:<Package size={32}/>}</div><div className="ic-card-body"><small>#{p.id} · {p.categorie||'—'}</small><h3>{p.nom}</h3>{p.codeBarre&&<small>{p.codeBarre}</small>}<div className="ic-product-meta"><strong>{Number(p.prix||0).toLocaleString()} {p.devise||currency}</strong><span className={'ic-stock '+(Number(p.stock)<=0?'out':Number(p.stock)<Number(p.stockAlerte??5)?'low':'ok')}>{p.stock} {language==='en'?'units':'unités'}</span></div>{isPharmacy&&<small>{language==='en'?'Expiration':'Péremption'} : {p.datePeremption?new Date(p.datePeremption).toLocaleDateString():'—'}</small>}{canDo('products.view_purchase_price')&&<small>{language==='en'?'Purchase price':'Prix achat'} : {Number(p.prixAchat||0).toLocaleString()} {p.devise||currency}</small>}<div className="ic-card-actions"><button title={language==='en'?'History':'Historique'} aria-label={language==='en'?'History':'Historique'} onClick={()=>{setSelectedProduct(p);fetchProductHistory(p.id)}}><Activity size={17}/></button>{canDo('products.edit')&&<button title={language==='en'?'Edit':'Modifier'} aria-label={language==='en'?'Edit':'Modifier'} onClick={()=>{setSelectedProduct({...p,metadata:p.metadata||{}});setShowEditModal(true)}}><Edit size={17}/></button>}{canDo('products.delete')&&<button title={language==='en'?'Delete':'Supprimer'} aria-label={language==='en'?'Delete':'Supprimer'} onClick={()=>handleDeleteProduct(p.id,p.nom)}><Trash2 size={17}/></button>}</div></div></article>)}</div>:<div style={{ overflowX: 'auto' }}>
           <table className="table-products" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -843,7 +843,7 @@ const Products = () => {
                         {p.image ? (
                           <img src={p.image} alt={p.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          p.nom[0].toUpperCase()
+                          String(p.nom||'?').charAt(0).toUpperCase()
                         )}
                       </div>
                       <div>
@@ -889,13 +889,13 @@ const Products = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
                         padding: '6px 12px', borderRadius: 'var(--radius-sm)',
-                        backgroundColor: p.stock < (p.stockAlerte || 5) ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        border: `1px solid ${p.stock < (p.stockAlerte || 5) ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
+                        backgroundColor: p.stock < (p.stockAlerte ?? 5) ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        border: `1px solid ${p.stock < (p.stockAlerte ?? 5) ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
                       }}>
-                        <span style={{ fontWeight: '700', fontSize: '1rem', color: p.stock < (p.stockAlerte || 5) ? 'var(--danger)' : 'var(--success)' }}>{p.stock}</span>
+                        <span style={{ fontWeight: '700', fontSize: '1rem', color: p.stock < (p.stockAlerte ?? 5) ? 'var(--danger)' : 'var(--success)' }}>{p.stock}</span>
                         <span style={{ fontSize: '0.75rem', marginLeft: '6px', fontWeight: '600', opacity: 0.7 }}>{t('units') || 'unités'}</span>
                       </div>
-                      {p.stock < (p.stockAlerte || 5) && <AlertTriangle size={18} color="var(--danger)" className="animate-pulse" />}
+                      {p.stock < (p.stockAlerte ?? 5) && <AlertTriangle size={18} color="var(--danger)" className="animate-pulse" />}
                     </div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
@@ -947,11 +947,11 @@ const Products = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', padding: '0 12px' }}>
+        <div className="ic-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', padding: '0 12px' }}>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
-            Affichage de <span style={{ color: 'var(--text-main)' }}>{indexOfFirstItem + 1}</span> à <span style={{ color: 'var(--text-main)' }}>{Math.min(indexOfLastItem, products.length)}</span> sur <span style={{ color: 'var(--text-main)' }}>{products.length}</span> produits
+            Affichage de <span style={{ color: 'var(--text-main)' }}>{products.length?indexOfFirstItem+1:0}</span> à <span style={{ color: 'var(--text-main)' }}>{Math.min(indexOfLastItem, products.length)}</span> sur <span style={{ color: 'var(--text-main)' }}>{products.length}</span> produits
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button

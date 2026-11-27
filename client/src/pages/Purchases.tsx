@@ -1,3 +1,4 @@
+import './inventory-commercial.css';
 import '../design-system/warehouse.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
@@ -40,6 +41,7 @@ const Purchases = () => {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [approvalFilter,setApprovalFilter]=useState('ALL'),[purchaseStatus,setPurchaseStatus]=useState('ALL');
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -192,10 +194,10 @@ const Purchases = () => {
         }
     };
 
-    const filteredPurchases = purchases.filter(p => 
-        p.numeroFacture?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPurchases=purchases.filter(p=>{
+        const q=searchTerm.trim().toLowerCase(),supplier=fournisseurs.find(f=>f.id===p.fournisseurId)?.nom;
+        return [p.numeroFacture,p.description,p.id,supplier].some(v=>String(v??'').toLowerCase().includes(q))&&(approvalFilter==='ALL'||p.approvalState===approvalFilter)&&(purchaseStatus==='ALL'||p.statut===purchaseStatus);
+    });
 
     const getStatusStyle = (status: string) => {
         const s = status?.toLowerCase() || '';
@@ -210,13 +212,14 @@ const Purchases = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
+    const totalPages = Math.max(1,Math.ceil(filteredPurchases.length / itemsPerPage));
+    useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
     if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
     if (loading) return <PageSkeleton />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div className="ic-page ic-purchases" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl">{t('purchasesMgmtPrefix')} <span className="text-gradient">{t('purchases')}</span></h1>
@@ -250,6 +253,7 @@ const Purchases = () => {
                 </div>
             </div>
 
+            <div className="ic-metrics">{[{label:'Dossiers chargés',n:purchases.length},{label:'À approuver',n:purchases.filter(p=>p.approvalState==='PENDING').length},{label:'Reçus',n:purchases.filter(p=>p.statut==='Reçu').length},{label:'Payés',n:purchases.filter(p=>p.statut==='Payé').length}].map(v=><article key={v.label}><small>{v.label}</small><strong>{v.n}</strong></article>)}</div>
             <div className="premium-card glass" style={{ padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                     <div style={{ position: 'relative', width: '400px', maxWidth: '100%' }}>
@@ -267,6 +271,7 @@ const Purchases = () => {
                     </div>
                 </div>
 
+                <div className="ic-filters"><label>Approbation<select value={approvalFilter} onChange={e=>{setApprovalFilter(e.target.value);setCurrentPage(1)}}><option value="ALL">Toutes</option>{Object.entries(approvalLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Statut logistique<select value={purchaseStatus} onChange={e=>{setPurchaseStatus(e.target.value);setCurrentPage(1)}}><option value="ALL">Tous</option>{Array.from(new Set(purchases.map(p=>p.statut).filter(Boolean))).map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}</select></label><button onClick={()=>{setSearchTerm('');setApprovalFilter('ALL');setPurchaseStatus('ALL');setCurrentPage(1)}}>Réinitialiser</button></div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -358,7 +363,7 @@ const Purchases = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
                         {t('showingPurchases')
-                          .replace('{start}', (indexOfFirstItem + 1).toString())
+                          .replace('{start}', (filteredPurchases.length?indexOfFirstItem+1:0).toString())
                           .replace('{end}', Math.min(indexOfLastItem, filteredPurchases.length).toString())
                           .replace('{total}', filteredPurchases.length.toString())}
                     </div>
