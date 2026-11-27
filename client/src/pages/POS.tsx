@@ -89,6 +89,9 @@ const POS = () => {
     };
     
     const [cashSession, setCashSession] = useState<any>(null);
+    const [cashBranch,setCashBranch]=useState<number|null>(null);
+    const cashBranchRef=React.useRef<number|null>(null);
+    const cashRequest=React.useRef(0);
     const [showCashModal, setShowCashModal] = useState(false);
     const [openingBalance, setOpeningBalance] = useState('0');
     // Variant state
@@ -108,13 +111,12 @@ const POS = () => {
             setCheckingSession(true);
             // M5 Fix: Force fresh auth state to avoid stale localStorage issues
             try { await useAuthStore.getState().checkAuth(false); } catch(e) {}
-            await checkCashSession();
-            setCheckingSession(false);
+            // Catalogue load resolves the authoritative cash branch.
         };
         init();
     }, []);
 
-    useEffect(()=>{clearCart();setWarehouseId('');setStaffLocation(null);staffLocationRef.current=null;},[user?.id]);
+    useEffect(()=>{clearCart();setWarehouseId('');setStaffLocation(null);staffLocationRef.current=null;cashBranchRef.current=null;setCashBranch(null);setCashSession(null);},[user?.id]);
     useEffect(()=>{void fetchProducts(warehouseId);return()=>{catalogRequest.current++}},[warehouseId,user?.id]);
     const [showClientModal, setShowClientModal] = useState(false);
     const [allClients, setAllClients] = useState<any[]>([]);
@@ -241,32 +243,31 @@ const POS = () => {
         }
     };
 
-    const checkCashSession = async () => {
-        try {
-            const { data } = await api.get(`/cash/current?_t=${Date.now()}`);
-            setCashSession(data || null);
-            console.log("Cash session status:", data ? "OPEN" : "CLOSED");
-        } catch (error) {
-            console.error("Failed to check cash session:", error);
-            setCashSession(null);
-        }
+    const checkCashSession = async (branch=cashBranchRef.current) => {
+        const run=++cashRequest.current;
+        if(branch===null){setCashSession(null);setCheckingSession(true);return;}
+        setCheckingSession(true);
+        try{const {data}=await api.get('/cash/current',{params:{branchKey:branch,_t:Date.now()}});if(run===cashRequest.current&&branch===cashBranchRef.current)setCashSession(data||null);}
+        catch(e){if(run===cashRequest.current)setCashSession(null);}
+        finally{if(run===cashRequest.current&&branch===cashBranchRef.current)setCheckingSession(false);}
     };
 
     const fetchProducts = async (location=warehouseId) => {
         const run=++catalogRequest.current;
-        setLoading(true);setCatalogError(false);
+        setLoading(true);setCatalogError(false);cashBranchRef.current=null;setCashBranch(null);setCashSession(null);setCheckingSession(true);setShowCashModal(false);
         try {
-            const list:any[]=[];let page=1,pages=1;let assigned:{actor:number;id:number|null;name:string|null}|null=null;
+            const list:any[]=[];let page=1,pages=1;let branch:number|null=null;let assigned:{actor:number;id:number|null;name:string|null}|null=null;
             do{
                 const {data}=await api.get('/products',{params:{page,limit:100,...(location?{warehouseId:Number(location)}:{}),_t:Date.now()}});
                 if(run!==catalogRequest.current)return;
                 const rows=data?.data?.data;
                 if(!Array.isArray(rows))throw new Error('Catalogue invalide');
+                const nextBranch=data.data.branchKey;if(!Number.isSafeInteger(nextBranch)||nextBranch<0||branch!==null&&branch!==nextBranch)throw new Error('Succursale modifiée');branch=nextBranch;
                 if(staffMode&&user){const id=data.data.warehouseId;if(id!==null&&(!Number.isSafeInteger(id)||id<=0))throw new Error('Emplacement invalide');if(assigned&&assigned.id!==id)throw new Error('Affectation modifiée pendant le chargement');assigned={actor:user.id,id,name:data.data.warehouseName||null};}
                 list.push(...rows);pages=Number(data.data.pagination?.pages||1);page++;
                 if(pages>200)throw new Error('Catalogue trop volumineux pour ce POS');
             }while(page<=pages);
-            if(run===catalogRequest.current){if(assigned){if(staffLocationRef.current&&staffLocationRef.current.id!==assigned.id){clearCart();toast.error('Affectation modifiée : panier réinitialisé.');}staffLocationRef.current=assigned;setStaffLocation(assigned);}setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));}
+            if(run===catalogRequest.current){if(assigned){if(staffLocationRef.current&&staffLocationRef.current.id!==assigned.id){clearCart();toast.error('Affectation modifiée : panier réinitialisé.');}staffLocationRef.current=assigned;setStaffLocation(assigned);}setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));cashBranchRef.current=branch;setCashBranch(branch);void checkCashSession(branch);}
         }catch(e){if(run===catalogRequest.current){setProducts([]);setCatalogError(true);toast.error(t('errorLoadingProducts'));}}
         finally{if(run===catalogRequest.current)setLoading(false)}
     };
@@ -353,11 +354,12 @@ const POS = () => {
     }, [currency]);
 
     const handleOpenSession = async () => {
-        if (openingCash) return;
+        if (openingCash||cashBranchRef.current===null||checkingSession) return;
+        const branch=cashBranchRef.current;
         setOpeningCash(true);
         try {
-            const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance) });
-            setCashSession(data);
+            const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance),branchKey:branch });
+            if(cashBranchRef.current===branch)setCashSession(data?.data??data);
             setShowCashModal(false);
             toast.success(t('cashOpened'));
         } catch (error: any) {
@@ -374,14 +376,8 @@ const POS = () => {
         }
     };
 
-    const handleCloseSession = async () => {
-        try {
-            await api.post('/cash/close');
-            setCashSession(null);
-            toast.success(t('cashClosed'));
-        } catch (error) {
-            toast.error(t('cashCloseError'));
-        }
+    const handleCloseSession = () => {
+        if(cashBranchRef.current!==null)navigate('/cash?branchKey='+cashBranchRef.current);
     };
 
     const getCartItemPriceInSaleCurrency = (item: any) => {
@@ -408,7 +404,7 @@ const POS = () => {
     };
 
     const executeSale = async (finalClientName: string, finalClientPhone: string, finalClientEmail: string = '') => {
-        if(catalogError||(staffMode&&staffLocation?.actor!==user?.id)){toast.error('Actualisez le catalogue et l’emplacement avant de vendre.');return;}
+        if(catalogError||cashBranchRef.current===null||checkingSession||(staffMode&&staffLocation?.actor!==user?.id)){toast.error('Actualisez le catalogue et l’emplacement avant de vendre.');return;}
         if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
         const identifiers=cart.filter(item=>item.serialTracked).flatMap(item=>(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim().toUpperCase()).filter(Boolean));
         if(cart.some(item=>item.serialTracked&&(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).length!==item.quantite)||new Set(identifiers).size!==identifiers.length){toast.error('Indiquez un numéro de série distinct par appareil.');return;}
@@ -489,7 +485,7 @@ const POS = () => {
         <div className="responsive-grid lumo-pos" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
             {/* Catalog */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
-                {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
+                {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);cashBranchRef.current=null;setCashBranch(null);setCashSession(null);setShowCashModal(false);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
                 {staffMode&&<div className="lumo-pos-location"><strong>Emplacement de vente : {staffLocation?.actor===user?.id?(staffLocation?.name||'Stock non affecté'):'Vérification requise'}</strong><small>Défini par le responsable. Rechargez le catalogue si votre affectation change.</small><button onClick={()=>fetchProducts('')}>Actualiser l’affectation</button></div>}
                 {catalogError&&<button className="btn-premium" onClick={()=>fetchProducts(warehouseId)}>Recharger le catalogue</button>}
                 <div className="glass lumo-pos-toolbar" style={{ padding: '12px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -519,7 +515,7 @@ const POS = () => {
                             if (checkingSession) return;
                             cashSession ? handleCloseSession() : setShowCashModal(true);
                         }}
-                        disabled={checkingSession}
+                        disabled={checkingSession||cashBranch===null}
                         className={`btn-hover ${cashSession ? 'danger' : 'primary'}`}
                         style={{ padding: '14px 24px', borderRadius: '16px', fontWeight: 800, border: 'none', background: cashSession ? 'rgba(214, 69, 69, 0.1)' : 'var(--primary)', color: cashSession ? 'var(--danger)' : 'white', cursor: checkingSession ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: checkingSession ? 0.6 : 1 }}
                     >
@@ -728,7 +724,7 @@ const POS = () => {
 
                     <button
                         onClick={handleCheckout}
-                        disabled={(enabledModules?.includes('cash') && !cashSession) || cart.length === 0}
+                        disabled={checkingSession||cashBranch===null||catalogError||(enabledModules?.includes('cash') && !cashSession) || cart.length === 0}
                         className="btn-premium primary"
                         style={{ width: '100%', padding: '18px', borderRadius: '16px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: ((enabledModules?.includes('cash') && !cashSession) || cart.length === 0) ? 0.5 : 1 }}
                     >
@@ -799,7 +795,7 @@ const POS = () => {
                                 <Zap size={40} fill="var(--primary)" />
                             </div>
                             <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '8px' }}>{t('cashRegisterOpening')}</h2>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', currency)}</p>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', user?.entreprise?.devise==='USD'?'USD':'CDF')}</p>
                             <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} autoFocus style={{ width: '100%', padding: '20px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', outline: 'none', marginBottom: '32px' }} />
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <button onClick={() => setShowCashModal(false)} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('cancelBtn')}</button>
