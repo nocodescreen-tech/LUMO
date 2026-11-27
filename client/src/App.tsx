@@ -45,6 +45,7 @@ const StaffAssignments = lazy(() => import('./pages/StaffAssignments'));
 const HumanResources = lazy(() => import('./pages/HumanResources'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const AccessGovernance = lazy(() => import('./pages/AccessGovernance'));
+const ExpenseApprovals = lazy(() => import('./pages/ExpenseApprovals'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -131,6 +132,7 @@ const App = () => {
               <Route path="/stats" element={<Stats />} />
               {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}
               {user?.role === 'admin' && <Route path="/access-governance" element={<AccessGovernance />} />}
+              {(user?.role === 'admin'||user?.permissions?.includes('expenses.request')) && <Route path="/expense-approvals" element={<ExpenseApprovals />} />}
               {user?.role === 'admin' && <Route path="/support" element={<SupportCenter />} />}
               {user?.role === 'admin' && <Route path="/inventory" element={<InventoryEnterprise />} />}
               {user?.role === 'admin' && <Route path="/repairs" element={<RepairCenter />} />}

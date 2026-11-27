@@ -8,8 +8,8 @@ import {LoadFailure} from '../design-system/LoadFailure';
 import {toast} from 'sonner';
 import './superadmin.css';
 type Member={id:number;nom:string;role:string;permissions:string[];isSuspended:boolean;accessRevisionId:number|null};
-const groups:Record<string,string>={pos:'Point de vente',sales:'Ventes',products:'Produits',clients:'Clients',suppliers:'Fournisseurs',purchases:'Achats','stock-history':'Historique du stock',cash:'Caisse',debts:'Créances',stats:'Statistiques',activities:'Activités',settings:'Paramètres',team:'Équipe'};
-const labels:Record<string,string>={add:'Créer',edit:'Modifier',delete:'Supprimer',refund:'Rembourser',export:'Exporter',import:'Importer',view_purchase_price:'Voir les prix d’achat',settle:'Régler',settle_debt:'Régler la dette',send_reminder:'Envoyer un rappel',view:'Consulter',open:'Ouvrir',close:'Clôturer',delete_session:'Supprimer une session',profile:'Profil',appearance:'Apparence',exchange_rate:'Taux de change',view_activity:'Voir les activités'};
+const groups:Record<string,string>={expenses:'Dépenses',pos:'Point de vente',sales:'Ventes',products:'Produits',clients:'Clients',suppliers:'Fournisseurs',purchases:'Achats','stock-history':'Historique du stock',cash:'Caisse',debts:'Créances',stats:'Statistiques',activities:'Activités',settings:'Paramètres',team:'Équipe'};
+const labels:Record<string,string>={request:'Soumettre une demande de dépense',add:'Créer',edit:'Modifier',delete:'Supprimer',refund:'Rembourser',export:'Exporter',import:'Importer',view_purchase_price:'Voir les prix d’achat',settle:'Régler',settle_debt:'Régler la dette',send_reminder:'Envoyer un rappel',view:'Consulter',open:'Ouvrir',close:'Clôturer',delete_session:'Supprimer une session',profile:'Profil',appearance:'Apparence',exchange_rate:'Taux de change',view_activity:'Voir les activités'};
 const describe=(p:string)=>p.includes('.')?labels[p.split('.')[1]]||p: 'Accès au module';
 const err=(e:any)=>e.response?.data?.message||e.message||'Opération impossible';
 export default function AccessGovernance(){
