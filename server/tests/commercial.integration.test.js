@@ -644,6 +644,32 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await get(calendar)).body.data.rows.some(x=>x.id===id)).toBe(false);
  expect(await LeaveEvent.count({where:{requestId:id}})).toBe(3);await expect((await LeaveRequest.findByPk(id)).destroy()).rejects.toThrow();
  });
+ test('dual expense approval separates requester reviewer and owner, survives policy downgrade',async()=>{
+ const {ExpensePolicy,ExpenseRequestEvent}=require('../models'),url='/workspace/expense-approvals';
+ const previous=await ExpensePolicy.findOne({where:{userId:a.id},order:[['id','DESC']]});
+ const make=async(email,permissions,sid)=>{const u=await User.create({nom:email,email,motDePasse:'TestOnlyPassword123!',role:'manager',parentId:a.id,isVerified:true,isAdminValidated:true,permissions,activeSessions:[{sessionId:sid}]});return {u,token:generateToken(u.id,sid).accessToken}};
+ const submitter=await make('dual-request@example.com',['expenses.request','expenses.review'],'dual-request-session'),reviewer=await make('dual-review@example.com',['expenses.review'],'dual-review-session');
+ const as=(actor,path,body)=>request(app).post(path).set('Authorization','Bearer '+actor.token).send(body);
+ const config={currency:'CDF',threshold:1000,dualThreshold:2000,expectedPolicyId:previous.id,reason:'Dual controls',confirm:true,operationId:'dual-policy-test-001'};
+ const p=await post(url+'/policy',config);expect(p.status).toBe(201);
+ const session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const body={description:'Dual control',category:'Office',amount:2000,currency:'CDF',operationId:'dual-request-test-001'};
+ const r=await as(submitter,url,body);expect(r.status).toBe(201);expect(r.body.data.dualRequired).toBe(true);
+ const id=r.body.data.id,path=url+'/'+id+'/actions',review={action:'REVIEW',expectedStatus:'PENDING',confirm:true,reason:'Reviewed',operationId:'dual-review-test-001'},approve={...review,action:'APPROVE',operationId:'dual-approve-test-001'};
+ expect((await as(submitter,path,review)).status).toBe(403);
+ expect((await post(path,review)).status).toBe(403);
+ expect((await post(path,approve)).status).toBe(409);
+ expect((await as(reviewer,path,{...review,action:'CANCEL',operationId:'dual-cancel-test-001'})).status).toBe(409);
+ expect((await post(url+'/policy',{...config,expectedPolicyId:p.body.data.id,dualThreshold:null,operationId:'dual-policy-test-002'})).status).toBe(201);
+ expect((await post(path,approve)).status).toBe(409);
+ expect((await as(reviewer,path,review)).status).toBe(201);
+ expect((await as(reviewer,path,review)).status).toBe(200);
+ expect((await as(reviewer,path,{...review,operationId:'dual-review-test-002'})).status).toBe(409);
+ expect((await as(reviewer,path,approve)).status).toBe(403);
+ expect((await post(path,approve)).status).toBe(201);expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ const paid=await post(path,{...approve,action:'PAY',expectedStatus:'APPROVED',operationId:'dual-payment-test-001'});expect(paid.status).toBe(201);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before-2000);expect(await ExpenseRequestEvent.count({where:{requestId:id}})).toBe(4);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
