@@ -50,6 +50,9 @@ const POS = () => {
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal,setSerialInput } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
     const [warehouseId,setWarehouseId]=useState('');
+    const staffMode=!!user&&!['admin','superadmin'].includes(user.role);
+    const [staffLocation,setStaffLocation]=useState<{actor:number;id:number|null;name:string|null}|null>(null);
+    const staffLocationRef=React.useRef<{actor:number;id:number|null;name:string|null}|null>(null);
     const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
     const catalogRequest=React.useRef(0);
     const [catalogError,setCatalogError]=useState(false);
@@ -111,7 +114,7 @@ const POS = () => {
         init();
     }, []);
 
-    useEffect(()=>{clearCart();setWarehouseId('');},[user?.id]);
+    useEffect(()=>{clearCart();setWarehouseId('');setStaffLocation(null);staffLocationRef.current=null;},[user?.id]);
     useEffect(()=>{void fetchProducts(warehouseId);return()=>{catalogRequest.current++}},[warehouseId,user?.id]);
     const [showClientModal, setShowClientModal] = useState(false);
     const [allClients, setAllClients] = useState<any[]>([]);
@@ -253,16 +256,17 @@ const POS = () => {
         const run=++catalogRequest.current;
         setLoading(true);setCatalogError(false);
         try {
-            const list:any[]=[];let page=1,pages=1;
+            const list:any[]=[];let page=1,pages=1;let assigned:{actor:number;id:number|null;name:string|null}|null=null;
             do{
                 const {data}=await api.get('/products',{params:{page,limit:100,...(location?{warehouseId:Number(location)}:{}),_t:Date.now()}});
                 if(run!==catalogRequest.current)return;
                 const rows=data?.data?.data;
                 if(!Array.isArray(rows))throw new Error('Catalogue invalide');
+                if(staffMode&&user){const id=data.data.warehouseId;if(id!==null&&(!Number.isSafeInteger(id)||id<=0))throw new Error('Emplacement invalide');if(assigned&&assigned.id!==id)throw new Error('Affectation modifiée pendant le chargement');assigned={actor:user.id,id,name:data.data.warehouseName||null};}
                 list.push(...rows);pages=Number(data.data.pagination?.pages||1);page++;
                 if(pages>200)throw new Error('Catalogue trop volumineux pour ce POS');
             }while(page<=pages);
-            if(run===catalogRequest.current)setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));
+            if(run===catalogRequest.current){if(assigned){if(staffLocationRef.current&&staffLocationRef.current.id!==assigned.id){clearCart();toast.error('Affectation modifiée : panier réinitialisé.');}staffLocationRef.current=assigned;setStaffLocation(assigned);}setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));}
         }catch(e){if(run===catalogRequest.current){setProducts([]);setCatalogError(true);toast.error(t('errorLoadingProducts'));}}
         finally{if(run===catalogRequest.current)setLoading(false)}
     };
@@ -404,6 +408,7 @@ const POS = () => {
     };
 
     const executeSale = async (finalClientName: string, finalClientPhone: string, finalClientEmail: string = '') => {
+        if(catalogError||(staffMode&&staffLocation?.actor!==user?.id)){toast.error('Actualisez le catalogue et l’emplacement avant de vendre.');return;}
         if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
         const identifiers=cart.filter(item=>item.serialTracked).flatMap(item=>(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim().toUpperCase()).filter(Boolean));
         if(cart.some(item=>item.serialTracked&&(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).length!==item.quantite)||new Set(identifiers).size!==identifiers.length){toast.error('Indiquez un numéro de série distinct par appareil.');return;}
@@ -415,7 +420,7 @@ const POS = () => {
         
         const saleTotal = getSaleTotal();
                 const salePayload = {
-                    warehouseId:warehouseId?Number(warehouseId):null,
+                    warehouseId:staffMode?staffLocation?.id??null:warehouseId?Number(warehouseId):null,
                     items: cart.map(item => {
                         const itemSalePrice = getCartItemPriceInSaleCurrency(item);
                         const cleanVariantes = dedupeSelectedVariantes(item.selectedVariantes || []);
@@ -485,6 +490,7 @@ const POS = () => {
             {/* Catalog */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
                 {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
+                {staffMode&&<div className="lumo-pos-location"><strong>Emplacement de vente : {staffLocation?.actor===user?.id?(staffLocation?.name||'Stock non affecté'):'Vérification requise'}</strong><small>Défini par le responsable. Rechargez le catalogue si votre affectation change.</small><button onClick={()=>fetchProducts('')}>Actualiser l’affectation</button></div>}
                 {catalogError&&<button className="btn-premium" onClick={()=>fetchProducts(warehouseId)}>Recharger le catalogue</button>}
                 <div className="glass lumo-pos-toolbar" style={{ padding: '12px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>

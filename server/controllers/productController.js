@@ -45,7 +45,7 @@ exports.getProducts = async (req, res, next) => {
     }
 
     if(req.user.parentId)data.rows=data.rows.map(p=>{const row=p.toJSON?p.toJSON():p;delete row.unallocatedStock;row.stock=Number(row.availableStock);return row;});
-    const response = {...getPagingData(data, page, l),warehouseId:wh?.id??null};
+    const response = {...getPagingData(data, page, l),warehouseId:wh?.id??null,warehouseName:wh?.name??null};
     sendResponse(res, 200, response, 'Produits récupérés avec succès');
   } catch (error) {
     next(error);
