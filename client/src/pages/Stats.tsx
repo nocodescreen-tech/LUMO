@@ -32,9 +32,10 @@ const Stats = () => {
     const [period, setPeriod] = useState('7d');
 
     useEffect(() => {
-        setLoading(true);
-        api.get(`/stats/analytics?period=${period}&_t=${Date.now()}`)
+        const ctl=new AbortController();setLoading(true);setLoadError(false);setData(null);
+        api.get('/stats/analytics',{params:{period},signal:ctl.signal})
             .then(res => {
+                if(ctl.signal.aborted)return;
                 const resData = res.data;
                 const rawData = resData.success && resData.data ? resData.data : (resData.data || resData || {});
                 
@@ -50,9 +51,10 @@ const Stats = () => {
                 setData(rawData);
                 setLoadError(false);
             })
-             .catch(() => { setLoadError(true); toast.error(t('statsLoadError')); })
-            .finally(() => setLoading(false));
-    }, [period, retry]);
+             .catch(() => { if(!ctl.signal.aborted){setLoadError(true);toast.error(t('statsLoadError'));} })
+            .finally(() => {if(!ctl.signal.aborted)setLoading(false)});
+        return()=>ctl.abort();
+    }, [period, retry,user?.id]);
 
     const monthlyLabels = data?.monthlyRevenue?.labels || [];
     const monthlyValues = data?.monthlyRevenue?.values || [];

@@ -1,5 +1,20 @@
 const { Sale, Product, Client, User } = require('../models');
-const { Op } = require('sequelize');
+const { Op, Transaction } = require('sequelize');
+const {sequelize}=require('../config/database');
+const {fail}=require('../utils/transactionSafety');
+const BATCH=500;
+// Keyset iteration in one consistent snapshot: bounded row materialization without OFFSET scans.
+async function scanSales(where,attributes,visit){
+ return sequelize.transaction({isolationLevel:Transaction.ISOLATION_LEVELS.REPEATABLE_READ,readOnly:true},async transaction=>{
+  let after=0,count=0;
+  while(true){const rows=await Sale.findAll({where:{...where,id:{[Op.gt]:after}},attributes:[...new Set(['id',...attributes])],order:[['id','ASC']],limit:BATCH,raw:true,transaction});
+   for(const row of rows){visit(row);count++;}
+   if(rows.length<BATCH)return count;
+   after=rows[rows.length-1].id;
+  }
+ });
+}
+const periodDays={today:1,'7d':7,day:7,'30d':30,week:180,month:183,'1y':365};
 const { sendResponse } = require('../utils/response');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -58,20 +73,14 @@ exports.getDashboardStats = async (req, res, next) => {
     const safeRate = getSafeRate(owner);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
 
-    const [salesRows, totalProducts, totalClients, lowStockCount, recentSales] = await Promise.all([
-      Sale.findAll({
-        where: { userId, ...notRefunded },
-        attributes: ['id', 'montantTotal', 'devise', 'tauxChange', 'articles', 'profitNet', 'statut', 'createdAt'],
-        order: [['createdAt', 'DESC']],
-        raw: true,
-      }),
+    const [totalProducts, totalClients, lowStockCount, recentSales] = await Promise.all([
       Product.count({ where: { userId } }),
       Client.count({ where: { userId } }),
       Product.count({ where: { userId, stock: { [Op.lt]: 10 } } }),
       Sale.findAll({
         where: { userId, ...notRefunded },
         attributes: ['id', 'montantTotal', 'methodePaiement', 'createdAt', 'devise', 'tauxChange'],
-        order: [['createdAt', 'DESC']],
+        order: [['createdAt', 'DESC'],['id','DESC']],
         limit: 8,
         raw: true,
       }),
@@ -84,7 +93,7 @@ exports.getDashboardStats = async (req, res, next) => {
     let profit = 0;
     let profitUSD = 0;
 
-    for (const sale of salesRows) {
+    const salesCount=await scanSales({userId,...notRefunded},['montantTotal','devise','tauxChange','articles','profitNet','statut'],sale=>{
       const saleRate = Number(sale.tauxChange) > 1 ? Number(sale.tauxChange) : safeRate;
       const isSaleUSD = normalizeCurrency(sale.devise || shopCurrency) === 'USD';
       
@@ -122,9 +131,7 @@ exports.getDashboardStats = async (req, res, next) => {
         profit += profitCDF;
         profitUSD += (normalizeCurrency(shopCurrency) === 'USD' ? Number(sale.profitNet || 0) : (profitCDF / saleRate));
       }
-    }
-
-    const salesCount = Number(salesRows.length || 0);
+    });
     const revenueRounded = round2(revenue);
     const completedRounded = round2(completed);
     const profitRounded = round2(profit);
@@ -165,9 +172,10 @@ exports.getSalesChartData = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
     const { period = 'month' } = req.query;
+    if(!Object.prototype.hasOwnProperty.call(periodDays,period))throw fail('Période invalide');
 
     let truncUnit = 'month';
-    let lookbackDays = 183;
+    let lookbackDays = periodDays[period];
 
     if (period === 'today') {
       truncUnit = 'day';
@@ -188,19 +196,8 @@ exports.getSalesChartData = async (req, res, next) => {
     const owner = await User.findByPk(userId);
     const safeRate = getSafeRate(owner);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
-    const sales = await Sale.findAll({
-      where: {
-        userId,
-        ...notRefunded,
-        createdAt: { [Op.gte]: startDate, [Op.lt]: new Date() },
-      },
-      attributes: ['id', 'montantTotal', 'devise', 'tauxChange', 'createdAt'],
-      order: [['createdAt', 'ASC']],
-      raw: true,
-    });
-
     const grouped = new Map();
-    for (const sale of sales) {
+    await scanSales({userId,...notRefunded,createdAt:{[Op.gte]:startDate,[Op.lt]:new Date()}},['montantTotal','devise','tauxChange','createdAt'],sale=>{
       const d = new Date(sale.createdAt);
       let keyDate = d;
       if (truncUnit === 'week') {
@@ -223,7 +220,7 @@ exports.getSalesChartData = async (req, res, next) => {
       
       row.revenue += cdfAmount;
       row.revenueUSD += isSaleUSD ? Number(sale.montantTotal || 0) : (cdfAmount / saleRate);
-    }
+    });
 
     const data = Array.from(grouped.values())
       .sort((a, b) => new Date(a.period).getTime() - new Date(b.period).getTime())
@@ -247,14 +244,12 @@ exports.getAnalytics = async (req, res, next) => {
     const userId = req.user.tenantId;
     const { period = '7d', startDate, endDate } = req.query;
 
-    const now = new Date();
-    let fromDate = new Date(Date.now() - 7 * MS_PER_DAY);
-    if (period === 'today') fromDate = new Date(Date.now() - 1 * MS_PER_DAY);
-    if (period === '30d') fromDate = new Date(Date.now() - 30 * MS_PER_DAY);
-    if (period === '1y') fromDate = new Date(Date.now() - 365 * MS_PER_DAY);
-    if (startDate && endDate) fromDate = new Date(startDate);
-
-    const toDate = endDate ? new Date(endDate) : now;
+    if(!Object.prototype.hasOwnProperty.call(periodDays,period))throw fail('Période invalide');
+    const now=new Date();
+    if((startDate&&!endDate)||(!startDate&&endDate))throw fail('Les deux dates sont requises');
+    const fromDate=startDate?new Date(startDate):new Date(+now-periodDays[period]*MS_PER_DAY);
+    const toDate=endDate?new Date(endDate):now;
+    if(!Number.isFinite(+fromDate)||!Number.isFinite(+toDate)||fromDate>toDate||toDate-fromDate>366*MS_PER_DAY)throw fail('Période invalide (366 jours maximum)');
     const where = {
       userId,
       ...notRefunded,
@@ -265,27 +260,22 @@ exports.getAnalytics = async (req, res, next) => {
     const safeRate = getSafeRate(owner);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
 
-    const sales = await Sale.findAll({
-      where,
-      attributes: ['id', 'articles', 'montantTotal', 'devise', 'tauxChange', 'createdAt'],
-      order: [['createdAt', 'ASC']],
-      raw: true,
-    });
-
-    const periodByDay = {};
-    const topProductsMap = {};
+    const periodByDay = new Map();
+    const topProductsMap = new Map();
+    const monthlyMap=new Map();
     let totalRevenue = 0;
     let totalProfit = 0;
 
-    for (const s of sales) {
+    await scanSales(where,['articles','montantTotal','devise','tauxChange','createdAt'],s=>{
       const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
       const amount = toCDF(s.montantTotal, s.devise || shopCurrency, saleRate, safeRate);
       totalRevenue += amount;
       let cost = 0;
 
       const key = new Date(s.createdAt).toISOString().slice(0, 10);
-      if (!periodByDay[key]) periodByDay[key] = { date: key, revenue: 0, profit: 0 };
-      periodByDay[key].revenue += amount;
+      if(!periodByDay.has(key))periodByDay.set(key,{date:key,revenue:0,profit:0});
+      const day=periodByDay.get(key);day.revenue+=amount;
+      const month=key.slice(0,7);monthlyMap.set(month,(monthlyMap.get(month)||0)+amount);
 
       const items = safeParseArticles(s.articles);
       for (const item of items) {
@@ -298,14 +288,13 @@ exports.getAnalytics = async (req, res, next) => {
           : Number(toCDF(unitSale * quantite, item?.deviseProduit || s.devise || 'CDF', saleRate, safeRate) || 0);
         cost += toCDF((Number(item?.prixAchat || 0) * quantite), item?.deviseProduit || s.devise || 'CDF', saleRate, safeRate);
 
-        if (!topProductsMap[productKey]) topProductsMap[productKey] = { nom, quantite: 0, revenu: 0 };
-        topProductsMap[productKey].quantite += quantite;
-        topProductsMap[productKey].revenu += revenu;
+        if(!topProductsMap.has(productKey))topProductsMap.set(productKey,{nom,quantite:0,revenu:0});
+        const product=topProductsMap.get(productKey);product.quantite+=quantite;product.revenu+=revenu;
       }
       const dayProfit = amount - cost;
-      periodByDay[key].profit += dayProfit;
+      day.profit += dayProfit;
       totalProfit += dayProfit;
-    }
+    });
 
     const stockByCategoryRaw = await Product.findAll({
       where: { userId },
@@ -317,38 +306,15 @@ exports.getAnalytics = async (req, res, next) => {
       raw: true,
     });
 
-    const monthlyLookbackDays = period === 'today' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : period === '1y' ? 365 : 183;
-    const monthlyFromDate = new Date(Date.now() - monthlyLookbackDays * MS_PER_DAY);
-
-    const monthlySales = await Sale.findAll({
-      where: {
-        userId,
-        ...notRefunded,
-        createdAt: { [Op.gte]: monthlyFromDate, [Op.lte]: toDate },
-      },
-      attributes: ['montantTotal', 'devise', 'tauxChange', 'createdAt'],
-      order: [['createdAt', 'ASC']],
-      raw: true,
-    });
-
-    const monthlyMap = new Map();
-    for (const s of monthlySales) {
-      const dt = new Date(s.createdAt);
-      const month = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
-      const saleRate = Number(s.tauxChange) > 1 ? Number(s.tauxChange) : safeRate;
-      const amount = toCDF(s.montantTotal, s.devise || shopCurrency, saleRate, safeRate);
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + amount);
-    }
-
     const monthlyRevenueRows = Array.from(monthlyMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([month, revenue]) => ({ month, revenue: round2(revenue) }));
 
     const payload = {
       totals: { revenue: round2(totalRevenue), profit: round2(totalProfit) },
-      periodData: Object.values(periodByDay).map((p) => ({ ...p, revenue: round2(p.revenue), profit: round2(p.profit || 0) })),
-      topProducts: Object.values(topProductsMap)
-        .sort((a, b) => b.revenu - a.revenu)
+      periodData: Array.from(periodByDay.values()).sort((a,b)=>a.date.localeCompare(b.date)).map((p) => ({ ...p, revenue: round2(p.revenue), profit: round2(p.profit || 0) })),
+      topProducts: Array.from(topProductsMap.values())
+        .sort((a, b) => b.revenu - a.revenu||String(a.nom).localeCompare(String(b.nom)))
         .slice(0, 10)
         .map((p) => ({ ...p, revenu: round2(p.revenu) })),
       stockByCategory: stockByCategoryRaw.map((r, i) => ({
@@ -361,6 +327,7 @@ exports.getAnalytics = async (req, res, next) => {
         values: monthlyRevenueRows.map((r) => Number(r.revenue || 0)),
       },
       revenuTotal: round2(totalRevenue),
+      coverage:{from:fromDate.toISOString(),to:toDate.toISOString(),timezone:'UTC',basis:'legacy-sales-estimate',currency:'CDF'},
     };
 
     return sendResponse(res, 200, payload, 'Analytiques avancees recuperees');

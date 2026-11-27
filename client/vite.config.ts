@@ -59,7 +59,7 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4194304,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         // Heavy optional tools and screenshots load only when actually requested.
-        globIgnores:['**/screen*.png','**/xlsx-*.js','**/BarcodeScanner-*.js'],
+        globIgnores:['**/screen*.png','**/team/*.png','**/xlsx-*.js','**/BarcodeScanner-*.js'],
         navigateFallbackDenylist:[/^\/api(?:\/|$)/],
         runtimeCaching: [
           {

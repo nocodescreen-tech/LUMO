@@ -34,6 +34,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/stats',require('../routes/statsRoutes'));
  app.use('/search',require('../routes/searchRoutes'));
  app.get('/clients/:id/sales',protect,checkPermission('clients'),clients.getClientSales);
  app.use('/contact',require('../routes/contactRoutes'));
@@ -934,6 +935,22 @@ suite('Commercial PostgreSQL integration',()=>{
   const report={commit:process.env.GITHUB_SHA||null,synthetic:true,scope:'isolated PostgreSQL + in-process Express, not production network capacity',measurements,invariants:'passed'};
   console.log('LUMO_PERFORMANCE '+JSON.stringify(report));
   fs.writeFileSync('commercial-performance.json',JSON.stringify(report,null,2));
+ },120000);
+ test('large legacy analytics fixture: batch boundary, FX, refund exclusion and tenant isolation',async()=>{
+ const {performance}=require('node:perf_hooks'),fs=require('node:fs');
+ const owner=await User.create({nom:'Stats fixture',email:'stats-volume@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'stats-volume'}],entreprise:{nom:'Stats fixture',devise:'CDF'},preferences:{exchangeRate:2500}});
+ const token=generateToken(owner.id,'stats-volume').accessToken,stamp=new Date(Date.now()-3600000);
+ const row=(i,extra={})=>({userId:owner.id,sellerId:owner.id,montantTotal:i%2?25000:10,devise:i%2?'CDF':'USD',tauxChange:2500,statut:'Complétée',profitNet:15000,articles:[{nom:'__proto__',quantite:1,prixAchat:i%2?10000:4,prixUnitaire:i%2?25000:10,deviseProduit:i%2?'CDF':'USD'}],createdAt:stamp,updatedAt:stamp,...extra});
+ for(let i=0;i<2400;i+=300)await Sale.bulkCreate(Array.from({length:300},(_,j)=>row(i+j)),{hooks:false});
+ await Sale.bulkCreate([row(0,{statut:'Remboursée'}),row(0,{deletedAt:stamp}),row(0,{userId:b.id,sellerId:b.id})],{hooks:false});
+ const get=async(path)=>{const start=performance.now(),r=await request(app).get(path).set('Authorization','Bearer '+token);expect(r.status).toBe(200);return {data:r.body.data,ms:Math.round(performance.now()-start)}};
+ const dashboard=await get('/stats/dashboard'),chart=await get('/stats/sales-chart?period=7d'),analytics=await get('/stats/analytics?period=7d');
+ expect(dashboard.data.summary.totalSales).toBe(2400);expect(dashboard.data.summary.revenue).toBe(60000000);expect(dashboard.data.summary.revenueUSD).toBe(24000);expect(dashboard.data.summary.profitNetEstimation).toBe(36000000);
+ expect(chart.data.data.reduce((n,r)=>n+r.totalCommandes,0)).toBe(2400);expect(chart.data.data.reduce((n,r)=>n+r.revenue,0)).toBe(60000000);
+ expect(analytics.data.totals).toEqual({revenue:60000000,profit:36000000});expect(analytics.data.topProducts[0]).toEqual({nom:'__proto__',quantite:2400,revenu:60000000});expect(analytics.data.monthlyRevenue.values.reduce((a,b)=>a+b,0)).toBe(60000000);
+ expect((await request(app).get('/stats/analytics?period=invalid').set('Authorization','Bearer '+token)).status).toBe(400);
+ const report={commit:process.env.GITHUB_SHA||null,syntheticLegacySales:2403,acceptedSales:2400,batchSize:500,measurementsMs:{dashboard:dashboard.ms,chart:chart.ms,analytics:analytics.ms},invariants:'passed',scope:'isolated PostgreSQL; imported legacy fixtures have no journal postings'};
+ console.log('LUMO_ANALYTICS_VOLUME '+JSON.stringify(report));fs.writeFileSync('commercial-analytics-volume.json',JSON.stringify(report,null,2));
  },120000);
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
