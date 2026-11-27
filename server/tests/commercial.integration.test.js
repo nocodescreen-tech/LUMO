@@ -800,6 +800,26 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await request(app).delete('/ai/chat/history').set('Authorization','Bearer '+token)).status).toBe(200);
  expect((await get('/ai/chat/history',token)).body).toEqual([]);
  });
+ test('plan policies control new CRM records and serialize AI attempts without locking existing data',async()=>{
+ const {PlanEntitlement,Subscription,Organization}=require('../models'),rights=require('../utils/planEntitlements');
+ const owner=await User.findOne({where:{email:'saas-test@example.com'}}),ct=generateToken(owner.id,'saas-customer-session').accessToken,p=await User.findOne({where:{email:'platform@example.com'}}),pt=generateToken(p.id,'test-session').accessToken;
+ const url='/platform/billing/commercial/entitlements',body={plan:'BUSINESS',enforced:true,crmCreate:false,aiLimit:1,reason:'Controlled rollout',expectedPolicyId:null,confirm:true,operationId:'entitlement-test-001'};
+ const postAs=(path,b,t)=>request(app).post(path).set('Authorization','Bearer '+t).send(b);
+ expect((await postAs(url,body,ct)).status).toBe(403);
+ const saved=await postAs(url,body,pt);expect(saved.status).toBe(201);
+ expect((await postAs(url,body,pt)).status).toBe(200);
+ const attempts=await Promise.allSettled([rights.reserveAI(owner.id),rights.reserveAI(owner.id)]);expect(attempts.filter(v=>v.status==='fulfilled')).toHaveLength(1);expect(attempts.find(v=>v.status==='rejected').reason.statusCode).toBe(429);
+ const crm='/workspace/crm/opportunities',op={title:'Quota test',contactName:'Prospect',amount:100,currency:'CDF',operationId:'crm-policy-test-001'};
+ expect((await postAs(crm,op,ct)).status).toBe(403);
+ expect((await request(app).get(crm).set('Authorization','Bearer '+ct)).status).toBe(200);
+ const revised=await postAs(url,{...body,crmCreate:true,aiLimit:2,expectedPolicyId:saved.body.data.id,operationId:'entitlement-test-002'},pt);expect(revised.status).toBe(201);
+ expect((await postAs(crm,op,ct)).status).toBe(201);expect(await rights.reserveAI(owner.id)).toBe(2);
+ const info=await request(app).get('/workspace/subscription').set('Authorization','Bearer '+ct);expect(info.body.data.entitlements.aiUsed).toBe(2);
+ const org=await Organization.findOne({where:{ownerId:owner.id}});await Subscription.update({endsAt:new Date(Date.now()-1000)},{where:{organizationId:org.id}});
+ await expect(rights.reserveAI(owner.id)).rejects.toMatchObject({statusCode:403});expect((await request(app).get('/workspace/subscription').set('Authorization','Bearer '+ct)).status).toBe(200);
+ expect((await request(app).get(crm).set('Authorization','Bearer '+ct)).status).toBe(200);
+ await expect((await PlanEntitlement.findByPk(saved.body.data.id)).destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

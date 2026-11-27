@@ -1,11 +1,12 @@
 const express=require('express'),platform=express.Router(),customer=express.Router();
-const {User,Organization,Subscription,SubscriptionEvent,Branch,Warehouse,SaasPrice,SaasInvoice,SaasPayment,SaasInvoiceEvent,Product,Client,CashSession,Sale}=require('../models');
+const {User,Organization,Subscription,SubscriptionEvent,Branch,Warehouse,SaasPrice,SaasInvoice,SaasPayment,SaasInvoiceEvent,PlanEntitlement,Product,Client,CashSession,Sale}=require('../models');
 const {sequelize}=require('../config/database');
 const {Op}=require('sequelize');
 const {sendResponse}=require('../utils/response');
 const {fail,currency,money,round}=require('../utils/transactionSafety');
 const svc=require('../utils/workspaceService'),ledger=require('../utils/commercialLedger'),budget=require('../utils/budgetService');
 const {today}=require('../utils/lotService');
+const rights=require('../utils/planEntitlements');
 const plans=Object.keys(svc.plans).filter(p=>p!=='TRIAL');
 const owner=u=>u.role==='admin'&&!u.parentId;
 const clean=(v,n)=>svc.label(v,n);
@@ -22,6 +23,13 @@ async function action(req,op,model,fn){if(req.body.confirm!==true||!req.body.ope
  const row=await fn(actor,t);await ledger.remember(req,op,row.id,t);return {row,replayed:false};
  });}
 const respond=(res,r,label)=>sendResponse(res,r.replayed?200:201,r.row,label);
+platform.get('/entitlements',async(req,res,next)=>{try{return sendResponse(res,200,{plans:Object.keys(svc.plans),rows:await rights.catalog()},'Droits des offres');}catch(e){next(e)}});
+platform.post('/entitlements',async(req,res,next)=>{try{const r=await action(req,'saas.entitlement',PlanEntitlement,async(actor,t)=>{
+ await sequelize.query('SELECT pg_advisory_xact_lock(5140320, 0)',{transaction:t});
+ const b=req.body;if(!Object.hasOwn(svc.plans,b.plan)||typeof b.enforced!=='boolean'||typeof b.crmCreate!=='boolean'||!Number.isSafeInteger(b.aiLimit)||b.aiLimit<0||b.aiLimit>100000)throw fail('Politique invalide');
+ const previous=await rights.current(b.plan,t);if((previous?.id??null)!==b.expectedPolicyId)throw fail('Politique modifiée : actualisez',409);
+ return PlanEntitlement.create({plan:b.plan,actorId:actor.id,enforced:b.enforced,crmCreate:b.crmCreate,aiLimit:b.aiLimit,reason:clean(b.reason,250)},{transaction:t});
+ });return respond(res,r,'Politique enregistrée');}catch(e){next(e)}});
 platform.get('/prices',async(req,res,next)=>{try{return sendResponse(res,200,{rows:await prices(),plans:plans.map(code=>({code,...svc.plans[code]}))},'Tarifs');}catch(e){next(e)}});
 platform.post('/prices',async(req,res,next)=>{try{const r=await action(req,'saas.price',SaasPrice,async(actor,t)=>{
  await sequelize.query('SELECT pg_advisory_xact_lock(5140319, 0)',{transaction:t});
@@ -79,7 +87,7 @@ customer.get('/',async(req,res,next)=>{try{const context=await svc.context(req.u
  const [products,clients,staff,cashSessions,sales]=await Promise.all([Product.count({where:{userId:uid}}),Client.count({where:{userId:uid}}),User.count({where:{parentId:uid,isSuspended:false}}),CashSession.count({where:{userId:uid}}),Sale.count({where:{userId:uid}})]);
  const onboarding={profile:!!org.name&&!!org.currency,products:products>0,clients:clients>0,staff:staff>0,cash:cashSessions>0,sales:sales>0};
  const catalog=(await prices()).filter(v=>v.enabled).map(({id,plan,currency,days,amount})=>({id,plan,currency,days,amount}));
- return sendResponse(res,200,{...context,usage:{branches,warehouses},onboarding,openInvoices,catalog,plans:plans.map(code=>({code,...svc.plans[code]})),enforcement:'registry-only'},'Mon abonnement');}catch(e){next(e)}});
+ return sendResponse(res,200,{...context,usage:{branches,warehouses},onboarding,entitlements:await rights.describe(uid),openInvoices,catalog,plans:plans.map(code=>({code,...svc.plans[code]})),enforcement:'registry-and-configured-features'},'Mon abonnement');}catch(e){next(e)}});
 customer.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),r=await SaasInvoice.findAndCountAll({where:{ownerId:req.user.id},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Mes factures');}catch(e){next(e)}});
 customer.get('/invoices/:id',(req,res,next)=>detail(req,res,next,false));
 module.exports={platform,customer};

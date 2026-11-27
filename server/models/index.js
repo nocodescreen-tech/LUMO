@@ -35,6 +35,7 @@ const budgets=require('./Budget');
 const NotificationSetting=require('./NotificationSetting');
 const crm=require('./CRM');
 const billing=require('./SaasBilling');
+const entitlements=require('./PlanEntitlement');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -81,5 +82,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables, ...repairBilling, AccountingLock, ...treasury, StaffAssignment, ...hr, ...payroll, AccessRevision, ...expenseApproval, ...budgets, NotificationSetting, ...crm, ...billing
+  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables, ...repairBilling, AccountingLock, ...treasury, StaffAssignment, ...hr, ...payroll, AccessRevision, ...expenseApproval, ...budgets, NotificationSetting, ...crm, ...billing, ...entitlements
 };

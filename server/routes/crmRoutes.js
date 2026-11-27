@@ -7,6 +7,7 @@ const {sendResponse}=require('../utils/response');
 const {fail,money,currency,round}=require('../utils/transactionSafety');
 const ledger=require('../utils/commercialLedger');
 const {today}=require('../utils/lotService');
+const rights=require('../utils/planEntitlements');
 const stages=['NEW','QUALIFIED','PROPOSAL','NEGOTIATION','WON','LOST'];
 const active=stages.slice(0,4);
 const owner=u=>u.role==='admin'&&!u.parentId;
@@ -25,6 +26,7 @@ async function mutate(req,op,model,fn){if(!req.body.operationId)throw fail('Clé
  const actor=req.user.id===uid?org:await User.findOne({where:{id:req.user.id,parentId:uid},transaction:t,lock:t.LOCK.UPDATE});
  if(!actor||actor.isSuspended||!allowed(actor))throw fail('Accès révoqué',403);
  const prior=await ledger.replay(req,op,t);if(prior){const row=await model.findOne({where:{id:prior.resourceId,userId:uid,...(model===Opportunity&&!owner(actor)?{assigneeId:actor.id}:{})},transaction:t});if(!row)throw fail('Historique indisponible',409);return {row,replayed:true};}
+ if(op==='crm.create')await rights.check(uid,'crmCreate',t);
  const row=await fn(org,actor,t);await ledger.remember(req,op,row.id,t);return {row,replayed:false};
  });}
 async function assign(org,actor,value,t){const assignee=id(value??actor.id);if(!owner(actor)&&assignee!==actor.id)throw fail('Attribution réservée au propriétaire',403);if(assignee===org.id)return assignee;
@@ -35,7 +37,7 @@ async function fields(org,actor,b,t){const c=currency(org.entreprise?.devise);if
 async function event(row,actor,kind,note,t){const {stage,assigneeId,version,followUpOn,amount,currency,clientId}=row;await OpportunityEvent.create({userId:row.userId,opportunityId:row.id,actorId:actor.id,kind,note,snapshot:{stage,assigneeId,version,followUpOn,amount,currency,clientId}},{transaction:t});}
 router.get('/context',async(req,res,next)=>{try{const u=req.user,uid=u.tenantId,org=await User.findByPk(uid,{attributes:['entreprise']});
  const people=owner(u)?await User.findAll({where:{[Op.or]:[{id:uid},{parentId:uid,isSuspended:false}]},attributes:['id','nom','role','parentId','permissions'],order:[['nom','ASC']]}):[];
- return sendResponse(res,200,{actorId:u.id,owner:owner(u),currency:currency(org.entreprise?.devise),today:today(),assignees:people.filter(allowed).map(x=>({id:x.id,nom:x.nom})),stages},'Contexte CRM');}catch(e){next(e)}});
+ return sendResponse(res,200,{actorId:u.id,owner:owner(u),currency:currency(org.entreprise?.devise),today:today(),canCreate:(await rights.describe(uid)).crmCreate,assignees:people.filter(allowed).map(x=>({id:x.id,nom:x.nom})),stages},'Contexte CRM');}catch(e){next(e)}});
 router.get('/opportunities',async(req,res,next)=>{try{const {page,limit}=paging(req.query),base=scope(req.user),where={...base};if(stages.includes(req.query.stage))where.stage=req.query.stage;
  if(req.query.due==='true'){where.stage={[Op.in]:active};where.followUpOn={[Op.lte]:today()};}
  if(typeof req.query.q==='string'&&req.query.q.trim())where[Op.or]=[{title:{[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'}},{contactName:{[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'}}];

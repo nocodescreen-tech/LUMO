@@ -2,6 +2,7 @@ const OpenAI=require('openai');
 const {User}=require('../models');
 const {sequelize}=require('../config/database');
 const knowledge=require('../ai/businessKnowledge');
+const rights=require('../utils/planEntitlements');
 const logger=require('../utils/logger');
 const owner=req=>req.user?.role==='admin'&&!req.user.parentId&&!req.isImpersonating;
 const fail=(res,status,message)=>res.status(status).json({message});
@@ -26,7 +27,9 @@ async function chatAI(req,res,next){
  if(!validMessage(req.body?.message))return fail(res,400,'Message de 1 à 2000 caractères requis');
  const message=req.body.message.trim(),en=req.user.preferences?.language==='en';let answer='';
  try{
- const s=await knowledge.snapshot(req.user.id),p=provider();
+ const p=provider();
+ if(p){try{await rights.reserveAI(req.user.id);}catch(e){if([403,429].includes(e.statusCode))return fail(res,e.statusCode,e.message);throw e;}}
+ const s=await knowledge.snapshot(req.user.id);
  start(res);
  if(!p){answer=offline(s,en);emit(res,{text:answer,source:'recorded-rules'});}
  else{
@@ -42,7 +45,7 @@ async function chatAI(req,res,next){
 async function publicChatAI(req,res){
  if(!validMessage(req.body?.message))return fail(res,400,'Message de 1 à 2000 caractères requis');
  const fallback='LUMO gère les ventes, stocks, achats, clients, CRM, budgets, comptabilité interne, RH et abonnements. Les tarifs et moyens de règlement sont communiqués par LUMO. Le paiement en ligne n’est pas activé. Consultez les informations de présentation ou contactez le support.';
- try{const p=provider();start(res);if(!p){emit(res,{text:fallback,source:'public-information'});return done(res);}
+ try{const p=process.env.LUMO_PUBLIC_AI_ENABLED==='true'?provider():null;start(res);if(!p){emit(res,{text:fallback,source:'public-information'});return done(res);}
  let any=false;try{const stream=await p.client.chat.completions.create({model:p.model,messages:[{role:'system',content:'You are LUMO public information assistant. Answer in the question language. Use only this public catalog: '+JSON.stringify(knowledge.modules)+'. No tenant data, tools, private records or actions. No invented prices, support contacts, guarantees, payment availability or statutory claims. Online checkout is not active. Users must contact LUMO for current pricing.'},{role:'user',content:req.body.message.trim()}],stream:true,max_tokens:500});for await(const chunk of stream){if(res.destroyed)break;const text=chunk.choices[0]?.delta?.content||'';if(text){any=true;emit(res,{text});}}if(!any)emit(res,{text:fallback});}catch(_){emit(res,any?{error:'Réponse interrompue.'}:{text:fallback,source:'public-information'});}done(res);
  }catch(_){if(!res.headersSent)return fail(res,503,'Assistant indisponible');done(res);}
 }
