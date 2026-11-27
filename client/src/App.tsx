@@ -98,7 +98,7 @@ const App = () => {
       
       // Synchronisation périodique (toutes les 15 minutes)
       const interval = setInterval(() => {
-        void checkAuth(false).catch(()=>{}); // Ne pas rediriger si l'appel échoue (laisse l'intercepteur gérer)
+        if(document.visibilityState==='visible')void checkAuth(false).catch(()=>{}); // Ne pas rediriger si l'appel échoue (laisse l'intercepteur gérer)
       }, 15 * 60 * 1000);
       
       return () => clearInterval(interval);

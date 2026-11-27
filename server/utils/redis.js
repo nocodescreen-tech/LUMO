@@ -7,13 +7,15 @@ let isRedisAvailable = false;
 
 // Fallback en mémoire
 const memoryCache = new Map();
+const expiries=new Map(),cacheKeys=new Map();
+const drop=key=>{const timer=expiries.get(key);if(timer)clearTimeout(timer);expiries.delete(key);cacheKeys.delete(key);return memoryCache.delete(key)};
+function put(key,val,seconds){drop(key);if(String(key).startsWith('cache:')){while(cacheKeys.size>=500)drop(cacheKeys.keys().next().value);cacheKeys.set(key,true)}memoryCache.set(key,val);if(seconds){const timer=setTimeout(()=>drop(key),seconds*1000);timer.unref?.();expiries.set(key,timer)}}
 const memoryFallback = {
     get: async (key) => memoryCache.get(key),
     set: async (key, val, mode, expires) => {
-        memoryCache.set(key, val);
-        if (expires) setTimeout(() => memoryCache.delete(key), expires * 1000);
+        put(key,val,expires);
     },
-    del: async (key) => memoryCache.delete(key),
+    del: async (...keys) => keys.reduce((n,key)=>n+Number(drop(key)),0),
     exists: async (key) => memoryCache.has(key) ? 1 : 0,
     sadd: async (key, val) => {
         if (!memoryCache.has(key)) memoryCache.set(key, new Set());
@@ -24,12 +26,11 @@ const memoryFallback = {
         return (set && set.has(val)) ? 1 : 0;
     },
     setex: async (key, seconds, val) => {
-        memoryCache.set(key, val);
-        setTimeout(() => memoryCache.delete(key), seconds * 1000);
+        put(key,val,seconds);
     },
     keys: async (pattern) => {
         // Simple string match pattern translation (very basic, but enough for cache:*)
-        const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        const regexPattern = new RegExp('^' + pattern.split('*').map(p=>p.replace(/[.*+?^$\${}()|[\]\\]/g,'\\$&')).join('.*') + '$');
         const matchedKeys = [];
         for (const key of memoryCache.keys()) {
             if (regexPattern.test(key)) {

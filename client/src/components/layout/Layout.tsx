@@ -66,19 +66,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     // Recherche API avec debounce
     useEffect(() => {
-        let cancelled=false;
-        if (searchQuery.length >= 2) {
+        const ctl=new AbortController();
+        if (searchQuery.trim().length >= 2) {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = setTimeout(async () => {
                 try {
-                    const { data } = await api.get('/search?q=' + encodeURIComponent(searchQuery));
-                    if(!cancelled)setApiSearchResults(data);
-                } catch { if(!cancelled)setApiSearchResults(null); }
+                    const { data } = await api.get('/search',{params:{q:searchQuery.trim()},signal:ctl.signal});
+                    if(!ctl.signal.aborted)setApiSearchResults(data);
+                } catch { if(!ctl.signal.aborted)setApiSearchResults(null); }
             }, 300);
         } else {
             setApiSearchResults(null);
         }
-        return () => { cancelled=true;if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+        return () => { ctl.abort();if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
     }, [searchQuery]);
     const navigate = useNavigate();
     const location = useLocation();
@@ -99,19 +99,23 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
+            osc.onended=()=>{void ctx.close().catch(()=>{})};
             osc.stop(ctx.currentTime + 0.2);
         } catch (_) {
             // Silent fallback if audio is blocked by browser policy
         }
     }, []);
 
-    const fetchUnreadCount = React.useCallback(async () => {
+    const unreadBusy=useRef(false),unreadAgain=useRef(false);
+    const fetchUnreadCount = React.useCallback(async function fetchCount() {
         const id=user?.id;
-        if(!id)return;
+        if(!id||document.visibilityState==='hidden')return;
+        if(unreadBusy.current){unreadAgain.current=true;return;}
+        unreadBusy.current=true;
         try {
             const {data}=await api.get('/notifications/summary');
             if(useAuthStore.getState().user?.id===id)setUnreadCount(Number(data?.data?.unread)||0);
-        } catch (_) { /* Preserve last known count on network error. */ }
+        } catch (_) { /* Preserve last known count on network error. */ }finally{unreadBusy.current=false;if(unreadAgain.current){unreadAgain.current=false;if(useAuthStore.getState().user?.id===id)void fetchCount();}}
     },[user?.id]);
 
     useEffect(()=>{
@@ -120,19 +124,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         const id=user.id;
         let stopped=false,scanning=false;
         const poll=async()=>{
-            if(stopped||scanning||useAuthStore.getState().user?.id!==id)return;
+            if(stopped||scanning||document.visibilityState==='hidden'||useAuthStore.getState().user?.id!==id)return;
             scanning=true;
             try{if(user.role!=='superadmin')await api.post('/notifications/refresh',{});}catch(_){}
             finally{scanning=false;if(!stopped)void fetchUnreadCount();}
         };
         void poll();
-        const interval=setInterval(poll,60000);
+        const interval=setInterval(poll,60000);document.addEventListener('visibilitychange',poll);
         const socket=socketService.connect(id);
         const onNotification=()=>{if(!stopped&&useAuthStore.getState().user?.id===id)void fetchUnreadCount();};
         const onLocalChange=()=>void fetchUnreadCount();
         socket.on('notification',onNotification);
         window.addEventListener('lumo-notifications-change',onLocalChange);
-        return()=>{stopped=true;clearInterval(interval);socket.off('notification',onNotification);socketService.disconnect();window.removeEventListener('lumo-notifications-change',onLocalChange);};
+        return()=>{stopped=true;clearInterval(interval);document.removeEventListener('visibilitychange',poll);socket.off('notification',onNotification);socketService.disconnect();window.removeEventListener('lumo-notifications-change',onLocalChange);};
     },[user?.id,user?.role,fetchUnreadCount]);
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');

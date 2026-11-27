@@ -20,3 +20,10 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run test -- --run
       - run: npm run build
+      - name: Record bundle size evidence
+        run: node scripts/bundle-report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commercial-bundle-report
+          path: client/bundle-report.json
+          retention-days: 30

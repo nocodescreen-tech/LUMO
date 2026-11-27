@@ -38,7 +38,7 @@ import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { saveBlob } from '../utils/exportUtils';
 import { exportToPDF } from '../utils/reportPDF';
-import * as XLSX from 'xlsx';
+
 import { BUSINESS_TYPES } from '../constants/businessTypes';
 import { useTranslation } from '../hooks/useTranslation';
 import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
@@ -140,7 +140,8 @@ const Products = () => {
     exportToPDF(dataToExport, language === 'en' ? 'Products Report' : 'Rapport des Produits', user);
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    let XLSX:typeof import('xlsx');try{XLSX=await import('xlsx')}catch{toast.error(language==='en'?'Excel module unavailable':'Module Excel indisponible');return;}
     const activityType = normalizeActivityType(user?.typeActivite);
     const businessFields = BUSINESS_TYPES[activityType]?.fields || [];
 
@@ -185,7 +186,7 @@ const Products = () => {
     for (let C = headerRange.s.c; C <= headerRange.e.c; C++) {
       const addr = XLSX.utils.encode_cell({ r: 0, c: C });
       if (!ws[addr]) continue;
-      ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '155E58' } } };
+      ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: 'C2410C' } } };
     }
 
     // Validation de liste pour la colonne Devise
@@ -236,6 +237,7 @@ const Products = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if(file.size>5*1024*1024){toast.error(language==='en'?'Maximum file size: 5 MB':'Taille maximale : 5 Mo');if(importInputRef.current)importInputRef.current.value='';return;}
     const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     if (!isExcel) {
       toast.error(t('invalidExcelFile'));
@@ -247,12 +249,14 @@ const Products = () => {
     reader.onload = async (event) => {
       try {
         const data = event.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
+        const XLSX=await import('xlsx');
+        const workbook = XLSX.read(data, { type: 'binary',sheetRows:1002 });
+        const sheetName = workbook.SheetNames.find(n=>['produits','products'].includes(n.trim().toLowerCase()))||workbook.SheetNames.find(n=>n.trim().toLowerCase()!=='instructions');
         if (!sheetName) throw new Error('No sheet found');
         const sheet = workbook.Sheets[sheetName];
         const parsedData: any[] = XLSX.utils.sheet_to_json(sheet);
 
+        if(parsedData.length>1000)throw new Error(language==='en'?'Maximum 1000 products per import':'Maximum 1000 produits par import');
         if (!parsedData.length) {
           throw new Error('Empty sheet');
         }

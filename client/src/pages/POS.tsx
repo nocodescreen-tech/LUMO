@@ -22,7 +22,7 @@ import {
     ScanLine
 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import BarcodeScanner from '../components/common/BarcodeScanner';
+const BarcodeScanner=React.lazy(()=>import('../components/common/BarcodeScanner'));
 import api from '../api/axios';
 import { postFinancial } from '../api/financialOperation';
 import { useCartStore } from '../store/useCartStore';
@@ -925,13 +925,13 @@ const POS = () => {
             {/* ── Real Barcode Scanner Modal (ZXing + USB HID) ── */}
             <AnimatePresence>
                 {showCameraModal && (
-                    <BarcodeScanner
+                    <React.Suspense fallback={<div role="status" className="glass" style={{position:'fixed',inset:0,zIndex:1000,display:'grid',placeContent:'center',gap:12,background:'var(--bg-card)'}}><Loader2 className="animate-spin" size={24}/><span>{language==='en'?'Loading scanner…':'Chargement du scanner…'}</span><button className="btn-premium secondary" onClick={()=>setShowCameraModal(false)}>{language==='en'?'Cancel':'Annuler'}</button></div>}><BarcodeScanner
                         onDetected={(code) => {
                             processBarcode(code);
                             setShowCameraModal(false);
                         }}
                         onClose={() => setShowCameraModal(false)}
-                    />
+                    /></React.Suspense>
                 )}
             </AnimatePresence>
         </div>

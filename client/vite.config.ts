@@ -52,12 +52,16 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
-          }
+          },
+          {urlPattern: /\/assets\/(?:xlsx|BarcodeScanner)-[^/]+\.js$/i,handler:'CacheFirst',options:{cacheName:'lumo-optional-tools-v1',expiration:{maxEntries:8,maxAgeSeconds:7*86400},cacheableResponse:{statuses:[200]}}}
         ]
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 4194304,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Heavy optional tools and screenshots load only when actually requested.
+        globIgnores:['**/screen*.png','**/xlsx-*.js','**/BarcodeScanner-*.js'],
+        navigateFallbackDenylist:[/^\/api(?:\/|$)/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
