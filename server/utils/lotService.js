@@ -4,7 +4,7 @@ const {Op}=require('sequelize');
 const {fail,positiveQuantity,currency,money,rateFor}=require('./transactionSafety');
 const ledger=require('./commercialLedger');
 const inventory=()=>require('./inventoryService');
-const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Kinshasa',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const today=()=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Kinshasa',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(k=>parts.find(p=>p.type===k).value).join('-');};
 const key=wh=>wh?.id??0;
 const clean=(v,max)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw fail('Texte invalide');return v.trim()};
 const validDate=v=>{if(v==null||v==='')return null;if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))throw fail('Date invalide');const d=new Date(v+'T00:00:00Z');if(!Number.isFinite(+d)||d.toISOString().slice(0,10)!==v)throw fail('Date invalide');return v;};
