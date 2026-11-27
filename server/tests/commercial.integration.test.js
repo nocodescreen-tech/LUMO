@@ -600,7 +600,8 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await put('/purchases/'+id,{statut:'Reçu'})).status).toBe(409);
  const decision={approvalAction:'APPROVE',expectedApprovalState:'PENDING',reason:'Approved order',confirm:true,operationId:'purchase-decision-test-01'};
  expect((await staffPut(id,decision)).status).toBe(403);
- const foreign=generateToken(b.id,'test-session').accessToken;expect((await request(app).put('/purchases/'+id).set('Authorization','Bearer '+foreign).send(decision)).status).toBe(404);
+ const otherOwner=await User.create({nom:'Foreign purchaser',email:'purchase-foreign-owner@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'purchase-foreign-session'}],entreprise:{nom:'Other shop',devise:'CDF'}});
+ const foreign=generateToken(otherOwner.id,'purchase-foreign-session').accessToken;expect((await request(app).put('/purchases/'+id).set('Authorization','Bearer '+foreign).send(decision)).status).toBe(404);
  expect((await put('/purchases/'+id,decision)).status).toBe(200);
  expect((await put('/purchases/'+id,decision)).status).toBe(200);
  expect((await product.reload()).stock).toBe(5);
