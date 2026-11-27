@@ -760,6 +760,32 @@ suite('Commercial PostgreSQL integration',()=>{
  const staff=await User.findOne({where:{email:'crm-seller-one@example.com'}});expect((await get('CDF',generateToken(staff.id,'crm-one-session').accessToken)).status).toBe(403);
  expect((await get('CDF',ta)).body.data.sellers.every(v=>v.sellerKey!==u.id)).toBe(true);
  });
+ test('SaaS invoices freeze prices and activate licenses only after manual receipt',async()=>{
+ const {SaasPrice,SaasInvoice,SaasPayment,Subscription,Organization}=require('../models');
+ const p=await User.findOne({where:{email:'platform@example.com'}}),token=generateToken(p.id,'test-session').accessToken;
+ const customer=await User.create({nom:'SaaS customer',email:'saas-test@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'saas-customer-session'}],entreprise:{nom:'SaaS test',devise:'CDF'}});
+ const ct=generateToken(customer.id,'saas-customer-session').accessToken,base='/platform/billing/commercial';
+ const send=(path,body,t=token)=>request(app).post(base+path).set('Authorization','Bearer '+t).send(body);
+ const get=(path,t)=>request(app).get(path).set('Authorization','Bearer '+t);
+ const price={plan:'BUSINESS',currency:'USD',days:30,amount:12,enabled:true,expectedPriceId:null,reason:'Test price',confirm:true,operationId:'saas-price-test-001'};
+ expect((await send('/prices',price,ct)).status).toBe(403);const created=await send('/prices',price);expect(created.status).toBe(201);
+ const invoice={ownerId:customer.id,priceId:created.body.data.id,dueOn:require('../utils/lotService').today(),reason:'Subscription invoice',confirm:true,operationId:'saas-invoice-test-001'};
+ const issued=await send('/invoices',invoice);expect(issued.status).toBe(201);const iid=issued.body.data.id;
+ expect((await send('/invoices',{...invoice,operationId:'saas-invoice-test-002'})).status).toBe(409);
+ const before=await get('/workspace/subscription',ct);expect(before.body.data.subscription.plan).toBe('TRIAL');
+ expect((await get('/workspace/subscription/invoices/'+iid,ta)).status).toBe(404);
+ expect((await send('/prices',{...price,amount:15,expectedPriceId:created.body.data.id,operationId:'saas-price-test-002'})).status).toBe(201);
+ const pay={action:'PAY',expectedStatus:'ISSUED',amount:12,currency:'USD',method:'BANK',externalReference:'TEST-RECEIPT-1',reason:'Manual receipt confirmed',confirm:true,operationId:'saas-payment-test-001'};
+ expect((await send('/invoices/'+iid+'/actions',{...pay,amount:15})).status).toBe(400);
+ expect((await send('/invoices/'+iid+'/actions',pay)).status).toBe(201);
+ expect((await send('/invoices/'+iid+'/actions',pay)).status).toBe(200);
+ expect(await SaasPayment.count({where:{invoiceId:iid}})).toBe(1);
+ const after=await get('/workspace/subscription',ct);expect(after.body.data.subscription.plan).toBe('BUSINESS');
+ const detail=await get('/workspace/subscription/invoices/'+iid,ct);expect(detail.body.data.invoice.amount).toBe('12.00');expect(detail.body.data.invoice.status).toBe('PAID');
+ await expect((await SaasPrice.findByPk(created.body.data.id)).destroy()).rejects.toThrow();
+ await expect((await SaasInvoice.findByPk(iid)).destroy()).rejects.toThrow();
+ expect((await get(base+'/metrics',token)).status).toBe(200);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

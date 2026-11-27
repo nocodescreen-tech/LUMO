@@ -6,6 +6,7 @@ const {sendResponse}=require('../utils/response');
 const {fail}=require('../utils/transactionSafety');
 const svc=require('../utils/workspaceService');
 router.use(protect,authorize('superadmin'));
+router.use('/commercial',require('./saasBillingRoutes').platform);
 router.get('/plans',(_req,res)=>sendResponse(res,200,Object.entries(svc.plans).map(([code,quotas])=>({code,...quotas,price:null})),'Plans et quotas provisoires'));
 router.get('/subscriptions',async(req,res,next)=>{try{const limit=Math.min(100,Math.max(1,parseInt(req.query.limit)||50)),page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1));const rows=await Subscription.findAndCountAll({order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:rows.rows,total:rows.count,page,limit},'Abonnements');}catch(e){next(e)}});
 router.post('/subscriptions/:ownerId/grant',async(req,res,next)=>{try{
