@@ -43,6 +43,7 @@ const Accounting = lazy(() => import('./pages/Accounting'));
 const Treasury = lazy(() => import('./pages/Treasury'));
 const StaffAssignments = lazy(() => import('./pages/StaffAssignments'));
 const HumanResources = lazy(() => import('./pages/HumanResources'));
+const Payroll = lazy(() => import('./pages/Payroll'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -137,6 +138,7 @@ const App = () => {
               {user?.role === 'admin' && <Route path="/treasury" element={<Treasury />} />}
               {user?.role === 'admin' && <Route path="/staff-assignments" element={<StaffAssignments />} />}
               {user?.role === 'admin' && <Route path="/hr" element={<HumanResources />} />}
+              {user?.role === 'admin' && <Route path="/payroll" element={<Payroll />} />}
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
