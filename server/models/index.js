@@ -12,6 +12,7 @@ const StockMovement = require('./StockMovement');
 const CashSession = require('./CashSession');
 const Feedback = require('./Feedback');
 const StaffPayment = require('./StaffPayment');
+const Depense=require('./Depense');
 const JournalEntry=require('./JournalEntry');
 const OperationReceipt=require('./OperationReceipt');
 
@@ -60,5 +61,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment, JournalEntry, OperationReceipt
+  StaffPayment, Depense, JournalEntry, OperationReceipt
 };

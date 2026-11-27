@@ -1,73 +1,30 @@
-const { StaffPayment, User } = require('../models');
-const { sendResponse } = require('../utils/response');
-
-exports.createPayment = async (req, res) => {
-  try {
-    const { staffId, amount, devise, type, date, note } = req.body;
-    const userId = req.tenantId;
-
-    // Check if staff member belongs to the tenant
-    const staffMember = await User.findOne({
-      where: { id: staffId, parentId: userId }
-    });
-
-    if (!staffMember) {
-      return res.status(404).json({ success: false, message: 'Membre d’équipe non trouvé' });
-    }
-
-    const payment = await StaffPayment.create({
-      userId,
-      staffId,
-      amount,
-      devise: devise || 'USD',
-      type: type || 'SALAIRE',
-      date: date || new Date(),
-      note
-    });
-
-    sendResponse(res, 201, payment, 'Paiement enregistré avec succès');
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-exports.getStaffPayments = async (req, res) => {
-  try {
-    const userId = req.tenantId;
-    const { staffId } = req.query;
-
-    const whereClause = { userId };
-    if (staffId) {
-      whereClause.staffId = staffId;
-    }
-
-    const payments = await StaffPayment.findAll({
-      where: whereClause,
-      order: [['date', 'DESC']],
-      include: [
-        { model: User, as: 'member', attributes: ['nom', 'email'] }
-      ]
-    });
-
-    sendResponse(res, 200, payments, 'Paiements récupérés');
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-exports.deletePayment = async (req, res) => {
-    try {
-      const payment = await StaffPayment.findOne({
-        where: { id: req.params.id, userId: req.tenantId }
-      });
-  
-      if (!payment) {
-        return res.status(404).json({ success: false, message: 'Paiement non trouvé' });
-      }
-  
-      await payment.destroy();
-      sendResponse(res, 200, null, 'Paiement supprimé');
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-};
+const {StaffPayment,User}=require('../models');
+const {sequelize}=require('../config/database');
+const {sendResponse}=require('../utils/response');
+const {fail}=require('../utils/transactionSafety');
+const ledger=require('../utils/commercialLedger');
+const {prepare,pay}=require('../utils/cashOutflow');
+const {logActivite}=require('./activiteController');
+const {invalidateCache}=require('../utils/cache');
+exports.createPayment=async(req,res,next)=>{try{
+ const {staffId,amount,devise,type='SALAIRE',note}=req.body,userId=req.user.tenantId;
+ if(!['SALAIRE','TRANSPORT','PRIME','AUTRE'].includes(type))throw fail('Type de paiement invalide');
+ const result=await sequelize.transaction(async transaction=>{
+  await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});
+  const prior=await ledger.replay(req,'staff.payment',transaction);
+  if(prior){const payment=await StaffPayment.findOne({where:{id:prior.resourceId,userId},transaction});if(!payment)throw fail('Paiement historique indisponible',409);return {payment,replayed:true};}
+  const member=await User.findOne({where:{id:staffId,parentId:userId},transaction});if(!member)throw fail('Membre d’équipe non trouvé',404);
+  const ctx=await prepare(req,transaction,amount,devise);
+  const payment=await StaffPayment.create({userId,staffId,amount:ctx.amount,devise:ctx.devise,type,date:new Date(),note:typeof note==='string'?note.slice(0,1000):null},{transaction});
+  await pay(req,transaction,ctx,'STAFF_PAYMENT',payment.id,'PAYROLL_EXPENSE');
+  await ledger.remember(req,'staff.payment',payment.id,transaction);return {payment,replayed:false};
+ });
+ if(!result.replayed)await logActivite(req.user.id,'PAIEMENT_PERSONNEL','Paiement #'+result.payment.id,'Finance',userId);
+ await invalidateCache('stats');return sendResponse(res,result.replayed?200:201,result.payment,'Paiement enregistré');
+}catch(e){next(e)}};
+exports.getStaffPayments=async(req,res,next)=>{try{
+ const userId=req.user.tenantId,where={userId};if(req.query.staffId)where.staffId=req.query.staffId;
+ const payments=await StaffPayment.findAll({where,order:[['date','DESC']],limit:500,include:[{model:User,as:'member',attributes:['nom','email']}]});
+ return sendResponse(res,200,payments,'Paiements récupérés');
+}catch(e){next(e)}};
+exports.deletePayment=async(req,res)=>res.status(409).json({message:'Suppression interdite. Un workflow de contrepassation est requis.'});

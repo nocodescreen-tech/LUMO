@@ -6,6 +6,8 @@ const sale=require('../controllers/SaleController');
 const purchase=require('../controllers/purchaseController');
 const cash=require('../controllers/cashController');
 const clients=require('../controllers/clientController');
+const expenses=require('../controllers/depenseController');
+const staff=require('../controllers/staffPaymentController');
 const generateToken=require('../utils/generateToken');
 const {protect,checkPermission}=require('../middleware/authMiddleware');
 const errorHandler=require('../middleware/errorHandler');
@@ -22,6 +24,9 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/cash/open',protect,checkPermission('cash.open'),cash.openSession);
  app.get('/cash/current',protect,cash.getCurrentSession);
  app.post('/clients/:id/settle',protect,clients.settleDebt);
+ app.post('/expenses',protect,expenses.create);
+ app.post('/expenses/:id/reverse',protect,expenses.reverse);
+ app.post('/staff-payments',protect,staff.createPayment);
  app.use(errorHandler);
  const post=(url,body)=>request(app).post(url).set('Authorization','Bearer '+ta).send(body);
  const put=(url,body)=>request(app).put(url).set('Authorization','Bearer '+ta).send(body);
@@ -67,6 +72,25 @@ suite('Commercial PostgreSQL integration',()=>{
   expect(Number((await CashSession.findOne({where:{userId:a.id,status:'OPEN'}})).totalExpenses)).toBe(20000);
  });
  test('duplicate sale operation is replayed without another stock decrement',async()=>{const before=(await pa.reload()).stock;const body=payload(pa,1,10,{operationId:'sale-idempotency-0001'});const r=await Promise.all([post('/sales',body),post('/sales',body)]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect((await pa.reload()).stock).toBe(before-1);expect((await post('/sales',{...body,montantTotal:999})).status).toBe(409);const entries=await JournalEntry.findAll({where:{userId:a.id,event:'SALE'}});expect(entries.length).toBeGreaterThan(0);expect(entries.every(e=>e.debitAccount!==e.creditAccount)).toBe(true)});
+ test('expense posts once, reversal is traceable',async()=>{
+ const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}});
+ const before=Number(session.expectedBalance),body={description:'Transport',categorie:'Transport',montant:5000,devise:'CDF',operationId:'expense-test-key-0001'};
+ const first=await post('/expenses',body);expect(first.status).toBe(201);
+ expect((await post('/expenses',body)).status).toBe(200);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before-5000);
+ const id=first.body.data.id;
+ expect((await post('/expenses/'+id+'/reverse',{reason:'Remboursement reçu'})).status).toBe(200);
+ expect((await post('/expenses/'+id+'/reverse',{reason:'Encore'})).status).toBe(409);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ });
+ test('staff payment rejects foreign or excessive amounts',async()=>{
+ expect((await post('/staff-payments',{staffId:b.id,amount:1000,devise:'CDF'})).status).toBe(404);
+ const member=await User.create({nom:'Staff',email:'staff@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id});
+ expect((await post('/staff-payments',{staffId:member.id,amount:9999999,devise:'CDF'})).status).toBe(409);
+ expect((await post('/staff-payments',{staffId:member.id,amount:1000,devise:'CDF',operationId:'payroll-test-key-0001'})).status).toBe(201);
+ expect((await post('/staff-payments',{staffId:member.id,amount:1000,devise:'CDF',operationId:'payroll-test-key-0001'})).status).toBe(200);
+ });
+ test('journal entries cannot be changed',async()=>{const row=await JournalEntry.findOne();await expect(row.update({amount:99})).rejects.toThrow();});
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
