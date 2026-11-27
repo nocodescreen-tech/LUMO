@@ -55,6 +55,7 @@ exports.createPurchase = async (req,res,next)=>{
    total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
    const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles},{transaction});
    const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+   if(statut==='Payé'&&!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
    if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}
    return result;
   });
@@ -64,11 +65,43 @@ exports.createPurchase = async (req,res,next)=>{
 };
 exports.updatePurchase=async(req,res,next)=>{
  try{
-  const purchase=await Purchase.findOne({where:{id:req.params.id,userId:req.user.tenantId}});
-  if(!purchase)throw fail('Achat non trouvé',404);
-  const fields=pick(req.body,['description','numeroFacture']);
-  if(!Object.keys(fields).length||Object.keys(req.body).some(k=>!['description','numeroFacture'].includes(k)))throw fail('Les achats financiers exigent un workflow de correction dédié',409);
-  await purchase.update(fields);return sendResponse(res,200,purchase,'Achat mis à jour');
+  const userId=req.user.tenantId;
+  const purchase=await sequelize.transaction(async transaction=>{
+   const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   const row=await Purchase.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});
+   if(!row)throw fail('Achat non trouvé',404);
+   const fields=pick(req.body,['description','numeroFacture','statut']);
+   if(!Object.keys(fields).length||Object.keys(req.body).some(k=>!['description','numeroFacture','statut'].includes(k)))throw fail('Les achats financiers exigent un workflow de correction dédié',409);
+   if(fields.statut!==undefined&&fields.statut!==row.statut){
+    const transitions={'En attente':['Expédié','Reçu','Payé'],'Expédié':['Reçu','Payé'],'Reçu':['Payé'],'Payé':[]};
+    if(!(transitions[row.statut]||[]).includes(fields.statut))throw fail('Transition d’achat non autorisée',409);
+    if(!Array.isArray(row.articles)||!row.articles.length||row.articles.some(a=>typeof a.received!=='boolean'))throw fail('Achat historique: rapprochement du stock nécessaire',409);
+    const devise=currency(row.devise),shopCurrency=currency(owner.entreprise?.devise),rate=rateFor(owner);
+    if(['Reçu','Payé'].includes(fields.statut)){
+     const updated=[];
+     for(const item of row.articles){
+      if(item.received){updated.push(item);continue;}
+      const qty=positiveQuantity(item.quantite),cost=money(item.prixAchat);let product;
+      if(item.id){
+       product=await Product.findOne({where:{id:item.id,userId},transaction,lock:transaction.LOCK.UPDATE});
+       if(!product)throw fail('Produit introuvable',409);
+       product.stockUpdateRaison='Réception Achat';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});
+      }else{product=await Product.create({userId,creatorId:req.user.id,nom:item.nom,prix:cost,prixAchat:cost,stock:qty,devise},{transaction});}
+      updated.push({...item,id:product.id,received:true});
+     }
+     fields.articles=updated;
+    }
+    if(fields.statut==='Payé'){
+     const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+     if(!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
+     const amount=convertCurrency(Number(row.montantTotal),devise,shopCurrency,rate);
+     session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});
+    }
+   }
+   await row.update(fields,{transaction});return row;
+  });
+  await invalidateCache('stats');await invalidateCache('products');await logActivite(req.user.id,'ACHAT',`Mise à jour achat #${purchase.id}`,'Achats',userId);
+  return sendResponse(res,200,purchase,'Achat mis à jour');
  }catch(error){next(error);}
 };
 exports.deletePurchase=async(req,res)=>res.status(409).json({message:"La suppression définitive des achats est désactivée. Un workflow d’annulation comptable est nécessaire."});

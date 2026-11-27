@@ -139,7 +139,8 @@ exports.createSale = async (req, res, next) => {
 
     // Normaliser montantTotal en CDF avant stockage
     const computedTotalSaleCurrency = Array.isArray(items) ? items.reduce((acc, it) => acc + (Number(it.prixUnitaire ?? it.prix ?? 0) * Number(it.quantite || 0)), 0) : 0;
-    const safeMontantTotal = Number.isFinite(computedTotalSaleCurrency) && computedTotalSaleCurrency > 0 ? computedTotalSaleCurrency : Number(montantTotal);
+    if(!Number.isFinite(computedTotalSaleCurrency)||computedTotalSaleCurrency<0)throw fail('Total de vente invalide');
+    const safeMontantTotal = computedTotalSaleCurrency;
 
     const montantTotalNormalized = round(safeMontantTotal,saleCurrency);
     if (Math.abs(Number(montantTotal)-montantTotalNormalized)>0.01) throw fail('Total du panier incohérent',409);

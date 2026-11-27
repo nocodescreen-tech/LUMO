@@ -1,0 +1,73 @@
+const express=require('express');
+const request=require('supertest');
+const {sequelize}=require('../config/database');
+const {User,Product,Client,Sale,Purchase,CashSession}=require('../models');
+const sale=require('../controllers/SaleController');
+const purchase=require('../controllers/purchaseController');
+const cash=require('../controllers/cashController');
+const clients=require('../controllers/clientController');
+const generateToken=require('../utils/generateToken');
+const {protect,checkPermission}=require('../middleware/authMiddleware');
+const errorHandler=require('../middleware/errorHandler');
+const suite=process.env.LUMO_RUN_INTEGRATION==='1'?describe:describe.skip;
+suite('Commercial PostgreSQL integration',()=>{
+ jest.setTimeout(45000);
+ let a,b,pa,pb,ca,cb,ta;
+ const app=express();
+ app.use(express.json());
+ app.post('/sales',protect,checkPermission('pos'),sale.createSale);
+ app.post('/sales/:id/refund',protect,checkPermission('sales.refund'),sale.refundSale);
+ app.post('/purchases',protect,checkPermission('purchases.add'),purchase.createPurchase);
+ app.put('/purchases/:id',protect,checkPermission('purchases.edit'),purchase.updatePurchase);
+ app.post('/cash/open',protect,checkPermission('cash.open'),cash.openSession);
+ app.get('/cash/current',protect,cash.getCurrentSession);
+ app.post('/clients/:id/settle',protect,clients.settleDebt);
+ app.use(errorHandler);
+ const post=(url,body)=>request(app).post(url).set('Authorization','Bearer '+ta).send(body);
+ const put=(url,body)=>request(app).put(url).set('Authorization','Bearer '+ta).send(body);
+ const payload=(product,qty,price,extra={})=>({items:[{id:product.id,nom:product.nom,prix:price,quantite:qty}],montantTotal:qty*price,devise:'USD',methodePaiement:'Cash',...extra});
+ beforeAll(async()=>{
+  if(process.env.DB_NAME_TEST!=='lumo_commercial_test'||process.env.DB_HOST!=='127.0.0.1'||process.env.DATABASE_URL)throw new Error('Dedicated local test DB required');
+  await sequelize.sync({force:true});
+  const user=(email)=>User.create({nom:email,email,motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'test-session'}],entreprise:{nom:'Shop',devise:'CDF'},preferences:{exchangeRate:2500}});
+  a=await user('a@example.com');b=await user('b@example.com');ta=generateToken(a.id,'test-session').accessToken;
+  pa=await Product.create({nom:'Own item',prix:10,prixAchat:4,devise:'USD',stock:10,userId:a.id});
+  pb=await Product.create({nom:'Foreign item',prix:10,prixAchat:4,devise:'USD',stock:10,userId:b.id});
+  ca=await Client.create({nom:'Own client',userId:a.id});cb=await Client.create({nom:'Foreign client',userId:b.id});
+ });
+ afterAll(async()=>{await sequelize.close()});
+ test('foreign product rejected',async()=>{expect((await post('/sales',payload(pb,1,10))).status).toBe(404);expect((await pb.reload()).stock).toBe(10)});
+ test('foreign client rolls back stock and sale',async()=>{expect((await post('/sales',payload(pa,1,10,{clientId:cb.id}))).status).toBe(404);expect((await pa.reload()).stock).toBe(10);expect(await Sale.count()).toBe(0)});
+ test('manipulated price rejected',async()=>{expect((await post('/sales',payload(pa,1,1))).status).toBe(409);expect((await pa.reload()).stock).toBe(10)});
+ test('concurrent cash open gives one register',async()=>{const r=await Promise.all([post('/cash/open',{openingBalance:100000}),post('/cash/open',{openingBalance:100000})]);expect(r.map(x=>x.status).sort()).toEqual([200,201]);expect(await CashSession.count({where:{userId:a.id,status:'OPEN'}})).toBe(1)});
+ test('cash sale converts amount; credit does not inflate cash; repayment is recorded',async()=>{
+  expect((await post('/sales',payload(pa,2,10))).status).toBe(201);
+  expect((await post('/sales',payload(pa,1,10,{methodePaiement:'Crédit',clientId:ca.id}))).status).toBe(201);
+  expect(Number((await ca.reload()).detteTotale)).toBe(25000);
+  let row=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}});expect(Number(row.totalSales)).toBe(50000);
+  expect((await post('/clients/'+ca.id+'/settle',{montant:10000})).status).toBe(200);
+  expect(Number((await ca.reload()).detteTotale)).toBe(15000);
+  row=await row.reload();expect(Number(row.expectedBalance)).toBe(160000);
+ });
+ test('purchase total mismatch rolls back stock',async()=>{
+  const before=(await pa.reload()).stock;
+  expect((await post('/purchases',{numeroFacture:'bad',articles:[{id:pa.id,nom:pa.nom,quantite:2,prixAchat:4}],montantTotal:1,devise:'USD',statut:'Reçu'})).status).toBe(409);
+  expect((await pa.reload()).stock).toBe(before);
+ });
+ test('purchase receipt is applied once and payment updates cash',async()=>{
+  const before=(await pa.reload()).stock;
+  expect((await post('/purchases',{numeroFacture:'order',articles:[{id:pa.id,nom:pa.nom,quantite:2,prixAchat:4}],montantTotal:8,devise:'USD',statut:'En attente'})).status).toBe(201);
+  const row=await Purchase.findOne({where:{numeroFacture:'order'}});
+  expect((await pa.reload()).stock).toBe(before);
+  expect((await put('/purchases/'+row.id,{statut:'Reçu'})).status).toBe(200);
+  expect((await pa.reload()).stock).toBe(before+2);
+  expect((await put('/purchases/'+row.id,{statut:'Payé'})).status).toBe(200);
+  expect((await pa.reload()).stock).toBe(before+2);
+  expect(Number((await CashSession.findOne({where:{userId:a.id,status:'OPEN'}})).totalExpenses)).toBe(20000);
+ });
+ test('revoked session denied',async()=>{
+  const token=generateToken(b.id,'revoked').accessToken;
+  const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
+  expect(res.status).toBe(401);
+ });
+});

@@ -30,7 +30,8 @@ const Notification = sequelize.define('Notification', {
 }, {
     timestamps: true,
     hooks: {
-        afterCreate: (notification) => {
+        afterCreate: (notification, options) => {
+            const emit = () => {
             try {
                 if (global.io) {
                     const data = notification.get({ plain: true });
@@ -39,6 +40,8 @@ const Notification = sequelize.define('Notification', {
             } catch (err) {
                 console.error('Socket.io notification error:', err);
             }
+            };
+            if (options.transaction) options.transaction.afterCommit(emit); else emit();
         }
     },
     indexes: [
