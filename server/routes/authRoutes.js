@@ -149,7 +149,7 @@ router.post('/resend-code', resendCode);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);
-router.post('/refresh', refreshAccessToken);
+router.post('/refresh', require('../middleware/sessionOrigin').protectRefresh, refreshAccessToken);
 router.get('/2fa/setup', protect, setupTOTP);
 router.post('/2fa/activate', protect, activateTOTP);
 router.post('/2fa/disable', protect, disable2FA);

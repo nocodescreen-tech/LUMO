@@ -20,7 +20,7 @@ const api = axios.create({
 // ─── Request Interceptor: attach access token & CSRF ──────────────────────────
 api.interceptors.request.use((config) => {
   const token = getToken();
-
+  if(String(config.url||'').split('?')[0].endsWith('/auth/refresh'))config.headers['X-Lumo-Client']='1';
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -86,7 +86,7 @@ api.interceptors.response.use(
       const { data } = await axios.post(
         `${api.defaults.baseURL}/auth/refresh`,
         {},
-        { withCredentials: true,timeout:12000 }
+        { withCredentials: true,timeout:12000,headers:{'X-Lumo-Client':'1'} }
       );
 
       if (!data.token) throw new Error('No token returned');

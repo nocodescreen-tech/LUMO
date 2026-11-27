@@ -262,10 +262,8 @@ const refreshAccessToken = async (req, res, next) => {
     const user = await User.findByPk(decoded.id);
     if (!user) return res.status(401).json({ message: 'Utilisateur non trouvé' });
 
-    if (user.isSuspended) {
-      return res.status(403).json({ message: 'Votre compte est suspendu' });
-    }
-
+    if(user.isSuspended)return res.status(403).json({message:'Votre compte est suspendu'});
+    if(user.parentId){const owner=await User.findByPk(user.parentId,{attributes:['id','role','parentId','isSuspended']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended)return res.status(403).json({message:'Entreprise indisponible'});}
     const sessionId = decoded.sessionId;
     if(!sessionId||!(user.activeSessions||[]).some(s=>s.sessionId===sessionId))return res.status(401).json({message:'Session révoquée',code:'SESSION_REPLACED'});
     const { accessToken, refreshToken: newRefreshToken } = generateToken(user.id, sessionId);

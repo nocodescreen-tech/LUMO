@@ -1,0 +1,27 @@
+# LUMO commercial-v2 — Release candidate qualification
+
+This is a checklist, not a certification or deployment authorization.
+
+## Evidence per exact commit
+- Backend CI: syntax, unit tests, dedicated PostgreSQL integration tests, migration re-run, isolated pg_dump/pg_restore with count and immutability trigger comparison.
+- Frontend CI: locked dependencies, Vitest and Vite build.
+- Dependency gate: npm production lockfile audit for server and client, high/critical findings or unavailable audit block this gate; review JSON artifacts. No automatic force upgrades.
+- Do not merge main, tag a production release or deploy until the release owner approves the exact commit and the checks below.
+
+## Staging configuration (never paste credentials in tickets or CI logs)
+- Set NODE_ENV=production, strong unique JWT_SECRET, database connection, CLIENT_URL and BACKEND_URL HTTPS URLs, explicit LUMO_ALLOWED_ORIGINS for permitted previews. Browser refresh now requires X-Lumo-Client: 1; deploy compatible frontend and backend together. Confirm desktop/mobile clients before upgrade.
+- Set and escrow LUMO_BACKUP_KEY_HEX; validate a real backup and restore into an isolated DB; never restore customer data into CI.
+- Verify SMTP/Resend, Cloudinary, AI provider when enabled, Redis and single/multiple process topology. Redis fallback and per-process rate limits are not clustered protection.
+- Review PostgreSQL TLS verification, secret rotation, data retention and consent, terms, tax/legal obligations and operator access. No external payment gateway is connected.
+
+## Manual acceptance on staging, using synthetic companies A and B
+1. Register, verify actual OTP, login, enable/disable 2FA, reset password, refresh after expiry, log out, revoke second session. Verify unauthorized origin and tenant rejection. Test desktop, Android and mobile browsers.
+2. Create product/branch/warehouse, purchase approval and receipt, sale in both currencies, refund, inventory count, serial/lot, cash close. Confirm reconciliation and ledger entry totals match source operations, and use a repeated operation key to verify idempotency.
+3. Create a credit sale, payment, document, budget warning/block, payroll, CRM, approved expense and SaaS invoice. Verify separation of currencies and role-specific controls; test across two companies and two branches.
+4. Navigate every visible route in light/dark mode, FR/EN, widths 360/768/1440. Test keyboard, reduced motion, modal focus, charts, forms, loading, failure and empty states. Record screenshots and defects. Test real PDF, XLSX, printer and scanner.
+5. Measure latency, errors, memory, DB connections and query load with a synthetic staging workload. Define and approve targets before calling a measurement pass. Never load-test production without authorization.
+6. Execute a staging database backup/restore and compare totals, schema checksums and integrity; confirm customer archive preview (direct production import remains disabled).
+7. Record commit SHA, workflow links, device/browser, date, failures, operator and approval. Any untested critical path is a release blocker.
+
+## Current status
+CI runs on synthetic data. No staging or production deployment, actual provider verification, visual sign-off, production recovery or load result is implied.

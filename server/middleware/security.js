@@ -6,52 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 
-// Static origins always allowed (development + Capacitor WebView APK + Tauri desktop)
-const baseAllowedOrigins = [
-    'http://localhost',
-    'https://localhost',
-    'capacitor://localhost',
-    'tauri://localhost',
-    'http://tauri.localhost',
-    'https://tauri.localhost',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    'http://localhost:5180',
-    'http://localhost:5181',
-    'http://localhost:3000',
-    'http://localhost:3001',
-];
-
-// Dynamically build the allowed-origins list at startup so that Railway
-// env vars (injected at container start) are picked up correctly.
-const buildAllowedOrigins = () => {
-    const origins = [...baseAllowedOrigins];
-
-    // Frontend URL explicitly configured (e.g. https://lumo-frontend-xxxx.up.railway.app)
-    if (process.env.CLIENT_URL) {
-        origins.push(process.env.CLIENT_URL);
-    }
-
-    // Backend's own public Railway domain – allows same-origin requests and
-    // lets the backend call itself without CORS errors.
-    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-        origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
-    }
-
-    return origins;
-};
-
-const isRailwayOrigin = (origin) => {
-    // Accept any Railway-hosted subdomain so preview / staging deployments
-    // work automatically without updating CLIENT_URL each time.
-    try {
-        const { hostname } = new URL(origin);
-        return hostname.endsWith('.up.railway.app');
-    } catch {
-        return false;
-    }
-};
+const {allowedOrigin}=require('./sessionOrigin');
 
 const securityMiddleware = (app) => {
     // Set security HTTP headers
@@ -69,18 +24,12 @@ const securityMiddleware = (app) => {
             // Allow requests with no origin (curl, mobile apps, server-to-server)
             if (!origin) return callback(null, true);
 
-            const allowedOrigins = buildAllowedOrigins();
-
-            if (allowedOrigins.includes(origin)) return callback(null, true);
-
-            // Allow any *.up.railway.app origin (covers preview deployments)
-            if (process.env.NODE_ENV !== 'production' && isRailwayOrigin(origin)) return callback(null, true);
-
-            callback(new Error('CORS: Origine non autorisée'));
+            if(allowedOrigin(origin))return callback(null,true);
+            const error=new Error('Origine non autorisée');error.statusCode=403;callback(error);
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Requested-With', 'X-XSRF-TOKEN', 'x-xsrf-token', 'Cache-Control', 'Pragma', 'Expires'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Requested-With', 'X-XSRF-TOKEN', 'x-xsrf-token', 'Cache-Control', 'Pragma', 'Expires', 'X-Lumo-Client'],
     }));
 
     // Cookie Parser for secure JWT cookies

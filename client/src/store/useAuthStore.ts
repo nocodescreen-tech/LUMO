@@ -77,6 +77,7 @@ const getStoredToken=()=>getMemoryToken();
 const setStoredToken=(token:string|null)=>{setMemoryToken(token);clearLegacyAuthStorage()};
 const loadInitialAuth=()=>{clearLegacyAuthStorage();return {user:null as User|null,token:null as string|null}};
 const initialAuth = loadInitialAuth();
+let hydrationPromise:Promise<boolean>|null=null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialAuth.user,
@@ -114,8 +115,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  hydrateFromRefresh: async () => {
-    try {
+  hydrateFromRefresh: () => {
+    if(hydrationPromise)return hydrationPromise;
+    hydrationPromise=(async()=>{try {
       const refreshResponse = await api.post('/auth/refresh');
       const token = refreshResponse.data?.token;
       if (!token) {
@@ -155,7 +157,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       clearLegacyAuthStorage();
       set({ token: null, user: null, hydrating: false });
       return false;
-    }
+    }finally{hydrationPromise=null}})();return hydrationPromise;
   },
 
   logout: async (shouldRedirect = true) => {

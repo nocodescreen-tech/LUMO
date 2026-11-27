@@ -1,0 +1,39 @@
+name: Commercial release dependency gate
+on:
+  push:
+    branches: [commercial-v2]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [server, client]
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit locked production dependencies
+        run: |
+          set +e
+          npm audit --omit=dev --package-lock-only --audit-level=high --json > dependency-audit.json
+          status=$?
+          set -e
+          node -e 'const r=require("./dependency-audit.json"); if(!r.metadata?.vulnerabilities) throw new Error("Audit unavailable"); console.log(JSON.stringify(r.metadata.vulnerabilities));'
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-audit-${{ matrix.directory }}
+          path: ${{ matrix.directory }}/dependency-audit.json
+          retention-days: 30

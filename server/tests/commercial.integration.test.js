@@ -18,6 +18,8 @@ suite('Commercial PostgreSQL integration',()=>{
  const app=express();
  app.use(require('../utils/operationalMetrics').observe);
  app.use(express.json());
+ app.use(require('cookie-parser')());
+ app.post('/auth/refresh',require('../middleware/sessionOrigin').protectRefresh,require('../controllers/authController').refreshAccessToken);
  app.get('/test-failure',(_req,_res,next)=>next(new Error('SECRET_TEST_VALUE')));
  app.post('/sales',protect,checkPermission('pos'),sale.createSale);
  app.post('/sales/:id/refund',protect,checkPermission('sales.refund'),sale.refundSale);
@@ -878,6 +880,18 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await request(app).post('/contact/visit').send({path:'/private',ua:'secret',referrer:'secret'})).status).toBe(400);
  expect((await request(app).post('/contact/visit').send({path:'/',lang:'fr',ua:'secret',referrer:'secret'})).status).toBe(200);
  const event=await require('../models').Activite.findOne({where:{type:'LANDING_VISIT'},order:[['id','DESC']]});expect(JSON.parse(event.description)).not.toHaveProperty('ua');expect(JSON.parse(event.description)).not.toHaveProperty('referrer');
+ });
+ test('cookie refresh requires client header and never restores revoked sessions',async()=>{
+ const actor=await User.create({nom:'Refresh test',email:'refresh-check@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'refresh-valid'}]});
+ const token=generateToken(actor.id,'refresh-valid').refreshToken,cookie='refreshToken='+token;
+ const refresh=(header=true)=>{const r=request(app).post('/auth/refresh').set('Cookie',cookie);return header?r.set('X-Lumo-Client','1'):r};
+ expect((await refresh(false)).status).toBe(403);
+ expect((await refresh().set('Origin','https://untrusted.example')).status).toBe(403);
+ const valid=await refresh();expect(valid.status).toBe(200);expect(valid.body.token).toBeTruthy();expect(valid.body.refreshToken).toBeUndefined();expect(valid.headers['set-cookie'].some(v=>v.includes('HttpOnly'))).toBe(true);
+ expect((await actor.reload()).activeSessions).toEqual([{sessionId:'refresh-valid'}]);
+ await actor.update({activeSessions:[]},{hooks:false});expect((await refresh()).status).toBe(401);
+ expect((await actor.reload()).activeSessions).toEqual([]);
+ expect((await request(app).get('/cash/current').set('Authorization','Bearer '+valid.body.token)).status).toBe(401);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
