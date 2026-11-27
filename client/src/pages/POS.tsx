@@ -263,7 +263,7 @@ const POS = () => {
                 else if (data && Array.isArray(data.products)) productsList = data.products;
             }
             
-            setProducts(productsList);
+            setProducts(productsList.map(p=>({...p,stock:p.unallocatedStock==null?p.stock:Number(p.unallocatedStock)})));
         } catch (error) {
             toast.error(t('errorLoadingProducts'));
         } finally {

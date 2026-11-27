@@ -1,6 +1,7 @@
 const { pick,fail }=require('../utils/transactionSafety');
 const inventory=require('../utils/inventoryService');
 const Product = require('../models/Product');
+const {sequelize}=require('../config/database');
 const { uploadImage } = require('../utils/cloudinary');
 const { logActivite } = require('./activiteController');
 const { validateProduct } = require('../middleware/validators');
@@ -22,6 +23,7 @@ exports.getProducts = async (req, res, next) => {
 
     const data = await Product.findAndCountAll({
       where: { userId: tenantId },
+      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock']]},
       order: [['createdAt', 'DESC']],
       limit: l,
       offset
@@ -149,7 +151,7 @@ exports.createBulkProducts = async (req, res, next) => {
     }
 
     const products = req.body.products.map(p => {
-      const productData = { ...p };
+      const productData = pick(p,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']);
       if (productData.prixVente !== undefined && productData.prix === undefined) {
         productData.prix = productData.prixVente;
       }

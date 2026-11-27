@@ -178,6 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Warehouses':'Entrepôts',icon:Package,path:'/inventory',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Support':'Assistance',icon:Activity,path:'/support',group:'STORE'}] : []),
         ...(user?.role === 'superadmin'
             ? [
