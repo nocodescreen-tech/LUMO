@@ -48,7 +48,28 @@ const Purchases = () => {
     const [showProductSuggestions, setShowProductSuggestions] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
+    const [decisionReason,setDecisionReason]=useState('');
+    const [decisionConfirm,setDecisionConfirm]=useState(false);
+    const [decisionBusy,setDecisionBusy]=useState(false);
+    const owner=user?.role==='admin';
+    const approvalLabels:Record<string,string>={PENDING:'À approuver',APPROVED:'Approuvé',REJECTED:'Refusé'};
+    const openPurchase=(purchase:any)=>{setSelectedPurchase(purchase);setDecisionReason('');setDecisionConfirm(false);setShowDetailModal(true);};
+    const decidePurchase=async(action:'APPROVE'|'REJECT')=>{
+        if(!selectedPurchase||decisionBusy||!decisionReason.trim()||!decisionConfirm)return;
+        setDecisionBusy(true);
+        try{
+            const r=await postFinancial('/purchases/'+selectedPurchase.id,{approvalAction:action,expectedApprovalState:'PENDING',reason:decisionReason.trim(),confirm:true},'purchase.approval','put');
+            setSelectedPurchase(r.data.data);setDecisionReason('');setDecisionConfirm(false);toast.success('Décision enregistrée');await fetchData();
+        }catch(e:any){toast.error(e.response?.data?.message||e.message||'Décision impossible');}finally{setDecisionBusy(false);}
+    };
+    const advancePurchase=async(statut:string)=>{
+        if(!selectedPurchase||decisionBusy||!decisionConfirm)return;
+        setDecisionBusy(true);
+        try{
+            const r=await api.put('/purchases/'+selectedPurchase.id,{statut});
+            setSelectedPurchase(r.data.data);setDecisionConfirm(false);toast.success('Achat mis à jour');await fetchData();
+        }catch(e:any){toast.error(e.response?.data?.message||e.message||'Opération impossible');}finally{setDecisionBusy(false);}
+    };
 
     const [formData, setFormData] = useState({
         fournisseurId: null,
@@ -139,6 +160,7 @@ const Purchases = () => {
 
             await postFinancial('/purchases', {
                 ...formData,
+                statut:owner?formData.statut:'En attente',
                 warehouseId:warehouseId?Number(warehouseId):null,
                 fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
                 montantTotal: Number(formData.montantTotal),
@@ -149,7 +171,7 @@ const Purchases = () => {
                     prixAchat: item.prixAchat
                 }))
             },'purchase.create');
-            toast.success(t('purchaseRecorded'));
+            toast.success(owner?t('purchaseRecorded'):'Demande transmise pour approbation');
             setShowModal(false);
             fetchData();
             setFormData({
@@ -189,17 +211,6 @@ const Purchases = () => {
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
-
-    const handleDeletePurchase = async (id: number, facture: string) => {
-        if (!confirm(`Supprimer l'achat ${facture || '#' + id} ?`)) return;
-        try {
-            await api.delete(`/purchases/${id}`);
-            toast.success('Achat supprimé');
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Erreur suppression');
-        }
-    };
 
     if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
     if (loading) return <PageSkeleton />;
@@ -289,8 +300,7 @@ const Purchases = () => {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         onClick={() => {
-                                            setSelectedPurchase(purchase);
-                                            setShowDetailModal(true);
+                                            openPurchase(purchase);
                                         }}
                                         style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s', cursor: 'pointer' }}
                                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
@@ -311,6 +321,7 @@ const Purchases = () => {
                                             <span style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: st.bg, color: st.color }}>
                                                 {localizedStatus}
                                             </span>
+                                            {purchase.approvalState&&<div style={{fontSize:'.75rem',marginTop:6,color:purchase.approvalState==='REJECTED'?'var(--danger)':'var(--text-muted)'}}>{approvalLabels[purchase.approvalState]}</div>}
                                         </td>
                                         <td style={{ padding: '16px', textAlign: 'right' }}>
                                             {(() => {
@@ -326,21 +337,14 @@ const Purchases = () => {
                                         <td style={{ padding: '16px', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                 <button
-                                                    onClick={() => { setSelectedPurchase(purchase); setShowEditModal(true); }}
+                                                    onClick={e => {e.stopPropagation();openPurchase(purchase);}}
                                                     className="glass btn-hover"
                                                     style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Modifier"
+                                                    title="Ouvrir le dossier" aria-label="Ouvrir le dossier"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDeletePurchase(purchase.id, purchase.numeroFacture)}
-                                                    className="glass btn-hover"
-                                                    style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Supprimer"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+
                                             </div>
                                         </td>
                                     </motion.tr>
@@ -476,7 +480,7 @@ const Purchases = () => {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('status')}</label>
-                                        <select value={formData.statut} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
+                                        <select disabled={!owner} value={owner?formData.statut:'En attente'} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
                                             <option value="En attente">{t('statusPending') || 'En attente'}</option>
                                             <option value="Expédié">{t('statusShipping') || 'En livraison'}</option>
                                             <option value="Reçu">{t('statusReceived') || 'Reçu en stock'}</option>
@@ -636,7 +640,7 @@ const Purchases = () => {
                             <div style={{ padding: '16px 28px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0, background: 'var(--bg-card)' }}>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>{t('cancel')}</button>
                                 <button form="purchase-form" type="submit" disabled={submitting} className="btn-premium primary" style={{ padding: '12px 28px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {t('registerPurchaseBtn')}
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {owner?t('registerPurchaseBtn'):'Soumettre pour approbation'}
                                 </button>
                             </div>
 
@@ -649,12 +653,12 @@ const Purchases = () => {
             <AnimatePresence>
                 {showDetailModal && selectedPurchase && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px' }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', maxHeight:'90dvh', overflowY:'auto', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                   <FileText size={24} color="var(--primary)" /> {t('purchaseDetailsTitle')}
                                 </h2>
-                                <button onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+                                <button disabled={decisionBusy} onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
@@ -683,6 +687,28 @@ const Purchases = () => {
                                 </div>
                             </div>
 
+                            {selectedPurchase.approvalState&&<section style={{padding:16,border:'1px solid var(--border)',borderRadius:12,marginBottom:20,display:'grid',gap:12}}>
+                                <strong>Contrôle d’achat · {approvalLabels[selectedPurchase.approvalState]}</strong>
+                                <span>Demandeur #{selectedPurchase.requestedBy}</span>
+                                {selectedPurchase.decidedBy&&<div style={{color:'var(--text-muted)'}}>Décision par #{selectedPurchase.decidedBy} · {new Date(selectedPurchase.decidedAt).toLocaleString('fr-FR')}<p>{selectedPurchase.decisionReason}</p></div>}
+                                {selectedPurchase.approvalState==='PENDING'&&<p>Aucun stock ni paiement ne peut être enregistré avant validation.</p>}
+                                {owner&&selectedPurchase.approvalState==='PENDING'&&<>
+                                    <label htmlFor="purchase-approval-reason">Motif de la décision</label>
+                                    <textarea id="purchase-approval-reason" maxLength={250} rows={3} value={decisionReason} onChange={e=>setDecisionReason(e.target.value)} disabled={decisionBusy} style={{padding:10,border:'1px solid var(--border)',borderRadius:8,background:'var(--bg-main)',color:'var(--text-main)'}}/>
+                                    <label><input type="checkbox" checked={decisionConfirm} onChange={e=>setDecisionConfirm(e.target.checked)} disabled={decisionBusy}/> Je confirme avoir contrôlé les articles et le montant.</label>
+                                    <div style={{display:'flex',flexWrap:'wrap',gap:8}}><button className="btn-premium primary" disabled={decisionBusy||!decisionConfirm||!decisionReason.trim()} onClick={()=>decidePurchase('APPROVE')}>Approuver</button><button className="btn-premium secondary" disabled={decisionBusy||!decisionConfirm||!decisionReason.trim()} onClick={()=>decidePurchase('REJECT')}>Refuser</button></div>
+                                </>}
+                            </section>}
+                            {owner&&(!selectedPurchase.approvalState||selectedPurchase.approvalState==='APPROVED')&&selectedPurchase.statut!=='Payé'&&<section style={{padding:16,border:'1px solid var(--border)',borderRadius:12,marginBottom:20,display:'grid',gap:10}}>
+                                <strong>Exécution de l’achat</strong>
+                                <p>La réception ajoute le stock. Le paiement débite la caisse ; confirmez uniquement après l’opération physique correspondante.</p>
+                                <label><input type="checkbox" checked={decisionConfirm} onChange={e=>setDecisionConfirm(e.target.checked)} disabled={decisionBusy}/> Je confirme l’opération physique sélectionnée.</label>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                                    {selectedPurchase.statut==='En attente'&&<button className="btn-premium secondary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Expédié')}>Expédié</button>}
+                                    {['En attente','Expédié'].includes(selectedPurchase.statut)&&<button className="btn-premium primary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Reçu')}>Enregistrer la réception</button>}
+                                    {selectedPurchase.statut==='Reçu'&&<button className="btn-premium primary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Payé')}>Enregistrer le paiement</button>}
+                                </div>
+                            </section>}
                             <div style={{ marginBottom: '24px' }}>
                                 <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Package size={18} /> {t('orderedItemsTitle')}
@@ -734,7 +760,7 @@ const Purchases = () => {
                             </div>
 
                             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
-                                <button onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>{t('close')}</button>
+                                <button disabled={decisionBusy} onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>{t('close')}</button>
                             </div>
                         </motion.div>
                     </div>

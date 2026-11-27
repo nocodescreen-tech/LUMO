@@ -5,7 +5,7 @@ const busy=new Set<string>();
 const canonical=(v:any):any=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
 const digest=async(value:unknown)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(value)))))).map(b=>b.toString(16).padStart(2,'0')).join('');
 // Persist only the operation key and payload digest, never customer names or amounts.
-export async function postFinancial(url:string,body:any,operation:string){
+export async function postFinancial(url:string,body:any,operation:string,method:'post'|'put'='post'){
  const actor=useAuthStore.getState().user?.id;
  if(!actor)throw new Error('Session expirée');
  if(!navigator.onLine)throw new Error('Connexion nécessaire pour valider cette transaction.');
@@ -27,7 +27,7 @@ export async function postFinancial(url:string,body:any,operation:string){
   if(!pending){pending={key:crypto.randomUUID(),hash};sessionStorage.setItem(storageKey,JSON.stringify(pending));}
   try{
    if(useAuthStore.getState().user?.id!==actor)throw new Error('Compte modifié pendant la transaction.');
-   const response=await api.post(url,{...body,operationId:pending.key});
+   const response=await api[method](url,{...body,operationId:pending.key});
    sessionStorage.removeItem(storageKey);return response;
   }catch(error:any){
    if(!raw&&[400,403,404,409,422].includes(error.response?.status))sessionStorage.removeItem(storageKey);
