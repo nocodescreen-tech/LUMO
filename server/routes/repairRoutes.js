@@ -8,6 +8,7 @@ const {sendResponse}=require('../utils/response');
 const ledger=require('../utils/commercialLedger');
 const {today}=require('../utils/lotService');
 const {validImei}=require('../utils/serialService');
+const billing=require('../utils/repairBillingService');
 const states=['RECEIVED','DIAGNOSIS','WAITING_APPROVAL','REPAIRING','READY','DELIVERED','CANCELLED'];
 const transition={RECEIVED:['DIAGNOSIS','CANCELLED'],DIAGNOSIS:['WAITING_APPROVAL','CANCELLED'],WAITING_APPROVAL:['REPAIRING','DIAGNOSIS','CANCELLED'],REPAIRING:['READY'],READY:['DELIVERED','REPAIRING']};
 const clean=(v,max,optional=false)=>{if(optional&&(v==null||v===''))return null;if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw fail('Texte invalide');return v.trim();};
@@ -40,6 +41,7 @@ router.post('/:id/actions',async(req,res,next)=>{try{
  const own=await owner(req,transaction),uid=own.id,prior=await ledger.replay(req,'repair.action',transaction);if(prior)return {row:await RepairEvent.findOne({where:{id:prior.resourceId,userId:uid},transaction}),replayed:true};
  const row=await RepairOrder.findOne({where:{id:req.params.id,userId:uid},transaction,lock:transaction.LOCK.UPDATE});if(!row)throw fail('Dossier introuvable',404);if(terminal.includes(row.status))throw fail('Dossier clôturé',409);
  if(req.body.expectedStatus!==row.status)throw fail('Le dossier a changé, actualisez',409);
+ await billing.guard(row,action,action==='transition'?req.body.status:null,transaction);
  const previous=row.status;let details={};
  if(action==='estimate'){if(row.status!=='DIAGNOSIS')throw fail('Diagnostic requis',409);const diagnosis=clean(req.body.diagnosis,3000);const estimate=money(req.body.estimate);const devise=currency(req.body.currency);details={diagnosis,estimate,currency:devise};await row.update({diagnosis,estimate,currency:devise,approvalStatus:'PENDING',status:'WAITING_APPROVAL'},{transaction});}
  else if(action==='approval'){if(row.status!=='WAITING_APPROVAL'||!['APPROVED','DECLINED'].includes(req.body.decision)||req.body.confirmCustomer!==true)throw fail('Confirmation de la décision du client requise',409);details={decision:req.body.decision};await row.update({approvalStatus:req.body.decision},{transaction});}
@@ -49,4 +51,6 @@ router.post('/:id/actions',async(req,res,next)=>{try{
  const e=await append(req,row,action.toUpperCase(),note,transaction,previous,details);await ledger.remember(req,'repair.action',e.id,transaction);return {row:e,replayed:false};
  });return sendResponse(res,result.replayed?200:201,result.row,'Intervention enregistrée');
 }catch(e){next(e)}});
+router.get('/:id/billing',async(req,res,next)=>{try{const order=await RepairOrder.findOne({where:{id:req.params.id,userId:req.user.tenantId}});if(!order)throw fail('Dossier introuvable',404);const bill=await billing.findBill(order),{page,limit}=pageOf(req.query),payments=bill?await require('../models').RepairPayment.findAndCountAll({where:{userId:order.userId,billId:bill.id},order:[['id','DESC']],limit,offset:(page-1)*limit}):{rows:[],count:0};const own=await User.findByPk(order.userId);return sendResponse(res,200,{bill,rows:payments.rows,total:payments.count,page,limit,accountingCurrency:currency(own.entreprise?.devise),currentRate:require('../utils/transactionSafety').rateFor(own)},'Facturation SAV');}catch(e){next(e)}});
+for(const [path,fn] of [['/:id/billing/pay',billing.pay],['/:id/billing/issue',billing.issue],['/:id/billing/reverse',billing.reverse]])router.post(path,async(req,res,next)=>{try{const r=await fn(req);return sendResponse(res,r.replayed?200:201,r.row,'Opération financière SAV enregistrée');}catch(e){next(e)}});
 module.exports=router;

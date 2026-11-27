@@ -349,6 +349,9 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await action('WAITING_APPROVAL',{action:'transition',status:'REPAIRING'})).status).toBe(201);
  expect((await action('REPAIRING',{action:'transition',status:'READY'})).status).toBe(201);
  expect((await action('READY',{action:'transition',status:'DELIVERED'})).status).toBe(409);
+ expect((await action('READY',{action:'transition',status:'DELIVERED',handoverConfirmed:true})).status).toBe(409);
+ const issue=await post('/repairs/'+id+'/billing/issue',{note:'Completed service',confirmCompleted:true,operationId:'sav-invoice-test-001'});expect(issue.status).toBe(201);
+ expect((await post('/repairs/'+id+'/billing/pay',{amount:37500,currency:'CDF',note:'Cash received',confirmCash:true,operationId:'sav-full-payment-001'})).status).toBe(201);
  expect((await action('READY',{action:'transition',status:'DELIVERED',handoverConfirmed:true})).status).toBe(201);
  const row=await RepairOrder.findByPk(id);expect(row.status).toBe('DELIVERED');expect((await unit.reload()).status).toBe('SOLD');expect((await product.reload()).stock).toBe(1);
  const event=await RepairEvent.findOne({where:{orderId:id}});await expect(event.destroy()).rejects.toThrow();
@@ -398,6 +401,34 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await Sale.findByPk(sale.body.data.id)).statut).toBe('Complétée');expect(await ReceivablePayment.count({where:{receivableId:row.id}})).toBe(3);
  const revenue=await JournalEntry.findAll({where:{userId:a.id,event:'SALE',reference:String(sale.body.data.id)}});expect(revenue.length).toBe(1);expect(Number(revenue[0].amount)).toBe(50000);
  const first=await ReceivablePayment.findOne({where:{receivableId:row.id}});await expect(first.destroy()).rejects.toThrow();
+ });
+ test('repair advances are liabilities until invoicing and refunds are single-use',async()=>{
+ const {RepairBill,RepairPayment}=require('../models');
+ const r=await post('/repairs',{deviceName:'External test',customerName:'SAV cash',issue:'Screen',condition:'Used',operationId:'sav-billing-intake-01'});expect(r.status).toBe(201);const id=r.body.data.id;
+ let n=0;const act=(expectedStatus,fields)=>post('/repairs/'+id+'/actions',{expectedStatus,note:'Test',operationId:'sav-billing-action-'+(++n),...fields});
+ expect((await act('RECEIVED',{action:'transition',status:'DIAGNOSIS'})).status).toBe(201);
+ expect((await act('DIAGNOSIS',{action:'estimate',diagnosis:'Test',estimate:20,currency:'USD'})).status).toBe(201);
+ expect((await act('WAITING_APPROVAL',{action:'approval',decision:'APPROVED',confirmCustomer:true})).status).toBe(201);
+ const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const url='/repairs/'+id+'/billing/',deposit={amount:10000,currency:'CDF',note:'Deposit',confirmCash:true,operationId:'sav-deposit-test-001'};
+ const first=await post(url+'pay',deposit);expect(first.status).toBe(201);expect((await post(url+'pay',deposit)).status).toBe(200);
+ const bill=await RepairBill.findOne({where:{userId:a.id,orderId:id}});expect(Number(bill.total)).toBe(50000);expect(Number(bill.paid)).toBe(10000);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'REPAIR_INVOICE',reference:String(bill.id)}})).toBe(0);
+ const reversal={paymentId:first.body.data.id,note:'Return cash',confirmCash:true,operationId:'sav-reverse-test-001'};
+ expect((await post(url+'reverse',reversal)).status).toBe(201);expect((await post(url+'reverse',reversal)).status).toBe(200);
+ expect((await post(url+'reverse',{...reversal,operationId:'sav-reverse-test-002'})).status).toBe(409);expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ expect((await post(url+'pay',{...deposit,operationId:'sav-deposit-test-002'})).status).toBe(201);
+ expect((await act('WAITING_APPROVAL',{action:'transition',status:'CANCELLED',handoverConfirmed:true})).status).toBe(409);
+ expect((await act('WAITING_APPROVAL',{action:'transition',status:'REPAIRING'})).status).toBe(201);
+ expect((await act('REPAIRING',{action:'transition',status:'READY'})).status).toBe(201);
+ const issue={note:'Work complete',confirmCompleted:true,operationId:'sav-final-invoice-001'};expect((await post(url+'issue',issue)).status).toBe(201);expect((await post(url+'issue',{...issue,operationId:'sav-final-invoice-002'})).status).toBe(201);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'REPAIR_INVOICE',reference:String(bill.id)}})).toBe(1);
+ expect((await post(url+'pay',{...deposit,amount:40001,operationId:'sav-excess-payment-01'})).status).toBe(409);
+ expect((await post(url+'pay',{...deposit,amount:40000,operationId:'sav-final-payment-01'})).status).toBe(201);
+ expect(Number((await bill.reload()).paid)).toBe(50000);expect(Number((await session.reload()).expectedBalance)).toBe(before+50000);
+ const foreign=generateToken(b.id,'support-test').accessToken;expect((await request(app).get(url.slice(0,-1)).set('Authorization','Bearer '+foreign)).status).toBe(404);
+ const payment=await RepairPayment.findByPk(first.body.data.id);await expect(payment.destroy()).rejects.toThrow();
+ expect((await act('READY',{action:'transition',status:'DELIVERED',handoverConfirmed:true})).status).toBe(201);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
