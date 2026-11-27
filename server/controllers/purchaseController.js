@@ -10,6 +10,14 @@ const { getPagination, getPagingData } = require('../utils/pagination');
 const { User } = require('../models');
 const { convertCurrency } = require('../utils/currency');
 const { sendResponse } = require('../utils/response');
+const isOwner=u=>u.role==='admin'&&!u.parentId;
+async function purchaseActor(req,owner,permission,transaction){
+ if(!owner||!isOwner(owner)||owner.isSuspended)throw fail('Entreprise indisponible',403);
+ if(req.user.id===owner.id)return owner;
+ const actor=await User.findOne({where:{id:req.user.id,parentId:owner.id},transaction,lock:transaction.LOCK.UPDATE});
+ if(!actor||actor.isSuspended||['admin','superadmin'].includes(actor.role)||!actor.permissions?.includes(permission))throw fail('Accès aux achats révoqué',403);
+ return actor;
+}
 
 exports.getPurchases = async (req, res, next) => {
   try {
@@ -38,7 +46,10 @@ exports.createPurchase = async (req,res,next)=>{
   const userId=req.user.tenantId;
   const purchase=await sequelize.transaction(async transaction=>{
    const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   const actor=await purchaseActor(req,owner,'purchases.add',transaction);
+   const managed=!isOwner(actor);
    await require('../utils/staffScope').restrictMutation(req.user,transaction);
+   if(managed&&!req.body.operationId)throw fail('Clé de transaction requise');
    const prior=await ledger.replay(req,'purchase.create',transaction);if(prior){const existing=await Purchase.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);return existing;}
    if(req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
    const wh=await inventory.warehouse(userId,req.body.warehouseId,transaction);
@@ -50,6 +61,7 @@ exports.createPurchase = async (req,res,next)=>{
    if(products.length!==ids.length)throw fail('Produit introuvable dans cette entreprise',404);
    const map=new Map(products.map(x=>[Number(x.id),x]));
    const statut=req.body.statut||'Payé';if(!['Payé','Reçu','Expédié','En attente'].includes(statut))throw fail('Statut d’achat invalide');
+   if(managed&&statut!=='En attente')throw fail('Un achat collaborateur doit être soumis pour approbation avant réception ou paiement',409);
    const received=['Payé','Reçu'].includes(statut);
    let total=0;const articles=[];
    for(const item of req.body.articles){
@@ -60,7 +72,7 @@ exports.createPurchase = async (req,res,next)=>{
     articles.push({id:product?.id??null,nom:product?.nom??item.nom.trim(),quantite:qty,prixAchat:cost,received});total+=qty*cost;
    }
    total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
-   const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles,warehouseId:wh?.id??null,tauxChange:rate,accountingCurrency:shopCurrency},{transaction});
+   const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles,warehouseId:wh?.id??null,tauxChange:rate,accountingCurrency:shopCurrency,approvalState:managed?'PENDING':null,requestedBy:managed?actor.id:null},{transaction});
    const session=await require('../utils/cashScope').open(userId,wh?.branchId??0,transaction);
    ledger.assertSessionCurrency(session,shopCurrency);
    if(statut==='Payé'&&!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
@@ -80,9 +92,22 @@ exports.updatePurchase=async(req,res,next)=>{
   const userId=req.user.tenantId;
   const purchase=await sequelize.transaction(async transaction=>{
    const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   const actor=await purchaseActor(req,owner,'purchases.edit',transaction);
    await require('../utils/staffScope').restrictMutation(req.user,transaction);
    const row=await Purchase.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});
    if(!row)throw fail('Achat non trouvé',404);
+   if(req.body.approvalAction!==undefined){
+    if(!isOwner(actor)||actor.id===row.requestedBy)throw fail('Approbateur indépendant requis',403);
+    const {approvalAction,expectedApprovalState,reason,confirm,operationId}=req.body;
+    if(!['APPROVE','REJECT'].includes(approvalAction)||expectedApprovalState!=='PENDING'||confirm!==true||typeof reason!=='string'||!reason.trim()||reason.trim().length>250||!operationId||Object.keys(req.body).some(k=>!['approvalAction','expectedApprovalState','reason','confirm','operationId'].includes(k)))throw fail('Décision, motif, confirmation et clé requis');
+    const prior=await ledger.replay(req,'purchase.approval',transaction);if(prior)return row;
+    if(row.approvalState!=='PENDING'||row.statut!=='En attente')throw fail('Demande déjà traitée : actualisez',409);
+    if(approvalAction==='APPROVE'&&row.accountingCurrency!==currency(owner.entreprise?.devise))throw fail('Devise comptable modifiée : nouvelle demande requise',409);
+    await row.update({approvalState:approvalAction==='APPROVE'?'APPROVED':'REJECTED',decidedBy:actor.id,decisionReason:reason.trim(),decidedAt:new Date()},{transaction});
+    await ledger.remember(req,'purchase.approval',row.id,transaction);return row;
+   }
+   if(row.approvalState==='PENDING'||row.approvalState==='REJECTED')throw fail('Achat non approuvé : réception, modification et paiement interdits',409);
+   if(row.approvalState==='APPROVED'&&(!isOwner(actor)||Object.keys(req.body).some(k=>k!=='statut')))throw fail('Seul le propriétaire peut exécuter un achat approuvé sans modifier ses conditions',403);
    const fields=pick(req.body,['description','numeroFacture','statut']);
    if(!Object.keys(fields).length||Object.keys(req.body).some(k=>!['description','numeroFacture','statut'].includes(k)))throw fail('Les achats financiers exigent un workflow de correction dédié',409);
    if(fields.statut!==undefined&&fields.statut!==row.statut){

@@ -587,6 +587,36 @@ suite('Commercial PostgreSQL integration',()=>{
  expect(await ExpenseRequestEvent.count({where:{requestId:id}})).toBe(3);await expect((await ExpenseRequest.findByPk(id)).destroy()).rejects.toThrow();
  const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),other=generateToken(foreign.id,'hr-foreign-session').accessToken;expect((await request(app).get(url+'/'+id+'/events').set('Authorization','Bearer '+other)).status).toBe(404);
  });
+ test('supplier purchase requests cannot receive or pay before independent approval',async()=>{
+ const u=await User.create({nom:'Purchaser',email:'purchase-requester@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['purchases','purchases.add','purchases.edit'],activeSessions:[{sessionId:'purchase-request-session'}]});
+ const token=generateToken(u.id,'purchase-request-session').accessToken;
+ const staffPost=body=>request(app).post('/purchases').set('Authorization','Bearer '+token).send(body);
+ const staffPut=(id,body)=>request(app).put('/purchases/'+id).set('Authorization','Bearer '+token).send(body);
+ const product=await Product.create({nom:'Approval test stock',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id});
+ const body={numeroFacture:'PURCHASE-APPROVAL',articles:[{id:product.id,nom:product.nom,quantite:1,prixAchat:4}],montantTotal:4,devise:'USD',statut:'En attente',operationId:'purchase-request-test-01'};
+ expect((await staffPost({...body,statut:'Reçu'})).status).toBe(409);
+ const result=await staffPost(body);expect(result.status).toBe(201);const id=result.body.data.id;expect(result.body.data.approvalState).toBe('PENDING');
+ expect((await staffPost(body)).body.data.id).toBe(id);
+ expect((await put('/purchases/'+id,{statut:'Reçu'})).status).toBe(409);
+ const decision={approvalAction:'APPROVE',expectedApprovalState:'PENDING',reason:'Approved order',confirm:true,operationId:'purchase-decision-test-01'};
+ expect((await staffPut(id,decision)).status).toBe(403);
+ const foreign=generateToken(b.id,'test-session').accessToken;expect((await request(app).put('/purchases/'+id).set('Authorization','Bearer '+foreign).send(decision)).status).toBe(404);
+ expect((await put('/purchases/'+id,decision)).status).toBe(200);
+ expect((await put('/purchases/'+id,decision)).status).toBe(200);
+ expect((await product.reload()).stock).toBe(5);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'PURCHASE_RECEIPT',reference:String(id)}})).toBe(0);
+ expect((await staffPut(id,{statut:'Reçu'})).status).toBe(403);
+ expect((await put('/purchases/'+id,{statut:'Reçu'})).status).toBe(200);
+ expect((await product.reload()).stock).toBe(6);
+ expect((await put('/purchases/'+id,{statut:'Reçu'})).status).toBe(200);
+ expect((await product.reload()).stock).toBe(6);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'PURCHASE_RECEIPT',reference:String(id)}})).toBe(1);
+ const second=await staffPost({...body,numeroFacture:'REJECTED-PURCHASE',operationId:'purchase-request-test-02'});
+ expect(second.status).toBe(201);const rejected=second.body.data.id;
+ expect((await put('/purchases/'+rejected,{...decision,approvalAction:'REJECT',operationId:'purchase-decision-test-02'})).status).toBe(200);
+ expect((await put('/purchases/'+rejected,{statut:'Payé'})).status).toBe(409);
+ await expect((await Purchase.findByPk(rejected)).destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
