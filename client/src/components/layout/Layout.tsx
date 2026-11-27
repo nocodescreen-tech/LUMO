@@ -178,6 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Treasury':'Trésorerie',icon:Activity,path:'/treasury',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Accounting':'Comptabilité',icon:Activity,path:'/accounting',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Receivables':'Créances et échéances',icon:Activity,path:'/receivables',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Documents':'Documents commerciaux',icon:Activity,path:'/documents',group:'STORE'}] : []),

@@ -40,6 +40,7 @@ const RepairCenter = lazy(() => import('./pages/RepairCenter'));
 const CommercialDocuments = lazy(() => import('./pages/CommercialDocuments'));
 const Receivables = lazy(() => import('./pages/Receivables'));
 const Accounting = lazy(() => import('./pages/Accounting'));
+const Treasury = lazy(() => import('./pages/Treasury'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -131,6 +132,7 @@ const App = () => {
               {user?.role === 'admin' && <Route path="/documents" element={<CommercialDocuments />} />}
               {user?.role === 'admin' && <Route path="/receivables" element={<Receivables />} />}
               {user?.role === 'admin' && <Route path="/accounting" element={<Accounting />} />}
+              {user?.role === 'admin' && <Route path="/treasury" element={<Treasury />} />}
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
