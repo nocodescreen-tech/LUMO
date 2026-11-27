@@ -3,14 +3,17 @@ import { Send, Bot, Loader2, Sparkles, X, MessageSquare, Maximize2, Minimize2 } 
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const AIChat = () => {
+    const {language}=useTranslation();
+    const fr=language==='fr';
     const [messages, setMessages] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
-    const [hasUnread, setHasUnread] = useState(true);
+    const [hasUnread, setHasUnread] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -125,7 +128,7 @@ const AIChat = () => {
             } else if (status === 400) {
                 msg = "Requête invalide. Vérifiez votre message.";
             } else if (status >= 500) {
-                msg = "Erreur serveur. L'équipe a été notifiée.";
+                msg = fr ? "Erreur serveur. Réessayez ou contactez le support." : "Server error. Try again or contact support.";
             } else if (error?.name === 'TypeError' || rawMessage.toLowerCase().includes('fetch') || rawMessage.toLowerCase().includes('network') || rawMessage.toLowerCase().includes('timeout')) {
                 msg = "Erreur réseau. Vérifiez votre connexion.";
             } else {
@@ -147,14 +150,14 @@ const AIChat = () => {
     };
 
     return (
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1100 }}>
+        <div className="lumo-ai-launcher" style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1100 }}>
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="shadow-2xl"
+                        className="shadow-2xl lumo-ai-panel" role="region" aria-label="LUMO AI"
                         style={{
                             width: isExpanded ? 'min(90vw, 600px)' : 'min(90vw, 380px)',
                             height: isExpanded ? 'min(90vh, 700px)' : 'min(90vh, 520px)',
@@ -181,17 +184,17 @@ const AIChat = () => {
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
+                                <button type="button" aria-label={isExpanded?(fr?'Réduire':'Minimize'):(fr?'Agrandir':'Expand')} onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
                                     {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                                 </button>
-                                <button onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
+                                <button type="button" aria-label={fr?'Fermer':'Close'} onClick={() => setIsOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
                                     <X size={18} />
                                 </button>
                             </div>
                         </div>
 
                         {/* Messages Area */}
-                        <div ref={scrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-main)' }}>
+                        <div ref={scrollRef} role="log" aria-live="polite" style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-main)' }}>
                             {messages.length === 0 && (
                                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
                                     <Bot size={48} color="#155E58" opacity={0.3} style={{ marginBottom: '16px' }} />
@@ -223,7 +226,7 @@ const AIChat = () => {
                                     })}
                                 </div>
                             ))}
-                            {loading && messages[messages.length - 1]?.role === 'user' && (
+                            {loading && !messages[messages.length - 1]?.content && (
                                 <div style={{ alignSelf: 'flex-start', background: 'var(--bg-card)', border: '1px solid rgba(255,255,255,0.06)', padding: '12px 20px', borderRadius: '20px', display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <Loader2 size={16} className="animate-spin" color="#155E58" />
                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Analyse en cours...</span>
@@ -232,16 +235,17 @@ const AIChat = () => {
                         </div>
 
                         {/* Input Area */}
-                        <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px', backgroundColor: '#1A1A28', flexShrink: 0 }}>
+                        <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px', backgroundColor: 'var(--bg-card)', flexShrink: 0 }}>
                             <input
                                 type="text"
-                                placeholder="Posez votre question..."
+                                aria-label={fr?"Votre question":"Your question"} placeholder={fr?"Posez votre question...":"Ask a question..."}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 style={{ flex: 1, padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', outline: 'none', fontSize: '0.9rem', fontWeight: 500 }}
                             />
                             <button
                                 type="submit"
+                                aria-label={fr?"Envoyer":"Send"}
                                 disabled={loading || !input.trim()}
                                 style={{ width: '44px', height: '44px', borderRadius: '14px', border: 'none', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.2s', flexShrink: 0 }}
                             >
@@ -253,7 +257,10 @@ const AIChat = () => {
             </AnimatePresence>
 
             <motion.button
-                whileHover={{ scale: 1.1, rotate: 5 }}
+                type="button"
+                aria-label={fr?'Assistant LUMO':'LUMO assistant'}
+                aria-expanded={isOpen}
+                whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
                     setIsOpen(!isOpen);

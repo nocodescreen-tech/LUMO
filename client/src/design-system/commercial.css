@@ -87,3 +87,9 @@ html[data-theme='dark']{--primary:#62c6bb;--primary-dark:#23766f;--secondary:#8d
 .lumo-shell table{font-variant-numeric:tabular-nums}
 .lumo-shell table th{font-size:12px;letter-spacing:.015em}
 @media(max-width:768px){.lumo-record-header>div{min-width:0;max-width:100%}.lumo-record-header>div:last-child{flex-wrap:wrap}.lumo-record-toolbar>div:first-child{flex-basis:100%}.lumo-settings-grid{grid-template-columns:minmax(0,1fr)!important}.lumo-settings-nav{max-height:340px;overflow:auto}}
+
+.lumo-otp-grid{width:100%;display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px!important}
+.lumo-otp-grid input{width:100%!important;min-width:0;height:clamp(44px,12vw,64px)!important;padding:0!important;border-radius:8px!important;font-size:clamp(18px,4vw,26px)!important;box-shadow:none!important}
+.lumo-ai-panel{border-radius:14px!important;box-shadow:var(--shadow-premium)!important}
+.lumo-ai-panel input{min-width:0;border-radius:8px!important}
+@media(max-width:768px){.lumo-ai-launcher{bottom:calc(80px + env(safe-area-inset-bottom))!important;right:12px!important}.lumo-ai-panel{width:min(380px,calc(100vw - 24px))!important;height:min(520px,calc(100dvh - 170px))!important}.lumo-ai-launcher>button{width:48px!important;height:48px!important;border-radius:12px!important}}

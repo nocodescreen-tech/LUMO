@@ -31,7 +31,7 @@ const ForgotPassword = () => {
 
   return (
     <div 
-      className="hide-scrollbar"
+      className="hide-scrollbar lumo-auth"
       style={{ 
         minHeight: '100vh', 
         display: 'flex', 
@@ -134,6 +134,7 @@ const ForgotPassword = () => {
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
+        className="auth-container"
         style={{
           padding: '60px 48px',
           borderRadius: '32px',
@@ -176,7 +177,7 @@ const ForgotPassword = () => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
-            <label style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', marginLeft: 4 }}>
+            <label htmlFor="forgot-email" style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', marginLeft: 4 }}>
               {t.forgotEmail}
             </label>
             <div style={{ position: 'relative' }}>
@@ -191,7 +192,7 @@ const ForgotPassword = () => {
                 }}
               />
               <input
-                type="email"
+                type="email" id="forgot-email" autoComplete="email"
                 required
                 placeholder={t.phEmailForgot}
                 value={email}

@@ -13,6 +13,7 @@ interface Props {
 const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -20,8 +21,10 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
     try {
       setLoading(true);
       const { data } = await api.get('/notifications');
-      setNotifications(Array.isArray(data) ? data : (data?.notifications || []));
+      setNotifications(Array.isArray(data) ? data : (data?.notifications || data?.data?.notifications || (Array.isArray(data?.data)?data.data:[])));
+      setLoadError(false);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch notifications', error);
     } finally {
       setLoading(false);
@@ -158,6 +161,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
             </button>
           )}
           <button
+            aria-label="Fermer les notifications"
             onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px', display: 'flex', borderRadius: '8px' }}
           >
@@ -174,7 +178,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
               <div key={i} style={{ height: '72px', borderRadius: '16px', background: 'var(--bg-main)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
-        ) : !Array.isArray(notifications) || notifications.length === 0 ? (
+        ) : loadError ? <div role="alert" style={{padding:16,color:'var(--text-muted)'}}>Impossible de charger les notifications.<button type="button" className="btn-premium secondary" onClick={fetchNotifications}>Réessayer</button></div> : !Array.isArray(notifications) || notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px' }}>
             <Bell size={40} style={{ opacity: 0.15, marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
             <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.9rem' }}>Aucune notification</p>

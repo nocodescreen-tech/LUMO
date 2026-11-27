@@ -12,7 +12,7 @@ const VerifyResetOTP = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { theme, setTheme } = useAuthStore();
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const email = location.state?.email;
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -24,6 +24,8 @@ const VerifyResetOTP = () => {
     }, [email, navigate]);
 
     const handleChange = (index: number, value: string) => {
+        value = value.replace(/[^0-9]/g, '');
+        if (value.length === 6) { setCode(value.split('')); document.getElementById('code-5')?.focus(); return; }
         if (value.length > 1) value = value.slice(-1);
         const newCode = [...code];
         newCode[index] = value;
@@ -72,13 +74,13 @@ const VerifyResetOTP = () => {
 
     return (
         <div 
-          className="hide-scrollbar"
+          className="hide-scrollbar lumo-auth"
           style={{ 
             minHeight: '100vh', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            background: 'url(/lumo_bg.png) no-repeat center center fixed',
+            background: 'var(--bg-main)',
             backgroundSize: 'cover',
             padding: '20px',
             position: 'relative',
@@ -133,7 +135,7 @@ const VerifyResetOTP = () => {
           <motion.div 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass" 
+                className="glass auth-container" 
                 style={{ 
                     padding: '50px 48px', 
                     borderRadius: '32px', 
@@ -194,13 +196,16 @@ const VerifyResetOTP = () => {
                 </div>
 
                 <form onSubmit={handleVerify}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '40px' }}>
+                    <div className="lumo-otp-grid" onPaste={(event)=>{const digits=event.clipboardData.getData('text').replace(/[^0-9]/g,''); if(digits.length===6){event.preventDefault();setCode(digits.split(''));document.getElementById('code-5')?.focus();}}} style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
                         {code.map((digit, i) => (
                             <input
                                 key={i}
                                 id={`code-${i}`}
                                 type="text"
-                                maxLength={1}
+                                inputMode="numeric"
+                                aria-label={`${language==='fr'?'Chiffre':'Digit'} ${i+1}`}
+                                autoComplete={i===0?"one-time-code":"off"}
+                                maxLength={i===0?6:1}
                                 value={digit}
                                 onChange={(e) => handleChange(i, e.target.value)}
                                 onKeyDown={(e: any) => {

@@ -79,13 +79,13 @@ const ResetPassword = () => {
 
   return (
     <div 
-      className="hide-scrollbar"
+      className="hide-scrollbar lumo-auth"
       style={{ 
         minHeight: '100vh', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center', 
-        background: 'url(/lumo_bg.png) no-repeat center center fixed',
+        background: 'var(--bg-main)',
         backgroundSize: 'cover',
         padding: '20px',
         position: 'relative',
@@ -140,7 +140,7 @@ const ResetPassword = () => {
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass"
+        className="glass auth-container"
         style={{
           padding: '50px 48px',
           borderRadius: '32px',
@@ -187,7 +187,7 @@ const ResetPassword = () => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label
+            <label htmlFor="new-password"
               style={{
                 fontSize: '0.95rem',
                 fontWeight: 700,
@@ -209,7 +209,7 @@ const ResetPassword = () => {
                 }}
               />
               <input
-                type="password"
+                type="password" id="new-password" autoComplete="new-password"
                 required
                 value={password}
                 maxLength={100}
@@ -255,7 +255,7 @@ const ResetPassword = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label
+            <label htmlFor="confirm-password"
               style={{
                 fontSize: '0.95rem',
                 fontWeight: 700,
@@ -277,7 +277,7 @@ const ResetPassword = () => {
                 }}
               />
               <input
-                type="password"
+                type="password" id="confirm-password" autoComplete="new-password"
                 required
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

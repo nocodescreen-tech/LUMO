@@ -11,7 +11,7 @@ const VerifyEmail = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const setAuth = useAuthStore(state => state.setAuth);
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const email = location.state?.email;
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
@@ -23,6 +23,8 @@ const VerifyEmail = () => {
     }, [email, navigate]);
 
     const handleChange = (index: number, value: string) => {
+        value = value.replace(/[^0-9]/g, '');
+        if (value.length === 6) { setCode(value.split('')); document.getElementById('code-5')?.focus(); return; }
         if (value.length > 1) value = value.slice(-1);
         const newCode = [...code];
         newCode[index] = value;
@@ -84,8 +86,8 @@ const VerifyEmail = () => {
     };
 
     return (
-        <div style={{ 
-            height: '100vh', 
+        <div className="lumo-auth" style={{ 
+            minHeight: '100dvh', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
@@ -101,7 +103,7 @@ const VerifyEmail = () => {
             <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="glass" 
+                className="glass auth-container" 
                 style={{ 
                     padding: '60px 40px', 
                     borderRadius: '32px', 
@@ -141,7 +143,7 @@ const VerifyEmail = () => {
                 </p>
 
                 <form onSubmit={handleVerify}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '40px' }}>
+                    <div className="lumo-otp-grid" onPaste={(event)=>{const digits=event.clipboardData.getData('text').replace(/[^0-9]/g,''); if(digits.length===6){event.preventDefault();setCode(digits.split(''));document.getElementById('code-5')?.focus();}}} style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
                         {code.map((digit, i) => (
                             <motion.input
                                 initial={{ y: 20, opacity: 0 }}
@@ -150,7 +152,10 @@ const VerifyEmail = () => {
                                 key={i}
                                 id={`code-${i}`}
                                 type="text"
-                                maxLength={1}
+                                inputMode="numeric"
+                                aria-label={`${language==='fr'?'Chiffre':'Digit'} ${i+1}`}
+                                autoComplete={i===0?"one-time-code":"off"}
+                                maxLength={i===0?6:1}
                                 value={digit}
                                 onChange={(e) => handleChange(i, e.target.value)}
                                 onKeyDown={(e: any) => {

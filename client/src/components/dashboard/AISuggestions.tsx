@@ -3,15 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import api from '../../api/axios';
 import { useTranslation } from '../../hooks/useTranslation';
+import { LoadFailure } from '../../design-system/LoadFailure';
 
 const AISuggestions = () => {
     const { t, language } = useTranslation();
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [analysis, setAnalysis] = useState('');
     const [loading, setLoading] = useState(true);
+    const [loadError,setLoadError]=useState(false);
+    const [retry,setRetry]=useState(0);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
+            setLoading(true);
             try {
                 const { data } = await api.get(`/ai/insights?lang=${language}`);
                 setAnalysis(data.analysis || '');
@@ -30,14 +34,16 @@ const AISuggestions = () => {
                 }));
 
                 setSuggestions(mapped);
+                setLoadError(false);
                 setLoading(false);
             } catch (error) {
+                setLoadError(true);
                 console.error("Erreur suggestions IA:", error);
                 setLoading(false);
             }
         };
         fetchSuggestions();
-    }, [language]);
+    }, [language,retry]);
 
     if (loading) return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -48,6 +54,7 @@ const AISuggestions = () => {
         </div>
     );
 
+    if (loadError) return <LoadFailure onRetry={()=>setRetry(n=>n+1)} />;
     const getBadgeLabel = (type: string) => {
         const upper = type.toUpperCase();
         if (upper === 'STOCK') return t('stockBadge') || 'STOCK';
@@ -72,6 +79,7 @@ const AISuggestions = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <AnimatePresence>
+                    {!suggestions.length && !analysis && <p style={{color:'var(--text-muted)'}}>{language==='fr'?'Aucune recommandation disponible':'No recommendations available'}</p>}
                     {suggestions.map((s, i) => (
                         <motion.div
                             key={s.id}
@@ -110,23 +118,8 @@ const AISuggestions = () => {
                                     </div>
                                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 12px 0', lineHeight: '1.4' }}>{s.desc}</p>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'white' }}>{s.impact}</span>
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                import('sonner').then(({ toast }) => {
-                                                    const launchedText = t('aiActionLaunched') || 'Action IA :';
-                                                    const successText = t('aiActionSuccess') || 'lancée avec succès !';
-                                                    const prepText = t('aiActionPreparing') || "L'assistant prépare les modifications stratégiques...";
-                                                    toast.success(`${launchedText} "${s.title}" ${successText}`, {
-                                                        description: prepText
-                                                    });
-                                                });
-                                            }}
-                                            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
-                                        >
-                                            {t('apply') || 'Appliquer'} <ArrowRight size={14} />
-                                        </button>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-main)' }}>{s.impact}</span>
+                                        <span style={{fontSize:"0.8rem",color:"var(--text-muted)"}}>{language==="fr"?"Recommandation à examiner":"Recommendation to review"}</span>
                                     </div>
                                 </div>
                             </div>
