@@ -44,7 +44,7 @@ const POS = () => {
     const [clientPhone, setClientPhone] = useState('');
     const [clientEmail, setClientEmail] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
-    const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
+    const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal,setSerialInput } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
     const [warehouseId,setWarehouseId]=useState('');
     const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
@@ -402,6 +402,8 @@ const POS = () => {
 
     const executeSale = async (finalClientName: string, finalClientPhone: string, finalClientEmail: string = '') => {
         if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
+        const identifiers=cart.filter(item=>item.serialTracked).flatMap(item=>(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim().toUpperCase()).filter(Boolean));
+        if(cart.some(item=>item.serialTracked&&(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).length!==item.quantite)||new Set(identifiers).size!==identifiers.length){toast.error('Indiquez un numéro de série distinct par appareil.');return;}
         setLoading(true);
         setClientName(finalClientName);
         setClientPhone(finalClientPhone);
@@ -425,6 +427,7 @@ const POS = () => {
                         prixAchat: item.prixAchat || 0,
                         deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                         quantite: item.quantite,
+                        serialNumbers:item.serialTracked?(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean):[],
                         selectedVariantes: cleanVariantes,
                         metadata: cleanVariantes.reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
                             acc[v.nom] = v.valeur;
@@ -603,6 +606,7 @@ const POS = () => {
                                     </div>
                                     <div style={{ flex: 1 }}>
                                         <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
+                                        {item.serialTracked&&<label style={{display:'grid',gap:4,fontSize:12,margin:'8px 0'}}>Numéros de série ({item.quantite})<textarea aria-label={'Numéros de série '+item.nom} rows={Math.min(4,item.quantite)} value={item.serialInput||''} onChange={e=>setSerialInput(item.cartId,e.target.value)} placeholder="Un numéro par ligne" maxLength={101000} style={{width:'100%',minWidth:0,padding:8,border:'1px solid var(--border)',borderRadius:8,background:'var(--bg-card)',color:'var(--text-main)'}}/></label>}
                                         {item.selectedVariantes && item.selectedVariantes.length > 0 && (
                                             dedupeSelectedVariantes(item.selectedVariantes).map((v, idx) => (
                                                 <div key={idx} style={{ marginBottom: '4px' }}>

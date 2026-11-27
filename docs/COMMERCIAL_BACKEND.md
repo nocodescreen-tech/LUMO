@@ -37,3 +37,5 @@ Lot UI: code/expiry search, expired and 30-day filters, registration with existi
 Income statement now includes recorded inventory losses and gains. Added transfer integrity and tenant isolation coverage; historical lot dates cannot be changed through ordinary operations.
 
 Serial tracking: tenant-unique serial and optional validated IMEI, existing physical stock identification, mutually exclusive with lot mode, exact serial selection required for sales, individual warehouse transfer, immutable movement history and warranty end date snapshot at sale. Refunded devices enter quarantine and require inspection confirmation before resale. No repair orders, dual IMEI, manufacturer warranty validation or serial disposal yet.
+
+Serial UI: owner registry, search/filter by status, registration, transfer, inspection release, paginated event history including sale warranty snapshot. POS requires one distinct serial code per sold unit, with server-side validation; no automatic choice or inferred IMEI. Warranty displayed in registry/history; PDF warranty certificate and repair workflow pending.
