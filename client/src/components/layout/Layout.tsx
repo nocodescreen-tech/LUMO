@@ -163,6 +163,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role==='admin' ? [{name:language==='en'?'My subscription':'Mon abonnement',icon:CreditCard,path:'/subscription',group:'STORE'}] : []),
         ...(user?.role==='admin' ? [{name:language==='en'?'Executive overview':'Direction générale',icon:LayoutDashboard,path:'/executive',group:'STORE'}] : []),
         ...(user?.role==='admin'||user?.permissions?.includes('crm.manage') ? [{name:language==='en'?'Sales CRM':'CRM et performance',icon:Users,path:'/crm',group:'STORE'}] : []),
         ...(user ? [{name:language==='en'?'Notifications':'Notifications',icon:Bell,path:'/notifications',group:'STORE'}] : []),
