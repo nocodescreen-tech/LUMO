@@ -213,7 +213,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
+        <div className="lumo-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
             {/* Session Timeout Warning Modal */}
             <SessionTimeoutModal />
 
@@ -274,8 +274,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             {/* Sidebar */}
             <motion.aside
+                className="lumo-sidebar"
                 animate={{ 
-                    width: isSidebarOpen ? (isMobile ? 280 : 300) : (isMobile ? 0 : 120),
+                    width: isSidebarOpen ? (isMobile ? 280 : 248) : (isMobile ? 0 : 72),
                     x: isMobile && !isSidebarOpen ? -280 : 0
                 }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
@@ -297,13 +298,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
                 {/* Logo area */}
                 <div style={{
-                    padding: isSidebarOpen ? '28px 24px' : '28px 16px',
+                    padding: isSidebarOpen ? '16px 18px' : '16px 8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: isSidebarOpen ? 'space-between' : 'center',
                     borderBottom: '1px solid var(--border)',
                     gap: '12px',
-                    height: '90px'
+                    height: '68px'
                 }}>
                     {(isSidebarOpen || !isMobile) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
@@ -328,15 +329,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     )}
                 </div>
 
-                {/* Nav */}
-                <nav style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }} className="premium-scroll">
+                {isSidebarOpen && <div className="lumo-workspace">
+ <div className="lumo-workspace-icon"><ShoppingBag size={18}/></div>
+ <div className="lumo-workspace-text"><span>{language === 'fr' ? 'Espace de travail' : 'Workspace'}</span><strong>{user?.entreprise?.nom || user?.nom || 'LUMO'}</strong></div>
+ </div>}
+ {/* Nav */}
+                <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }} className="premium-scroll">
                     {groups.map(group => {
                         const items = navItems.filter(i => i.group === group);
                         return (
                             <React.Fragment key={group}>
                                 {isSidebarOpen && (
                                     <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'var(--text-muted)', letterSpacing: '0.1em', padding: '16px 12px 8px', textTransform: 'uppercase' }}>
-                                        {group}
+                                        {group === 'PLATFORM' ? (language === 'fr' ? 'Plateforme' : 'Platform') : (language === 'fr' ? 'Gestion commerciale' : 'Business')}
                                     </div>
                                 )}
                                 {items.map(item => (
@@ -344,11 +349,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                         key={item.path}
                                         to={item.path}
                                         end={item.path === '/'}
+                                        title={item.name}
+                                        aria-label={item.name}
                                         onClick={() => isMobile && setIsSidebarOpen(false)}
                                         className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                                        style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center', padding: isSidebarOpen ? '12px 20px' : '14px' }}
+                                        style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center', padding: isSidebarOpen ? '10px 12px' : '10px' }}
                                     >
-                                        <item.icon size={22} style={{ flexShrink: 0 }} />
+                                        <item.icon size={19} style={{ flexShrink: 0 }} />
                                         <AnimatePresence>
                                             {isSidebarOpen && (
                                                 <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -363,7 +370,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     })}
                 </nav>
 
-                <div style={{ padding: isSidebarOpen ? '24px 16px' : '24px 12px', borderTop: '1px solid var(--border)' }}>
+                <div style={{ padding: isSidebarOpen ? '12px' : '8px', borderTop: '1px solid var(--border)' }}>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
                         className="nav-link"
@@ -396,12 +403,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             {/* Main Content */}
             <main
-                className="premium-scroll"
+                className="premium-scroll lumo-main"
+                id="lumo-main"
                 style={{
                     flex: 1,
-                    marginLeft: isMobile ? 0 : isTablet && !isSidebarOpen ? 120 : (isSidebarOpen ? 300 : 120),
+                    marginLeft: isMobile ? 0 : (isSidebarOpen ? 248 : 72),
                     transition: 'margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                    padding: isMobile ? '16px 16px 24px 16px' : '0 40px 40px 40px',
+                    padding: isMobile ? '0 12px 90px' : '0 28px 32px',
+                    minWidth: 0,
                     height: '100vh',
                     overflowY: 'auto',
                     overflowX: 'hidden',
@@ -409,11 +418,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 }}
             >
                 {/* Navbar */}
-                <header style={{
+                <header className="lumo-topbar" style={{
                     position: 'sticky',
                     top: 0,
-                    margin: isMobile ? '0 -16px' : '0 -40px',
-                    padding: isMobile ? '16px' : '20px 40px',
+                    margin: isMobile ? '0 -12px' : '0 -28px',
+                    padding: isMobile ? '10px 12px' : '12px 28px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -428,16 +437,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <button
+                            type="button"
+                            aria-label={language === 'fr' ? 'Menu de navigation' : 'Navigation menu'}
+                            aria-expanded={isSidebarOpen}
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="flex-center"
                             style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}
                         >
                             <Menu size={20} />
                         </button>
-                        <div className="mobile-search-wrap" style={{ position: 'relative' }}>
+                        <div className="mobile-search-wrap lumo-global-search" style={{ position: 'relative' }}>
                             <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
                             <input
                                 type="text"
+                                aria-label={t.search || 'Search'}
                                 placeholder={t.search || 'Navigate to...'}
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(e.target.value.length > 0); }}
@@ -596,6 +609,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
                         <button
                             onClick={toggleTheme}
+                            aria-label={language === 'fr' ? 'Changer le thème' : 'Change theme'}
                             className="flex-center"
                             style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--text-main)', boxShadow: 'var(--shadow-sm)' }}
                         >
@@ -612,6 +626,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         <div style={{ position: 'relative' }}>
                             <button
                                 className="flex-center btn-hover"
+                                aria-label="Notifications"
+                                aria-expanded={showNotifications}
                                 onClick={(e) => { e.stopPropagation(); setShowNotifications(!showNotifications); }}
                                 style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', position: 'relative', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', padding: 0 }}
                             >
@@ -649,9 +665,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             </AnimatePresence>
                         </div>
 
-                        <div style={{ height: '32px', width: '1px', backgroundColor: 'var(--border)', margin: '0 8px' }}></div>
+                        <div className="hidden-mobile" style={{ height: '32px', width: '1px', backgroundColor: 'var(--border)', margin: '0 4px' }}></div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="lumo-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div className="hidden-mobile" style={{ textAlign: 'right' }}>
                                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>{user?.nom?.split(' ')[0] || 'Admin'}</div>
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>{new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}</div>
@@ -663,18 +679,22 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </header>
 
-                <div style={{ marginTop: '32px' }}>
+                <div className="lumo-page" style={{ marginTop: '24px' }}>
                     <motion.div
                         key={location.pathname}
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
                         {children}
                     </motion.div>
                 </div>
             </main>
-        </div>
+ {isMobile && !isSidebarOpen && <nav className="lumo-mobile-nav" aria-label={language === 'fr' ? 'Accès rapides' : 'Quick navigation'}>
+ {navItems.filter(item=>['/','/products','/pos','/sales'].includes(item.path)).map(item=><NavLink key={item.path} to={item.path} end={item.path==='/'} className={({isActive})=>isActive?'is-active':''}><item.icon size={21}/><span>{item.name}</span></NavLink>)}
+ <button type="button" onClick={()=>setIsSidebarOpen(true)}><Menu size={21}/><span>{language==='fr'?'Plus':'More'}</span></button>
+ </nav>}
+ </div>
     );
 };
 

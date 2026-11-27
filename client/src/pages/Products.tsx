@@ -665,14 +665,14 @@ const Products = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
     >
       <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
             <Boxes size={14} /> {t('globalInventory')}
           </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0 }}>
             {t('productsStock').split(' & ')[0]} & <span className="text-gradient">{t('productsStock').split(' & ')[1] || 'Stock'}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('inventoryDesc')}</p>
@@ -730,7 +730,7 @@ const Products = () => {
       </div>
 
       {/* Control Bar */}
-      <div className="glass" style={{ padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)', flexWrap: 'wrap' }}>
+      <div className="glass products-controls lumo-inventory-toolbar" style={{ padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)', flexWrap: 'wrap' }}>
         <div className="mobile-search-wrap" style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input

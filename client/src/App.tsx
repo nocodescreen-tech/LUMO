@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { MotionConfig } from 'framer-motion';
+import { PageSkeleton } from './design-system/PageSkeleton';
 import { Toaster } from 'sonner';
 import { useAuthStore } from './store/useAuthStore';
 import api from './api/axios';
@@ -36,16 +37,7 @@ const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
-const LoadingFallback = () => (
-  <div style={{ height: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main)' }}>
-    <motion.div 
-      animate={{ rotate: 360 }}
-      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-    >
-      <Loader2 size={40} color="var(--primary)" />
-    </motion.div>
-  </div>
-);
+const LoadingFallback = () => <PageSkeleton />;
 
 
 
@@ -92,6 +84,7 @@ const App = () => {
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster position="top-right" richColors theme={theme as any} />
       <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', transition: 'background-color 0.5s ease' }}>
@@ -136,6 +129,7 @@ const App = () => {
         </Suspense>
       </div>
     </BrowserRouter>
+    </MotionConfig>
   );
 };
 

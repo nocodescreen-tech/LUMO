@@ -28,6 +28,7 @@ import AIChat from '../components/dashboard/AIChat';
 import { useTranslation } from '../hooks/useTranslation';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
+import { PageSkeleton } from '../design-system/PageSkeleton';
 import { exportToPDF } from '../utils/reportPDF';
 import { getDisplayAmount, normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 
@@ -100,6 +101,9 @@ const Dashboard = () => {
   const widgetRate = getEffectiveRate();
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [chartPeriod, setChartPeriod] = useState('7d');
 
   const altCurrency = currency === 'CDF' ? 'USD' : 'CDF';
@@ -155,8 +159,11 @@ const Dashboard = () => {
           }
           
           setChartData(chartList);
+          setLoadError(false);
+          setLastUpdated(new Date());
         }
       } catch (error) {
+        if (isMounted) setLoadError(true);
         console.error("Failed to fetch real-time dashboard data", error);
       } finally {
         if (isMounted) setLoading(false);
@@ -169,7 +176,7 @@ const Dashboard = () => {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [chartPeriod]);
+  }, [chartPeriod, retry]);
 
   // Top produits — chargé depuis /stats/analytics (déjà fourni par le backend)
   useEffect(() => {
@@ -198,27 +205,13 @@ const Dashboard = () => {
     return enabledModules.includes(action.id);
   });
 
-  if (loading) return (
-    <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '32px' }}>
-      <motion.div 
-        animate={{ rotate: 360, scale: [1, 1.1, 1] }} 
-        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        style={{ width: '80px', height: '80px', borderRadius: '24px', background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 40px -10px var(--primary-glow)' }}
-      >
-        <Zap size={40} color="white" />
-      </motion.div>
-      <div style={{ textAlign: 'center' }}>
-        <h2 style={{ fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px', fontSize: '1.5rem' }}>{t('syncing')}</h2>
-        <p style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{t('preparingConsole')}</p>
-      </div>
-    </div>
-  );
-
+  if (loading) return <PageSkeleton />;
+  if (loadError && !stats) return <section className="lumo-error-state" role="alert"><h2>{language==='fr'?'Données indisponibles':'Data unavailable'}</h2><p>{language==='fr'?'Vérifiez votre connexion et réessayez.':'Check your connection and try again.'}</p><button className="btn-premium primary" onClick={()=>{setLoading(true);setRetry(n=>n+1);}}>{language==='fr'?'Réessayer':'Retry'}</button></section>;
   return (
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '48px', paddingBottom: '60px' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '32px' }}
     >
       {/* Hero Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px' }}>
@@ -228,9 +221,9 @@ const Dashboard = () => {
                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s infinite' }}></div>
                {t('systemActive')}
              </span>
-             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>{t('updatedAt')} {new Date().toLocaleTimeString()}</span>
+             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '700', opacity: 0.8 }}>{loadError ? (language === 'fr' ? 'Données non actualisées' : 'Data not refreshed') : t('updatedAt')} {lastUpdated?.toLocaleTimeString()}</span>
           </div>
-          <h1 className="title-xl" style={{ fontSize: 'clamp(2rem, 8vw, 3.6rem)', marginBottom: '16px', letterSpacing: '-0.06em' }}>
+          <h1 className="title-xl" style={{ fontSize: 'clamp(1.65rem, 4vw, 2.4rem)', marginBottom: '16px', letterSpacing: '-0.06em' }}>
             <span className="text-gradient">{t('highPerfDashboard')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.95rem, 2.5vw, 1.25rem)', fontWeight: '500', maxWidth: '700px', lineHeight: 1.5 }}>
@@ -266,13 +259,13 @@ const Dashboard = () => {
       </div>
 
       {/* KPI Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}>
         <KpiCard 
           title={t('revenuePeriod')} 
           value={getDisplayValues(stats?.summary?.revenue || 0, stats?.summary?.revenueUSD).main} 
           subValue={getDisplayValues(stats?.summary?.revenue || 0, stats?.summary?.revenueUSD).sub}
           icon={TrendingUp} 
-          trend={stats?.summary?.revenueTrend || 12} 
+          trend={stats?.summary?.revenueTrend} 
           color="var(--primary)"
           delay={0.1}
         />
@@ -282,7 +275,7 @@ const Dashboard = () => {
             value={getDisplayValues(stats?.summary?.profitNetEstimation || 0, stats?.summary?.profitNetEstimationUSD).main} 
             subValue={getDisplayValues(stats?.summary?.profitNetEstimation || 0, stats?.summary?.profitNetEstimationUSD).sub}
             icon={DollarSign} 
-            trend={stats?.summary?.marginPercent || 0} 
+            trend={stats?.summary?.marginPercent} 
             color="var(--success)"
             delay={0.2}
           />
@@ -291,7 +284,7 @@ const Dashboard = () => {
           title={t('clientLoyalty')} 
           value={stats?.summary?.totalClients || 0} 
           icon={Users} 
-          trend={stats?.summary?.clientsTrend || 5} 
+          trend={stats?.summary?.clientsTrend} 
           color="var(--info)"
           delay={0.3}
         />

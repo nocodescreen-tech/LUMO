@@ -106,7 +106,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
         zIndex: 200,
         padding: '0',
       }}
-      className="premium-scroll"
+      className="premium-scroll lumo-notification-panel"
     >
       {/* Header */}
       <div style={{
