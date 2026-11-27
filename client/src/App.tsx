@@ -36,6 +36,7 @@ const Layout = lazy(() => import('./components/layout/Layout'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
 const SupportCenter = lazy(() => import('./pages/SupportCenter'));
 const InventoryEnterprise = lazy(() => import('./pages/InventoryEnterprise'));
+const RepairCenter = lazy(() => import('./pages/RepairCenter'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -123,6 +124,7 @@ const App = () => {
               <Route path="/subusers" element={<SubusersPage />} />
               {user?.role === 'admin' && <Route path="/support" element={<SupportCenter />} />}
               {user?.role === 'admin' && <Route path="/inventory" element={<InventoryEnterprise />} />}
+              {user?.role === 'admin' && <Route path="/repairs" element={<RepairCenter />} />}
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
