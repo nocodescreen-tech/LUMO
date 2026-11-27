@@ -44,6 +44,9 @@ const POS = () => {
     const [clientPhone, setClientPhone] = useState('');
     const [clientEmail, setClientEmail] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
+    const [deposit,setDeposit]=useState('');
+    const [dueOn,setDueOn]=useState('');
+    const isCreditPayment=/crédit|credit|dette/i.test(paymentMethod);
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal,setSerialInput } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
     const [warehouseId,setWarehouseId]=useState('');
@@ -404,6 +407,7 @@ const POS = () => {
         if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
         const identifiers=cart.filter(item=>item.serialTracked).flatMap(item=>(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim().toUpperCase()).filter(Boolean));
         if(cart.some(item=>item.serialTracked&&(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).length!==item.quantite)||new Set(identifiers).size!==identifiers.length){toast.error('Indiquez un numéro de série distinct par appareil.');return;}
+        if(isCreditPayment&&(!Number.isFinite(Number(deposit||0))||Number(deposit||0)<0||Number(deposit||0)>=getSaleTotal())){toast.error('Acompte inférieur au montant total requis.');return;}
         setLoading(true);
         setClientName(finalClientName);
         setClientPhone(finalClientPhone);
@@ -439,6 +443,7 @@ const POS = () => {
             devise: saleCurrency || currency || 'USD',
             tauxChange: liveRate,
             methodePaiement: paymentMethod || 'Espèces',
+            ...(isCreditPayment?{acompte:Number(deposit||0),dueOn:dueOn||null}:{}),
             montantRecu: paymentMethod === 'Espèces' ? (amountReceived===''?saleTotal:Number(amountReceived)) : 0,
             clientId: allClients.find(c=>c.nom.toLowerCase()===finalClientName.trim().toLowerCase() && (!finalClientPhone || c.telephone===finalClientPhone))?.id || null,
             clientInfo: {
@@ -666,7 +671,7 @@ const POS = () => {
                             ].filter(m => !m.module || enabledModules?.includes(m.module)).map(m => (
                                 <button
                                     key={m.value}
-                                    onClick={() => setPaymentMethod(m.value)}
+                                    onClick={() => {setPaymentMethod(m.value);setDeposit('');setDueOn('');}}
                                     style={{
                                         padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', flex: 1,
                                         border: `1.5px solid ${paymentMethod === m.value ? 'var(--primary)' : 'var(--border)'}`,
@@ -683,6 +688,7 @@ const POS = () => {
                     </div>
 
                     {/* Calculateur de monnaie à rendre (uniquement Espèces) */}
+                    {isCreditPayment&&<div className="lumo-pos-location"><label>Acompte encaissé ({currency})<input type="number" min={0} step={currency==='CDF'?1:0.01} value={deposit} onChange={e=>setDeposit(e.target.value)} placeholder="0"/></label><label>Échéance facultative<input type="date" value={dueOn} onChange={e=>setDueOn(e.target.value)}/></label><small>Solde : {Math.max(0,getSaleTotal()-Number(deposit||0)).toLocaleString('fr-FR')} {currency}. La créance est enregistrée dans la devise comptable.</small></div>}
                     {paymentMethod === 'Espèces' && (
                         <div style={{ background: 'linear-gradient(135deg, rgba(21,94,88,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(21,94,88,0.2)', padding: '16px' }}>
                             <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('changeToReturn')}</div>
@@ -821,7 +827,7 @@ const POS = () => {
                                 </button>
                             </div>
                             )}
-                            <button onClick={() => { setShowSuccess(false); setAmountReceived(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>{t('newSale')}</button>
+                            <button onClick={() => { setShowSuccess(false); setAmountReceived('');setDeposit('');setDueOn(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>{t('newSale')}</button>
                         </motion.div>
                     </motion.div>
                 )}

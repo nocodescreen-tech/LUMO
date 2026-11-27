@@ -258,7 +258,7 @@ const Dettes = () => {
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1>
+          <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1><button className="btn-premium" onClick={()=>navigate('/receivables')}>Créances par vente et échéances</button>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
             {t('debtsSubtitle')}
           </p>
