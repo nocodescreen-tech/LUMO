@@ -651,8 +651,8 @@ const POS = () => {
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '6px' }}>{t('saleCurrency')}</div>
                             <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border)', gap: '4px' }}>
-                                <button onClick={() => setSaleCurrency('USD')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
-                                <button onClick={() => setSaleCurrency('CDF')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
+                                <button onClick={() => {setSaleCurrency('USD');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
+                                <button onClick={() => {setSaleCurrency('CDF');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -688,7 +688,7 @@ const POS = () => {
                     </div>
 
                     {/* Calculateur de monnaie à rendre (uniquement Espèces) */}
-                    {isCreditPayment&&<div className="lumo-pos-location"><label>Acompte encaissé ({currency})<input type="number" min={0} step={currency==='CDF'?1:0.01} value={deposit} onChange={e=>setDeposit(e.target.value)} placeholder="0"/></label><label>Échéance facultative<input type="date" value={dueOn} onChange={e=>setDueOn(e.target.value)}/></label><small>Solde : {Math.max(0,getSaleTotal()-Number(deposit||0)).toLocaleString('fr-FR')} {currency}. La créance est enregistrée dans la devise comptable.</small></div>}
+                    {isCreditPayment&&<div className="lumo-pos-location"><label>Acompte encaissé ({saleCurrency})<input type="number" min={0} step={saleCurrency==='CDF'?1:0.01} value={deposit} onChange={e=>setDeposit(e.target.value)} placeholder="0"/></label><label>Échéance facultative<input type="date" value={dueOn} onChange={e=>setDueOn(e.target.value)}/></label><small>Solde : {Math.max(0,getSaleTotal()-Number(deposit||0)).toLocaleString('fr-FR')} {saleCurrency}. La créance est enregistrée dans la devise comptable.</small></div>}
                     {paymentMethod === 'Espèces' && (
                         <div style={{ background: 'linear-gradient(135deg, rgba(21,94,88,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(21,94,88,0.2)', padding: '16px' }}>
                             <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('changeToReturn')}</div>
