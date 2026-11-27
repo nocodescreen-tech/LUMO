@@ -670,6 +670,35 @@ suite('Commercial PostgreSQL integration',()=>{
  const paid=await post(path,{...approve,action:'PAY',expectedStatus:'APPROVED',operationId:'dual-payment-test-001'});expect(paid.status).toBe(201);
  expect(Number((await session.reload()).expectedBalance)).toBe(before-2000);expect(await ExpenseRequestEvent.count({where:{requestId:id}})).toBe(4);
  });
+ test('budgets reserve approvals and enforce monthly and annual limits atomically',async()=>{
+ const {BudgetRevision,ExpenseRequest,ExpensePolicy,Depense}=require('../models'),url='/workspace/budgets',expenseUrl='/workspace/expense-approvals';
+ const dates=require('../utils/budgetService').periods();
+ const centerResponse=await post(url+'/centers',{name:'Office budget',department:'Administration',branchKey:0,confirm:true,operationId:'budget-center-test-01'});expect(centerResponse.status).toBe(201);const centerId=centerResponse.body.data.id;
+ const config={centerId,currency:'CDF',periodKind:'MONTH',periodStart:dates.MONTH,amount:3000,mode:'BLOCK',expectedRevisionId:null,reason:'Approved plan',confirm:true,operationId:'budget-revision-test-01'};
+ const monthly=await post(url+'/revisions',config);expect(monthly.status).toBe(201);
+ expect((await post(url+'/revisions',{...config,operationId:'budget-revision-test-02'})).status).toBe(409);
+ const annual=await post(url+'/revisions',{...config,periodKind:'YEAR',periodStart:dates.YEAR,amount:2500,operationId:'budget-revision-test-03'});expect(annual.status).toBe(201);
+ const u=await User.create({nom:'Budget requester',email:'budget-requester@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['expenses.request'],activeSessions:[{sessionId:'budget-request-session'}]});
+ const token=generateToken(u.id,'budget-request-session').accessToken;
+ const staffPost=body=>request(app).post(expenseUrl).set('Authorization','Bearer '+token).send(body);
+ const body={description:'Office',category:'Office',amount:1500,currency:'CDF',operationId:'budget-request-test-01'};
+ expect((await staffPost(body)).status).toBe(409);
+ const one=await staffPost({...body,budgetCenterId:centerId});expect(one.status).toBe(201);
+ const two=await staffPost({...body,budgetCenterId:centerId,operationId:'budget-request-test-02'});expect(two.status).toBe(201);
+ const action=(id,action,expectedStatus,key)=>post(expenseUrl+'/'+id+'/actions',{action,expectedStatus,reason:'Test control',confirm:true,operationId:key});
+ const concurrent=await Promise.all([action(one.body.data.id,'APPROVE','PENDING','budget-approve-test-01'),action(two.body.data.id,'APPROVE','PENDING','budget-approve-test-02')]);expect(concurrent.map(r=>r.status).sort()).toEqual([201,409]);
+ const approved=concurrent.find(r=>r.status===201).body.data.id;
+ const get=()=>request(app).get(url+'?kind=MONTH&start='+dates.MONTH+'&currency=CDF').set('Authorization','Bearer '+ta);
+ let result=await get();expect(result.status).toBe(200);let row=result.body.data.rows.find(x=>x.centerId===centerId);expect(Number(row.actual)).toBe(0);expect(Number(row.committed)).toBe(1500);
+ expect((await post('/expenses',{description:'Direct',categorie:'Office',montant:10,devise:'CDF',operationId:'budget-direct-test-01'})).status).toBe(409);
+ const paid=await action(approved,'PAY','APPROVED','budget-payment-test-01');expect(paid.status).toBe(201);
+ result=await get();row=result.body.data.rows.find(x=>x.centerId===centerId);expect(Number(row.actual)).toBe(1500);expect(Number(row.committed)).toBe(0);
+ expect((await post('/expenses/'+paid.body.data.expenseId+'/reverse',{reason:'Reversal'})).status).toBe(200);
+ result=await get();row=result.body.data.rows.find(x=>x.centerId===centerId);expect(Number(row.actual)).toBe(0);
+ const foreign=await User.findOne({where:{email:'leave-foreign-owner@example.com'}}),foreignToken=generateToken(foreign.id,'leave-foreign-session').accessToken;
+ expect((await request(app).post(url+'/revisions').set('Authorization','Bearer '+foreignToken).send({...config,operationId:'budget-foreign-test-01'})).status).toBe(404);
+ await expect((await BudgetRevision.findByPk(monthly.body.data.id)).destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

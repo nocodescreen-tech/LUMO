@@ -22,7 +22,8 @@ exports.create=async(req,res,next)=>{try{
   if(prior){const expense=await Depense.findOne({where:{id:prior.resourceId,userId},transaction});if(!expense)throw fail('Dépense historique indisponible',409);return {expense,replayed:true};}
   const ctx=await prepare(req,transaction,montant,devise);
   await require('../utils/expenseApproval').guardDirect(ctx,transaction);
-  const expense=await Depense.create({userId,actorId:req.user.id,description:text(description,250),categorie:text(categorie,80),montant:ctx.amount,devise:ctx.devise,accountingCurrency:ctx.base,tauxChange:ctx.rate,cashSessionId:ctx.session.id,reference:text(reference,100)||null},{transaction});
+  const budgetCenterId=await require('../utils/budgetService').guard(userId,ctx.base,req.body.budgetCenterId,ctx.converted,transaction);
+  const expense=await Depense.create({userId,actorId:req.user.id,description:text(description,250),categorie:text(categorie,80),montant:ctx.amount,devise:ctx.devise,accountingCurrency:ctx.base,tauxChange:ctx.rate,cashSessionId:ctx.session.id,budgetCenterId,reference:text(reference,100)||null},{transaction});
   await pay(req,transaction,ctx,'EXPENSE',expense.id,'OPERATING_EXPENSE');await ledger.remember(req,'expense.create',expense.id,transaction);return {expense,replayed:false};
  });
  if(!result.replayed)await logActivite(req.user.id,'DEPENSE','Dépense #'+result.expense.id,'Finance',req.user.tenantId);
