@@ -29,8 +29,8 @@ async function mutate(req,operation,fn){if(!req.body.operationId)throw fail('Cl�
 async function event(row,actor,kind,reason,t){await LeaveEvent.create({userId:row.userId,requestId:row.id,actorId:actor.id,kind,reason},{transaction:t});}
 async function decorate(rows,uid){const ids=[...new Set(rows.map(r=>r.staffId))];const people=await User.findAll({where:{parentId:uid,id:ids},attributes:['id','nom']});return rows.map(r=>({...r.toJSON(),staffName:people.find(p=>p.id===r.staffId)?.nom??null}));}
 router.get('/',async(req,res,next)=>{try{const {page,limit}=paging(req.query),where=visible(req.user);if(states.includes(req.query.status))where.status=req.query.status;
- const r=await LeaveRequest.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});
- return sendResponse(res,200,{rows:await decorate(r.rows,req.user.tenantId),total:r.count,page,limit,canDecide:owner(req.user),canSubmit:staff(req.user),today:today()},'Congés');}catch(e){next(e)}});
+ const r=await LeaveRequest.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});const counts=await LeaveRequest.findAll({where:visible(req.user),attributes:['status',[sequelize.fn('COUNT',sequelize.col('id')),'count']],group:['status'],raw:true});
+ return sendResponse(res,200,{rows:await decorate(r.rows,req.user.tenantId),total:r.count,page,limit,counts,canDecide:owner(req.user),canSubmit:staff(req.user),today:today()},'Congés');}catch(e){next(e)}});
 router.get('/calendar',async(req,res,next)=>{try{const from=day(req.query.from),to=day(req.query.to);span(from,to,93);const {page,limit}=paging(req.query);
  const r=await LeaveRequest.findAndCountAll({where:{...visible(req.user),status:'APPROVED',startsOn:{[Op.lte]:to},endsOn:{[Op.gte]:from}},order:[['startsOn','ASC'],['id','ASC']],limit,offset:(page-1)*limit});
  const rows=(await decorate(r.rows,req.user.tenantId)).map(({id,staffId,staffName,startsOn,endsOn,kind})=>({id,staffId,staffName,startsOn,endsOn,kind}));

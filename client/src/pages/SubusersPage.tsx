@@ -1,3 +1,4 @@
+import './people-commercial.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect } from 'react';
@@ -222,7 +223,8 @@ const SubusersPage = () => {
     });
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
+      <motion.div className="pc-people" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
+        <div className="people-notice">Indicateurs historiques calculés à partir des ventes chargées, non des écritures comptables. <button className="sa-button sa-secondary" onClick={()=>navigate('/crm')}>Résultats comptabilisés</button></div>
         <button onClick={() => setSelectedUser(null)}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', padding: 0, width: 'fit-content' }}>
           <ArrowLeft size={20} /> {t('teamBack')}
@@ -418,7 +420,7 @@ const SubusersPage = () => {
   if (loadError) return <LoadFailure onRetry={() => setRetry(n => n + 1)} />;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
+    <motion.div className="pc-people" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 900, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
           <Users size={14} /> {t('teamBadge')}
@@ -459,6 +461,7 @@ const SubusersPage = () => {
         )}
       </div>
 
+      <div className="people-quick">{[{path:'/hr',label:'Personnel et présences'},{path:'/leave',label:'Congés'},{path:'/payroll',label:'Paie'},{path:'/staff-assignments',label:'Affectations'},{path:'/access-governance',label:'Permissions'},{path:'/crm',label:'Performance comptabilisée CRM'}].map(v=><button key={v.path} className="sa-button sa-secondary" onClick={()=>navigate(v.path)}>{v.label}<ChevronRight size={15}/></button>)}</div><p className="people-notice">Les statistiques historiques de cette page sont calculées à partir des ventes chargées (maximum demandé : 500) et de la liste chargée des collaborateurs. Consultez CRM pour les ventes nettes comptabilisées.</p>
       {showTeamManager && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <TeamSection />
