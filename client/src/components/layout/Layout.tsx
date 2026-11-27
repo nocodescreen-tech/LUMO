@@ -179,7 +179,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     const navItems = [
         ...(user&&user.role!=='superadmin' ? [{name:language==='en'?'Leave requests':'Congés et absences',icon:Activity,path:'/leave',group:'STORE'}] : []),
-        ...(user?.role === 'admin'||user?.permissions?.includes('expenses.request') ? [{name:language==='en'?'Expense approvals':'Approbations de dépenses',icon:Activity,path:'/expense-approvals',group:'STORE'}] : []),
+        ...(user?.role === 'admin'||user?.permissions?.includes('expenses.request')||user?.permissions?.includes('expenses.review') ? [{name:language==='en'?'Expense approvals':'Approbations de dépenses',icon:Activity,path:'/expense-approvals',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Access governance':'Accès et permissions',icon:Activity,path:'/access-governance',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Payroll':'Paie et rémunérations',icon:Activity,path:'/payroll',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Human resources':'Ressources humaines',icon:Activity,path:'/hr',group:'STORE'}] : []),

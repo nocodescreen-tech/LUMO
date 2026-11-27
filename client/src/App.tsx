@@ -133,7 +133,7 @@ const App = () => {
               <Route path="/stats" element={<Stats />} />
               {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}
               {user?.role === 'admin' && <Route path="/access-governance" element={<AccessGovernance />} />}
-              {(user?.role === 'admin'||user?.permissions?.includes('expenses.request')) && <Route path="/expense-approvals" element={<ExpenseApprovals />} />}
+              {(user?.role === 'admin'||user?.permissions?.includes('expenses.request')||user?.permissions?.includes('expenses.review')) && <Route path="/expense-approvals" element={<ExpenseApprovals />} />}
               {user?.role === 'admin' && <Route path="/support" element={<SupportCenter />} />}
               {user?.role === 'admin' && <Route path="/inventory" element={<InventoryEnterprise />} />}
               {user?.role === 'admin' && <Route path="/repairs" element={<RepairCenter />} />}
