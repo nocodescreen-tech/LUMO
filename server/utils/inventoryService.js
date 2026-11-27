@@ -34,7 +34,7 @@ async function reconcile(req){
  const prior=await ledger.replay(req,'inventory.count',transaction);if(prior){const row=await InventoryCount.findOne({where:{id:prior.resourceId,userId},transaction});if(!row)throw fail('Inventaire introuvable',409);return {row,replayed:true}}
  const product=await Product.findOne({where:{id:productId,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit introuvable',404);
  const wh=await warehouse(userId,whId,transaction),current=await available(product,wh,transaction);
- if(await require('./lotService').tracked(product,transaction))throw fail('Produit suivi par lots : utilisez les opérations de lot pour corriger le stock',409);
+ if(await require('./lotService').tracked(product,transaction)||await require('./serialService').tracked(product,transaction))throw fail('Produit suivi par lots : utilisez les opérations de lot pour corriger le stock',409);
  if(current!==expected)throw fail('Le stock a changé depuis le relevé : actualisez et recomptez',409);
  const delta=counted-expected,total=Number(product.stock)+delta;
  if(total<0||total>2147483647)throw fail('Stock total invalide',409);

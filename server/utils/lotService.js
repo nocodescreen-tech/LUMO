@@ -11,7 +11,7 @@ const validDate=v=>{if(v==null||v==='')return null;if(typeof v!=='string'||!/^\d
 const locationWhere=(product,wh)=>({userId:product.userId,productId:product.id,locationKey:key(wh)});
 async function tracked(product,transaction){return !!await InventoryLot.findOne({where:{userId:product.userId,productId:product.id},attributes:['id'],transaction});}
 async function reserved(product,wh,transaction){return Number(await InventoryLot.sum('quantity',{where:locationWhere(product,wh),transaction})||0);}
-async function free(product,wh,transaction){return await inventory().available(product,wh,transaction)-await reserved(product,wh,transaction);}
+async function free(product,wh,transaction){return await inventory().available(product,wh,transaction)-await reserved(product,wh,transaction)-await require('./serialService').reserved(product,wh,transaction);}
 async function move(req,lot,kind,quantity,reason,transaction,saleId=null){return LotMovement.create({userId:lot.userId,actorId:req.user.id,lotId:lot.id,productId:lot.productId,kind,quantity,reason,saleId},{transaction});}
 async function lockProduct(req,id,transaction){const owner=await User.findByPk(req.user.tenantId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);const product=await Product.findOne({where:{id,userId:owner.id},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit introuvable',404);return {owner,product};}
 async function assign(req){const quantity=positiveQuantity(req.body.quantity),code=clean(req.body.code,80).toUpperCase(),reason=clean(req.body.reason,250),manufacturedOn=validDate(req.body.manufacturedOn),expiresOn=validDate(req.body.expiresOn);
@@ -19,6 +19,7 @@ async function assign(req){const quantity=positiveQuantity(req.body.quantity),co
  return sequelize.transaction(async transaction=>{const {product}=await lockProduct(req,req.body.productId,transaction);
  const prior=await ledger.replay(req,'lot.assign',transaction);if(prior)return {row:await LotMovement.findByPk(prior.resourceId,{transaction}),replayed:true};
  const wh=await inventory().warehouse(product.userId,req.body.warehouseId,transaction);
+ if(await require('./serialService').tracked(product,transaction))throw fail('Produit déjà suivi par numéro de série',409);
  if(await free(product,wh,transaction)<quantity)throw fail('Quantité non identifiée insuffisante',409);
  // A batch code has the same dates across every location.
  const existing=await InventoryLot.findAll({where:{userId:product.userId,productId:product.id,code},transaction});

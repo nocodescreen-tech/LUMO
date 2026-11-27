@@ -304,6 +304,28 @@ suite('Commercial PostgreSQL integration',()=>{
  const foreign=generateToken(b.id,'support-test').accessToken;
  expect((await request(app).post('/inventory/lots/transfer').set('Authorization','Bearer '+foreign).send({...body,operationId:'foreign-lot-test-001'})).status).toBe(404);
  });
+ test('serial tracking requires exact identifiers and quarantines returns',async()=>{
+ const {SerialUnit,SerialEvent,Organization,Warehouse}=require('../models');
+ const product=await Product.create({nom:'Serialized device',prix:10,prixAchat:4,devise:'USD',stock:3,userId:a.id});
+ const base={productId:product.id,warehouseId:null,reason:'Physical registration',warrantyDays:365};
+ const registration=await post('/inventory/serials/register',{...base,serial:'DEVICE-001',imei:'490154203237518',operationId:'serial-register-0001'});expect(registration.status).toBe(201);
+ expect((await post('/inventory/serials/register',{...base,serial:'DEVICE-002',imei:'490154203237518',operationId:'serial-register-0002'})).status).toBe(409);
+ expect((await post('/inventory/serials/register',{...base,serial:'DEVICE-002',imei:'490154203237519',operationId:'serial-register-0003'})).status).toBe(400);
+ expect((await post('/inventory/lots/assign',{...base,code:'MIXED',quantity:1,operationId:'serial-mixed-lot-01'})).status).toBe(409);
+ const unit=await SerialUnit.findOne({where:{userId:a.id,serial:'DEVICE-001'}});
+ expect((await post('/sales',payload(product,1,10))).status).toBe(409);
+ const saleBody=payload(product,1,10);saleBody.items[0].serialNumbers=['DEVICE-001'];
+ const sale=await post('/sales',saleBody);expect(sale.status).toBe(201);expect((await unit.reload()).status).toBe('SOLD');
+ expect((await post('/sales',saleBody)).status).toBe(409);
+ expect((await post('/sales/'+sale.body.data.id+'/refund',{})).status).toBe(200);expect((await unit.reload()).status).toBe('QUARANTINE');
+ expect((await post('/sales',saleBody)).status).toBe(409);
+ expect((await post('/inventory/serials/release',{productId:product.id,unitId:unit.id,reason:'Inspection passed',inspected:true,operationId:'serial-release-0001'})).status).toBe(201);
+ expect((await unit.reload()).status).toBe('AVAILABLE');expect((await product.reload()).stock).toBe(3);
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ expect((await post('/inventory/serials/transfer',{productId:product.id,unitId:unit.id,toWarehouseId:wh.id,reason:'Transfer',operationId:'serial-transfer-001'})).status).toBe(201);
+ expect((await unit.reload()).locationKey).toBe(wh.id);expect((await product.reload()).stock).toBe(3);
+ const history=await SerialEvent.findOne({where:{unitId:unit.id,kind:'SALE'}});expect(history.warrantyUntil).toBeTruthy();await expect(history.destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

@@ -35,3 +35,5 @@ Lot tracking: registering existing stock creates identified subsets without incr
 Lot UI: code/expiry search, expired and 30-day filters, registration with existing product lookup, lot-specific transfer and disposal, movement history and configurable per-location reorder thresholds. No background notification delivery or serial/IMEI UI yet.
 
 Income statement now includes recorded inventory losses and gains. Added transfer integrity and tenant isolation coverage; historical lot dates cannot be changed through ordinary operations.
+
+Serial tracking: tenant-unique serial and optional validated IMEI, existing physical stock identification, mutually exclusive with lot mode, exact serial selection required for sales, individual warehouse transfer, immutable movement history and warranty end date snapshot at sale. Refunded devices enter quarantine and require inspection confirmation before resale. No repair orders, dual IMEI, manufacturer warranty validation or serial disposal yet.
