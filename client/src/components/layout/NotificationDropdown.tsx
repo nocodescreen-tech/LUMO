@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bell, Check, Trash2, X, RefreshCw } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
+  const navigate=useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError,setLoadError]=useState(false);
@@ -61,7 +63,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
       await api.delete('/notifications/all');
       setNotifications([]);
       onRefresh?.();
-      toast.success('Historique des notifications vidé');
+      toast.success('Notifications archivées');
     } catch {
       toast.error('Erreur lors de la suppression');
     }
@@ -80,7 +82,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
   const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(n => !n.lu).length;
 
   const getNotifColor = (type: string) => {
-    switch (type) {
+    switch (String(type||'').toLowerCase()) {
       case 'success': return 'var(--success)';
       case 'warning': return 'var(--warning)';
       case 'error': return 'var(--danger)';
@@ -155,7 +157,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex' }}
-              title="Tout supprimer"
+              title="Tout archiver"
             >
               <Trash2 size={14} />
             </button>
@@ -218,13 +220,14 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
         )}
       </div>
       
+      <div style={{padding:12,borderTop:'1px solid var(--border)'}}><button className="btn-premium secondary" style={{width:'100%'}} onClick={()=>{onClose();navigate('/notifications')}}>Ouvrir le centre de notifications</button></div>
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={deleteAll}
-        title="Vider les notifications"
-        message="Êtes-vous sûr de vouloir supprimer TOUTES vos notifications ? Cette action est irréversible."
-        confirmText="Supprimer tout"
+        title="Archiver les notifications"
+        message="Archiver toutes vos notifications ? Les alertes archivées ne réapparaîtront pas à l’identique."
+        confirmText="Tout archiver"
         type="danger"
       />
     </motion.div>

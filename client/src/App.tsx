@@ -48,6 +48,7 @@ const AccessGovernance = lazy(() => import('./pages/AccessGovernance'));
 const ExpenseApprovals = lazy(() => import('./pages/ExpenseApprovals'));
 const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
 const Budgets = lazy(() => import('./pages/Budgets'));
+const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -130,6 +131,7 @@ const App = () => {
               <Route path="/stock-history" element={<StockHistory />} />
               <Route path="/dettes" element={<Dettes />} />
               <Route path="/settings" element={<Settings />} />
+              {user&&<Route path="/notifications" element={<NotificationCenter key={user.id}/>} />}
               <Route path="/activities" element={<Activities />} />
               <Route path="/stats" element={<Stats />} />
               {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}

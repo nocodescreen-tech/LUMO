@@ -103,50 +103,35 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         }
     }, []);
 
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCount = React.useCallback(async () => {
+        const id=user?.id;
+        if(!id)return;
         try {
-            const { data } = await api.get('/notifications');
-            const notifications = Array.isArray(data) ? data : [];
-            const count = notifications.filter((n: any) => !n.lu).length;
-            setUnreadCount(count);
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
-        }
-    };
+            const {data}=await api.get('/notifications/summary');
+            if(useAuthStore.getState().user?.id===id)setUnreadCount(Number(data?.data?.unread)||0);
+        } catch (_) { /* Preserve last known count on network error. */ }
+    },[user?.id]);
 
-    useEffect(() => {
-        fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 60000); // 1m poll backup
-        
-        // Socket.io integration
-        if (user?.id) {
-            const socket = socketService.connect(user.id);
-            
-            socket.on('notification', (notif: any) => {
-                setUnreadCount(prev => prev + 1);
-                const soundEnabled = user?.preferences?.notificationSoundEnabled !== false;
-                if (soundEnabled) {
-                    playNotificationCling();
-                }
-                toast.info(notif.titre || 'Nouvelle notification', {
-                    description: notif.contenu || notif.message,
-                    duration: 5000,
-                    action: {
-                        label: 'Voir',
-                        onClick: () => setShowNotifications(true)
-                    }
-                });
-            });
-
-            return () => {
-                socket.off('notification');
-                socketService.disconnect();
-                clearInterval(interval);
-            };
-        }
-        
-        return () => clearInterval(interval);
-    }, [user?.id, playNotificationCling]);
+    useEffect(()=>{
+        setUnreadCount(0);setShowNotifications(false);
+        if(!user?.id)return;
+        const id=user.id;
+        let stopped=false,scanning=false;
+        const poll=async()=>{
+            if(stopped||scanning||useAuthStore.getState().user?.id!==id)return;
+            scanning=true;
+            try{if(user.role!=='superadmin')await api.post('/notifications/refresh',{});}catch(_){}
+            finally{scanning=false;if(!stopped)void fetchUnreadCount();}
+        };
+        void poll();
+        const interval=setInterval(poll,60000);
+        const socket=socketService.connect(id);
+        const onNotification=()=>{if(!stopped&&useAuthStore.getState().user?.id===id)void fetchUnreadCount();};
+        const onLocalChange=()=>void fetchUnreadCount();
+        socket.on('notification',onNotification);
+        window.addEventListener('lumo-notifications-change',onLocalChange);
+        return()=>{stopped=true;clearInterval(interval);socket.off('notification',onNotification);socketService.disconnect();window.removeEventListener('lumo-notifications-change',onLocalChange);};
+    },[user?.id,user?.role,fetchUnreadCount]);
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
@@ -178,6 +163,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user ? [{name:language==='en'?'Notifications':'Notifications',icon:Bell,path:'/notifications',group:'STORE'}] : []),
         ...(user?.role==='admin' ? [{name:language==='en'?'Budgets':'Budgets et engagements',icon:Activity,path:'/budgets',group:'STORE'}] : []),
         ...(user&&user.role!=='superadmin' ? [{name:language==='en'?'Leave requests':'Congés et absences',icon:Activity,path:'/leave',group:'STORE'}] : []),
         ...(user?.role === 'admin'||user?.permissions?.includes('expenses.request')||user?.permissions?.includes('expenses.review') ? [{name:language==='en'?'Expense approvals':'Approbations de dépenses',icon:Activity,path:'/expense-approvals',group:'STORE'}] : []),
@@ -508,7 +494,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                     // Sous-sections des Paramètres
                                     { name: t.searchProfilEntreprise || 'Profil & Entreprise', icon: Settings, path: '/settings#profil', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchEquipeUtilisateurs || 'Équipe & Utilisateurs', icon: Users, path: '/settings#equipe', category: t.searchCategoryParametres || 'Paramètres' },
-                                    { name: t.searchNotifications || 'Notifications', icon: Bell, path: '/settings#notifications', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchNotifications || 'Notifications', icon: Bell, path: '/notifications', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchSecurite || 'Sécurité & Mot de passe', icon: ShieldCheck, path: '/settings#securite', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchThemeApparence || 'Thème & Apparence', icon: Moon, path: '/settings#theme', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchDeviseTaux || 'Devise & Taux de change', icon: DollarSign, path: '/settings#devise', category: t.searchCategoryParametres || 'Paramètres' },
