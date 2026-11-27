@@ -49,6 +49,7 @@ const ExpenseApprovals = lazy(() => import('./pages/ExpenseApprovals'));
 const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
 const Budgets = lazy(() => import('./pages/Budgets'));
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
+const CRM = lazy(() => import('./pages/CRM'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -144,6 +145,7 @@ const App = () => {
               {user?.role === 'admin' && <Route path="/receivables" element={<Receivables />} />}
               {user?.role === 'admin' && <Route path="/accounting" element={<Accounting />} />}
               {user?.role === 'admin' && <Route path="/budgets" element={<Budgets key={user.id}/>} />}
+              {(user?.role==='admin'||user?.permissions?.includes('crm.manage'))&&<Route path="/crm" element={<CRM key={user?.id}/>} />}
               {user?.role === 'admin' && <Route path="/treasury" element={<Treasury />} />}
               {user?.role === 'admin' && <Route path="/staff-assignments" element={<StaffAssignments />} />}
               {user?.role === 'admin' && <Route path="/hr" element={<HumanResources />} />}

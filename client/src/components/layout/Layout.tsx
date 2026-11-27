@@ -163,6 +163,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role==='admin'||user?.permissions?.includes('crm.manage') ? [{name:language==='en'?'Sales CRM':'CRM et performance',icon:Users,path:'/crm',group:'STORE'}] : []),
         ...(user ? [{name:language==='en'?'Notifications':'Notifications',icon:Bell,path:'/notifications',group:'STORE'}] : []),
         ...(user?.role==='admin' ? [{name:language==='en'?'Budgets':'Budgets et engagements',icon:Activity,path:'/budgets',group:'STORE'}] : []),
         ...(user&&user.role!=='superadmin' ? [{name:language==='en'?'Leave requests':'Congés et absences',icon:Activity,path:'/leave',group:'STORE'}] : []),
