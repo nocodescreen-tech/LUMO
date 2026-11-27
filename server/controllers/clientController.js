@@ -69,7 +69,7 @@ exports.deleteClient = async (req, res, next) => {
     const client = await Client.findOne({ where: { id: req.params.id, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
     const nomClient = client.nom;
-    await client.destroy();
+    return res.status(409).json({message:'Suppression désactivée pour préserver les historiques clients.'});
     await logActivite(req.user.id, 'CLIENT', `Suppression client: ${nomClient}`, 'System', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, null, 'Client supprimé');
@@ -78,27 +78,7 @@ exports.deleteClient = async (req, res, next) => {
   }
 };
 
-exports.settleDebt=async(req,res,next)=>{
- try{
- const userId=req.user.tenantId;
- const result=await sequelize.transaction(async transaction=>{
-  const {User,CashSession}=require('../models');const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
-  const prior=await ledger.replay(req,'debt.settle',transaction);if(prior){const existing=await Client.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Client introuvable',404);return {client:existing,amount:0,replayed:true};}
-  const amount=round(money(req.body.montant),currency(owner.entreprise?.devise));if(amount<=0)throw fail('Montant de règlement invalide');
-  const client=await Client.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!client)throw fail('Client introuvable',404);
-  if(amount>Number(client.detteTotale))throw fail('Le règlement dépasse la dette',409);
-  const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
-  if(!session)throw fail('Ouvrez une caisse pour enregistrer le règlement',409);
-  ledger.assertSessionCurrency(session,currency(owner.entreprise?.devise));
-  client.detteTotale=Number(client.detteTotale)-amount;await client.save({transaction});
-  session.totalSales=Number(session.totalSales||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)+amount;await session.save({transaction});
-  const reference=require('crypto').randomUUID();await ledger.post(req,transaction,{event:'DEBT_PAYMENT',reference,debit:'CASH',credit:'RECEIVABLE',amount,devise:currency(owner.entreprise?.devise),session});
-  await ledger.remember(req,'debt.settle',client.id,transaction);return {client,amount};
- });
- if(!result.replayed)await logActivite(req.user.id,'CLIENT',`Règlement dette client ${result.client.nom}: ${result.amount}`,'System',userId);
- return require('../utils/response').sendResponse(res,200,result.client,'Dette réglée');
- }catch(e){next(e)}
-};
+exports.settleDebt=async(req,res,next)=>{try{const result=await require('../utils/receivableService').settle(req);return require('../utils/response').sendResponse(res,200,result.row,'Dette réglée');}catch(e){next(e)}};
 
 exports.sendReminder = async (req, res, next) => {
   try {
@@ -160,7 +140,7 @@ exports.getClientSales = async (req, res, next) => {
 exports.deleteAllClients = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
-    await Client.destroy({ where: { userId } });
+    return res.status(409).json({message:'Purge des clients désactivée.'});
     res.status(200).json({ message: 'Tous vos clients ont été supprimés' });
   } catch (error) {
     next(error);

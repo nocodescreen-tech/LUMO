@@ -230,11 +230,18 @@ exports.createSale = async (req, res, next) => {
     const credit = creditMethod(methodePaiement);
     if (!credit && !isCash(methodePaiement)) throw fail('Moyen de paiement non pris en charge');
     if (credit && !resolvedClientId) throw fail('Un client est obligatoire pour une vente à crédit');
+    const baseAmount=round(convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate),shopCurrency);
+    const depositRaw=round(money(req.body.acompte??0),saleCurrency);
+    if((depositRaw>0||req.body.dueOn)&&!credit)throw fail('Acompte et échéance réservés aux ventes à crédit');
+    if(credit&&depositRaw>0&&(depositRaw>=montantTotalNormalized||baseAmount<=0))throw fail('Acompte inférieur au total requis');
+    const deposit=round(convertCurrency(depositRaw,saleCurrency,shopCurrency,finalRate),shopCurrency);
+    if(depositRaw>0&&(deposit<=0||deposit>=baseAmount))throw fail('Acompte incompatible après conversion');
+    if(credit&&baseAmount<=0)throw fail('Créance strictement positive requise');
     if(!credit && montantRecu!=null && money(montantRecu)<montantTotalNormalized)throw fail('Montant reçu insuffisant');
     if(!credit && devisePaiement && devisePaiement!==saleCurrency)throw fail('Le paiement doit utiliser la devise de vente pour le moment');
     const {CashSession}=require('../models');
     const activeSession=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
-    if(!credit&&!activeSession)throw fail('Ouvrez une caisse avant d’enregistrer une vente',409);
+    if((!credit||deposit>0)&&!activeSession)throw fail('Ouvrez une caisse avant d’enregistrer une vente',409);
     ledger.assertSessionCurrency(activeSession,shopCurrency);
     if(activeSession && !credit){const amount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);activeSession.totalSales=Number(activeSession.totalSales||0)+amount;activeSession.expectedBalance=Number(activeSession.expectedBalance||0)+amount;await activeSession.save({transaction});}
     const sale = await Sale.create({
@@ -249,7 +256,7 @@ exports.createSale = async (req, res, next) => {
       devise: saleCurrency,
       tauxChange: finalRate,
       devisePaiement: devisePaiement || saleCurrency,
-      montantRecu: credit ? 0 : (montantRecu ?? montantTotalNormalized),
+      montantRecu: credit ? depositRaw : (montantRecu ?? montantTotalNormalized),
       statut: credit ? 'Dette' : 'Complétée',
       sellerId: req.user.id, warehouseId:wh?.id??null, accountingCurrency:shopCurrency,cashSessionId:credit?null:activeSession?.id
     }, { transaction });
@@ -259,10 +266,8 @@ exports.createSale = async (req, res, next) => {
     if (resolvedClientId && credit) {
       const dbClient=await Client.findOne({where:{id:resolvedClientId,userId},transaction,lock:transaction.LOCK.UPDATE});
       if(!dbClient)throw fail('Client introuvable',404);
-      dbClient.detteTotale=Number(dbClient.detteTotale||0)+convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);
-      await dbClient.save({transaction});
+      await require('../utils/receivableService').openSale(req,sale,dbClient,baseAmount,deposit,activeSession,transaction);
     }
-    const baseAmount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);
     const baseCost=articles.reduce((sum,item)=>sum+convertCurrency(item.prixAchat*item.quantite,item.deviseProduit,shopCurrency,finalRate),0);
     await ledger.post(req,transaction,{event:'SALE',reference:sale.id,debit:credit?'RECEIVABLE':'CASH',credit:'REVENUE',amount:baseAmount,devise:shopCurrency,rate:finalRate,session:credit?null:activeSession});
     await ledger.post(req,transaction,{event:'SALE_COST',reference:sale.id,debit:'COST_OF_GOODS',credit:'INVENTORY',amount:baseCost,devise:shopCurrency,rate:finalRate});

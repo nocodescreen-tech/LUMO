@@ -380,6 +380,25 @@ suite('Commercial PostgreSQL integration',()=>{
  const event=await DocumentEvent.findOne({where:{documentId:id}});await expect(event.destroy()).rejects.toThrow();
  const foreign=generateToken(b.id,'support-test').accessToken;expect((await request(app).get('/documents/'+id).set('Authorization','Bearer '+foreign)).status).toBe(404);
  });
+ test('credit deposit and targeted partial payments preserve revenue, cash and customer balance',async()=>{
+ const {Receivable,ReceivablePayment}=require('../models');
+ const p=await Product.create({nom:'Credit stock',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id}),client=await Client.create({nom:'Credit client',userId:a.id});
+ const session=await CashSession.findOne({where:{userId:a.id,status:'OPEN'}}),cashBefore=Number(session.expectedBalance);
+ const body=payload(p,2,10,{methodePaiement:'Crédit',clientId:client.id,acompte:5,dueOn:'2099-12-31',operationId:'credit-deposit-0001'});
+ const sale=await post('/sales',body);expect(sale.status).toBe(201);expect((await post('/sales',body)).status).toBe(200);
+ const row=await Receivable.findOne({where:{userId:a.id,saleId:sale.body.data.id}});expect(Number(row.original)).toBe(50000);expect(Number(row.balance)).toBe(37500);
+ expect(Number((await client.reload()).detteTotale)).toBe(37500);expect(Number((await session.reload()).expectedBalance)).toBe(cashBefore+12500);
+ const payment={montant:10000,currency:'CDF',note:'Cash receipt',operationId:'receivable-pay-0001'};
+ expect((await post('/finance/receivables/'+row.id+'/payments',payment)).status).toBe(201);expect((await post('/finance/receivables/'+row.id+'/payments',payment)).status).toBe(200);
+ expect(Number((await row.reload()).balance)).toBe(27500);
+ expect((await post('/finance/receivables/'+row.id+'/payments',{...payment,montant:30000,operationId:'receivable-excess-001'})).status).toBe(409);
+ const foreign=generateToken(b.id,'support-test').accessToken;expect((await request(app).post('/finance/receivables/'+row.id+'/payments').set('Authorization','Bearer '+foreign).send({...payment,operationId:'foreign-receivable-001'})).status).toBe(404);
+ expect((await post('/clients/'+client.id+'/settle',{montant:27500})).status).toBe(200);
+ expect(Number((await row.reload()).balance)).toBe(0);expect(Number((await client.reload()).detteTotale)).toBe(0);expect(Number((await session.reload()).expectedBalance)).toBe(cashBefore+50000);
+ expect((await Sale.findByPk(sale.body.data.id)).statut).toBe('Complétée');expect(await ReceivablePayment.count({where:{receivableId:row.id}})).toBe(3);
+ const revenue=await JournalEntry.findAll({where:{userId:a.id,event:'SALE',reference:String(sale.body.data.id)}});expect(revenue.length).toBe(1);expect(Number(revenue[0].amount)).toBe(50000);
+ const first=await ReceivablePayment.findOne({where:{receivableId:row.id}});await expect(first.destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

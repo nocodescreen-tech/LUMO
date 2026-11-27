@@ -40,4 +40,5 @@ router.get('/cash-flow',protect,authorize('admin','superadmin'),async(req,res,ne
  return sendResponse(res,200,{rows,from:req.query.from,to:req.query.to,timezone:'UTC',coverage:'commercial-v2-postings-only',complete:false},'Flux de caisse enregistrés');
  }catch(e){next(e);}
 });
+router.use('/receivables',require('./receivableRoutes'));
 module.exports=router;

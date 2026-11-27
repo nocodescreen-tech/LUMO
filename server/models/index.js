@@ -22,6 +22,7 @@ const BackupRun=require('./BackupRun');
 const inventory=require('./Inventory');
 const repair=require('./Repair');
 const documents=require('./CommercialDocument');
+const receivables=require('./Receivable');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -68,5 +69,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents
+  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables
 };
