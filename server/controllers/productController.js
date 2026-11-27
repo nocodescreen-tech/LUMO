@@ -24,9 +24,10 @@ exports.getProducts = async (req, res, next) => {
     const wh=await inventory.warehouse(tenantId,req.query.warehouseId);
     const locationSql=wh?'COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id AND w."warehouseId"='+Number(wh.id)+'),0)':'("Product".stock - COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id),0))';
 
+    const lotSql='CASE WHEN EXISTS(SELECT 1 FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id) THEN COALESCE((SELECT SUM(l.quantity) FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id AND l."locationKey"='+Number(wh?.id||0)+' AND (l."expiresOn" IS NULL OR l."expiresOn">=(now() AT TIME ZONE \'Africa/Kinshasa\')::date)),0) ELSE '+locationSql+' END';
     const data = await Product.findAndCountAll({
       where: { userId: tenantId },
-      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock'],[sequelize.literal(locationSql),'availableStock']]},
+      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock'],[sequelize.literal(lotSql),'availableStock']]},
       order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset
@@ -114,7 +115,7 @@ exports.updateProduct = async (req, res, next) => {
     await sequelize.transaction(async transaction=>{
       const locked=await Product.findOne({where:{id:product.id,userId:tenantId},transaction,lock:transaction.LOCK.UPDATE});if(!locked)throw fail('Produit introuvable',404);
       const allocated=await inventory.allocated(locked,transaction);
-      if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)!==Number(locked.stock)&&allocated>0)throw fail('Les produits affectés exigent un ajustement d’inventaire dédié',409);
+      if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)!==Number(locked.stock)&&(allocated>0||await require('../utils/lotService').tracked(locked,transaction)))throw fail('Les produits affectés exigent un ajustement d’inventaire dédié',409);
       await locked.update(updateData,{transaction});Object.assign(product.dataValues,locked.dataValues);
     });
     await logActivite(req.user.id, 'PRODUIT', `Mise à jour du produit: ${product.nom}`, 'System', tenantId);

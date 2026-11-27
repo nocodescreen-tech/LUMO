@@ -8,6 +8,7 @@ const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
 const ledger=require('../utils/commercialLedger');
 const inventory=require('../utils/inventoryService');
+const lots=require('../utils/lotService');
 const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round, money } = require('../utils/transactionSafety');
 const publicSale=(sale,user)=>{const row=sale.toJSON?sale.toJSON():{...sale};if(['admin','superadmin'].includes(user.role))return row;delete row.profitNet;row.articles=safeParseArticles(row.articles).map(({prixAchat,...item})=>item);return row;};
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
@@ -123,6 +124,7 @@ exports.createSale = async (req, res, next) => {
 
     // Initialise profit normalisé en CDF — BUG FIX: variable non initialisée causait ReferenceError
     let profitNormalized = 0;
+    const lotAllocations=[];
 
     // Déduction du stock et notifications
     for (const item of items) {
@@ -136,6 +138,7 @@ exports.createSale = async (req, res, next) => {
         if (await inventory.available(product,wh,transaction) < requestedQty) {
           throw fail(`Stock insuffisant pour ${product.nom}`,409);
         }
+        lotAllocations.push(...await lots.consume(req,product,wh,requestedQty,transaction));
         await inventory.change(product,wh,-requestedQty,transaction);
         product.stockUpdateRaison = 'Vente';
         product.stock -= requestedQty;
@@ -243,6 +246,7 @@ exports.createSale = async (req, res, next) => {
       sellerId: req.user.id, warehouseId:wh?.id??null, accountingCurrency:shopCurrency,cashSessionId:credit?null:activeSession?.id
     }, { transaction });
 
+    await lots.recordSale(req,sale,lotAllocations,transaction);
     if (resolvedClientId && credit) {
       const dbClient=await Client.findOne({where:{id:resolvedClientId,userId},transaction,lock:transaction.LOCK.UPDATE});
       if(!dbClient)throw fail('Client introuvable',404);
@@ -314,6 +318,7 @@ exports.refundSale=async(req,res,next)=>{
   const articles=safeParseArticles(row.articles);if(!articles.length)throw fail('Articles historiques indisponibles',409);
   const wh=await inventory.warehouse(userId,row.warehouseId,transaction);
   for(const item of articles){const product=await Product.findOne({where:{id:item.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit historique introuvable',409);product.stockUpdateRaison='Remboursement Vente';product.stock=Number(product.stock)+Number(item.quantite);await product.save({transaction});await inventory.change(product,wh,Number(item.quantite),transaction);}
+  await lots.refund(req,row,transaction);
   session.totalSales=Number(session.totalSales)-amount;session.expectedBalance=Number(session.expectedBalance)-amount;await session.save({transaction});
   const original=await require('../models').JournalEntry.findAll({where:{userId,reference:String(row.id),event:{[Op.in]:['SALE','SALE_COST']}},transaction});
   if(!original.some(e=>e.event==='SALE')&&amount>0)throw fail('Écriture originale manquante',409);

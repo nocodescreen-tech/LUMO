@@ -19,7 +19,7 @@ async function transfer(req){const userId=req.user.tenantId,{productId,quantity,
  const prior=await ledger.replay(req,'inventory.transfer',transaction);if(prior){const row=await InventoryTransfer.findOne({where:{id:prior.resourceId,userId},transaction});if(!row)throw fail('Transfert introuvable',409);return {row,replayed:true}}
  const product=await Product.findOne({where:{id:productId,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit introuvable',404);
  const source=await warehouse(userId,from,transaction),destination=await warehouse(userId,to,transaction);
- if(await available(product,source,transaction)<qty)throw fail('Stock insuffisant dans la source',409);
+ if(await require('./lotService').free(product,source,transaction)<qty)throw fail('Stock insuffisant dans la source',409);
  await change(product,source,-qty,transaction);await change(product,destination,qty,transaction);
  const row=await InventoryTransfer.create({userId,actorId:req.user.id,productId:product.id,fromWarehouseId:from,toWarehouseId:to,quantity:qty,reason:reason.trim()},{transaction});
  await ledger.remember(req,'inventory.transfer',row.id,transaction);return {row,replayed:false};
@@ -34,6 +34,7 @@ async function reconcile(req){
  const prior=await ledger.replay(req,'inventory.count',transaction);if(prior){const row=await InventoryCount.findOne({where:{id:prior.resourceId,userId},transaction});if(!row)throw fail('Inventaire introuvable',409);return {row,replayed:true}}
  const product=await Product.findOne({where:{id:productId,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit introuvable',404);
  const wh=await warehouse(userId,whId,transaction),current=await available(product,wh,transaction);
+ if(await require('./lotService').tracked(product,transaction))throw fail('Produit suivi par lots : utilisez les opérations de lot pour corriger le stock',409);
  if(current!==expected)throw fail('Le stock a changé depuis le relevé : actualisez et recomptez',409);
  const delta=counted-expected,total=Number(product.stock)+delta;
  if(total<0||total>2147483647)throw fail('Stock total invalide',409);

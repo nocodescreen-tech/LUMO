@@ -266,6 +266,27 @@ suite('Commercial PostgreSQL integration',()=>{
  const count=await InventoryCount.findByPk(first.body.data.id);await expect(count.destroy()).rejects.toThrow();
  const catalog=await request(app).get('/test-products?limit=100&warehouseId='+wh.id).set('Authorization','Bearer '+ta);expect(catalog.status).toBe(200);expect(Number(catalog.body.data.data.find(p=>p.id===product.id).availableStock)).toBe(7);
  });
+ test('lots reserve physical stock and FEFO excludes expired batches',async()=>{
+ const {InventoryLot,LotMovement}=require('../models');
+ const product=await Product.create({nom:'Traceable medicine',prix:10,prixAchat:4,devise:'USD',stock:10,userId:a.id});
+ const base={productId:product.id,warehouseId:null,reason:'Physical lot registration'};
+ const assign=(code,expiresOn,quantity,operationId)=>post('/inventory/lots/assign',{...base,code,expiresOn,quantity,operationId});
+ expect((await assign('OLD','2020-01-01',2,'lot-old-0000000001')).status).toBe(201);
+ expect((await assign('LATE','2099-12-31',3,'lot-late-000000001')).status).toBe(201);
+ expect((await assign('EARLY','2099-01-01',2,'lot-early-00000001')).status).toBe(201);
+ expect((await assign('EARLY','2099-01-01',2,'lot-early-00000001')).status).toBe(200);
+ expect((await product.reload()).stock).toBe(10);
+ expect((await post('/sales',payload(product,6,10))).status).toBe(409);
+ const sale=await post('/sales',payload(product,3,10));expect(sale.status).toBe(201);
+ const read=code=>InventoryLot.findOne({where:{userId:a.id,productId:product.id,code}});
+ expect((await read('EARLY')).quantity).toBe(0);expect((await read('LATE')).quantity).toBe(2);expect((await read('OLD')).quantity).toBe(2);
+ expect((await post('/sales/'+sale.body.data.id+'/refund',{})).status).toBe(200);expect((await read('EARLY')).quantity).toBe(2);
+ const old=await read('OLD');expect((await post('/inventory/lots/dispose',{productId:product.id,lotId:old.id,quantity:2,reason:'Expired',operationId:'lot-dispose-000001'})).status).toBe(201);
+ expect((await product.reload()).stock).toBe(8);expect((await read('OLD')).quantity).toBe(0);
+ const movement=await LotMovement.findOne({where:{userId:a.id,lotId:old.id,kind:'DISPOSAL'}});await expect(movement.destroy()).rejects.toThrow();
+ const rule=await put('/inventory/lots/reorder',{productId:product.id,warehouseId:null,minimum:6});expect(rule.status).toBe(200);
+ const alert=await request(app).get('/inventory/lots/reorder').set('Authorization','Bearer '+ta);expect(alert.status).toBe(200);expect(alert.body.data.rows.find(x=>x.productId===product.id).needsReorder).toBe(true);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
