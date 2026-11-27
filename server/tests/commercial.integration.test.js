@@ -618,6 +618,32 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await put('/purchases/'+rejected,{statut:'Payé'})).status).toBe(409);
  await expect((await Purchase.findByPk(rejected)).destroy()).rejects.toThrow();
  });
+ test('leave requests isolate tenants and preserve decisions without altering attendance',async()=>{
+ const {LeaveRequest,LeaveEvent,AttendanceRevision}=require('../models'),url='/workspace/leave';
+ const staff=await User.create({nom:'Leave requester',email:'leave-requester@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'leave-request-session'}]});
+ const other=await User.create({nom:'Leave other',email:'leave-other@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'leave-other-session'}]});
+ const foreign=await User.create({nom:'Leave foreign owner',email:'leave-foreign-owner@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'leave-foreign-session'}],entreprise:{nom:'Other shop',devise:'CDF'}});
+ const token=generateToken(staff.id,'leave-request-session').accessToken,otherToken=generateToken(other.id,'leave-other-session').accessToken,foreignToken=generateToken(foreign.id,'leave-foreign-session').accessToken;
+ const staffPost=(path,body)=>request(app).post(path).set('Authorization','Bearer '+token).send(body);
+ const get=(path,t=ta)=>request(app).get(path).set('Authorization','Bearer '+t);
+ const today=require('../utils/lotService').today(),plus=n=>new Date(Date.parse(today)+n*86400000).toISOString().slice(0,10);
+ const body={kind:'ANNUAL',startsOn:plus(2),endsOn:plus(4),note:'Personal leave',confirm:true,operationId:'leave-request-test-01'};
+ expect((await post(url,body)).status).toBe(403);const first=await staffPost(url,body);expect(first.status).toBe(201);const id=first.body.data.id;
+ expect((await staffPost(url,body)).status).toBe(200);
+ expect((await staffPost(url,{...body,startsOn:plus(3),operationId:'leave-request-test-02'})).status).toBe(409);
+ expect((await get(url+'/'+id+'/events',otherToken)).status).toBe(404);
+ expect((await get(url+'/'+id+'/events',foreignToken)).status).toBe(404);
+ const path=url+'/'+id+'/actions',decision={action:'APPROVE',expectedStatus:'PENDING',reason:'Approved',confirm:true,operationId:'leave-decision-test-01'};
+ expect((await staffPost(path,decision)).status).toBe(403);
+ const before=await AttendanceRevision.count({where:{userId:a.id,staffId:staff.id}});
+ expect((await post(path,decision)).status).toBe(201);expect((await post(path,decision)).status).toBe(200);
+ expect(await AttendanceRevision.count({where:{userId:a.id,staffId:staff.id}})).toBe(before);
+ const calendar=url+'/calendar?from='+plus(1)+'&to='+plus(7);
+ expect((await get(calendar)).body.data.rows.some(x=>x.id===id)).toBe(true);expect((await get(calendar,otherToken)).body.data.rows).toEqual([]);
+ expect((await post(path,{action:'CANCEL',expectedStatus:'APPROVED',reason:'Cancelled before start',confirm:true,operationId:'leave-cancel-test-01'})).status).toBe(201);
+ expect((await get(calendar)).body.data.rows.some(x=>x.id===id)).toBe(false);
+ expect(await LeaveEvent.count({where:{requestId:id}})).toBe(3);await expect((await LeaveRequest.findByPk(id)).destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
