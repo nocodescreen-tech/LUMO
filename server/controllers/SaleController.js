@@ -42,6 +42,7 @@ exports.getSales = async (req, res, next) => {
     const { limit: l, offset } = getPagination(page, limit);
 
     const where = { userId };
+    if(req.user.parentId)where.warehouseId=(await require('../utils/staffScope').location(req.user))?.id??null;
 
     if (startDate && endDate) {
       where.createdAt = { [Op.between]: [new Date(startDate), new Date(endDate)] };
@@ -102,9 +103,9 @@ exports.createSale = async (req, res, next) => {
     if (!owner) throw fail('Entreprise introuvable',404);
     const prior=await ledger.replay(req,'sale.create',transaction);
     if(prior){const existing=await Sale.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);await transaction.commit();return require('../utils/response').sendResponse(res,200,publicSale(existing,req.user),'Vente déjà enregistrée');}
-    if(req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+    if(!req.user.parentId&&req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
     const quote=await require('../utils/documentService').validateQuoteSale(req,transaction);
-    const wh=await inventory.warehouse(userId,req.body.warehouseId,transaction);
+    const wh=await require('../utils/staffScope').resolve(req.user,req.body.warehouseId,transaction);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
     const finalRate = rateFor(owner);
@@ -294,6 +295,7 @@ exports.updateSale = async (req, res, next) => {
     const userId = req.user.tenantId;
     const sale = await Sale.findOne({ where: { id: req.params.id, userId } });
     if (!sale) return res.status(404).json({ message: 'Vente non trouvée' });
+    if(req.user.parentId)throw fail('Modification administrative réservée au propriétaire',403);
     
     if (req.body.statut !== undefined || req.body.methodePaiement !== undefined) return res.status(409).json({message:'Utilisez un workflow de remboursement ou règlement pour modifier un paiement.'});
     const allowedFields = ['clientInfo'];
@@ -320,6 +322,7 @@ exports.refundSale=async(req,res,next)=>{
   const {User,CashSession}=require('../models');
   const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
   const row=await Sale.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!row)throw fail('Vente introuvable',404);
+  if(req.user.parentId)await require('../utils/staffScope').resolve(req.user,row.warehouseId,transaction);
   if(isRefundedStatus(row.statut))throw fail('Vente déjà remboursée',409);
   const rate=Number(row.tauxChange);if(!Number.isFinite(rate)||rate<=0)throw fail('Taux historique manquant; rapprochement nécessaire',409);
   const amount=convertCurrency(Number(row.montantTotal)-Number(row.remise||0),normalizeCurrency(row.devise),normalizeCurrency(owner.entreprise?.devise),rate);

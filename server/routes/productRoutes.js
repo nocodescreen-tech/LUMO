@@ -10,6 +10,7 @@ const allowProductImport = (req, res, next) => {
   return res.status(403).json({ message: 'Accès refusé. Permission requise : products.import' });
 };
 
+const globalStock=async(req,res,next)=>{try{await require('../utils/staffScope').restrictMutation(req.user);next()}catch(e){next(e)}};
 const upload = require('../middleware/uploadMiddleware');
 const { cacheMiddleware } = require('../utils/cache');
 
@@ -36,7 +37,7 @@ const { cacheMiddleware } = require('../utils/cache');
  *               type: array
  *               items: { $ref: '#/components/schemas/Product' }
  */
-router.get('/', protect, checkPermission('products'), cacheMiddleware(300), getProducts);
+router.get('/', protect, checkPermission('products'), getProducts);
 
 /**
  * @swagger
@@ -49,7 +50,7 @@ router.get('/', protect, checkPermission('products'), cacheMiddleware(300), getP
  *       200:
  *         description: Historique global récupéré
  */
-router.get('/all/history', protect, checkPermission('products'), require('../controllers/productController').getAllStockHistory);
+router.get('/all/history', protect, checkPermission('products'), globalStock, require('../controllers/productController').getAllStockHistory);
 
 /**
  * @swagger
@@ -67,7 +68,7 @@ router.get('/all/history', protect, checkPermission('products'), require('../con
  *       200:
  *         description: Historique du produit récupéré
  */
-router.get('/:id/history', protect, checkPermission('products'), require('../controllers/productController').getProductHistory);
+router.get('/:id/history', protect, checkPermission('products'), globalStock, require('../controllers/productController').getProductHistory);
 
 /**
  * @swagger
@@ -94,8 +95,8 @@ router.get('/:id/history', protect, checkPermission('products'), require('../con
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Product' }
  */
-router.post('/', protect, checkPermission('products.add'), upload.single('image'), createProduct);
-router.put('/:id', protect, checkPermission('products.edit'), upload.single('image'), updateProduct);
+router.post('/', protect, checkPermission('products.add'), globalStock, upload.single('image'), createProduct);
+router.put('/:id', protect, checkPermission('products.edit'), globalStock, upload.single('image'), updateProduct);
 /**
  * @swagger
  * /api/products/bulk:
@@ -115,7 +116,7 @@ router.put('/:id', protect, checkPermission('products.edit'), upload.single('ima
  *       201:
  *         description: Produits importés
  */
-router.post('/bulk', protect, allowProductImport, createBulkProducts);
+router.post('/bulk', protect, allowProductImport, globalStock, createBulkProducts);
 
 /**
  * @swagger
@@ -129,6 +130,6 @@ router.post('/bulk', protect, allowProductImport, createBulkProducts);
  *         description: Inventaire vidé
  */
 router.delete('/all', protect, checkPermission('products.delete'), (req,res)=>res.status(409).json({message:'La purge du stock est désactivée pour préserver la traçabilité.'}));
-router.delete('/:id', protect, checkPermission('products.delete'), deleteProduct);
+router.delete('/:id', protect, checkPermission('products.delete'), globalStock, deleteProduct);
 
 module.exports = router;

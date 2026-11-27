@@ -20,8 +20,8 @@ exports.getProducts = async (req, res, next) => {
     const tenantId = req.user.tenantId;
     const { page, limit } = req.query;
     const { limit: l, offset } = getPagination(Math.max(1,Math.min(100000,parseInt(page)||1)),Math.max(1,Math.min(100,parseInt(limit)||10)));
-    if(req.query.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
-    const wh=await inventory.warehouse(tenantId,req.query.warehouseId);
+    if(req.query.warehouseId!=null&&!req.user.parentId&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+    const wh=await require('../utils/staffScope').resolve(req.user,req.query.warehouseId,undefined,{read:true});
     const locationSql=wh?'COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id AND w."warehouseId"='+Number(wh.id)+'),0)':'("Product".stock - COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id),0))';
 
     const lotSql='CASE WHEN EXISTS(SELECT 1 FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id) THEN COALESCE((SELECT SUM(l.quantity) FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id AND l."locationKey"='+Number(wh?.id||0)+' AND (l."expiresOn" IS NULL OR l."expiresOn">=(now() AT TIME ZONE \'Africa/Kinshasa\')::date)),0) ELSE '+locationSql+' END';
@@ -44,7 +44,8 @@ exports.getProducts = async (req, res, next) => {
       });
     }
 
-    const response = getPagingData(data, page, l);
+    if(req.user.parentId)data.rows=data.rows.map(p=>{const row=p.toJSON?p.toJSON():p;delete row.unallocatedStock;row.stock=Number(row.availableStock);return row;});
+    const response = {...getPagingData(data, page, l),warehouseId:wh?.id??null};
     sendResponse(res, 200, response, 'Produits récupérés avec succès');
   } catch (error) {
     next(error);

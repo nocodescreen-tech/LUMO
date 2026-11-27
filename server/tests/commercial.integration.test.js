@@ -471,6 +471,25 @@ suite('Commercial PostgreSQL integration',()=>{
  const tb=generateToken(b.id,'support-test').accessToken;expect((await request(app).post(base+'transfers').set('Authorization','Bearer '+tb).send(flow(b1,b2,1,'treasury-foreign-001'))).status).toBe(404);
  const cash=await request(app).get('/finance/accounting/cash-reconciliation').set('Authorization','Bearer '+ta);expect(Number(cash.body.data.rows[0].journalDifference)).toBe(0);
  });
+ test('staff POS assignment is tenant scoped and prevents location bypass',async()=>{
+ const {StaffAssignment,Organization,Warehouse}=require('../models');
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ const employee=await User.create({nom:'Warehouse employee',email:'warehouse-employee@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['pos','products'],activeSessions:[{sessionId:'staff-test'}]});
+ const p=await Product.create({nom:'Assigned stock',prix:10,prixAchat:4,devise:'USD',stock:5,userId:a.id});
+ expect((await post('/inventory/transfers',{productId:p.id,fromWarehouseId:null,toWarehouseId:wh.id,quantity:3,reason:'Allocation',operationId:'staff-stock-000001'})).status).toBe(201);
+ const body={staffId:employee.id,warehouseId:wh.id,expectedAssignmentId:null,reason:'Warehouse duty',operationId:'staff-assignment-001'};
+ const result=await post('/workspace/staff-assignments',body);expect(result.status).toBe(201);expect((await post('/workspace/staff-assignments',body)).status).toBe(200);
+ expect((await post('/workspace/staff-assignments',{...body,staffId:b.id,operationId:'staff-foreign-00001'})).status).toBe(404);
+ const token=generateToken(employee.id,'staff-test').accessToken,call=(body)=>request(app).post('/sales').set('Authorization','Bearer '+token).send(body);
+ expect((await request(app).get('/workspace/pos-location').set('Authorization','Bearer '+token)).body.data.warehouseId).toBe(wh.id);
+ const catalog=await request(app).get('/test-products?limit=100').set('Authorization','Bearer '+token);expect(catalog.status).toBe(200);const item=catalog.body.data.data.find(x=>x.id===p.id);expect(Number(item.stock)).toBe(3);expect(item.unallocatedStock).toBeUndefined();expect(item.prixAchat).toBeUndefined();
+ expect((await call(payload(p,1,10))).status).toBe(403);
+ expect((await call(payload(p,1,10,{warehouseId:wh.id}))).status).toBe(201);expect((await p.reload()).stock).toBe(4);
+ expect((await post('/workspace/staff-assignments',{...body,warehouseId:null,operationId:'staff-stale-000001'})).status).toBe(409);
+ const cleared=await post('/workspace/staff-assignments',{...body,warehouseId:null,expectedAssignmentId:result.body.data.id,operationId:'staff-clear-000001'});expect(cleared.status).toBe(201);
+ expect((await call(payload(p,1,10,{warehouseId:wh.id}))).status).toBe(403);
+ const record=await StaffAssignment.findByPk(result.body.data.id);await expect(record.destroy()).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

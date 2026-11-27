@@ -38,6 +38,7 @@ exports.createPurchase = async (req,res,next)=>{
   const userId=req.user.tenantId;
   const purchase=await sequelize.transaction(async transaction=>{
    const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   await require('../utils/staffScope').restrictMutation(req.user,transaction);
    const prior=await ledger.replay(req,'purchase.create',transaction);if(prior){const existing=await Purchase.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);return existing;}
    if(req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
    const wh=await inventory.warehouse(userId,req.body.warehouseId,transaction);
@@ -79,6 +80,7 @@ exports.updatePurchase=async(req,res,next)=>{
   const userId=req.user.tenantId;
   const purchase=await sequelize.transaction(async transaction=>{
    const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   await require('../utils/staffScope').restrictMutation(req.user,transaction);
    const row=await Purchase.findOne({where:{id:req.params.id,userId},transaction,lock:transaction.LOCK.UPDATE});
    if(!row)throw fail('Achat non trouvé',404);
    const fields=pick(req.body,['description','numeroFacture','statut']);
