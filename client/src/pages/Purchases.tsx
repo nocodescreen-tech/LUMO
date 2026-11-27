@@ -23,6 +23,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { normalizeAmount } from '../utils/currencyHelpers';
 import { getDisplayAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
+import { postFinancial } from '../api/financialOperation';
 import { toast } from 'sonner';
 import { exportToPDF } from '../utils/reportPDF';
 import { useTranslation } from '../hooks/useTranslation';
@@ -132,7 +133,7 @@ const Purchases = () => {
                 }
             }
 
-            await api.post('/purchases', {
+            await postFinancial('/purchases', {
                 ...formData,
                 fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
                 montantTotal: Number(formData.montantTotal),
@@ -142,7 +143,7 @@ const Purchases = () => {
                     quantite: item.quantite,
                     prixAchat: item.prixAchat
                 }))
-            });
+            },'purchase.create');
             toast.success(t('purchaseRecorded'));
             setShowModal(false);
             fetchData();
@@ -157,7 +158,7 @@ const Purchases = () => {
             });
             setItems([]);
         } catch (error: any) {
-            toast.error(error.response?.data?.message || t('purchaseSaveError'));
+            toast.error(error.response?.data?.message || error.message || t('purchaseSaveError'));
         } finally {
             setSubmitting(false);
         }

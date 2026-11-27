@@ -36,6 +36,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { postFinancial } from '../api/financialOperation';
 import { getDisplayAmount, useCurrency, normalizeAmount } from '../utils/currencyHelpers';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -208,9 +209,9 @@ const Dettes = () => {
     setSettleLoading(true);
     try {
       // Convert back to base currency for backend
-      const baseAmount = normalizeAmount(amount, shopCurrency, currency, exchangeRate);
+      const baseAmount = normalizeAmount(amount, currency, shopCurrency, exchangeRate);
 
-      await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
+      await postFinancial(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount },'debt.settle');
       toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom));
       setSettleModal({ open: false, client: null });
       setSettleAmount('');

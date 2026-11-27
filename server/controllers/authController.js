@@ -601,7 +601,9 @@ const logoutAdmin = async (req, res, next) => {
     
     if (token) {
         const { blacklistToken } = require('../middleware/authMiddleware');
-        blacklistToken(token);
+        await blacklistToken(token);
+        const decoded=require('jsonwebtoken').verify(token,require('../config').jwt.secret);
+        await sequelize.transaction(async transaction=>{const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});if(user){user.activeSessions=(user.activeSessions||[]).filter(s=>s.sessionId!==decoded.sessionId);await user.save({hooks:false,transaction});}});
     }
     
     await logActivite(req.user.id, 'DECONNEXION', 'Utilisateur déconnecté (Jeton révoqué)', 'System', req.user.tenantId);

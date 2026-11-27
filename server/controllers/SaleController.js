@@ -8,6 +8,7 @@ const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
 const ledger=require('../utils/commercialLedger');
 const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round, money } = require('../utils/transactionSafety');
+const publicSale=(sale,user)=>{const row=sale.toJSON?sale.toJSON():{...sale};if(['admin','superadmin'].includes(user.role))return row;delete row.profitNet;row.articles=safeParseArticles(row.articles).map(({prixAchat,...item})=>item);return row;};
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
   REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
@@ -62,6 +63,7 @@ exports.getSales = async (req, res, next) => {
       offset,
     });
 
+    data.rows=data.rows.map(row=>publicSale(row,req.user));
     const response = getPagingData(data, page, l);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, response, 'Ventes récupérées');
@@ -96,7 +98,7 @@ exports.createSale = async (req, res, next) => {
     const owner = await require('../models/User').findByPk(ownerId, { transaction, lock: transaction.LOCK.UPDATE });
     if (!owner) throw fail('Entreprise introuvable',404);
     const prior=await ledger.replay(req,'sale.create',transaction);
-    if(prior){const existing=await Sale.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);await transaction.commit();return require('../utils/response').sendResponse(res,200,existing,'Vente déjà enregistrée');}
+    if(prior){const existing=await Sale.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);await transaction.commit();return require('../utils/response').sendResponse(res,200,publicSale(existing,req.user),'Vente déjà enregistrée');}
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
     const finalRate = rateFor(owner);
@@ -253,7 +255,7 @@ exports.createSale = async (req, res, next) => {
     await invalidateCache('products');
     await logActivite(req.user.id, 'VENTE', `Vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
     const { sendResponse } = require('../utils/response');
-    sendResponse(res, 201, sale, 'Vente enregistrée avec succès');
+    sendResponse(res, 201, publicSale(sale,req.user), 'Vente enregistrée avec succès');
   } catch (error) {
     if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
@@ -282,7 +284,7 @@ exports.updateSale = async (req, res, next) => {
     await sale.update(payload);
     await invalidateCache('stats');
     const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, sale, 'Vente mise à jour');
+    sendResponse(res, 200, publicSale(sale,req.user), 'Vente mise à jour');
   } catch (error) {
     next(error);
   }
@@ -314,6 +316,6 @@ exports.refundSale=async(req,res,next)=>{
   row.statut='Remboursée';await row.save({transaction});return row;
  });
  await invalidateCache('stats');await invalidateCache('products');await logActivite(req.user.id,'REMBOURSEMENT',`Remboursement vente #${sale.id}`,'Ventes',userId);
- return require('../utils/response').sendResponse(res,200,sale,'Vente remboursée et stock restitué');
+ return require('../utils/response').sendResponse(res,200,publicSale(sale,req.user),'Vente remboursée et stock restitué');
  }catch(e){next(e)}
 };

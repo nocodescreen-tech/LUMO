@@ -33,7 +33,7 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Session révoquée, veuillez vous reconnecter' });
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret,{algorithms:['HS256']});
     // Reject refresh tokens used as access tokens
     if (decoded.type !== 'access') {
       logger.warn(`[AUTH_FAIL] Type de token invalide (${decoded.type}) pour ${req.originalUrl}`);

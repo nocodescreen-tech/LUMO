@@ -22,6 +22,7 @@ import {
 import { useTranslation } from '../hooks/useTranslation';
 import BarcodeScanner from '../components/common/BarcodeScanner';
 import api from '../api/axios';
+import { postFinancial } from '../api/financialOperation';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'sonner';
@@ -406,6 +407,7 @@ const POS = () => {
     };
 
     const executeSale = async (finalClientName: string, finalClientPhone: string, finalClientEmail: string = '') => {
+        if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
         setLoading(true);
         setClientName(finalClientName);
         setClientPhone(finalClientPhone);
@@ -439,31 +441,17 @@ const POS = () => {
             devise: saleCurrency || currency || 'USD',
             tauxChange: liveRate,
             methodePaiement: paymentMethod || 'Espèces',
-            montantRecu: paymentMethod === 'Espèces' ? Number(amountReceived) || saleTotal : saleTotal,
+            montantRecu: paymentMethod === 'Espèces' ? (amountReceived===''?saleTotal:Number(amountReceived)) : 0,
+            clientId: allClients.find(c=>c.nom.toLowerCase()===finalClientName.trim().toLowerCase() && (!finalClientPhone || c.telephone===finalClientPhone))?.id || null,
             clientInfo: {
-                nom: finalClientName.trim() || t('walkInClient'),
+                nom: finalClientName.trim()===t('walkInClient')?'Client de passage':(finalClientName.trim()||'Client de passage'),
                 telephone: finalClientPhone.trim() || '',
                 email: finalClientEmail.trim() || ''
             }
         };
 
         try {
-            if (finalClientName.trim() && finalClientName !== t('walkInClient')) {
-                const exists = allClients.find(c => c.nom.toLowerCase() === finalClientName.toLowerCase());
-                if (!exists) {
-                    try {
-                        await api.post('/clients', {
-                            nom: finalClientName.trim(),
-                            telephone: finalClientPhone.trim(),
-                            email: finalClientEmail.trim()
-                        });
-                    } catch (clientError) {
-                        console.warn('Client non créé silencieusement:', clientError);
-                    }
-                }
-            }
-
-            const response = await api.post('/sales', salePayload);
+            const response=await postFinancial('/sales',salePayload,'sale.create');
             const createdSale = response.data?.success ? response.data.data : response.data;
             setLastSale(createdSale);
 
@@ -473,60 +461,19 @@ const POS = () => {
             clearCart();
             await checkCashSession();
         } catch (error: any) {
-            if (!navigator.onLine || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-                const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
-                const offlineSale = {
-                    ...salePayload,
-                    articles: salePayload.items,
-                    id: 'OFFLINE_' + Date.now(),
-                    createdAt: new Date().toISOString(),
-                    status: 'OFFLINE'
-                };
-                pending.push(offlineSale);
-                localStorage.setItem('pending-sales', JSON.stringify(pending));
-                setLastSale(offlineSale);
-                toast.info(t('saleSavedOffline'));
-                setShowSuccess(true);
-                setShowClientModal(false);
-                clearCart();
-            } else {
-                toast.error(error.response?.data?.message || t('saleError'));
-            }
+            if(!error.response && (error.code==='ERR_NETWORK'||!navigator.onLine)){
+                toast.error(language==='fr'?'Résultat incertain. Conservez le panier et réessayez la même vente après reconnexion.':'Result uncertain. Keep the cart and retry the same sale after reconnecting.');
+            } else toast.error(error.response?.data?.message || error.message || t('saleError'));
         } finally {
             setLoading(false);
             setClientEmail('');
         }
     };
 
-    // Auto-sync offline sales
-    useEffect(() => {
-        const syncOffline = async () => {
-            if (!navigator.onLine) return;
-            const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
-            if (pending.length === 0) return;
-
-            const syncMsg = language === 'fr'
-  ? `Synchronisation de ${pending.length} vente(s) hors-ligne...`
-  : `Syncing ${pending.length} offline sale(s)...`;
-toast.info(syncMsg);
-            const remaining = [];
-            for (const sale of pending) {
-                try {
-                    await api.post('/sales', sale);
-                } catch (err) {
-                    remaining.push(sale);
-                }
-            }
-            localStorage.setItem('pending-sales', JSON.stringify(remaining));
-            if (remaining.length === 0) {
-                toast.success("" + t('allOfflineSynced'));
-            }
-        };
-
-        window.addEventListener('online', syncOffline);
-        syncOffline(); // Initial check
-        return () => window.removeEventListener('online', syncOffline);
-    }, []);
+    // Legacy queue has no reliable tenant identity. Never replay it automatically.
+    useEffect(()=>{
+        if(localStorage.getItem('pending-sales')) toast.warning(language==='fr'?'Anciennes ventes hors ligne détectées. Vérification manuelle nécessaire; aucune synchronisation automatique.':'Legacy offline sales detected. Manual reconciliation required.');
+    },[language]);
 
     if (loading) return <PageSkeleton />;
 

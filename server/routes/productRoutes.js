@@ -6,7 +6,7 @@ const { protect, authorize, checkPermission } = require('../middleware/authMiddl
 const allowProductImport = (req, res, next) => {
   if (req.user.role === 'admin' || req.user.role === 'superadmin') return next();
   const perms = req.user.permissions || [];
-  if (perms.includes('products.import') || perms.includes('products.add') || perms.includes('products')) return next();
+  if (perms.includes('products.import')) return next();
   return res.status(403).json({ message: 'Accès refusé. Permission requise : products.import' });
 };
 
@@ -128,7 +128,7 @@ router.post('/bulk', protect, allowProductImport, createBulkProducts);
  *       200:
  *         description: Inventaire vidé
  */
-router.delete('/all', protect, checkPermission('products.delete'), deleteAllProducts);
+router.delete('/all', protect, checkPermission('products.delete'), (req,res)=>res.status(409).json({message:'La purge du stock est désactivée pour préserver la traçabilité.'}));
 router.delete('/:id', protect, checkPermission('products.delete'), deleteProduct);
 
 module.exports = router;
