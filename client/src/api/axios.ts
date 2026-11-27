@@ -20,7 +20,7 @@ const api = axios.create({
 // ─── Request Interceptor: attach access token & CSRF ──────────────────────────
 api.interceptors.request.use((config) => {
   const token = getToken();
-  if(String(config.url||'').split('?')[0].endsWith('/auth/refresh'))config.headers['X-Lumo-Client']='1';
+  if(!['get','head','options'].includes(String(config.method||'get').toLowerCase()))config.headers['X-Lumo-Client']='1';
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -29,12 +29,6 @@ api.interceptors.request.use((config) => {
   config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
   config.headers['Pragma'] = 'no-cache';
   config.headers['Expires'] = '0';
-
-  // Ajout automatique du jeton CSRF s'il est stocké en session (optionnel selon implémentation)
-  const csrfToken = document.cookie.split('; ').find(row => row.startsWith('XSRF-TOKEN='))?.split('=')[1];
-  if (csrfToken) {
-    config.headers['X-XSRF-TOKEN'] = decodeURIComponent(csrfToken);
-  }
 
   return config;
 });

@@ -75,10 +75,6 @@ const App = () => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    // Initialisation du CSRF au démarrage
-    api.get('/csrf-token').catch(() => {});
-  }, []);
 
   // Tentative unique de récupération de session au montage : si aucun token
   // n'est présent en mémoire (ex: après un rafraîchissement de page), on essaie

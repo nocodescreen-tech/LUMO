@@ -4,9 +4,8 @@ const hpp = require('hpp');
 const xss = require('xss-clean');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const csrf = require('csurf');
 
-const {allowedOrigin}=require('./sessionOrigin');
+const {allowedOrigin,protectBrowserMutation}=require('./sessionOrigin');
 
 const securityMiddleware = (app) => {
     // Set security HTTP headers
@@ -35,56 +34,11 @@ const securityMiddleware = (app) => {
     // Cookie Parser for secure JWT cookies
     app.use(cookieParser());
     
-    // Protection anti-CSRF professionnelle via csurf
-    const csrfProtection = csrf({ 
-        cookie: { 
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', 
-            sameSite: 'lax'
-        } 
-    });
-
-    // Middleware pour envoyer le JETON au frontend via le cookie XSRF-TOKEN (lu par Axios)
-    const setCsrfCookie = (req, res, next) => {
-        if (req.csrfToken) {
-            res.cookie('XSRF-TOKEN', req.csrfToken(), {
-                httpOnly: false, // Doit être false pour qu'Axios le lise
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax'
-            });
-        }
-        next();
-    };
-    
-    // Route pour initialiser le CSRF explicitement si besoin
-    app.get('/api/csrf-token', csrfProtection, setCsrfCookie, (req, res) => {
-        res.json({ success: true });
-    });
-
-    // Application du CSRF sur les autres routes
-    app.use((req, res, next) => {
-        // Désactiver le CSRF pendant les tests automatisés et en production (cross-domain)
-        if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'production') {
-            return next();
-        }
-
-        // Liste blanche pour les routes d'authentification (protégées par
-        // leur propre mécanisme : refresh token HttpOnly, rate limits, OTP).
-        // /auth/refresh notamment tourne au démarrage de l'app, AVANT que le
-        // cookie XSRF-TOKEN soit établi — exiger CSRF ici casse la session.
-        // NOTE : le path contient le préfixe /api (ex: /api/auth/login) donc
-        // on utilise includes() et pas startsWith().
-        const isAuthRoute = req.path.includes('/auth/');
-                          
-        if (isAuthRoute) {
-            return next();
-        }
-        
-        csrfProtection(req, res, (err) => {
-            if (err) return next(err);
-            setCsrfCookie(req, res, next);
-        });
-    });
+    // Browser writes require an explicit, non-simple header in all environments.
+    // Bearer-authenticated CLI requests without browser context remain compatible.
+    app.use('/api',protectBrowserMutation);
+    // Legacy initialization endpoint (no token cookie is issued).
+    app.get(['/api/csrf-token','/api/v1/csrf-token'],(_req,res)=>res.json({success:true,policy:'explicit-origin-header'}));
 
     // General API rate limiter
     const apiLimiter = rateLimit({

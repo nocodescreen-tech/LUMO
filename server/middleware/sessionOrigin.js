@@ -21,4 +21,13 @@ function protectRefresh(req,res,next){
  if(req.cookies?.refreshToken&&req.get('X-Lumo-Client')!=='1')return res.status(403).json({message:'En-tête de session requis'});
  next();
 }
-module.exports={allowedOrigins,allowedOrigin,protectRefresh};
+function protectBrowserMutation(req,res,next){
+ if(['GET','HEAD','OPTIONS'].includes(req.method))return next();
+ const origin=req.get('origin'),fetchSite=req.get('sec-fetch-site');
+ if(origin&&!allowedOrigin(origin))return res.status(403).json({message:'Origine non autorisée'});
+ // Origin and Fetch Metadata identify browser requests, including login CSRF
+ // where an ambient session cookie may not yet exist.
+ if((origin||fetchSite||req.cookies?.refreshToken)&&req.get('X-Lumo-Client')!=='1')return res.status(403).json({message:'En-tête de session requis'});
+ return next();
+}
+module.exports={allowedOrigins,allowedOrigin,protectRefresh,protectBrowserMutation};
