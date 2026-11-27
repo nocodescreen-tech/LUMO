@@ -41,4 +41,5 @@ router.get('/cash-flow',protect,authorize('admin','superadmin'),async(req,res,ne
  }catch(e){next(e);}
 });
 router.use('/receivables',require('./receivableRoutes'));
+router.use('/accounting',require('./accountingRoutes'));
 module.exports=router;

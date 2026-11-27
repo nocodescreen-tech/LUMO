@@ -430,6 +430,21 @@ suite('Commercial PostgreSQL integration',()=>{
  const payment=await RepairPayment.findByPk(first.body.data.id);await expect(payment.destroy()).rejects.toThrow();
  expect((await act('READY',{action:'transition',status:'DELIVERED',handoverConfirmed:true})).status).toBe(201);
  });
+ test('accounting reports reconcile real entries, isolate tenants and protect locked dates',async()=>{
+ const {AccountingLock}=require('../models'),now=new Date().toISOString().slice(0,10),base='/finance/accounting/',range='?from='+now+'&to='+now;
+ const get=path=>request(app).get(base+path).set('Authorization','Bearer '+ta);
+ const chart=await get('accounts');expect(chart.status).toBe(200);expect(chart.body.data.accounts.some(x=>x.code==='SERVICE_REVENUE')).toBe(true);
+ const balance=await get('balance'+range);expect(balance.status).toBe(200);expect(balance.body.data.complete).toBe(false);
+ const rows=balance.body.data.rows.filter(x=>x.currency==='CDF');expect(rows.length).toBeGreaterThan(0);expect(rows.reduce((s,r)=>s+Number(r.debit)-Number(r.credit),0)).toBeCloseTo(0);
+ const cashRow=rows.find(x=>x.account==='CASH');const book=await get('ledger'+range+'&account=CASH&currency=CDF&limit=100');expect(book.status).toBe(200);expect(Number(book.body.data.rows.at(-1).balance)).toBe(Number(cashRow.closing));
+ const position=await get('position?asOf='+now);expect(position.status).toBe(200);expect(position.body.data.openingBalancesIncluded).toBe(false);expect(Number(position.body.data.summary.find(x=>x.currency==='CDF').controlDifference)).toBe(0);
+ const cash=await get('cash-reconciliation');expect(cash.status).toBe(200);expect(Number(cash.body.data.rows[0].journalDifference)).toBe(0);
+ const foreign=generateToken(b.id,'support-test').accessToken;const isolated=await request(app).get(base+'balance'+range).set('Authorization','Bearer '+foreign);expect(isolated.status).toBe(200);expect(isolated.body.data.rows.length).toBe(0);
+ const old=new Date(Date.now()-86400000*2).toISOString().slice(0,10),body={through:old,note:'Reviewed recorded period',confirm:true,operationId:'accounting-lock-test-01'};
+ expect((await post(base+'locks',body)).status).toBe(201);expect((await post(base+'locks',body)).status).toBe(200);expect((await post(base+'locks',{...body,through:now,operationId:'accounting-lock-test-02'})).status).toBe(400);
+ const lock=await AccountingLock.findOne({where:{userId:a.id}});await expect(lock.destroy()).rejects.toThrow();
+ await expect(JournalEntry.create({userId:a.id,actorId:a.id,event:'TEST_BACKDATE',reference:'blocked',debitAccount:'CASH',creditAccount:'REVENUE',amount:1,currency:'CDF',createdAt:new Date(old+'T12:00:00Z')})).rejects.toThrow();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
