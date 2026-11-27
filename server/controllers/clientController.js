@@ -133,7 +133,7 @@ exports.getClientSales = async (req, res, next) => {
     const where={clientId,userId};if(req.user.parentId)where.warehouseId=(await require('../utils/staffScope').location(req.user))?.id??null;
     const data = await Sale.findAndCountAll({
       where,
-      order: [['createdAt', 'DESC']],
+      order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset
     });

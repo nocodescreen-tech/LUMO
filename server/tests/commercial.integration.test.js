@@ -893,6 +893,15 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await actor.reload()).activeSessions).toEqual([]);
  expect((await request(app).get('/cash/current').set('Authorization','Bearer '+valid.body.token)).status).toBe(401);
  });
+ test('release read indexes are installed and tenant reads retain stable ordering',async()=>{
+ const names=["lumo_rc_sales_tenant_date","lumo_rc_sales_branch_date","lumo_rc_sales_client_date","lumo_rc_products_tenant_date","lumo_rc_clients_tenant_name","lumo_rc_purchases_tenant_date","lumo_rc_serial_product_location","lumo_rc_journal_currency_date","lumo_rc_receivables_open_due","lumo_rc_receivables_tenant_id","lumo_rc_notifications_inbox"];
+ const [rows]=await sequelize.query("SELECT indexname,indexdef FROM pg_indexes WHERE schemaname=current_schema() AND indexname IN (:names)",{replacements:{names}});
+ expect(rows.map(v=>v.indexname).sort()).toEqual([...names].sort());
+ const clientHistory=await request(app).get('/clients/'+ca.id+'/sales?limit=50').set('Authorization','Bearer '+ta);
+ expect(clientHistory.status).toBe(200);
+ const sales=clientHistory.body.data;expect(sales.every(v=>v.userId===a.id&&v.clientId===ca.id)).toBe(true);
+ for(let i=1;i<sales.length;i++){const previous=sales[i-1],next=sales[i];expect(+new Date(previous.createdAt)>=+new Date(next.createdAt)).toBe(true);if(previous.createdAt===next.createdAt)expect(previous.id).toBeGreaterThan(next.id);}
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

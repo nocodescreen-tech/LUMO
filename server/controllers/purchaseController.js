@@ -27,7 +27,7 @@ exports.getPurchases = async (req, res, next) => {
 
     const data = await Purchase.findAndCountAll({ 
       where: { userId },
-      order: [['createdAt', 'DESC']],
+      order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset
     });

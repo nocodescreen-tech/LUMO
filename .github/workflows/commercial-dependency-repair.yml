@@ -1,8 +1,5 @@
-name: Commercial dependency repair candidate
+name: Commercial dependency repair candidate (review only)
 on:
-  push:
-    branches: [commercial-v2]
-    paths: [.github/workflows/commercial-dependency-repair.yml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,33 +54,3 @@ jobs:
             server/dependency-repair-audit.json
             client/dependency-repair-audit.json
           if-no-files-found: warn
-  publish:
-    needs: prepare
-    if: github.ref == 'refs/heads/commercial-v2'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-      - uses: actions/download-artifact@v4
-        with:
-          name: reviewed-lockfiles
-          path: candidate
-      - name: Commit only validated lockfiles, never overwrite a newer branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          for dir in server client; do
-            test -f "candidate/$dir/package-lock.json"
-            cp "candidate/$dir/package-lock.json" "$dir/package-lock.json"
-          done
-          git add -- server/package-lock.json client/package-lock.json
-          if git diff --cached --quiet; then echo "Lockfiles unchanged"; exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(deps): synchronize tested commercial lockfiles'
-          git push origin HEAD:refs/heads/commercial-v2

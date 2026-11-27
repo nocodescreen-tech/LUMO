@@ -63,7 +63,7 @@ exports.getSales = async (req, res, next) => {
         { model: Client, as: 'client' },
         { model: require('../models').User, as: 'vendeur', attributes: ['nom'] }
       ],
-      order: [['createdAt', 'DESC']],
+      order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset,
     });
