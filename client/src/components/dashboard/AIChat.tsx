@@ -27,7 +27,7 @@ const AIChat = () => {
             try {
                 const { data } = await api.get('/ai/chat/history');
                 if (data && data.length > 0) {
-                    setMessages(data);
+                    setMessages(data.map((m:any)=>({role:m.role==='user'?'user':'ai',content:String(m.content||'')})));
                 }
             } catch (err) {
                 console.error("Failed to load chat history", err);
@@ -180,7 +180,7 @@ const AIChat = () => {
                                 </div>
                                 <div>
                                     <h4 style={{ margin: 0, fontWeight: '800', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>LUMO Assistant</h4>
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.8, fontWeight: '700' }}>Expert IA Stratégique</span>
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.8, fontWeight: '700' }}>{fr?'Analyse en lecture seule':'Read-only analysis'}</span>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
@@ -197,7 +197,7 @@ const AIChat = () => {
                         <div ref={scrollRef} role="log" aria-live="polite" style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-main)' }}>
                             {messages.length === 0 && (
                                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
-                                    <Bot size={48} color="#155E58" opacity={0.3} style={{ marginBottom: '16px' }} />
+                                    <Bot size={48} color="var(--primary)" opacity={0.3} style={{ marginBottom: '16px' }} />
                                     <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-muted)', fontWeight: 600 }}>Bonjour ! Posez-moi une question sur vos ventes, votre stock ou demandez-moi un conseil stratégique.</p>
                                 </div>
                             )}
@@ -207,7 +207,7 @@ const AIChat = () => {
                                     maxWidth: '85%',
                                     padding: '14px 18px',
                                     borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                                    backgroundColor: m.role === 'user' ? '#155E58' : 'var(--bg-card)',
+                                    backgroundColor: m.role === 'user' ? 'var(--primary)' : 'var(--bg-card)',
                                     color: m.role === 'user' ? 'white' : 'var(--text-main)',
                                     border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.06)',
                                     fontSize: '0.9rem',
@@ -234,10 +234,11 @@ const AIChat = () => {
                             )}
                         </div>
 
+                        <div style={{padding:'8px 16px',fontSize:'.72rem',color:'var(--text-muted)'}}>{fr?'Votre question et les agrégats de gestion peuvent être transmis au fournisseur IA configuré. Ne saisissez pas de données sensibles. Aucun ordre n’est exécuté.':'Your question and aggregate business data may be sent to the configured AI provider. Do not enter sensitive data. No actions are executed.'} <button type="button" disabled={loading} onClick={async()=>{if(!window.confirm(fr?'Effacer votre historique ?':'Clear your history?'))return;try{await api.delete('/ai/chat/history');setMessages([])}catch{window.alert(fr?'Échec de suppression':'Unable to clear history')}}} style={{color:'var(--primary)',background:'transparent',border:0,cursor:'pointer'}}>{fr?'Effacer l’historique':'Clear history'}</button></div>
                         {/* Input Area */}
                         <form onSubmit={handleSend} style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px', backgroundColor: 'var(--bg-card)', flexShrink: 0 }}>
                             <input
-                                type="text"
+                                type="text" maxLength={2000}
                                 aria-label={fr?"Votre question":"Your question"} placeholder={fr?"Posez votre question...":"Ask a question..."}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}

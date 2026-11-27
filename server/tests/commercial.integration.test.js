@@ -31,6 +31,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/ai',require('../routes/aiRoutes'));
  app.use('/notifications',require('../routes/notificationRoutes'));
  app.use('/backup',require('../routes/backupRoutes'));
  app.use('/support',require('../routes/supportRoutes'));
@@ -787,6 +788,17 @@ suite('Commercial PostgreSQL integration',()=>{
  await expect((await SaasPrice.findByPk(created.body.data.id)).destroy()).rejects.toThrow();
  await expect((await SaasInvoice.findByPk(iid)).destroy()).rejects.toThrow();
  expect((await get(base+'/metrics',token)).status).toBe(200);
+ });
+ test('AI knowledge is tenant-scoped aggregate-only and uses posted currency totals',async()=>{
+ const k=require('../ai/businessKnowledge'),u=await User.findOne({where:{email:'executive-test@example.com'}}),token=generateToken(u.id,'executive-test-session').accessToken;
+ const s=await k.snapshot(u.id);expect(Number(s.financial.find(v=>v.currency==='CDF').revenue)).toBe(800);expect(Number(s.financial.find(v=>v.currency==='USD').serviceRevenue)).toBe(20);
+ expect(JSON.stringify(s)).not.toContain(u.email);expect(JSON.stringify(s)).not.toContain('Foreign item');expect(k.modules.some(m=>m.path==='/budgets')).toBe(true);
+ const get=(path,t)=>request(app).get(path).set('Authorization','Bearer '+t);
+ const r=await get('/ai/insights',token);expect(r.status).toBe(200);expect(r.body.source).toBe('recorded-rules');
+ const staff=await User.findOne({where:{email:'crm-seller-one@example.com'}});expect((await get('/ai/insights',generateToken(staff.id,'crm-one-session').accessToken)).status).toBe(403);
+ expect((await request(app).post('/ai/chat').set('Authorization','Bearer '+token).send({message:'x'.repeat(2001)})).status).toBe(400);
+ expect((await request(app).delete('/ai/chat/history').set('Authorization','Bearer '+token)).status).toBe(200);
+ expect((await get('/ai/chat/history',token)).body).toEqual([]);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

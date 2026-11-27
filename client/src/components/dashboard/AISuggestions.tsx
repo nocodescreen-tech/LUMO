@@ -49,7 +49,7 @@ const AISuggestions = () => {
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <Sparkles size={40} className="animate-pulse" style={{ color: 'var(--primary)', marginBottom: '16px' }} />
-                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('aiLoading') || 'Analyse prédictive en cours...'}</p>
+                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('aiLoading') || 'Calcul des indicateurs en cours…'}</p>
             </div>
         </div>
     );
@@ -67,7 +67,7 @@ const AISuggestions = () => {
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO Insights'}
+                        <Sparkles size={24} color="var(--primary)" /> {language==='fr'?'Recommandations de gestion':'Business recommendations'}
                     </h3>
             </div>
 

@@ -1,20 +1,15 @@
-const express = require('express');
-const router = express.Router();
-const { getAIInsights, chatAI, getChatHistory, publicChatAI } = require('../controllers/aiController');
-const { createFeedback } = require('../controllers/feedbackController');
-const { protect, authorize } = require('../middleware/authMiddleware');
-
-// Insights IA globaux basés sur les ventes, dépenses et stock
-router.get('/insights', protect, authorize('admin','superadmin'), getAIInsights);
-
-// Chat IA conversationnel pour le commerce
-router.post('/chat', protect, authorize('admin','superadmin'), chatAI);
-router.get('/chat/history', protect, authorize('admin','superadmin'), getChatHistory);
-
-// Feedback pour les réponses de l'IA
-router.post('/feedback', protect, createFeedback);
-
-// Chat public pour la Landing Page (sans authentification)
-router.post('/public-chat', publicChatAI);
-
-module.exports = router;
+const router=require('express').Router();
+const rateLimit=require('express-rate-limit');
+const c=require('../controllers/aiController');
+const {createFeedback}=require('../controllers/feedbackController');
+const {protect,authorize}=require('../middleware/authMiddleware');
+const owner=[protect,authorize('admin')];
+const limiter=(max,keyGenerator)=>rateLimit({windowMs:60000,max,standardHeaders:true,legacyHeaders:false,...(keyGenerator?{keyGenerator}:{}),message:{message:'Trop de requêtes, réessayez dans une minute.'}});
+const privateLimit=limiter(12,req=>String(req.user.id)),publicLimit=limiter(8);
+router.get('/insights',...owner,privateLimit,c.getAIInsights);
+router.post('/chat',...owner,privateLimit,c.chatAI);
+router.get('/chat/history',...owner,c.getChatHistory);
+router.delete('/chat/history',...owner,privateLimit,c.clearHistory);
+router.post('/feedback',protect,createFeedback);
+router.post('/public-chat',publicLimit,c.publicChatAI);
+module.exports=router;
