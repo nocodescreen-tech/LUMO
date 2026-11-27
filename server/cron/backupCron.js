@@ -14,7 +14,7 @@ async function executeDailyBackup(){
  const now=new Date(),clock=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(now);
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
  const value=k=>parts.find(p=>p.type===k).value,day=value('year')+'-'+value('month')+'-'+value('day');
- const owners=await User.findAll({where:{role:'admin',parentId:null,isSuspended:false,preferences:{autoBackupEnabled:true}},attributes:['id','preferences']});
+ const owners=await User.findAll({where:{role:'admin',parentId:null,isSuspended:false,preferences:{[Op.contains]:{autoBackupEnabled:true}}},attributes:['id','preferences']});
  for(const owner of owners){
  if((owner.preferences?.backupTime||'00:00')!==clock)continue;
  let row;try{row=await BackupRun.create({ownerId:owner.id,mode:'SCHEDULED',scheduleKey:day,status:'RUNNING'});}catch(e){if(e.name==='SequelizeUniqueConstraintError')continue;logger.warn('Backup claim failed');continue;}

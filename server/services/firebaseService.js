@@ -1,26 +1,14 @@
 const admin = require('firebase-admin');
-const path = require('path');
 const logger = require('../utils/logger');
 
 // Only initialize if we have the config
 let bucket = null;
 
 try {
-    // You should put your serviceAccountKey.json in server/config/
-    const serviceAccountPath = path.join(__dirname, '..', 'config', 'lumo-58279-firebase-adminsdk-fbsvc-33532c1e1a.json');
-    
     let serviceAccount;
-    
-    // Priorité à la variable d'environnement (plus sécurisé pour la prod)
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        try {
-            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        } catch (e) {
-            // Si c'est du base64
-            serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString());
-        }
-    } else if (require('fs').existsSync(serviceAccountPath)) {
-        serviceAccount = require(serviceAccountPath);
+        try { serviceAccount=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); }
+        catch(e){serviceAccount=JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT,'base64').toString());}
     }
 
     if (serviceAccount) {
@@ -35,7 +23,7 @@ try {
         logger.warn('⚠️ Firebase config non trouvée (Variable d\'env ou JSON).');
     }
 } catch (error) {
-    logger.error('❌ Erreur lors de l’initialisation de Firebase Storage:', error);
+    logger.error('Firebase Storage initialization failed');
 }
 
 const uploadBackup = async (filePath, fileName) => {
@@ -51,7 +39,7 @@ const uploadBackup = async (filePath, fileName) => {
         logger.info(`✅ Sauvegarde envoyée sur le Cloud : ${fileName}`);
         return true;
     } catch (error) {
-        logger.error(`❌ Échec de l’upload Cloud pour ${fileName}:`, error);
+        logger.error('Encrypted backup upload failed');
         return false;
     }
 };

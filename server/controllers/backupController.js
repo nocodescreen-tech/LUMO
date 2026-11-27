@@ -16,7 +16,7 @@ exports.exportBackup=async(req,res,next)=>{try{
 exports.exportEmailBackup=async(req,res,next)=>{try{
  if(req.user.isVerified!==true)throw fail('Adresse email non vérifiée',403);
  if(req.body.confirm!==true)throw fail('Confirmation de l’envoi requise');
- await run(req,'EMAIL',async output=>{const result=await sendEmail({email:req.user.email,subject:'Archive chiffrée LUMO',html:'<p>Votre archive chiffrée est jointe. Conservez-la dans un espace sécurisé.</p>',attachments:[{filename:'lumo-archive-'+output.archive.archiveId+'.json',content:output.buffer}]});if(result===false)throw fail('Envoi indisponible',503)});
+ await run(req,'EMAIL',async output=>{const result=await sendEmail({email:req.user.email,subject:'Archive chiffrée LUMO',html:'<p>Votre archive chiffrée est jointe. Conservez-la dans un espace sécurisé.</p>',attachments:[{filename:'lumo-archive-'+output.archive.archiveId+'.json',content:output.buffer}]});if(result!==true)throw fail('Envoi indisponible',503)});
  return res.json({message:'Archive transmise au service email'});
 }catch(e){next(e)}};
 exports.previewBackup=async(req,res,next)=>{try{const payload=archive.open(req.body,req.user.id);return res.json({version:2,archiveId:payload.archiveId,exportedAt:payload.exportedAt,counts:Object.fromEntries(Object.entries(payload.data).map(([k,v])=>[k,v.length])),authenticated:true,restoreAvailable:false});}catch(e){next(e)}};
