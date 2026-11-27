@@ -178,6 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Support':'Assistance',icon:Activity,path:'/support',group:'STORE'}] : []),
         ...(user?.role === 'superadmin'
             ? [
                 { name: t.adminPlatform || 'Admin Platform', icon: ShieldCheck, path: '/superadmin', group: 'PLATFORM' },

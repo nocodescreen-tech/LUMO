@@ -4,3 +4,5 @@ Replaces the legacy dashboard with a 5DEV-themed responsive console: operational
 Additional integration coverage: suspension reason, session revocation, platform-only actions, subscription grant audit, notification confirmation and settings allowlist. Legacy estimated AI cost removed. Platform operational audit is not yet immutable.
 
 Support phase: owner-scoped tickets with platform queue, categorized requests, priorities, assignment, status and append-only messages; 20 simultaneous unresolved tickets per owner. Platform audit row UPDATE/DELETE blocked by database trigger; this does not protect against database administrators or TRUNCATE. Settings and audit writes now share a transaction. Support currently in-app only, no email/SLA automation.
+
+Support UI: shared panel for owners (/support) and platform administrators (Support tab), filters, pagination, ticket creation, conversation history, replies and administrative assignment/status/priority with required reason. French interface, no email delivery or SLA automation yet.

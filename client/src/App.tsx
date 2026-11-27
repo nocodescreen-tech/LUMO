@@ -34,6 +34,7 @@ const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const VerifyResetOTP = lazy(() => import('./pages/auth/VerifyResetOTP'));
 const Layout = lazy(() => import('./components/layout/Layout'));
 const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
+const SupportCenter = lazy(() => import('./pages/SupportCenter'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -119,6 +120,7 @@ const App = () => {
               <Route path="/activities" element={<Activities />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/subusers" element={<SubusersPage />} />
+              {user?.role === 'admin' && <Route path="/support" element={<SupportCenter />} />}
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
               )}
