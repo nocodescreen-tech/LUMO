@@ -122,7 +122,7 @@ exports.checkPermission = (permissionId) => {
     // If checking an action (e.g. 'products.add'), also accept the parent module ('products') as sufficient
     // This allows admins to grant blanket module access without listing all sub-actions
     const parentModule = permissionId.includes('.') ? permissionId.split('.')[0] : null;
-    if (parentModule && userPerms.includes(parentModule)) {
+    if (parentModule && !/(\.add|\.edit|\.delete|\.refund|\.import|\.settle|\.send_reminder|\.open|\.close|\.delete_session|\.view_purchase_price)$/.test(permissionId) && userPerms.includes(parentModule)) {
       return next();
     }
 

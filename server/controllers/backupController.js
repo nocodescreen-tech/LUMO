@@ -64,7 +64,7 @@ exports.exportBackup = async (req, res, next) => {
                 staffPayments: staffPayments.map(sp => sp.get({ plain: true })),
                 subUsers: subUsers.map(u => {
                     const plain = u.get({ plain: true });
-                    delete plain.motDePasse;
+                    for(const field of ['motDePasse','verificationCode','resetPasswordToken','resetPasswordExpire','twoFactorSecret','twoFactorCode','twoFactorExpire','activeSessions','chatHistory'])delete plain[field];
                     return plain;
                 })
             }
@@ -123,7 +123,7 @@ exports.exportEmailBackup = async (req, res, next) => {
                 staffPayments: staffPayments.map(sp => sp.get({ plain: true })),
                 subUsers: subUsers.map(u => {
                     const plain = u.get({ plain: true });
-                    delete plain.motDePasse;
+                    for(const field of ['motDePasse','verificationCode','resetPasswordToken','resetPasswordExpire','twoFactorSecret','twoFactorCode','twoFactorExpire','activeSessions','chatHistory'])delete plain[field];
                     return plain;
                 })
             }

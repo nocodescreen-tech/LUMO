@@ -368,45 +368,7 @@ const getLandingInbox = async (req, res, next) => {
 // Impersonation (Se connecter en tant que)
 const jwt = require('jsonwebtoken');
 
-const impersonateUser = async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    if (user.role === 'superadmin') return res.status(403).json({ message: 'Impossible d\'usurper un autre SuperAdmin' });
-
-    // Generate token for the target user
-    const token = jwt.sign(
-      { id: user.id, isImpersonating: true, originalAdminId: req.user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' } // Short expiration for impersonation
-    );
-
-    // Log the action
-    await Activite.create({
-      type: 'SECURITY',
-      description: `SuperAdmin (ID: ${req.user.id}) s'est connecté en tant que ${user.email}`,
-      UserId: req.user.id,
-      entrepriseId: req.user.tenantId || req.user.id
-    });
-
-    res.json({
-      message: `Connexion réussie en tant que ${user.nom}`,
-      token,
-      user: {
-        id: user.id,
-        nom: user.nom,
-        email: user.email,
-        role: user.role,
-        avatar: user.avatar,
-        entreprise: user.entreprise,
-        preferences: user.preferences,
-        isImpersonating: true
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+const impersonateUser=async(req,res)=>res.status(409).json({message:'Accès support délégué suspendu avant mise en place du consentement et de la journalisation.'});
 
 const getGlobalSettings = async (req, res, next) => {
   try {

@@ -82,7 +82,7 @@ io.use(async(socket,next)=>{
   next();
  }catch(_){next(new Error('Unauthorized'))}
 });
-io.on("connection",socket=>{socket.join(`user_${socket.data.userId}`);});
+io.on("connection",socket=>{socket.join(`user_${socket.data.tenantId}`);});
 
 setupSwagger(app);
 

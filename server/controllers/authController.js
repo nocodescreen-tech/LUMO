@@ -54,12 +54,13 @@ const registerAdmin = async (req, res, next) => {
     if (userExists) return res.status(400).json({ message: 'Cet email est déjà utilisé par un autre compte' });
 
     // Check if it's the first user ever
-    const isFirstUser = (await User.count()) === 0;
+    // Platform administrators must be provisioned explicitly outside public registration.
+    const isFirstUser = false;
 
     const verificationCode = crypto.randomInt(100000,1000000).toString();
 
     
-    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const hashedVerificationCode = 'v1:'+Date.now()+':'+hashMfa(verificationCode);
 
     const avatarUrl = req.file ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype) : 'default_avatar.png';
 
@@ -400,53 +401,21 @@ const disable2FA = async (req, res, next) => {
 };
 
 // @desc    Vérifier l'email avec le code
-const verifyEmail = async (req, res, next) => {
-  const { email, code } = req.body;
-  try {
-    const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
-    const user = await User.findOne({ 
-      where: { 
-        email: { [Op.iLike]: email }, 
-        verificationCode: hashedCode 
-      } 
-    });
-    if (!user) return res.status(400).json({ message: 'Code de vérification invalide' });
-
-    user.isVerified = true;
-    user.isAdminValidated = true; // Auto-validate once email is verified via OTP
-    user.verificationCode = null;
-
-    const sessionId = crypto.randomBytes(16).toString('hex');
-    const tokens = generateToken(user.id, sessionId);
-    let sessions = user.activeSessions || [];
-    sessions.push({
-      sessionId,
-      userAgent: req.headers['user-agent'],
-      ip: req.ip,
-      createdAt: new Date()
-    });
-    if (sessions.length > 5) sessions.shift();
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
-
-    setRefreshTokenCookie(res, tokens.refreshToken);
-
-    res.status(200).json({
-      id: user.id,
-      nom: user.nom,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      preferences: user.preferences,
-      entreprise: user.entreprise,
-      twoFactorEnabled: user.twoFactorEnabled,
-      token: tokens.accessToken,
-      message: 'Email vérifié avec succès'
-    });
-  } catch (error) {
-    next(error);
-  }
+const verifyEmail=async(req,res,next)=>{
+ const {email,code}=req.body;
+ if(typeof email!=='string'||!/^\d{6}$/.test(String(code)))return res.status(400).json({message:'Code de vérification invalide'});
+ try{
+ const result=await sequelize.transaction(async transaction=>{
+  const user=await User.findOne({where:{email:{[Op.iLike]:email}},transaction,lock:transaction.LOCK.UPDATE});
+  const [version,issued,hash]=String(user?.verificationCode||'').split(':');
+  if(!user||user.isVerified||user.isSuspended||version!=='v1'||Date.now()-Number(issued)>15*60*1000||!Number.isFinite(Number(issued))||hash!==hashMfa(code))throw fail('Code invalide ou expiré; demandez un nouveau code',400);
+  user.isVerified=true;user.isAdminValidated=true;user.verificationCode=null;
+  const sessionId=crypto.randomBytes(16).toString('hex'),tokens=generateToken(user.id,sessionId);
+  user.activeSessions=[...(user.activeSessions||[]),{sessionId,createdAt:new Date(),ip:req.ip,userAgent:req.headers['user-agent']}].slice(-5);
+  await user.save({hooks:false,transaction});return {user,tokens};
+ });
+ const {user,tokens}=result;setRefreshTokenCookie(res,tokens.refreshToken);return res.json({id:user.id,nom:user.nom,email:user.email,role:user.role,avatar:user.avatar,preferences:user.preferences,entreprise:user.entreprise,twoFactorEnabled:user.twoFactorEnabled,permissions:user.permissions,token:tokens.accessToken,message:'Email vérifié avec succès'});
+ }catch(e){next(e)}
 };
 
 // @desc    Mot de passe oublié (Envoi OTP)
@@ -454,13 +423,13 @@ const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
-    if (!user) return res.status(404).json({ message: "Aucun utilisateur avec cet email" });
+    if (!user) return res.status(200).json({message:'Si ce compte existe, un code de récupération sera envoyé.'});
 
     // Générer un code OTP à 6 chiffres
     const resetOTP = crypto.randomInt(100000,1000000).toString();
     
     user.resetPasswordToken = crypto.createHash('sha256').update(resetOTP).digest('hex');
-    user.resetPasswordExpire = Date.now() + 3600000; // 1 heure
+    user.resetPasswordExpire = new Date(Date.now()+15*60*1000);
 
     await user.save();
 
@@ -505,31 +474,17 @@ const verifyResetCode = async (req, res, next) => {
 };
 
 // @desc    Réinitialiser le mot de passe final
-const resetPassword = async (req, res, next) => {
-  const { email, code, motDePasse } = req.body;
-  try {
-    const resetPasswordToken = crypto.createHash('sha256').update(code).digest('hex');
-    
-    const user = await User.findOne({
-      where: {
-        email: { [Op.iLike]: email },
-        resetPasswordToken,
-        resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
-      }
-    });
-
-    if (!user) return res.status(400).json({ message: 'Session de récupération expirée' });
-
-    user.motDePasse = motDePasse;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
-    await user.save();
-
-    await logActivite(user.id, 'SECURITE', 'Mot de passe réinitialisé', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Votre mot de passe a été modifié avec succès' });
-  } catch (error) {
-    next(error);
-  }
+const resetPassword=async(req,res,next)=>{
+ const {email,code,motDePasse}=req.body;
+ if(typeof email!=='string'||!/^\d{6}$/.test(String(code))||typeof motDePasse!=='string'||!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,72}$/.test(motDePasse)||Buffer.byteLength(motDePasse)>72)return res.status(400).json({message:'Code ou mot de passe invalide'});
+ try{
+ const user=await sequelize.transaction(async transaction=>{
+  const row=await User.findOne({where:{email:{[Op.iLike]:email},resetPasswordToken:hashMfa(code),resetPasswordExpire:{[Op.gt]:new Date()}},transaction,lock:transaction.LOCK.UPDATE});
+  if(!row||row.isSuspended)throw fail('Session de récupération expirée');
+  row.motDePasse=motDePasse;row.resetPasswordToken=null;row.resetPasswordExpire=null;row.activeSessions=[];row.twoFactorCode=null;row.twoFactorExpire=null;await row.save({transaction});return row;
+ });
+ await logActivite(user.id,'SECURITE','Mot de passe réinitialisé','System',user.parentId||user.id);return res.json({message:'Votre mot de passe a été modifié avec succès'});
+ }catch(e){next(e)}
 };
 
 // @desc    Mise à jour du profil / paramètres (y compris avatar)
@@ -711,9 +666,9 @@ const resendCode = async (req, res, next) => {
     const verificationCode = crypto.randomInt(100000,1000000).toString();
 
     
-    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const hashedVerificationCode = 'v1:'+Date.now()+':'+hashMfa(verificationCode);
     user.verificationCode = hashedVerificationCode;
-    user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    // Expiration is encoded in the persisted verificationCode field.
     await user.save();
 
     const { sendEmail, getVerificationTemplate } = require('../utils/emailService');

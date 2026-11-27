@@ -104,7 +104,7 @@ router.delete('/:id', protect, checkPermission('clients.delete'), deleteClient);
  *       200:
  *         description: Dette mise à jour
  */
-router.post('/:id/regler', protect, checkPermission('debts'), settleDebt);
+router.post('/:id/regler', protect, checkPermission('debts.settle'), settleDebt);
 
 /**
  * @swagger
@@ -117,6 +117,6 @@ router.post('/:id/regler', protect, checkPermission('debts'), settleDebt);
  *       200:
  *         description: Rappel envoyé
  */
-router.post('/:id/rappel', protect, checkPermission('debts'), sendReminder);
+router.post('/:id/rappel', protect, checkPermission('debts.send_reminder'), sendReminder);
 
 module.exports = router;

@@ -5,3 +5,5 @@
 - Existing sessions without session IDs will need to authenticate again. Production CLIENT_URL must explicitly contain the trusted frontend origin.
 
 Phase 2: serialized cash open/close, stored cash totals, transactional debt settlement, restricted refunds and no permanent financial deletion; received purchases update inventory, pending/shipped purchases do not. Pending orders need a dedicated receiving workflow. Historic open sessions require reconciliation. Cache scoped by user/role/permissions. Server lockfile currently stale: CI uses npm install as a temporary workaround. Do not deploy until PostgreSQL integration tests pass.
+
+Phase 3: public registration no longer grants superadmin; provision platform admins out-of-band. OTP expiry persisted without migration; old email verification codes must be resent. Password reset invalidates sessions. Backups exclude auth secrets; restore and impersonation temporarily blocked. AI read only and admin-only until permission and confirmation workflows. Action permissions tightened. These safeguards require integration testing and UI compatibility updates before release.
