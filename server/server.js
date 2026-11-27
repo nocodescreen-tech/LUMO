@@ -150,6 +150,7 @@ v1Routes.use('/cash', require('./routes/cashRoutes'));
 v1Routes.use('/finance', require('./routes/financeRoutes'));
 v1Routes.use('/workspace', require('./routes/workspaceRoutes'));
 v1Routes.use('/platform/billing', require('./routes/platformBillingRoutes'));
+v1Routes.use('/support', require('./routes/supportRoutes'));
 v1Routes.use('/expenses', require('./routes/depenseRoutes'));
 v1Routes.use('/depenses', require('./routes/depenseRoutes'));
 v1Routes.use('/backup', require('./routes/backupRoutes'));

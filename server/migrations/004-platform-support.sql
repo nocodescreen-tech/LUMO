@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS "SupportTickets" (id serial PRIMARY KEY,"ownerId" integer NOT NULL REFERENCES "Users"(id) ON DELETE RESTRICT,"createdBy" integer NOT NULL,subject varchar(160) NOT NULL,category varchar(32) NOT NULL,priority varchar(16) NOT NULL DEFAULT 'NORMAL',status varchar(24) NOT NULL DEFAULT 'OPEN',"assignedTo" integer,"closedAt" timestamptz,"createdAt" timestamptz NOT NULL DEFAULT now(),"updatedAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "SupportMessages" (id serial PRIMARY KEY,"ticketId" integer NOT NULL REFERENCES "SupportTickets"(id) ON DELETE RESTRICT,"actorId" integer NOT NULL,"actorRole" varchar(24) NOT NULL,body text NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS support_owner_updated ON "SupportTickets"("ownerId","updatedAt");
+CREATE INDEX IF NOT EXISTS support_status_updated ON "SupportTickets"(status,"updatedAt");
+CREATE INDEX IF NOT EXISTS support_thread ON "SupportMessages"("ticketId",id);
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='support_message_ticket_fk' AND conrelid='"SupportMessages"'::regclass) THEN ALTER TABLE "SupportMessages" ADD CONSTRAINT support_message_ticket_fk FOREIGN KEY ("ticketId") REFERENCES "SupportTickets"(id) ON DELETE RESTRICT; END IF; END $$;
+CREATE OR REPLACE FUNCTION lumo_guard_platform_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF left(OLD.type,9)='PLATFORM_' THEN RAISE EXCEPTION 'Platform audit is append-only'; END IF; IF TG_OP='DELETE' THEN RETURN OLD; END IF; IF left(NEW.type,9)='PLATFORM_' THEN RAISE EXCEPTION 'Platform audit event must be inserted'; END IF; RETURN NEW; END; $$;
+DROP TRIGGER IF EXISTS lumo_platform_audit_immutable ON "Activites";
+CREATE TRIGGER lumo_platform_audit_immutable BEFORE UPDATE OR DELETE ON "Activites" FOR EACH ROW EXECUTE FUNCTION lumo_guard_platform_audit();
+CREATE OR REPLACE FUNCTION lumo_guard_support_message() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Support conversation is append-only'; END; $$;
+DROP TRIGGER IF EXISTS lumo_support_message_immutable ON "SupportMessages";
+CREATE TRIGGER lumo_support_message_immutable BEFORE UPDATE OR DELETE ON "SupportMessages" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();

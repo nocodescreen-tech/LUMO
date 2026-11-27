@@ -27,6 +27,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/support',require('../routes/supportRoutes'));
  app.use('/superadmin',require('../routes/superadminRoutes'));
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
@@ -151,6 +152,24 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await call('/superadmin/notify',payload)).status).toBe(400);
  expect((await call('/superadmin/notify',{...payload,confirm:true})).status).toBe(200);
  expect((await call('/superadmin/settings',{key:'unknown',value:'true'})).status).toBe(400);
+ });
+ test('support tickets are tenant scoped, threaded and audited',async()=>{
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const r=await post('/support',{subject:'Erreur de caisse',category:'TECHNICAL',body:'La clôture ne fonctionne pas.'});expect(r.status).toBe(201);
+ const id=r.body.data.id;
+ await b.update({activeSessions:[{sessionId:'support-test'}]});
+ const tb=generateToken(b.id,'support-test').accessToken;
+ expect((await request(app).get('/support/'+id).set('Authorization','Bearer '+tb)).status).toBe(404);
+ expect((await request(app).patch('/support/'+id).set('Authorization','Bearer '+ta).send({status:'CLOSED',reason:'test'})).status).toBe(403);
+ expect((await request(app).post('/support/'+id+'/messages').set('Authorization','Bearer '+token).send({body:'Nous examinons la demande.'})).status).toBe(201);
+ expect((await request(app).patch('/support/'+id).set('Authorization','Bearer '+token).send({status:'RESOLVED',assignToMe:true,priority:'HIGH',reason:'Test support'})).status).toBe(200);
+ const thread=await request(app).get('/support/'+id).set('Authorization','Bearer '+ta);
+ expect(thread.body.data.messages).toHaveLength(2);expect(thread.body.data.ticket.status).toBe('RESOLVED');
+ expect((await post('/support/'+id+'/messages',{body:'Encore'})).status).toBe(409);
+ const event=await require('../models').Activite.findOne({where:{type:'PLATFORM_SUPPORT_UPDATE'}});
+ await expect(event.update({description:'tampered'})).rejects.toThrow();
+ await expect(event.destroy()).rejects.toThrow();
+ const msg=await require('../models').SupportMessage.findOne({where:{ticketId:id}});await expect(msg.destroy()).rejects.toThrow();
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

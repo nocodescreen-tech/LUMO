@@ -394,17 +394,13 @@ const updateGlobalSetting = async (req, res, next) => {
     const { key, value } = req.body;
     if(!['maintenance_mode','registration_enabled','newsletter_title','newsletter_body','newsletter_logo'].includes(key)||typeof value!=='string'||value.length>10000||(['maintenance_mode','registration_enabled'].includes(key)&&!['true','false'].includes(value)))return res.status(400).json({message:'Paramètre invalide'});
 
-    const [setting, created] = await GlobalSetting.findOrCreate({
-      where: { key },
-      defaults: { key, value }
+    const setting=await sequelize.transaction(async transaction=>{
+      await sequelize.query('SELECT pg_advisory_xact_lock(5140319)',{transaction});
+      const [row,created]=await GlobalSetting.findOrCreate({where:{key},defaults:{key,value},transaction});
+      if(!created)await row.update({value},{transaction});
+      await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_SETTING',description:'Paramètre modifié : '+key,module:'Platform'},{transaction});
+      return row;
     });
-
-    if (!created) {
-      setting.value = value;
-      await setting.save();
-    }
-
-    await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_SETTING',description:'Paramètre modifié : '+key,module:'Platform'});
     res.json({ message: 'Paramètre mis à jour', setting });
   } catch (error) {
     next(error);
