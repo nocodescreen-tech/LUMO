@@ -15,7 +15,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18.x'
+        node-version: '22.x'
         cache: 'npm'
         cache-dependency-path: '**/package-lock.json'
         
@@ -28,7 +28,7 @@ jobs:
     - name: Frontend - Install & Build
       run: |
         cd client
-        npm install
+        npm ci --legacy-peer-deps
         npm run build
 
   docker-validation:

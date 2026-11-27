@@ -628,19 +628,19 @@ export default function Landing() {
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;600&display=swap');
         .lp-root {
           /* THÈME A — Terre & Fleuve clair, haute lisibilité (WCAG AA) */
-          --bg: #F8F4EA; --surface: #FFFDF7; --ink: #17130C; --muted: #4C453A;
+          --bg: #F8FAFC; --surface: #FFFFFF; --ink: #101828; --muted: #475467;
           --fleuve: #155E58; --fleuve-deep: #0F4A45; --terre: #A84420; --or: #A97411;
           --line: rgba(23,19,12,0.16); --chip: rgba(21,94,88,0.12);
           --shadow: 0 20px 60px -30px rgba(23,19,12,0.35);
           background: var(--bg); color: var(--ink); min-height: 100vh;
           font-family: 'Space Grotesk', system-ui, sans-serif;
-          --font-serif: 'Fraunces', Georgia, serif; --font-mono: 'JetBrains Mono', monospace;
+          --font-serif: 'Plus Jakarta Sans', system-ui, sans-serif; --font-mono: 'JetBrains Mono', monospace;
           overflow-x: clip;
           transition: background .3s, color .3s;
         }
         html[data-theme='dark'] .lp-root {
           /* Variante sombre (toggle) */
-          --bg: #14100B; --surface: #201A12; --ink: #EDE3CE; --muted: #B5A98C;
+          --bg: #101828; --surface: #182334; --ink: #F1F5F9; --muted: #B0BDCC;
           --fleuve: #46B0A7; --fleuve-deep: #2C7A73; --terre: #E0845A; --or: #E0A93D;
           --line: rgba(237,227,206,0.16); --chip: rgba(62,156,148,0.14);
           --shadow: 0 24px 70px -30px rgba(0,0,0,0.65);
@@ -992,18 +992,17 @@ export default function Landing() {
                 </button>
               </div>
               <div className="lp-hero-stats">
-                <div className="lp-hero-stat"><b><AnimatedCounter value={500} />+</b><span>{L.stats_stores}</span></div>
-                <div className="lp-hero-stat"><b><AnimatedCounter value={99.9} decimals={1} />%</b><span>{L.stats_uptime}</span></div>
-                <div className="lp-hero-stat"><b><AnimatedCounter value={24} />/7</b><span>{L.stats_support}</span></div>
-                <div className="lp-hero-stat"><b><AnimatedCounter value={3} /></b><span>{L.stats_currencies}</span></div>
-              </div>
-            </motion.div>
+ <div className="lp-hero-stat"><b>USD · CDF</b><span>{language==='fr'?'Gestion multidevise':'Multi-currency management'}</span></div>
+ <div className="lp-hero-stat"><b>Web · PWA</b><span>{language==='fr'?'Accès sur ordinateur et mobile':'Desktop and mobile access'}</span></div>
+ <div className="lp-hero-stat"><b>FR · EN</b><span>{language==='fr'?'Interface bilingue':'Bilingual interface'}</span></div>
+ </div>
+ </motion.div>
             <motion.div className="lp-hero-visual" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.15, ease: 'circOut' }}>
               <div className="lp-frame">
                 <div className="lp-frame-bar"><i /><i /><i /></div>
-                <img src="/screen3.png" alt="Dashboard LUMO" />
+                <img src="/screen3.png" alt="Dashboard LUMO" /><p className="lumo-demo-caption">{language==="fr"?"Illustration de la version actuelle":"Illustration of the current version"}</p>
               </div>
-              <div className="lp-chip lp-chip-1"><TrendingUp size={16} /> <b>+18%</b> CA</div>
+              
               <div className="lp-chip lp-chip-2"><Package size={16} /> <b>Stock</b> critique</div>
             </motion.div>
           </div>
@@ -1012,7 +1011,7 @@ export default function Landing() {
 
       {/* ── TRUSTED ── */}
       <div className="lp-trusted">
-        <p>{L.trusted_by}</p>
+        <p>{language==='fr'?'Conçu pour les commerces de RDC et de la région':'Designed for businesses in the DRC and the region'}</p>
         <div className="lp-marquee">
           {[0, 1].map((k) => (
             <span key={k}>
@@ -1168,7 +1167,7 @@ export default function Landing() {
           <div className="lp-sec-grid">
             <motion.div className="lp-sec-card lp-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
               <span className="lp-eyebrow" style={{ position: 'relative' }}><Lock size={13} /> {L.footer_f4}</span>
-              <div className="big">99.9%</div>
+              <div className="big" style={{fontSize:"clamp(1.5rem,4vw,2.5rem)"}}>2FA</div>
               <h3>{L.security_title}</h3>
               <p className="lp-sub" style={{ position: 'relative', marginTop: 10 }}>{L.security_desc}</p>
             </motion.div>
@@ -1206,24 +1205,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      <section className="lp-band lp-stripes">
-        <div className="lp-container">
-          <span className="lp-eyebrow">{L.testi_eyebrow}</span>
-          <h2 className="lp-title">{L.testi_title}</h2>
-          <p className="lp-sub">{L.testi_sub}</p>
-          <div className="lp-testi-grid">
-            {testimonials.map((t, i) => (
-              <motion.div key={i} className="lp-card lp-testi"
-                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.08 }}>
-                <div className="stars">{Array.from({ length: 5 }).map((_, s) => <Star key={s} size={14} fill="currentColor" />)}</div>
-                <p>« {t.text} »</p>
-                <div className="who">{t.role}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Customer testimonials will be published after verification and consent. */}
 
       {/* ── CALCULATOR ── */}
       <section id="calculator" className="lp-band">

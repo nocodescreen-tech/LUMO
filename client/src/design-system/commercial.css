@@ -62,3 +62,17 @@ html[data-theme='dark']{--primary:#62c6bb;--primary-dark:#23766f;--secondary:#8d
 .lumo-skeleton-page{padding:12px}
 }
 @media(prefers-reduced-motion:reduce){.lumo-shell *,.lumo-modal *,.lumo-skeleton{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Focused commercial screens */
+.lumo-pos-product:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.lumo-pos-product:hover{border-color:var(--primary)}
+.lumo-pos-empty{grid-column:1/-1;min-height:160px;display:grid;place-content:center;justify-items:center;gap:10px;color:var(--text-muted)}
+.lumo-pos-cart-jump{display:none!important}
+.lumo-pos-cart{scroll-margin-top:78px}
+.lumo-auth .auth-container{background:var(--bg-card)!important;backdrop-filter:none!important;border:1px solid var(--border)!important;border-radius:16px!important;box-shadow:var(--shadow-md)!important;padding:32px!important}
+.lumo-auth .auth-container input,.lumo-auth .auth-container select{border-radius:8px!important}
+.lumo-auth .auth-container button[type=submit]{border-radius:8px!important;box-shadow:none!important}
+.lumo-auth :is(button,a,input,select):focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.lumo-demo-caption{font-size:11px;color:var(--muted);padding:8px 4px 0;text-align:center}
+@media(max-width:1024px){.lumo-pos{height:auto!important;grid-template-columns:minmax(0,1fr)!important}.lumo-pos-catalog{max-height:55dvh;overflow-y:auto}.lumo-pos-cart-jump{display:flex!important;position:sticky;bottom:0;z-index:5}.lumo-pos-cart{min-height:420px}}
+@media(max-width:600px){.lumo-pos-toolbar{flex-wrap:wrap}.lumo-pos-toolbar>div{flex-basis:100%!important}.lumo-pos-catalog{grid-template-columns:repeat(2,minmax(0,1fr))!important}.lumo-pos-product{min-width:0}.lumo-auth .auth-container{padding:20px!important}}

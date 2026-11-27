@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PageSkeleton } from '../design-system/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, 
@@ -527,25 +528,22 @@ toast.info(syncMsg);
         return () => window.removeEventListener('online', syncOffline);
     }, []);
 
-    if (loading) return (
-        <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-        </div>
-    );
+    if (loading) return <PageSkeleton />;
 
     return (
-        <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', height: 'calc(100vh - 140px)' }}>
+        <div className="responsive-grid lumo-pos" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
             {/* Catalog */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
-                <div className="glass" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div className="glass lumo-pos-toolbar" style={{ padding: '12px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                         <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={20} />
                         <input 
                             type="text" 
+                            aria-label={t('searchProduct')}
                             placeholder={t('searchProduct')} 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '16px 20px 16px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
+                            style={{ width: '100%', padding: enabledModules.includes('barcode') ? '12px 116px 12px 44px' : '12px 12px 12px 44px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
                         />
                         {enabledModules.includes('barcode') && (
                             <button 
@@ -576,18 +574,20 @@ toast.info(syncMsg);
                     </button>
                 </div>
 
-                <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(160px, 100%, 220px), 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '12px', paddingBottom: '20px' }}>
+                <div className="lumo-pos-catalog" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 100%), 1fr))', gap: '12px', alignContent: 'start', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
+                    {filteredProducts.length === 0 && <div className="lumo-pos-empty"><Package size={32}/><p>{language==='fr'?'Aucun produit trouvé':'No products found'}</p></div>}
                     {filteredProducts.map((product) => (
-                        <motion.div
+                        <motion.button
+                            type="button"
                             key={product.id}
-                            whileHover={{ y: -5 }}
+                            whileHover={{ y: -1 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => handleProductClick(product)}
-                            className="premium-card"
-                            style={{ padding: '16px', position: 'relative', cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: '300px' }}
+                            className="premium-card lumo-pos-product"
+                            style={{ padding: '10px', textAlign: 'left', color: 'var(--text-main)', position: 'relative', cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: '190px' }}
                         >
-                            <div style={{ width: '100%', height: '140px', flexShrink: 0, borderRadius: '16px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--primary)', border: '1px solid var(--border)' }}>
-                                {product.image ? <img src={product.image} alt={product.nom} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '14px' }} /> : <Package size={48} opacity={0.5} />}
+                            <div style={{ width: '100%', height: '92px', flexShrink: 0, borderRadius: '8px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+                                {product.image ? <img src={product.image} alt={product.nom} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> : <Package size={48} opacity={0.5} />}
                             </div>
                             <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.nom}</h3>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '12px', justifyContent: 'space-between' }}>
@@ -613,16 +613,17 @@ toast.info(syncMsg);
                                 </div>
                             </div>
                             {product.stock <= 5 && (
-                                <div style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: 'var(--danger)', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800 }}>Rupture proche</div>
+                                <div style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: 'var(--danger)', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800 }}>{language==='fr'?'Stock faible':'Low stock'}</div>
                             )}
-                        </motion.div>
+                        </motion.button>
                     ))}
                 </div>
+                <button type="button" className="lumo-pos-cart-jump btn-premium primary" onClick={()=>document.getElementById('lumo-pos-cart')?.scrollIntoView({block:'start',behavior:'smooth'})}><ShoppingCart size={18}/>{language==='fr'?'Voir le panier':'View cart'} · {cart.length} · {getSaleTotal().toLocaleString()} {saleCurrency}</button>
             </div>
 
             {/* Cart */}
-            <div className="glass" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div id="lumo-pos-cart" className="glass lumo-pos-cart" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', backgroundColor: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <ShoppingCart size={28} />
@@ -637,7 +638,7 @@ toast.info(syncMsg);
                     )}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ flex: 1, minHeight: 100, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <AnimatePresence>
                         {cart.length === 0 ? (
                             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '16px' }}>

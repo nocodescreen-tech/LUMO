@@ -212,13 +212,13 @@ const Register = () => {
 
   return (
     <div 
-      className="hide-scrollbar"
+      className="hide-scrollbar lumo-auth"
       style={{ 
         minHeight: '100vh', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center', 
-        background: 'url(/lumo_bg.png) no-repeat center center fixed',
+        background: 'var(--bg-main)',
         backgroundSize: 'cover',
         padding: '80px 20px',
         position: 'relative',
@@ -430,7 +430,7 @@ const Register = () => {
                   width: '100%', 
                   padding: '18px', 
                   borderRadius: '18px', 
-                  background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', 
+                  background: '#155e58', 
                   color: 'white', 
                   border: 'none', 
                   fontWeight: '700', 
@@ -587,7 +587,7 @@ const Register = () => {
                   disabled={!formData.nom || !formData.email || !formData.motDePasse}
                   onClick={nextStep}
                   style={{ 
-                      flex: 1.5, padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', 
+                      flex: 1.5, padding: '18px', borderRadius: '18px', background: '#155e58', 
                       color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', 
                       justifyContent: 'center', gap: '10px', boxShadow: '0 15px 35px -8px rgba(168, 68, 32, 0.4)' 
                   }}

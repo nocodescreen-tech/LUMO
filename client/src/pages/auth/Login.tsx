@@ -89,13 +89,13 @@ const Login = () => {
 
   return (
     <div 
-      className="hide-scrollbar"
+      className="hide-scrollbar lumo-auth"
       style={{ 
         height: '100vh', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center', 
-        background: 'url(/lumo_bg.png) no-repeat center center fixed',
+        background: 'var(--bg-main)',
         backgroundSize: 'cover',
         padding: '20px',
         overflow: 'auto',
@@ -238,11 +238,11 @@ const Login = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', marginLeft: '4px' }}>{t.loginEmail}</label>
+                <label htmlFor="login-email" style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)', marginLeft: '4px' }}>{t.loginEmail}</label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)' }} />
                   <input 
-                    type="email" 
+                    type="email" id="login-email" autoComplete="username" 
                     placeholder={t.phEmail} 
                     required
                     value={email}
@@ -258,13 +258,13 @@ const Login = () => {
                 transition={{ delay: 0.5 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
-                  <label style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)' }}>{t.loginPassword}</label>
+                  <label htmlFor="login-password" style={{ fontSize: '0.95rem', fontWeight: '700', color: theme === 'dark' ? 'var(--text-main)' : 'var(--text-main)' }}>{t.loginPassword}</label>
                   <Link to="/forgot-password" style={{ fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>{t.loginForgot}</Link>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <Lock size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: theme === 'dark' ? 'var(--text-muted)' : 'var(--text-muted)' }} />
                   <input 
-                    type="password" 
+                    type="password" id="login-password" autoComplete="current-password" 
                     placeholder="••••••••" 
                     required
                     value={password}
@@ -282,7 +282,7 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit" 
                 disabled={loading}
-                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(168, 68, 32, 0.5)' }}
+                style={{ padding: '18px', borderRadius: '18px', background: '#155e58', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)' }}
               >
                 {loading ? t.loginLoading : (<>{t.loginSubmit} <ArrowRight size={22} /></>)}
               </motion.button>
@@ -301,7 +301,7 @@ const Login = () => {
                   <KeyRound size={19} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
                   <input
                     type="text"
-                    inputMode="numeric"
+                    inputMode="numeric" autoComplete="one-time-code" aria-label={language==="fr"?"Code de vérification":"Verification code"}
                     maxLength={6}
                     placeholder="• • • • • •"
                     required
@@ -318,7 +318,7 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading || twoFACode.length !== 6}
-                style={{ padding: '18px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--primary) 0%, #8A3A1E 100%)', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 15px 30px -8px rgba(168, 68, 32, 0.5)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
+                style={{ padding: '18px', borderRadius: '18px', background: '#155e58', color: 'white', border: 'none', cursor: (loading || twoFACode.length !== 6) ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: 'var(--shadow-sm)', opacity: twoFACode.length !== 6 ? 0.6 : 1 }}
               >
                 {loading ? t.verifyLoading : (<><Shield size={22} /> {t.login2faSubmit}</>)}
               </motion.button>

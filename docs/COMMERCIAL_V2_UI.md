@@ -6,3 +6,5 @@ This iteration adds shared semantic tokens, light/dark surfaces, compact respons
 - Split large screens into feature components; migrate landing, auth, onboarding, POS, inventory, sales, purchases, customers, debts, cash, analytics, team, settings and superadmin individually.
 - Build organizations, subscriptions and offline sync only with real backend contracts.
 - Fix tenant isolation, transaction integrity, authentication, backups and accounting before release.
+
+Second increment: POS compact catalog, mobile cart shortcut, accessible product buttons, login/register surfaces, form label associations, marketing removal of unverified store counts, uptime, support promises and testimonial cards. Existing offline sales implementation remains unsafe for commercial deployment and must be redesigned before release.
