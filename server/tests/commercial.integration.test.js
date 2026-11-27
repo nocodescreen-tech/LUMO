@@ -27,6 +27,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/superadmin',require('../routes/superadminRoutes'));
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
@@ -121,6 +122,14 @@ suite('Commercial PostgreSQL integration',()=>{
  const foreign=await get(url,generateToken(b.id,'test-session').accessToken);expect(foreign.status).toBe(200);expect(foreign.body.data.rows).toEqual([]);
  expect((await get('/finance/cash-flow?from=2026-02-30&to='+today)).status).toBe(400);
  expect((await get('/finance/cash-flow?from='+today+'&to='+today)).status).toBe(200);
+ });
+ test('platform console rejects owner and redacts authentication secrets',async()=>{
+ const get=(url,token)=>request(app).get(url).set('Authorization','Bearer '+token);
+ expect((await get('/superadmin/console/accounts',ta)).status).toBe(403);
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const r=await get('/superadmin/console/accounts?kind=owners&limit=1',token);expect(r.status).toBe(200);expect(r.body.data.rows).toHaveLength(1);
+ expect(r.body.data.rows[0]).not.toHaveProperty('motDePasse');expect(r.body.data.rows[0]).not.toHaveProperty('activeSessions');
+ expect((await get('/superadmin/console/overview',token)).body.data.billing.mrr).toBeNull();
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

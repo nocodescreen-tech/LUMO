@@ -38,6 +38,10 @@ router.use(protect, authorize('superadmin'));
  *       200:
  *         description: Liste récupérée
  */
+const consoleController=require('../controllers/platformConsoleController');
+router.get('/console/overview',consoleController.overview);
+router.get('/console/accounts',consoleController.accounts);
+router.get('/console/audit',consoleController.audit);
 router.get('/users', getSuperadminUsers);
 
 router.put('/users/:id/suspend', suspendUser);

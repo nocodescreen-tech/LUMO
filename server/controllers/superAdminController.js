@@ -89,7 +89,7 @@ const deleteTenantData = async (tenantId, transaction) => {
 // Liste des utilisateurs / instances
 const getSuperadminUsers = async (req, res, next) => {
   try {
-    const users = await User.findAll({ order: [['createdAt', 'DESC']] });
+    const users = await User.findAll({attributes:['id','nom','email','role','parentId','isVerified','isAdminValidated','isSuspended','createdAt','lastActivity','typeActivite'],order:[['createdAt','DESC']],limit:1000});
     res.json(users);
   } catch (error) {
     next(error);
@@ -238,8 +238,8 @@ const suspendUser = async (req, res, next) => {
       return res.status(403).json({ message: 'Action interdite : Le SuperAdmin ne peut pas être suspendu.' });
     }
 
-    user.isSuspended = !user.isSuspended;
-    await user.save();
+    if(typeof req.body.suspended!=='boolean'||typeof req.body.reason!=='string'||!req.body.reason.trim()||req.body.reason.length>250)return res.status(400).json({message:'État et motif obligatoires'});
+    await sequelize.transaction(async transaction=>{const row=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});row.isSuspended=req.body.suspended;if(row.isSuspended)row.activeSessions=[];await row.save({transaction,hooks:false});await require('../models').Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_SUSPENSION',description:'Compte #'+row.id+' : '+req.body.reason,module:'Platform'},{transaction});user.isSuspended=row.isSuspended;});
 
     res.json({ 
       message: `Utilisateur ${user.isSuspended ? 'suspendu' : 'réactivé'} avec succès`, 
@@ -256,8 +256,8 @@ const validateUser = async (req, res, next) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    user.isAdminValidated = true;
-    await user.save();
+    if(user.role==='superadmin'||!user.isVerified)return res.status(409).json({message:'Vérification email préalable requise'});
+    await sequelize.transaction(async transaction=>{await user.update({isAdminValidated:true},{transaction});await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_VALIDATION',description:'Compte #'+user.id,module:'Platform'},{transaction});});
 
     res.json({ message: 'Compte utilisateur validé avec succès' });
   } catch (error) {
@@ -296,10 +296,10 @@ const deleteUser = async (req, res, next) => {
 // Broadcast de notification système
 const broadcastNotification = async (req, res, next) => {
   try {
-    const { titre, message, type } = req.body;
-    if (!titre || !message) return res.status(400).json({ message: 'Titre et message requis' });
+    const {titre,message}=req.body;const type=String(req.body.type||'INFO').toUpperCase();
+    if(typeof titre!=='string'||!titre.trim()||titre.length>160||typeof message!=='string'||!message.trim()||message.length>2000||!['INFO','SUCCESS','WARNING','ERROR'].includes(type)||req.body.confirm!==true)return res.status(400).json({message:'Contenu, type et confirmation requis'});
 
-    const users = await User.findAll({ attributes: ['id'] });
+    const users = await User.findAll({where:{isSuspended:false},attributes:['id']});
     
     const notifications = users.map(u => ({
       userId: u.id,
@@ -309,7 +309,7 @@ const broadcastNotification = async (req, res, next) => {
       lu: false
     }));
 
-    await Notification.bulkCreate(notifications);
+    await sequelize.transaction(async transaction=>{await Notification.bulkCreate(notifications,{transaction});await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_BROADCAST',description:'Notification : '+titre+' ('+users.length+' destinataires)',module:'Platform'},{transaction});});
     res.status(200).json({ message: `Notification envoyée à ${users.length} utilisateurs` });
   } catch (error) {
     next(error);
@@ -322,8 +322,7 @@ const verifyUserEmail = async (req, res, next) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    user.isVerified = true;
-    await user.save();
+    return res.status(409).json({message:'La vérification email doit être réalisée par le titulaire du compte.'});
 
     res.json({ message: 'Email utilisateur marqué comme vérifié' });
   } catch (error) {
@@ -372,7 +371,7 @@ const impersonateUser=async(req,res)=>res.status(409).json({message:'Accès supp
 
 const getGlobalSettings = async (req, res, next) => {
   try {
-    const settings = await GlobalSetting.findAll();
+    const settings = await GlobalSetting.findAll({where:{key:['maintenance_mode','registration_enabled','newsletter_title','newsletter_body','newsletter_logo']}});
     res.json(settings);
   } catch (error) {
     next(error);
@@ -395,6 +394,7 @@ const updateGlobalSetting = async (req, res, next) => {
     if (error) return res.status(400).json({ message: error.details[0].message });
 
     const { key, value } = req.body;
+    if(!['maintenance_mode','registration_enabled','newsletter_title','newsletter_body','newsletter_logo'].includes(key)||typeof value!=='string'||value.length>10000||(['maintenance_mode','registration_enabled'].includes(key)&&!['true','false'].includes(value)))return res.status(400).json({message:'Paramètre invalide'});
 
     const [setting, created] = await GlobalSetting.findOrCreate({
       where: { key },
@@ -406,6 +406,7 @@ const updateGlobalSetting = async (req, res, next) => {
       await setting.save();
     }
 
+    await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_SETTING',description:'Paramètre modifié : '+key,module:'Platform'});
     res.json({ message: 'Paramètre mis à jour', setting });
   } catch (error) {
     next(error);
