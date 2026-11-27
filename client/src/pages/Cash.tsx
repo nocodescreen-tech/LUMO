@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,6 +45,7 @@ const Cash = () => {
     const [currentSession, setCurrentSession] = useState<any>(null);
     const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [showOpenModal, setShowOpenModal] = useState(false);
     const [showCloseModal, setShowCloseModal] = useState(false);
     
@@ -85,8 +88,9 @@ const Cash = () => {
             }
             
             setSessions(sessionList);
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('cashLoadError'));
+            setLoadError(true); toast.error(t('cashLoadError'));
         } finally {
             setLoading(false);
         }
@@ -162,15 +166,16 @@ const Cash = () => {
     };
 
 
-    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>{t('loading')}</div>;
+    if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
+    if (loading) return <PageSkeleton />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
             {/* Header Section */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl">{t('cashMgmtPrefix')} <span className="text-gradient">{t('cashRegister')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('cashSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('cashSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {currentSession ? (
@@ -224,7 +229,7 @@ const Cash = () => {
                                 </span>
                             )}
                         </div>
-                        <h2 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0 }}>
+                        <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, margin: 0 }}>
                             {currentSession ? (
                                 <>{formatAmt(Number(currentSession.openingBalance))} <span style={{ fontSize: '1.2rem', opacity: 0.6 }}><br/>({t('initialFund')})</span></>
                             ) : (
@@ -242,7 +247,7 @@ const Cash = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}
+                        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}
                     >
                         <div className="premium-card" style={{ padding: '24px', borderRadius: '24px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--success)', marginBottom: '16px' }}>
@@ -277,7 +282,7 @@ const Cash = () => {
                 </div>
                 
                 <div className="table-responsive">
-                    <table className="table-cash" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-cash" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
                                 <th style={{ padding: '0 24px' }}>{t('openingClosing')}</th>
@@ -369,7 +374,7 @@ const Cash = () => {
                                     value={formData.openingBalanceUSD}
                                     onChange={(e) => setFormData({ ...formData, openingBalanceUSD: e.target.value })}
                                     placeholder="0.00"
-                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 800 }}
+                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 800 }}
                                 />
                             </div>
                         </div>
@@ -382,7 +387,7 @@ const Cash = () => {
                                     value={formData.openingBalanceCDF}
                                     onChange={(e) => setFormData({ ...formData, openingBalanceCDF: e.target.value })}
                                     placeholder="0.00"
-                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 800 }}
+                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 800 }}
                                 />
                             </div>
                         </div>
@@ -439,7 +444,7 @@ const Cash = () => {
                                     value={formData.closingBalanceUSD}
                                     onChange={(e) => setFormData({ ...formData, closingBalanceUSD: e.target.value })}
                                     placeholder="0.00"
-                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 800 }}
+                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 800 }}
                                 />
                             </div>
                         </div>
@@ -452,7 +457,7 @@ const Cash = () => {
                                     value={formData.closingBalanceCDF}
                                     onChange={(e) => setFormData({ ...formData, closingBalanceCDF: e.target.value })}
                                     placeholder="0.00"
-                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 800 }}
+                                    style={{ width: '100%', padding: '16px 16px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: 800 }}
                                 />
                             </div>
                         </div>

@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -79,6 +81,7 @@ const Dettes = () => {
   // Data
   const [clients, setClients] = useState<ClientDebt[]>([]);
   const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
   // Debt list search & filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,9 +130,10 @@ const Dettes = () => {
           type: 'client' as const,
         }));
       setClients(withDebt);
+            setLoadError(false);
     } catch (err) {
       console.error(err);
-      toast.error(t('errorLoadingDebts'));
+      setLoadError(true); toast.error(t('errorLoadingDebts'));
     } finally {
       setLoading(false);
     }
@@ -246,14 +250,15 @@ const Dettes = () => {
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '60px' }}>
+  if (!loading && loadError) return <LoadFailure onRetry={fetchClients} />;
+    return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '6px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
             {t('debtsSubtitle')}
           </p>
         </div>
@@ -280,7 +285,7 @@ const Dettes = () => {
       </div>
 
       {/* ── Stats Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}>
         {[
           { label: t('totalDebtsLabel'), value: totalDebtConverted, icon: AlertCircle, color: 'var(--danger)' },
           { label: t('urgentDebtors'), value: urgentCount, icon: Clock, color: 'var(--warning)', unit: t('clientsUnit'), noFormat: true },

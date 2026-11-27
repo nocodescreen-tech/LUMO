@@ -8,3 +8,5 @@ This iteration adds shared semantic tokens, light/dark surfaces, compact respons
 - Fix tenant isolation, transaction integrity, authentication, backups and accounting before release.
 
 Second increment: POS compact catalog, mobile cart shortcut, accessible product buttons, login/register surfaces, form label associations, marketing removal of unverified store counts, uptime, support promises and testimonial cards. Existing offline sales implementation remains unsafe for commercial deployment and must be redesigned before release.
+
+Third increment: common request failure/retry state across sales, purchases, products, clients, suppliers, cash, debts, activities, stock history, analytics, team, users and platform administration; compact headers and tables, responsive record toolbars and settings navigation. No business logic changes. Data completeness, role rules, pagination and actual browser rendering remain acceptance gates.

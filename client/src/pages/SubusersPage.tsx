@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect } from 'react';
 import {
   Users, TrendingUp, ShoppingCart, Package, DollarSign,
@@ -47,6 +49,8 @@ const SubusersPage = () => {
   const [subusers, setSubusers] = useState<any[]>([]);
   const [allSales, setAllSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [periodFilter, setPeriodFilter] = useState('all');
@@ -78,14 +82,16 @@ const SubusersPage = () => {
                   : [];
         setSubusers(subs);
         setAllSales(sales);
+        setLoadError(false);
       } catch (err) {
+        setLoadError(true);
         console.error('Erreur chargement subusers:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [retry]);
 
   // Charger activités quand un utilisateur est sélectionné
   const fetchUserActivities = async (userId: number) => {
@@ -408,11 +414,8 @@ const SubusersPage = () => {
   }
 
   // ─── VUE LISTE ───
-  if (loading) return (
-    <div style={{ height: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Loader2 size={40} className="animate-spin" style={{ color: 'var(--primary)' }} />
-    </div>
-  );
+  if (loading) return <PageSkeleton />;
+  if (loadError) return <LoadFailure onRetry={() => setRetry(n => n + 1)} />;
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '40px' }}>
@@ -494,11 +497,11 @@ const SubusersPage = () => {
               </div>
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.totalSales}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--primary)' }}>{stats.totalSales}</div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('teamSalesLabel')}</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success)' }}>{(stats.totalRevenue).toLocaleString()} {currency}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--success)' }}>{(stats.totalRevenue).toLocaleString()} {currency}</div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('teamRevenueLabel')}</div>
                 </div>
                 <ChevronRight size={20} style={{ color: 'var(--text-muted)' }} />

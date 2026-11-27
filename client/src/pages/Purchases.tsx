@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,6 +33,7 @@ const Purchases = () => {
     const [purchases, setPurchases] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -60,6 +63,7 @@ const Purchases = () => {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [purRes, fourRes, prodRes] = await Promise.all([
                 api.get(`/purchases?_t=${Date.now()}`),
@@ -89,8 +93,9 @@ const Purchases = () => {
             setPurchases(processData(purRes));
             setFournisseurs(processData(fourRes));
             setAllProducts(processData(prodRes));
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('dataLoadError'));
+            setLoadError(true); toast.error(t('dataLoadError'));
         } finally {
             setLoading(false);
         }
@@ -189,18 +194,15 @@ const Purchases = () => {
         }
     };
 
-    if (loading) return (
-        <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-        </div>
-    );
+    if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
+    if (loading) return <PageSkeleton />;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl">{t('purchasesMgmtPrefix')} <span className="text-gradient">{t('purchases')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('purchasesSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('purchasesSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <button 
@@ -230,7 +232,7 @@ const Purchases = () => {
                 </div>
             </div>
 
-            <div className="premium-card glass" style={{ padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <div className="premium-card glass" style={{ padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                     <div style={{ position: 'relative', width: '400px', maxWidth: '100%' }}>
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -308,7 +310,7 @@ const Purchases = () => {
                                                 const result = getDisplayAmount(purchase.montantTotal || 0, purchase.devise || 'USD', currency, exchangeRate);
                                                 return (
                                                     <>
-                                                        <div style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{result.main}</div>
+                                                        <div style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '0.95rem' }}>{result.main}</div>
                                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>≙ {result.sub}</div>
                                                     </>
                                                 );
@@ -639,7 +641,7 @@ const Purchases = () => {
             <AnimatePresence>
                 {showDetailModal && selectedPurchase && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '32px', borderRadius: '24px' }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                   <FileText size={24} color="var(--primary)" /> {t('purchaseDetailsTitle')}
@@ -650,11 +652,11 @@ const Purchases = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('invoice') || 'Facture'}</label>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('supplier') || 'Fournisseur'}</label>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || t('unknownSupplier')}</div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || t('unknownSupplier')}</div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</label>

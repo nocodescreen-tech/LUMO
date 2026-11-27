@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import { useTranslation } from '../hooks/useTranslation';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +29,7 @@ const SuperAdminDashboard = () => {
     const [subscribers, setSubscribers] = useState<any[]>([]);
     const [landingInbox, setLandingInbox] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterOnline, setFilterOnline] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'logs' | 'notifications' | 'visitors' | 'newsletter' | 'settings'>('overview');
@@ -69,6 +72,7 @@ const SuperAdminDashboard = () => {
     const [isRegistrationEnabled, setIsRegistrationEnabled] = useState(true);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [usersRes, logsRes, statsRes, settingsRes] = await Promise.all([
                 api.get(`/superadmin/users?_t=${Date.now()}`),
@@ -93,9 +97,10 @@ const SuperAdminDashboard = () => {
             const portal = settings.find((s: any) => s.key === 'registration_enabled');
             if (maint) setIsMaintenanceMode(maint.value === 'true');
             if (portal) setIsRegistrationEnabled(portal.value === 'true');
+            setLoadError(false);
 
         } catch (error) {
-            toast.error(t('checdelarcupratMsg'));
+            setLoadError(true); toast.error(t('checdelarcupratMsg'));
         } finally {
             setLoading(false);
         }
@@ -367,12 +372,8 @@ const SuperAdminDashboard = () => {
         </button>
     )
 
-    if (loading) return (
-        <div style={{ height: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '18px' }}>
-            <Loader2 size={44} className="animate-spin" style={{ color: 'var(--primary)', opacity: 0.5 }} />
-            <p style={{ fontWeight: '600', color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: '0.82rem' }}>Chargement en cours...</p>
-        </div>
-    );
+    if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
+    if (loading) return <PageSkeleton />;
 
     return (
         <motion.div
@@ -524,7 +525,7 @@ const SuperAdminDashboard = () => {
                         className="glass"
                         style={{ borderRadius: isMobile ? '18px' : '44px', border: '1px solid var(--border)', padding: isMobile ? '16px' : '40px', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-lg)' }}
                     >
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '20px', marginBottom: '28px' }}>
                             <div style={{ padding: '24px', borderRadius: '22px', border: '1px solid var(--border)', background: 'var(--bg-main)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
                                     <Eye size={22} color="#6366f1" />

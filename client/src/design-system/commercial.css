@@ -76,3 +76,14 @@ html[data-theme='dark']{--primary:#62c6bb;--primary-dark:#23766f;--secondary:#8d
 .lumo-demo-caption{font-size:11px;color:var(--muted);padding:8px 4px 0;text-align:center}
 @media(max-width:1024px){.lumo-pos{height:auto!important;grid-template-columns:minmax(0,1fr)!important}.lumo-pos-catalog{max-height:55dvh;overflow-y:auto}.lumo-pos-cart-jump{display:flex!important;position:sticky;bottom:0;z-index:5}.lumo-pos-cart{min-height:420px}}
 @media(max-width:600px){.lumo-pos-toolbar{flex-wrap:wrap}.lumo-pos-toolbar>div{flex-basis:100%!important}.lumo-pos-catalog{grid-template-columns:repeat(2,minmax(0,1fr))!important}.lumo-pos-product{min-width:0}.lumo-auth .auth-container{padding:20px!important}}
+
+/* Business record screens */
+.lumo-shell .title-xl{font-size:clamp(1.5rem,4vw,2rem);font-weight:700;letter-spacing:-.035em}
+.lumo-record-header{gap:16px;flex-wrap:wrap}
+.lumo-record-toolbar{flex-wrap:wrap}
+.lumo-record-toolbar>div:first-child{min-width:min(220px,100%)}
+.lumo-record-toolbar>div:last-child{flex-wrap:wrap}
+.lumo-settings-grid>*{min-width:0}
+.lumo-shell table{font-variant-numeric:tabular-nums}
+.lumo-shell table th{font-size:12px;letter-spacing:.015em}
+@media(max-width:768px){.lumo-record-header>div{min-width:0;max-width:100%}.lumo-record-header>div:last-child{flex-wrap:wrap}.lumo-record-toolbar>div:first-child{flex-basis:100%}.lumo-settings-grid{grid-template-columns:minmax(0,1fr)!important}.lumo-settings-nav{max-height:340px;overflow:auto}}

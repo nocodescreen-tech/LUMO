@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import {
@@ -55,6 +57,7 @@ const Products = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const user = useAuthStore(state => state.user);
@@ -493,9 +496,10 @@ const Products = () => {
 
       setAllProducts(productsList);
       setProducts(productsList);
+            setLoadError(false);
     } catch (error) {
       console.error(error);
-      toast.error(t('productsLoadFailed'));
+      setLoadError(true); toast.error(t('productsLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -661,7 +665,8 @@ const Products = () => {
   const outOfStockCount = allProducts.filter((p: any) => p.stock <= 0).length;
   const uniqueCategories = Array.from(new Set(allProducts.map((p: any) => p.categorie).filter(Boolean)));
 
-  return (
+  if (!loading && loadError) return <LoadFailure onRetry={fetchProducts} />;
+    return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -675,7 +680,7 @@ const Products = () => {
           <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0 }}>
             {t('productsStock').split(' & ')[0]} & <span className="text-gradient">{t('productsStock').split(' & ')[1] || 'Stock'}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('inventoryDesc')}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('inventoryDesc')}</p>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -685,7 +690,7 @@ const Products = () => {
             </div>
             <div>
               <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('items')}</span>
-              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)' }}>{totalProducts}</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-main)' }}>{totalProducts}</div>
             </div>
           </div>
 
@@ -695,7 +700,7 @@ const Products = () => {
             </div>
             <div>
               <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('stockValueSale')}</span>
-              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--success)' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--success)' }}>
                 {allProducts.reduce((acc, p) => acc + (convertPrice(p.prix || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
               </div>
             </div>
@@ -708,7 +713,7 @@ const Products = () => {
               </div>
               <div>
                 <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('totalCostPurchase')}</span>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--warning)' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--warning)' }}>
                   {allProducts.reduce((acc, p) => acc + (convertPrice(p.prixAchat || 0, p.devise || currency, currency) * (p.stock || 0)), 0).toLocaleString()} <span style={{ fontSize: '0.7rem' }}>{currency}</span>
                 </div>
               </div>
@@ -722,7 +727,7 @@ const Products = () => {
               </div>
               <div>
                 <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Alertes Stock</span>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--danger)' }}>{lowStockCount}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--danger)' }}>{lowStockCount}</div>
               </div>
             </div>
           )}
@@ -1176,7 +1181,7 @@ const Products = () => {
             <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({newProduct.devise})</label>
             <div style={{ position: 'relative' }}>
               <TrendingUp style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)', opacity: 0.5 }} size={18} />
-              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixVente) ? '' : newProduct.prixVente} onChange={(e) => setNewProduct({ ...newProduct, prixVente: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '1.1rem', fontWeight: '800', outline: 'none' }} />
+              <input type="number" required readOnly={calc.active} value={isNaN(newProduct.prixVente) ? '' : newProduct.prixVente} onChange={(e) => setNewProduct({ ...newProduct, prixVente: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '0.95rem', fontWeight: '800', outline: 'none' }} />
             </div>
           </div>
 
@@ -1403,7 +1408,7 @@ const Products = () => {
               <label style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', display: 'block', marginLeft: '4px' }}>Prix de Vente ({selectedProduct?.devise || currency})</label>
               <div style={{ position: 'relative' }}>
                 <TrendingUp style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)', opacity: 0.5 }} size={18} />
-                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prix) ? '' : (selectedProduct.prix || '')} onChange={(e) => setSelectedProduct({ ...selectedProduct, prix: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '1.1rem', fontWeight: '800', outline: 'none' }} />
+                <input type="number" required readOnly={calc.active} value={isNaN(selectedProduct.prix) ? '' : (selectedProduct.prix || '')} onChange={(e) => setSelectedProduct({ ...selectedProduct, prix: parseFloat(e.target.value) || 0 })} style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: calc.active ? 'rgba(0,0,0,0.05)' : 'var(--bg-main)', color: 'var(--success)', fontSize: '0.95rem', fontWeight: '800', outline: 'none' }} />
               </div>
             </div>
 
@@ -1518,7 +1523,7 @@ const Products = () => {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>STOCK</div>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{m.nouveauStock}</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{m.nouveauStock}</div>
                   </div>
                 </div>
               ))}

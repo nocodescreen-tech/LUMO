@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { 
@@ -36,6 +38,7 @@ const StockHistory = () => {
 
     const [movements, setMovements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [dateFilter, setDateFilter] = useState('');
@@ -58,8 +61,9 @@ const StockHistory = () => {
             }
             
             setMovements(movementsList);
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('stockHistoryLoadError'));
+            setLoadError(true); toast.error(t('stockHistoryLoadError'));
         } finally {
             setLoading(false);
         }
@@ -94,16 +98,17 @@ const StockHistory = () => {
         return <div style={{ background: 'rgba(62, 110, 142, 0.1)', color: '#2E6E8E', padding: '10px', borderRadius: '12px' }}><Layers size={20} /></div>;
     };
 
+    if (!loading && loadError) return <LoadFailure onRetry={fetchMovements} />;
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
         >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl"><span className="text-gradient">{t('stockHistoryTitle')} {t('stockHistoryGradient')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('stockHistoryDesc')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('stockHistoryDesc')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button 
@@ -182,7 +187,7 @@ const StockHistory = () => {
             {/* Table */}
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div className="table-responsive">
-                    <table className="table-stockhist" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-stockhist" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
                                 <th style={{ padding: '0 24px' }}>{t('dateAndProduct')}</th>
@@ -233,7 +238,7 @@ const StockHistory = () => {
                                                 {getIcon(m.type)}
                                                 <span style={{ 
                                                     fontWeight: 900, 
-                                                    fontSize: '1.1rem',
+                                                    fontSize: '0.95rem',
                                                     color: m.type === 'ENTREE' ? 'var(--success)' : m.type === 'SORTIE' ? 'var(--danger)' : 'var(--primary)'
                                                 }}>
                                                     {m.type === 'ENTREE' ? '+' : '-'}{m.quantite}

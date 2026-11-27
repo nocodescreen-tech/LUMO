@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -64,6 +66,7 @@ const Sales = () => {
     const { currency, user, exchangeRate } = useAuthStore();
     const [sales, setSales] = useState<Sale[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -111,6 +114,7 @@ const Sales = () => {
     const getNormalizedAmount = (sale: any) => getSaleDisplayAmounts(sale).displayCurrencyAmount;
 
     const fetchSales = async () => {
+        setLoading(true);
         try {
             const response = await api.get(`/sales?limit=200&_t=${Date.now()}`);
             const resData = response.data;
@@ -134,8 +138,9 @@ const Sales = () => {
             }
 
             setSales(salesList);
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('salesLoadError'));
+            setLoadError(true); toast.error(t('salesLoadError'));
         } finally {
             setLoading(false);
         }
@@ -256,21 +261,15 @@ const Sales = () => {
         }, {})
     };
 
-    if (loading) return (
-        <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-                <Loader2 size={40} color="var(--primary)" />
-            </motion.div>
-            <p style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{t('loadingTransactions')}</p>
-        </div>
-    );
+    if (!loading && loadError) return <LoadFailure onRetry={fetchSales} />;
+    if (loading) return <PageSkeleton />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
             <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
                 <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
                     <h1 className="title-xl"><span className="text-gradient">{t('salesTitle')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('salesSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>{t('salesSubtitle')}</p>
                 </motion.div>
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
                     <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> {t('reports')}</button>
@@ -283,8 +282,8 @@ const Sales = () => {
             </div>
 
             {/* Stats Cards Section */}
-            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(21,94,88,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(21,94,88,0.2)', position: 'relative', overflow: 'hidden' }}>
+            <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}>
+                <div className="premium-card" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(21,94,88,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(21,94,88,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'var(--primary-glow)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
@@ -297,7 +296,7 @@ const Sales = () => {
                     </div>
                 </div>
 
-                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.05) 100%)', border: '1px solid rgba(16,185,129,0.2)', position: 'relative', overflow: 'hidden' }}>
+                <div className="premium-card" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.05) 100%)', border: '1px solid rgba(16,185,129,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(16,185,129,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--success), var(--success-dark))', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(16,185,129,0.3)' }}>
@@ -310,7 +309,7 @@ const Sales = () => {
                     </div>
                 </div>
 
-                <div className="premium-card" style={{ padding: '32px', background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(217,119,6,0.05) 100%)', border: '1px solid rgba(245,158,11,0.2)', position: 'relative', overflow: 'hidden' }}>
+                <div className="premium-card" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(217,119,6,0.05) 100%)', border: '1px solid rgba(245,158,11,0.2)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: '-10px', right: '-10px', width: '100px', height: '100px', background: 'rgba(245,158,11,0.2)', borderRadius: '50%', filter: 'blur(40px)', opacity: 0.3 }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'linear-gradient(135deg, var(--warning), #d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(245,158,11,0.3)' }}>
@@ -324,7 +323,7 @@ const Sales = () => {
                 </div>
             </div>
 
-            <div className="premium-card glass" style={{ padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <div className="premium-card glass" style={{ padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
                     <div style={{ position: 'relative', width: '100%', maxWidth: '450px' }}>
                         <Search size={20} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.6 }} />
@@ -401,7 +400,7 @@ const Sales = () => {
                 </AnimatePresence>
 
                 <div className="table-responsive">
-                    <table className="table-sales" style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-sales" style={{ minWidth: '800px', width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border)' }}>
                                 <th style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{t('referenceClient')}</th>
@@ -594,11 +593,11 @@ const Sales = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', background: 'var(--bg-main)', borderRadius: '20px' }}>
                             <div>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('customer')}</p>
-                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.clientInfo?.nom || t('walkInCustomer')}</p>
+                                <p style={{ fontWeight: 800, fontSize: '0.95rem' }}>{selectedSale.clientInfo?.nom || t('walkInCustomer')}</p>
                             </div>
                             <div>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('method')}</p>
-                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedSale.methodePaiement === 'Dette' || selectedSale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : selectedSale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : selectedSale.methodePaiement}</p>
+                                <p style={{ fontWeight: 800, fontSize: '0.95rem' }}>{selectedSale.methodePaiement === 'Dette' || selectedSale.methodePaiement === 'Crédit' ? (t('debt') || 'Dette') : selectedSale.methodePaiement === 'Espèces' ? (t('cash') || 'Espèces') : selectedSale.methodePaiement}</p>
                             </div>
                             <div>
                                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</p>

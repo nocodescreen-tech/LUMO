@@ -142,7 +142,7 @@ const TwoFASection = () => {
             <ShieldCheck size={26} />
           </div>
           <div>
-            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{t('twoFactorAuth')}</p>
+            <p style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>{t('twoFactorAuth')}</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
                 ? t('twoFactorEnabledDesc')
@@ -611,8 +611,8 @@ const Settings = () => {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>{t('settingsSystem').split(' ')[0]} <span style={{ color: 'var(--primary)', opacity: 0.5 }}>{t('settingsSystem').split(' ').slice(1).join(' ')}</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('settingsSubtitle')}</p>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.05em' }}>{t('settingsSystem').split(' ')[0]} <span style={{ color: 'var(--primary)', opacity: 0.5 }}>{t('settingsSystem').split(' ').slice(1).join(' ')}</span></h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>{t('settingsSubtitle')}</p>
         </div>
         <button
           onClick={() => setShowLogoutConfirm(true)}
@@ -623,9 +623,9 @@ const Settings = () => {
         </button>
       </div>
 
-      <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '32px' }}>
+      <div className="responsive-grid lumo-settings-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(0, 3fr)', gap: '20px' }}>
         {/* Tab Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="lumo-settings-nav" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div className="premium-card" style={{ padding: '24px', borderRadius: '28px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '18px', overflow: 'hidden', border: '3px solid var(--primary)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', fontWeight: '900', color: 'var(--primary)', flexShrink: 0 }}>
               {user?.avatar && user.avatar !== 'default_avatar.png' ? <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.nom?.charAt(0)}
@@ -782,7 +782,7 @@ const Settings = () => {
                     )}
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontWeight: '900', fontSize: '1.1rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
+                    <p style={{ margin: 0, fontWeight: '900', fontSize: '0.95rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{getBusinessTypeLabel(profileData.typeActivite)} · {language === 'en' ? 'Management system' : 'Systeme de gestion'} {currency}</p>
                   </div>
                   <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
@@ -917,7 +917,7 @@ const Settings = () => {
                         <mod.icon size={26} />
                       </div>
                       <div>
-                        <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{mod.label}</p>
+                        <p style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>{mod.label}</p>
                         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{mod.desc}</p>
                       </div>
                     </div>
@@ -1160,7 +1160,7 @@ const Settings = () => {
                                 <FileJson size={24} color="var(--success)" />
                               </div>
                               <div>
-                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aperçu de la sauvegarde</h4>
+                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '0.95rem' }}>Aperçu de la sauvegarde</h4>
                                 <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Exportée le : {new Date(restorePreview.exportedAt).toLocaleString()}</p>
                               </div>
                             </div>

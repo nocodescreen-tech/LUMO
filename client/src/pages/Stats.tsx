@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -25,6 +27,8 @@ const Stats = () => {
     const { displayCurrency, exchangeRate, convert, format } = useCurrency();
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const [retry, setRetry] = useState(0);
     const [period, setPeriod] = useState('7d');
 
     useEffect(() => {
@@ -44,10 +48,11 @@ const Stats = () => {
                     if (!Array.isArray(rawData.monthlyRevenue.values)) rawData.monthlyRevenue.values = [];
                 }
                 setData(rawData);
+                setLoadError(false);
             })
-            .catch(() => toast.error(t('statsLoadError')))
+             .catch(() => { setLoadError(true); toast.error(t('statsLoadError')); })
             .finally(() => setLoading(false));
-    }, [period]);
+    }, [period, retry]);
 
     const monthlyLabels = data?.monthlyRevenue?.labels || [];
     const monthlyValues = data?.monthlyRevenue?.values || [];
@@ -58,17 +63,18 @@ const Stats = () => {
     const stockData: { id: number; label: string; value: number }[] = data?.stockByCategory || [];
     const totalStock = stockData.reduce((s: number, c: { value: number }) => s + c.value, 0) || 1;
 
+    if (!loading && loadError) return <LoadFailure onRetry={() => setRetry(n => n + 1)} />;
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '60px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
         >
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
                     <h1 className="title-xl"><span className="text-gradient">{t('statsTitle')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('statsSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('statsSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <select 
