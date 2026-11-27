@@ -50,6 +50,7 @@ const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
 const Budgets = lazy(() => import('./pages/Budgets'));
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
 const CRM = lazy(() => import('./pages/CRM'));
+const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -121,6 +122,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              {user?.role==='admin'&&<Route path="/executive" element={<ExecutiveDashboard key={user.id}/>} />}
               <Route path="/cash" element={<Cash />} />
               <Route path="/pos" element={<POS />} />
               <Route path="/products" element={<Products />} />
