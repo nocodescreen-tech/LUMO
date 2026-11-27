@@ -5,8 +5,13 @@ const {sequelize}=require('../config/database');
 const {sendResponse}=require('../utils/response');
 router.get('/journal',protect,authorize('admin','superadmin'),async(req,res,next)=>{
  try{const page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||50));
- const result=await JournalEntry.findAndCountAll({where:{userId:req.user.tenantId},order:[['createdAt','DESC'],['id','DESC']],limit,offset:(page-1)*limit});
- return sendResponse(res,200,{rows:result.rows,total:result.count,page,limit},'Journal financier');
+ const where={userId:req.user.tenantId};
+ if(req.query.from||req.query.to){const {start,end}=period(req.query);where.createdAt={[Op.gte]:start,[Op.lt]:end};}
+ if(['USD','CDF'].includes(req.query.currency))where.currency=req.query.currency;
+ if(typeof req.query.event==='string'&&req.query.event.trim())where.event=req.query.event.trim().slice(0,100);
+ if(typeof req.query.reference==='string'&&req.query.reference.trim())where.reference=req.query.reference.trim().slice(0,100);
+ const result=await JournalEntry.findAndCountAll({where,order:[['createdAt','DESC'],['id','DESC']],limit,offset:(page-1)*limit});
+ return sendResponse(res,200,{rows:result.rows,total:result.count,page,limit,from:req.query.from||null,to:req.query.to||null,timezone:'UTC',coverage:'commercial-v2-postings-only'},'Journal financier');
  }catch(e){next(e);}
 });
 router.get('/operations/:operation/:key',protect,async(req,res,next)=>{try{const row=await OperationReceipt.findOne({where:{userId:req.user.tenantId,actorId:req.user.id,operation:req.params.operation,key:req.params.key}});return sendResponse(res,200,{committed:!!row,resourceId:row?.resourceId??null},'État de transaction');}catch(e){next(e);}});

@@ -834,6 +834,15 @@ suite('Commercial PostgreSQL integration',()=>{
  const filtered=await get('/finance/receivables?saleId='+debt.saleId+'&currency='+debt.currency);expect(filtered.status).toBe(200);expect(filtered.body.data.rows.every(x=>x.saleId===debt.saleId&&x.currency===debt.currency)).toBe(true);
  expect((await get('/finance/receivables?saleId=bad')).status).toBe(400);
  });
+ test('finance register filters retain tenant scope and exact date coverage',async()=>{
+ const get=path=>request(app).get(path).set('Authorization','Bearer '+ta);
+ const {JournalEntry,TreasuryTransfer}=require('../models'),row=await JournalEntry.findOne({where:{userId:a.id}}),date=row.createdAt.toISOString().slice(0,10);
+ const j=await get('/finance/journal?from='+date+'&to='+date+'&currency='+row.currency+'&event='+encodeURIComponent(row.event)+'&reference='+encodeURIComponent(row.reference));expect(j.status).toBe(200);expect(j.body.data.total).toBeGreaterThan(0);expect(j.body.data.rows.every(v=>v.userId===a.id&&v.currency===row.currency&&v.event===row.event&&v.reference===row.reference&&v.createdAt.slice(0,10)===date)).toBe(true);
+ expect((await get('/finance/journal?from=2026-02-31&to=2026-03-01')).status).toBe(400);
+ const transfer=await TreasuryTransfer.findOne({where:{userId:a.id}}),account=transfer.fromAccountId||transfer.toAccountId;
+ const tr=await get('/finance/treasury/transfers?accountId='+account+'&currency='+transfer.currency);expect(tr.status).toBe(200);expect(tr.body.data.total).toBeGreaterThan(0);expect(tr.body.data.rows.every(v=>v.userId===a.id&&v.currency===transfer.currency&&(v.fromAccountId===account||v.toAccountId===account))).toBe(true);
+ const requests=await get('/workspace/expense-approvals?status=PENDING');expect(requests.status).toBe(200);expect(Number(requests.body.data.counts.find(v=>v.status==='PENDING')?.count||0)).toBe(requests.body.data.total);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
