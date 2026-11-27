@@ -45,6 +45,14 @@ jobs:
       - run: npm test -- --runInBand tests/transactionSafety.unit.test.js tests/pagination.test.js tests/sessionOrigin.test.js tests/cacheMemory.test.js
       - run: npm test -- --runInBand tests/commercial.integration.test.js
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: commercial-performance
+          path: server/commercial-performance.json
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Isolated PostgreSQL recovery drill
         env:
           PG_CONTAINER: ${{ job.services.postgres.id }}

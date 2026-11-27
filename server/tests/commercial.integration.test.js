@@ -902,6 +902,39 @@ suite('Commercial PostgreSQL integration',()=>{
  const sales=clientHistory.body.data;expect(sales.every(v=>v.userId===a.id&&v.clientId===ca.id)).toBe(true);
  for(let i=1;i<sales.length;i++){const previous=sales[i-1],next=sales[i];expect(+new Date(previous.createdAt)>=+new Date(next.createdAt)).toBe(true);if(previous.createdAt===next.createdAt)expect(previous.id).toBeGreaterThan(next.id);}
  });
+ test('synthetic contention: limited stock, idempotent replay, ledger and register invariants',async()=>{
+  const {performance}=require('node:perf_hooks'),fs=require('node:fs');
+  const owner=await User.create({nom:'Load fixture',email:'load-fixture@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'load-session'}],entreprise:{nom:'Load fixture',devise:'CDF'},preferences:{exchangeRate:2500}});
+  const auth=generateToken(owner.id,'load-session').accessToken;
+  const item=await Product.create({nom:'Load item',prix:10,prixAchat:4,devise:'USD',stock:8,userId:owner.id});
+  const replayItem=await Product.create({nom:'Replay item',prix:10,prixAchat:4,devise:'USD',stock:1,userId:owner.id});
+  const send=(url,body)=>request(app).post(url).set('Authorization','Bearer '+auth).send(body);
+  expect((await send('/cash/open',{openingBalance:100000})).status).toBe(201);
+  const measurements=[];
+  async function burst(name,count,fn){
+   const start=performance.now();
+   const rows=await Promise.all(Array.from({length:count},async(_,i)=>{const begun=performance.now();const response=await fn(i);return {status:response.status,ms:performance.now()-begun}}));
+   const elapsed=performance.now()-start,sorted=rows.map(v=>v.ms).sort((a,b)=>a-b),pct=p=>Math.round(sorted[Math.max(0,Math.ceil(p*sorted.length)-1)]*100)/100;
+   const statuses={};for(const row of rows)statuses[row.status]=(statuses[row.status]||0)+1;
+   measurements.push({scenario:name,concurrentRequests:count,elapsedMs:Math.round(elapsed),p50Ms:pct(.5),p95Ms:pct(.95),maxMs:pct(1),statuses});
+   return statuses;
+  }
+  const limited=await burst('same product / oversell prevention',12,i=>send('/sales',payload(item,1,10,{operationId:'load-sale-distinct-'+i})));
+  expect(limited).toEqual({201:8,409:4});expect((await item.reload()).stock).toBe(0);
+  const duplicate=await burst('same financial operation / replay',12,()=>send('/sales',payload(replayItem,1,10,{operationId:'load-sale-shared-001'})));
+  expect(duplicate).toEqual({200:11,201:1});expect((await replayItem.reload()).stock).toBe(0);
+  const reads=await burst('mixed protected register reads',24,i=>request(app).get(['/test-products?limit=25','/cash/current','/finance/journal?limit=25'][i%3]).set('Authorization','Bearer '+auth));
+  expect(reads).toEqual({200:24});
+  expect(await Sale.count({where:{userId:owner.id}})).toBe(9);
+  expect(await JournalEntry.count({where:{userId:owner.id,event:'SALE'}})).toBe(9);
+  expect(await JournalEntry.count({where:{userId:owner.id,event:'SALE_COST'}})).toBe(9);
+  expect(Number(await JournalEntry.sum('amount',{where:{userId:owner.id,event:'SALE'}}))).toBe(225000);
+  const session=await CashSession.findOne({where:{userId:owner.id,status:'OPEN',branchKey:0}});
+  expect(Number(session.expectedBalance)).toBe(325000);
+  const report={commit:process.env.GITHUB_SHA||null,synthetic:true,scope:'isolated PostgreSQL + in-process Express, not production network capacity',measurements,invariants:'passed'};
+  console.log('LUMO_PERFORMANCE '+JSON.stringify(report));
+  fs.writeFileSync('commercial-performance.json',JSON.stringify(report,null,2));
+ },120000);
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

@@ -52,8 +52,7 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
-          },
-          {urlPattern: /\/assets\/(?:xlsx|BarcodeScanner)-[^/]+\.js$/i,handler:'CacheFirst',options:{cacheName:'lumo-optional-tools-v1',expiration:{maxEntries:8,maxAgeSeconds:7*86400},cacheableResponse:{statuses:[200]}}}
+          }
         ]
       },
       workbox: {
@@ -95,7 +94,8 @@ export default defineConfig({
             // ALL API routes must bypass Service Worker — no cache for backend calls
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkOnly'
-          }
+          },
+          {urlPattern: /\/assets\/(?:xlsx|BarcodeScanner)-[^/]+\.js$/i,handler:'CacheFirst',options:{cacheName:'lumo-optional-tools-v1',expiration:{maxEntries:8,maxAgeSeconds:7*86400},cacheableResponse:{statuses:[200]}}}
         ]
       }
     })
