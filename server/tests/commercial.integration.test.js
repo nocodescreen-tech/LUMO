@@ -567,6 +567,26 @@ suite('Commercial PostgreSQL integration',()=>{
  const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),other=generateToken(foreign.id,'hr-foreign-session').accessToken;
  expect((await request(app).get('/subusers/'+u.id+'/access-history').set('Authorization','Bearer '+other)).status).toBe(404);
  });
+ test('expense approvals enforce threshold, independent approval and atomic single payment',async()=>{
+ const {ExpenseRequest,ExpenseRequestEvent,Depense}=require('../models'),url='/workspace/expense-approvals',session=await CashSession.findOne({where:{userId:a.id,branchKey:0,status:'OPEN'}}),before=Number(session.expectedBalance);
+ const u=await User.create({nom:'Requester',email:'expense-requester@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['expenses.request'],activeSessions:[{sessionId:'expense-request-session'}]});
+ const token=generateToken(u.id,'expense-request-session').accessToken,staffPost=(path,body)=>request(app).post(path).set('Authorization','Bearer '+token).send(body);
+ const p=await post(url+'/policy',{currency:'CDF',threshold:1000,expectedPolicyId:null,reason:'Expense controls',confirm:true,operationId:'expense-policy-test-01'});expect(p.status).toBe(201);
+ expect((await post('/expenses',{description:'Direct blocked',categorie:'Test',montant:1000,devise:'CDF',operationId:'expense-direct-block-01'})).status).toBe(409);
+ const body={description:'Office supplies',category:'Office',amount:1000,currency:'CDF',operationId:'expense-request-test-01'};
+ expect((await post(url,body)).status).toBe(403);const r=await staffPost(url,body);expect(r.status).toBe(201);expect((await staffPost(url,body)).status).toBe(200);
+ const id=r.body.data.id,path=url+'/'+id+'/actions',approval={action:'APPROVE',expectedStatus:'PENDING',confirm:true,reason:'Approved',operationId:'expense-approve-test-01'};
+ expect((await staffPost(path,approval)).status).toBe(403);
+ expect((await post(path,{...approval,action:'PAY',operationId:'expense-premature-pay-01'})).status).toBe(409);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ expect((await post(path,approval)).status).toBe(201);expect(Number((await session.reload()).expectedBalance)).toBe(before);
+ const payment={action:'PAY',expectedStatus:'APPROVED',confirm:true,reason:'Physical cash paid',operationId:'expense-approved-pay-01'};
+ const paid=await post(path,payment);expect(paid.status).toBe(201);expect((await post(path,payment)).status).toBe(200);expect((await post(path,{...payment,operationId:'expense-approved-pay-02'})).status).toBe(409);
+ expect(Number((await session.reload()).expectedBalance)).toBe(before-1000);const expense=await Depense.findByPk(paid.body.data.expenseId);expect(Number(expense.montant)).toBe(1000);
+ expect(await JournalEntry.count({where:{userId:a.id,event:'EXPENSE',reference:String(expense.id)}})).toBe(1);
+ expect(await ExpenseRequestEvent.count({where:{requestId:id}})).toBe(3);await expect((await ExpenseRequest.findByPk(id)).destroy()).rejects.toThrow();
+ const foreign=await User.findOne({where:{email:'hr-foreign@example.com'}}),other=generateToken(foreign.id,'hr-foreign-session').accessToken;expect((await request(app).get(url+'/'+id+'/events').set('Authorization','Bearer '+other)).status).toBe(404);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

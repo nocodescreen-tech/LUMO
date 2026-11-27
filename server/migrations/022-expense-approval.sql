@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS "ExpensePolicies"(id serial PRIMARY KEY,"userId" integer NOT NULL,"actorId" integer NOT NULL,currency varchar(3) NOT NULL,threshold numeric(20,2),reason varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "ExpenseRequests"(id serial PRIMARY KEY,"userId" integer NOT NULL,"requesterId" integer NOT NULL,description varchar(250) NOT NULL,category varchar(80) NOT NULL,amount numeric(20,2) NOT NULL,currency varchar(3) NOT NULL,status varchar(16) NOT NULL,"approvedBy" integer,"expenseId" integer,"createdAt" timestamptz NOT NULL DEFAULT now(),"updatedAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "ExpenseRequestEvents"(id serial PRIMARY KEY,"userId" integer NOT NULL,"requestId" integer NOT NULL,"actorId" integer NOT NULL,kind varchar(16) NOT NULL,reason varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS expense_policy_history ON "ExpensePolicies"("userId",id DESC);
+CREATE INDEX IF NOT EXISTS expense_request_status ON "ExpenseRequests"("userId",status,id);
+CREATE INDEX IF NOT EXISTS expense_request_actor ON "ExpenseRequests"("userId","requesterId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS expense_request_identity ON "ExpenseRequests"("userId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS expense_request_posting ON "ExpenseRequests"("userId","expenseId");
+CREATE UNIQUE INDEX IF NOT EXISTS expense_tenant_identity ON "Depenses"("userId",id);
+ALTER TABLE "ExpensePolicies" ADD CONSTRAINT expense_policy_values CHECK(currency IN ('USD','CDF') AND (threshold IS NULL OR threshold>0));
+ALTER TABLE "ExpenseRequests" ADD CONSTRAINT expense_request_values CHECK(amount>0 AND currency IN ('USD','CDF') AND status IN ('PENDING','APPROVED','REJECTED','CANCELLED','PAID') AND ("approvedBy" IS NULL OR "approvedBy"<>"requesterId") AND (status NOT IN ('APPROVED','PAID') OR "approvedBy" IS NOT NULL) AND ((status='PAID')=("expenseId" IS NOT NULL)));
+ALTER TABLE "ExpenseRequests" ADD CONSTRAINT expense_request_posting_fk FOREIGN KEY("userId","expenseId") REFERENCES "Depenses"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "ExpenseRequestEvents" ADD CONSTRAINT expense_request_event_fk FOREIGN KEY("userId","requestId") REFERENCES "ExpenseRequests"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "ExpenseRequestEvents" ADD CONSTRAINT expense_request_event_kind CHECK(kind IN ('SUBMIT','APPROVE','REJECT','CANCEL','PAY'));
+CREATE TRIGGER lumo_expense_policy_immutable BEFORE UPDATE OR DELETE ON "ExpensePolicies" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE TRIGGER lumo_expense_request_event_immutable BEFORE UPDATE OR DELETE ON "ExpenseRequestEvents" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE OR REPLACE FUNCTION lumo_expense_request_guard() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Expense request immutable'; END IF;
+ IF (to_jsonb(OLD)-'status'-'approvedBy'-'expenseId'-'updatedAt') IS DISTINCT FROM (to_jsonb(NEW)-'status'-'approvedBy'-'expenseId'-'updatedAt') THEN RAISE EXCEPTION 'Expense request terms immutable'; END IF;
+ IF NOT ((OLD.status='PENDING' AND NEW.status IN ('APPROVED','REJECTED','CANCELLED')) OR (OLD.status='APPROVED' AND NEW.status IN ('PAID','CANCELLED'))) THEN RAISE EXCEPTION 'Invalid expense request transition'; END IF;
+ IF OLD."approvedBy" IS NOT NULL AND OLD."approvedBy" IS DISTINCT FROM NEW."approvedBy" THEN RAISE EXCEPTION 'Approval immutable'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER lumo_expense_request_transition BEFORE UPDATE OR DELETE ON "ExpenseRequests" FOR EACH ROW EXECUTE FUNCTION lumo_expense_request_guard();

@@ -9,6 +9,7 @@ const scope=require('../utils/staffScope');
 const {User,StaffAssignment}=require('../models');
 const {Op}=require('sequelize');
 router.get('/pos-location',protect,async(req,res,next)=>{try{const w=await scope.location(req.user);return sendResponse(res,200,{warehouseId:w?.id??null,name:w?.name??null},'Emplacement POS');}catch(e){next(e)}});
+router.use('/expense-approvals',require('./expenseApprovalRoutes'));
 router.use(protect,authorize('admin'));
 router.get('/staff-assignments',async(req,res,next)=>{try{const uid=req.user.tenantId,page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20)),where={parentId:uid};if(typeof req.query.q==='string'&&req.query.q.trim())where.nom={[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'};
  const result=await User.findAndCountAll({where,attributes:['id','nom','role','isSuspended'],order:[['nom','ASC'],['id','ASC']],limit,offset:(page-1)*limit});

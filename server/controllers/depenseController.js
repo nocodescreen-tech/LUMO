@@ -21,6 +21,7 @@ exports.create=async(req,res,next)=>{try{
   const prior=await ledger.replay(req,'expense.create',transaction);
   if(prior){const expense=await Depense.findOne({where:{id:prior.resourceId,userId},transaction});if(!expense)throw fail('Dépense historique indisponible',409);return {expense,replayed:true};}
   const ctx=await prepare(req,transaction,montant,devise);
+  await require('../utils/expenseApproval').guardDirect(ctx,transaction);
   const expense=await Depense.create({userId,actorId:req.user.id,description:text(description,250),categorie:text(categorie,80),montant:ctx.amount,devise:ctx.devise,accountingCurrency:ctx.base,tauxChange:ctx.rate,cashSessionId:ctx.session.id,reference:text(reference,100)||null},{transaction});
   await pay(req,transaction,ctx,'EXPENSE',expense.id,'OPERATING_EXPENSE');await ledger.remember(req,'expense.create',expense.id,transaction);return {expense,replayed:false};
  });
