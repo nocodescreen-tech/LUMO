@@ -46,6 +46,7 @@ const HumanResources = lazy(() => import('./pages/HumanResources'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const AccessGovernance = lazy(() => import('./pages/AccessGovernance'));
 const ExpenseApprovals = lazy(() => import('./pages/ExpenseApprovals'));
+const LeaveManagement = lazy(() => import('./pages/LeaveManagement'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -142,6 +143,7 @@ const App = () => {
               {user?.role === 'admin' && <Route path="/treasury" element={<Treasury />} />}
               {user?.role === 'admin' && <Route path="/staff-assignments" element={<StaffAssignments />} />}
               {user?.role === 'admin' && <Route path="/hr" element={<HumanResources />} />}
+              {user&&user.role!=='superadmin'&&<Route path="/leave" element={<LeaveManagement key={user.id}/>} />}
               {user?.role === 'admin' && <Route path="/payroll" element={<Payroll />} />}
               {user?.role === 'superadmin' && (
                 <Route path="/superadmin" element={<SuperAdminDashboard />} />
