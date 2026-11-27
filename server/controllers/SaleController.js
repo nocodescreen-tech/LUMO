@@ -327,6 +327,7 @@ exports.refundSale=async(req,res,next)=>{
   const wh=await inventory.warehouse(userId,row.warehouseId,transaction);
   for(const item of articles){const product=await Product.findOne({where:{id:item.id,userId},transaction,lock:transaction.LOCK.UPDATE});if(!product)throw fail('Produit historique introuvable',409);product.stockUpdateRaison='Remboursement Vente';product.stock=Number(product.stock)+Number(item.quantite);await product.save({transaction});await inventory.change(product,wh,Number(item.quantite),transaction);}
   await lots.refund(req,row,transaction);
+  const activeRepair=await require('../models').RepairOrder.findOne({where:{userId,saleId:row.id,status:{[require('sequelize').Op.notIn]:['DELIVERED','CANCELLED']}},transaction});if(activeRepair)throw fail('Un dossier SAV actif doit être clôturé avant remboursement',409);
   await serials.refund(req,row,transaction);
   session.totalSales=Number(session.totalSales)-amount;session.expectedBalance=Number(session.expectedBalance)-amount;await session.save({transaction});
   const original=await require('../models').JournalEntry.findAll({where:{userId,reference:String(row.id),event:{[Op.in]:['SALE','SALE_COST']}},transaction});

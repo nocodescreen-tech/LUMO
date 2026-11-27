@@ -35,6 +35,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
  app.use('/inventory',require('../routes/inventoryRoutes'));
+ app.use('/repairs',require('../routes/repairRoutes'));
  app.get('/test-products',protect,require('../controllers/productController').getProducts);
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
@@ -325,6 +326,32 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await post('/inventory/serials/transfer',{productId:product.id,unitId:unit.id,toWarehouseId:wh.id,reason:'Transfer',operationId:'serial-transfer-001'})).status).toBe(201);
  expect((await unit.reload()).locationKey).toBe(wh.id);expect((await product.reload()).stock).toBe(3);
  const history=await SerialEvent.findOne({where:{unitId:unit.id,kind:'SALE'}});expect(history.warrantyUntil).toBeTruthy();await expect(history.destroy()).rejects.toThrow();
+ });
+ test('repair lifecycle verifies warranty, isolates tenants and requires client approval',async()=>{
+ const {SerialUnit,RepairOrder,RepairEvent}=require('../models');
+ const product=await Product.create({nom:'SAV device',prix:10,prixAchat:4,devise:'USD',stock:2,userId:a.id});
+ expect((await post('/inventory/serials/register',{productId:product.id,serial:'SAV-001',warrantyDays:365,reason:'Test registration',operationId:'sav-registration-0001'})).status).toBe(201);
+ const unit=await SerialUnit.findOne({where:{userId:a.id,serial:'SAV-001'}});
+ const body=payload(product,1,10);body.items[0].serialNumbers=['SAV-001'];
+ const sale=await post('/sales',body);expect(sale.status).toBe(201);
+ const warranty=await request(app).get('/repairs/warranty/'+unit.id).set('Authorization','Bearer '+ta);expect(warranty.body.data.warrantyStatus).toBe('ACTIVE');
+ const intake={unitId:unit.id,customerName:'Client test',issue:'Écran noir',condition:'Rayure',operationId:'repair-intake-0001'};
+ const created=await post('/repairs',intake);expect(created.status).toBe(201);expect((await post('/repairs',intake)).status).toBe(200);
+ const id=created.body.data.id;expect((await post('/repairs',{...intake,operationId:'repair-duplicate-01'})).status).toBe(409);
+ const tb=generateToken(b.id,'support-test').accessToken;expect((await request(app).get('/repairs/'+id).set('Authorization','Bearer '+tb)).status).toBe(404);
+ expect((await post('/sales/'+sale.body.data.id+'/refund',{})).status).toBe(409);
+ let n=0;const action=(expectedStatus,fields)=>post('/repairs/'+id+'/actions',{expectedStatus,note:'Test',operationId:'repair-action-test-'+(++n),...fields});
+ expect((await action('RECEIVED',{action:'transition',status:'DIAGNOSIS'})).status).toBe(201);
+ expect((await action('DIAGNOSIS',{action:'estimate',diagnosis:'Screen diagnosis',estimate:15,currency:'USD'})).status).toBe(201);
+ expect((await action('WAITING_APPROVAL',{action:'transition',status:'REPAIRING'})).status).toBe(409);
+ expect((await action('WAITING_APPROVAL',{action:'approval',decision:'APPROVED',confirmCustomer:true})).status).toBe(201);
+ expect((await action('WAITING_APPROVAL',{action:'transition',status:'REPAIRING'})).status).toBe(201);
+ expect((await action('REPAIRING',{action:'transition',status:'READY'})).status).toBe(201);
+ expect((await action('READY',{action:'transition',status:'DELIVERED'})).status).toBe(409);
+ expect((await action('READY',{action:'transition',status:'DELIVERED',handoverConfirmed:true})).status).toBe(201);
+ const row=await RepairOrder.findByPk(id);expect(row.status).toBe('DELIVERED');expect((await unit.reload()).status).toBe('SOLD');expect((await product.reload()).stock).toBe(1);
+ const event=await RepairEvent.findOne({where:{orderId:id}});await expect(event.destroy()).rejects.toThrow();
+ expect((await action('DELIVERED',{action:'note'})).status).toBe(409);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
