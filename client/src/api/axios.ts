@@ -13,6 +13,7 @@ const setToken = (token: string | null) => {
 
 const api = axios.create({
   baseURL: (import.meta as any).env.VITE_API_BASE_URL || '/api',
+  timeout:30000,
   withCredentials: true, // Crucial pour les cookies sécurisés et CSRF
 });
 
@@ -54,6 +55,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    if(!originalRequest||originalRequest.signal?.aborted)return Promise.reject(error);
 
     // Only intercept 401 TOKEN_EXPIRED errors (not login errors)
     const isTokenExpired =
@@ -63,18 +65,20 @@ api.interceptors.response.use(
 
     if (!isTokenExpired) return Promise.reject(error);
 
+    originalRequest._retry = true;
     if (isRefreshing) {
       // Queue this request until refresh completes
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((newToken) => {
+        if(originalRequest.signal?.aborted)return Promise.reject(error);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       });
     }
 
-    originalRequest._retry = true;
     isRefreshing = true;
+    const previousToken=getToken();
 
     try {
       // SECURITY: refresh token is stored in an httpOnly cookie (not accessible
@@ -82,10 +86,11 @@ api.interceptors.response.use(
       const { data } = await axios.post(
         `${api.defaults.baseURL}/auth/refresh`,
         {},
-        { withCredentials: true }
+        { withCredentials: true,timeout:12000 }
       );
 
       if (!data.token) throw new Error('No token returned');
+      if(getToken()!==previousToken){const e=new Error('Session changed during refresh');processQueue(e);return Promise.reject(e)}
 
       // Keep the access token in memory only. The refresh token remains in the
       // httpOnly cookie and is not readable by JavaScript.
@@ -100,8 +105,7 @@ api.interceptors.response.use(
       processQueue(refreshError, null);
 
       // Session fully expired — clear store and dispatch event
-      useAuthStore.getState().logout(false);
-      window.dispatchEvent(new CustomEvent(SESSION_EXPIRY_EVENT));
+      if(getToken()===previousToken){setToken(null);useAuthStore.setState({token:null,user:null,exchangeRate:0,enabledModules:[]});window.dispatchEvent(new CustomEvent(SESSION_EXPIRY_EVENT));}
       // window.location.href = '/login?expired=true'; // Modal will handle redirect or warning
       return Promise.reject(refreshError);
     } finally {

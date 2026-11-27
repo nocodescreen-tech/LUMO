@@ -32,6 +32,10 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/search',require('../routes/searchRoutes'));
+ app.get('/clients/:id/sales',protect,checkPermission('clients'),clients.getClientSales);
+ app.use('/contact',require('../routes/contactRoutes'));
+ app.use('/newsletter',require('../routes/newsletterRoutes'));
  app.use('/ai',require('../routes/aiRoutes'));
  app.use('/notifications',require('../routes/notificationRoutes'));
  app.use('/backup',require('../routes/backupRoutes'));
@@ -855,6 +859,25 @@ suite('Commercial PostgreSQL integration',()=>{
  const inv=await SaasInvoice.findOne({where:{ownerId:owner.id}}),path='/platform/billing/commercial/invoices?ownerId='+owner.id+'&currency='+inv.currency+'&plan='+inv.plan;
  const invoices=await get(path);expect(invoices.status).toBe(200);expect(invoices.body.data.rows.some(v=>v.id===inv.id)).toBe(true);expect(invoices.body.data.rows.every(v=>v.ownerId===owner.id&&v.currency===inv.currency&&v.plan===inv.plan)).toBe(true);
  expect((await get(path,ta)).status).toBe(403);
+ });
+ test('alternate sales reads preserve branch scope and hide costs',async()=>{
+ const employee=await User.findOne({where:{email:'warehouse-employee@example.com'}});
+ const {StaffAssignment}=require('../models'),assignment=await StaffAssignment.findOne({where:{staffId:employee.id,userId:a.id},order:[['id','DESC']]});
+ // Create an isolated read-only test actor without changing existing fixtures.
+ const reader=await User.create({nom:'Scoped reader',email:'scoped-reader@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['sales','clients','products'],activeSessions:[{sessionId:'reader-session'}]});
+ const token=generateToken(reader.id,'reader-session').accessToken,get=path=>request(app).get(path).set('Authorization','Bearer '+token);
+ const initial=await get('/clients/'+ca.id+'/sales');expect(initial.status).toBe(200);expect(initial.body.data.every(v=>v.warehouseId==null&&v.profitNet===undefined&&v.articles.every(x=>x.prixAchat===undefined))).toBe(true);
+ const product=await get('/search?q=Own');expect(product.status).toBe(200);expect(product.body.products.every(v=>v.stock===undefined)).toBe(true);
+ expect(product.body.products.some(v=>v.id===pa.id)).toBe(true);
+ if(assignment?.warehouseId){const assigned=await post('/workspace/staff-assignments',{staffId:reader.id,warehouseId:assignment.warehouseId,expectedAssignmentId:null,reason:'Read scope test',operationId:'audit-reader-assignment'});expect(assigned.status).toBe(201);const scoped=await get('/clients/'+ca.id+'/sales');expect(scoped.status).toBe(200);expect(scoped.body.data.every(v=>v.warehouseId===assignment.warehouseId&&v.profitNet===undefined)).toBe(true);}
+ });
+ test('public form rejects invalid payloads and limits analytics collection',async()=>{
+ expect((await request(app).post('/contact').send({nom:'Test',email:'invalid',message:'Hello'})).status).toBe(400);
+ expect((await request(app).post('/contact').send({nom:'x'.repeat(121),email:'test@example.com',message:'Hello'})).status).toBe(400);
+ expect((await request(app).post('/newsletter/subscribe').send({email:'invalid'})).status).toBe(400);
+ expect((await request(app).post('/contact/visit').send({path:'/private',ua:'secret',referrer:'secret'})).status).toBe(400);
+ expect((await request(app).post('/contact/visit').send({path:'/',lang:'fr',ua:'secret',referrer:'secret'})).status).toBe(200);
+ const event=await require('../models').Activite.findOne({where:{type:'LANDING_VISIT'},order:[['id','DESC']]});expect(JSON.parse(event.description)).not.toHaveProperty('ua');expect(JSON.parse(event.description)).not.toHaveProperty('referrer');
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

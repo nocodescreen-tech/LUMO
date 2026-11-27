@@ -130,13 +130,15 @@ exports.getClientSales = async (req, res, next) => {
     const client = await Client.findOne({ where: { id: clientId, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
 
+    const where={clientId,userId};if(req.user.parentId)where.warehouseId=(await require('../utils/staffScope').location(req.user))?.id??null;
     const data = await Sale.findAndCountAll({
-      where: { clientId, userId },
+      where,
       order: [['createdAt', 'DESC']],
       limit: l,
       offset
     });
 
+    data.rows=data.rows.map(row=>require('./SaleController').publicSale(row,req.user));
     const response = getPagingData(data, page, l);
     res.status(200).json(response);
   } catch (error) {

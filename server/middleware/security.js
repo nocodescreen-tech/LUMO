@@ -79,7 +79,7 @@ const securityMiddleware = (app) => {
             callback(new Error('CORS: Origine non autorisée'));
         },
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Requested-With', 'X-XSRF-TOKEN', 'x-xsrf-token', 'Cache-Control', 'Pragma', 'Expires'],
     }));
 

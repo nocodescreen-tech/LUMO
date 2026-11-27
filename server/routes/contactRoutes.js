@@ -1,72 +1,25 @@
-const express = require('express');
-const router = express.Router();
-const { sendEmail } = require('../utils/emailService');
-const { Activite } = require('../models');
-
-router.post('/', async (req, res) => {
-  try {
-    const { nom, email, message } = req.body;
-    if (!nom || !email || !message) {
-      return res.status(400).json({ message: 'Veuillez remplir tous les champs.' });
-    }
-
-    await sendEmail({
-      email: 'no.codescreen@gmail.com',
-      subject: `[LUMO] Nouvelle question de ${nom}`,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #6d28d9;">Nouvelle demande de contact</h2>
-          <p><strong>Nom :</strong> ${nom}</p>
-          <p><strong>Email :</strong> ${email}</p>
-          <hr />
-          <p><strong>Message :</strong></p>
-          <p style="background: #f9f9f9; padding: 15px; border-radius: 5px;">${message}</p>
-        </div>
-      `,
-    });
-
-    await Activite.create({
-      type: 'LANDING_MESSAGE',
-      description: JSON.stringify({ nom, email, message, createdAt: new Date().toISOString() }),
-      module: 'Landing',
-      userNom: nom,
-      source: 'Public',
-      UserId: null,
-      shopId: null,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Votre message a ete envoye avec succes ! Nous vous repondrons des que possible.',
-    });
-  } catch (error) {
-    console.error('Contact error:', error);
-    return res.status(500).json({ message: "Une erreur est survenue lors de l'envoi." });
-  }
+const express=require('express'),router=express.Router(),rateLimit=require('express-rate-limit');
+const {sendEmail}=require('../utils/emailService');
+const {Activite}=require('../models');
+const escape=v=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clean=(v,max)=>typeof v==='string'&&v.trim().length<=max?v.trim():'';
+const emailValid=v=>/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(v);
+const limit=max=>rateLimit({windowMs:15*60*1000,max,standardHeaders:true,legacyHeaders:false,message:{message:'Trop de demandes, réessayez plus tard.'}});
+router.post('/',limit(5),async(req,res,next)=>{
+ try{
+ const nom=clean(req.body?.nom,120),email=clean(req.body?.email,254),message=clean(req.body?.message,2000);
+ if(!nom||!emailValid(email)||!message||/[\r\n]/.test(nom))return res.status(400).json({message:'Nom, email et message valides requis.'});
+ await Activite.create({type:'LANDING_MESSAGE',description:JSON.stringify({nom,email,message,createdAt:new Date().toISOString()}),module:'Landing',userNom:nom,source:'Public',UserId:null,shopId:null});
+ // The inbox is authoritative. A mail-provider failure must not lose the inquiry.
+ try{await sendEmail({email:process.env.LUMO_CONTACT_EMAIL||'no.codescreen@gmail.com',subject:'[LUMO] Nouvelle demande de contact',html:'<h2>Nouvelle demande de contact</h2><p>Nom : '+escape(nom)+'</p><p>Email : '+escape(email)+'</p><p>'+escape(message).replace(/\r?\n/g,'<br>')+'</p>'});}catch(_){require('../utils/logger').warn('Notification email du formulaire de contact indisponible');}
+ return res.status(200).json({success:true,message:'Votre demande a été enregistrée.'});
+ }catch(e){next(e)}
 });
-
-router.post('/visit', async (req, res) => {
-  try {
-    const { path = '/', referrer = '', ua = '', lang = '' } = req.body || {};
-    await Activite.create({
-      type: 'LANDING_VISIT',
-      description: JSON.stringify({
-        path,
-        referrer,
-        ua: String(ua).slice(0, 300),
-        lang: String(lang).slice(0, 50),
-        createdAt: new Date().toISOString(),
-      }),
-      module: 'Landing',
-      userNom: 'Visiteur',
-      source: 'Public',
-      UserId: null,
-      shopId: null,
-    });
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    return res.status(200).json({ success: false });
-  }
+router.post('/visit',limit(30),async(req,res,next)=>{
+ try{const path=clean(req.body?.path,100)||'/',lang=clean(req.body?.lang,20);
+ if(path!=='/')return res.status(400).json({message:'Page invalide'});
+ await Activite.create({type:'LANDING_VISIT',description:JSON.stringify({path,lang,createdAt:new Date().toISOString()}),module:'Landing',userNom:'Visiteur',source:'Public',UserId:null,shopId:null});
+ return res.status(200).json({success:true});
+ }catch(e){next(e)}
 });
-
-module.exports = router;
+module.exports=router;

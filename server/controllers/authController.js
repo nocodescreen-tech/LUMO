@@ -247,13 +247,13 @@ const verify2FA=async(req,res,next)=>{
 
 // @desc  Refresh access token using a valid refresh token
 const refreshAccessToken = async (req, res, next) => {
-  const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
   if (!refreshToken) return res.status(400).json({ message: 'Refresh token requis' });
 
   try {
     const jwt = require('jsonwebtoken');
     const config = require('../config');
-    const decoded = jwt.verify(refreshToken, config.jwt.secret);
+    const decoded = jwt.verify(refreshToken, config.jwt.secret,{algorithms:['HS256']});
 
     if (decoded.type !== 'refresh') {
       return res.status(401).json({ message: 'Token invalide' });
@@ -272,29 +272,7 @@ const refreshAccessToken = async (req, res, next) => {
 
     setRefreshTokenCookie(res, newRefreshToken);
 
-    // M6 Fix: Ne pas écraser activeSessions si le sessionId est le même,
-    // mais on peut quand même mettre à jour les métadonnées (userAgent, IP)
-    let sessions = user.activeSessions || [];
-    const currentSession = sessions.find(s => s.sessionId === sessionId);
-    if (currentSession) {
-      currentSession.userAgent = req.headers['user-agent'];
-      currentSession.ip = req.ip;
-      currentSession.updatedAt = new Date();
-    } else {
-      // Au cas où la session n'existait plus en BDD (nettoyage agressif), on la recrée
-      sessions.push({ 
-        sessionId, 
-        userAgent: req.headers['user-agent'], 
-        ip: req.ip,
-        createdAt: new Date() 
-      });
-      if (sessions.length > 5) sessions.shift();
-    }
-    
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
-
+    // Refresh never rewrites activeSessions: concurrent revocations must remain durable.
     // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
     res.status(200).json({ token: accessToken });
   } catch (error) {
@@ -497,7 +475,7 @@ const updateProfile = async (req, res, next) => {
 
     // Use explicit undefined checks to prevent falsy values (like "") from keeping old data
     if (nom !== undefined && nom !== null && nom.trim() !== '') user.nom = nom.trim();
-    if (email !== undefined && email !== null) user.email = email;
+    if(email!==undefined&&email!==null&&email!==user.email)return res.status(409).json({message:'Le changement d’adresse email nécessite une procédure de vérification. Contactez le support.'});
     if (telephone !== undefined && telephone !== null) user.telephone = telephone;
     if (typeActivite !== undefined && typeActivite !== null) user.typeActivite = typeActivite;
     if (entreprise !== undefined && entreprise !== null) user.entreprise = entreprise;

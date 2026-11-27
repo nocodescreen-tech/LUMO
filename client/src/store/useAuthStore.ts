@@ -68,57 +68,14 @@ interface AuthState {
   syncPreferencesToServer: (prefs: Partial<UserPreferences>) => Promise<void>;
 }
 
-// ─── SECURITY: localStorage stores ONLY the access token ─────────────────────
-// The full user object (email, phone, enterprise info, preferences) is kept in
-// memory (Zustand store) only and re-fetched from the server on page reload.
-// This prevents sensitive PII from being readable in DevTools localStorage.
-const LEGACY_AUTH_STORAGE_KEYS = [
-  'lumo-auth',
-  'lumo-token',
-  'lumo-token-superadmin',
-  'token',
-  'refreshToken',
-];
-
-let memoryToken: string | null = null;
-
-export const getMemoryToken = (): string | null => memoryToken;
-
-export const setMemoryToken = (token: string | null) => {
-  memoryToken = token;
-};
-
-const clearLegacyAuthStorage = () => {
-  // Only clear truly legacy keys — preserve lumo-token (managed by setStoredToken)
-  // and lumo-token-superadmin (managed by impersonation flow)
-  ['lumo-auth', 'token', 'refreshToken'].forEach((key) => localStorage.removeItem(key));
-};
-
-const getStoredToken = (): string | null => {
-  // Memory-first, localStorage as fallback for cross-reload persistence (impersonation, etc.)
-  return getMemoryToken() || localStorage.getItem('lumo-token');
-};
-
-const setStoredToken = (token: string | null) => {
-  setMemoryToken(token);
-  if (token) {
-    localStorage.setItem('lumo-token', token);
-  } else {
-    localStorage.removeItem('lumo-token');
-  }
-  // Clean up other legacy keys but preserve lumo-token
-  ['lumo-auth', 'lumo-token-superadmin', 'token', 'refreshToken'].forEach((key) => {
-    // Don't delete lumo-token-superadmin here — it's managed by impersonation flow
-    if (key === 'lumo-token-superadmin') return;
-    localStorage.removeItem(key);
-  });
-};
-
-const loadInitialAuth = () => {
-  clearLegacyAuthStorage();
-  return { user: null as User | null, token: null as string | null };
-};
-
+// Access token stays in memory. Reloads use the HttpOnly refresh cookie.
+let memoryToken:string|null=null;
+export const getMemoryToken=()=>memoryToken;
+export const setMemoryToken=(token:string|null)=>{memoryToken=token};
+const clearLegacyAuthStorage=()=>{try{['lumo-auth','lumo-token','lumo-token-superadmin','token','refreshToken'].forEach(k=>localStorage.removeItem(k))}catch{}};
+const getStoredToken=()=>getMemoryToken();
+const setStoredToken=(token:string|null)=>{setMemoryToken(token);clearLegacyAuthStorage()};
+const loadInitialAuth=()=>{clearLegacyAuthStorage();return {user:null as User|null,token:null as string|null}};
 const initialAuth = loadInitialAuth();
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -202,7 +159,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async (shouldRedirect = true) => {
     try {
-      await api.post('/auth/logout');
+      await api.post('/auth/logout',{},{timeout:8000});
     } catch (e) {
       // Ignorer si déjà expiré ou réseau coupé
     }
@@ -217,6 +174,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         theme: 'light',
         language: 'fr',
         currency: 'CDF',
+        exchangeRate:0,
         enabledModules: []
     });
 
@@ -251,7 +209,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // SECURITY: user object is kept in memory only — NOT persisted to localStorage.
       set({
         user,
-        token,
+        token:getMemoryToken(),
         theme: theme as any,
         language: lang as any,
         enabledModules: modules,

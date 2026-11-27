@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { PageSkeleton } from './design-system/PageSkeleton';
 import { Toaster } from 'sonner';
@@ -56,11 +56,19 @@ const SubscriptionCenter = lazy(() => import('./pages/SubscriptionCenter'));
 const Landing = lazy(() => import('./pages/Landing'));
 
 const LoadingFallback = () => <PageSkeleton />;
+class WorkspaceBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}>{
+ state={failed:false};
+ static getDerivedStateFromError(){return {failed:true}}
+ render(){return this.state.failed?<div role="alert" style={{padding:24}}><h2>Interface indisponible</h2><p>Revenez à l’accueil ou rechargez la page. Ne répétez pas une opération financière sans vérifier son historique.</p><button onClick={()=>window.location.reload()}>Recharger</button> <a href="/">Accueil</a></div>:this.props.children}
+}
+const ScreenBoundary=({children}:{children:React.ReactNode})=>{const loc=useLocation(),id=useAuthStore(s=>s.user?.id);return <WorkspaceBoundary key={String(id)+'/'+loc.pathname}>{children}</WorkspaceBoundary>};
+
 
 
 
 const App = () => {
   const { token, checkAuth, theme, user, hydrating, hydrateFromRefresh } = useAuthStore();
+  const can=(...permissions:string[])=>user?.role==='admin'||(!!user&&user.role!=='superadmin'&&permissions.every(p=>user.permissions?.includes(p)));
   // useRuntimeTranslator(); // Disabled due to severe collision bugs (e.g., "Stock" -> "Mouvements de")
 
   useEffect(() => {
@@ -86,11 +94,11 @@ const App = () => {
 
   useEffect(() => {
     if (token) {
-      checkAuth();
+      void checkAuth().catch(()=>{});
       
       // Synchronisation périodique (toutes les 15 minutes)
       const interval = setInterval(() => {
-        checkAuth(false); // Ne pas rediriger si l'appel échoue (laisse l'intercepteur gérer)
+        void checkAuth(false).catch(()=>{}); // Ne pas rediriger si l'appel échoue (laisse l'intercepteur gérer)
       }, 15 * 60 * 1000);
       
       return () => clearInterval(interval);
@@ -106,7 +114,7 @@ const App = () => {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster position="top-right" richColors theme={theme as any} />
       <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', transition: 'background-color 0.5s ease' }}>
-        <Suspense fallback={<LoadingFallback />}>
+        <ScreenBoundary><Suspense fallback={<LoadingFallback />}>
           {!token ? (
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -119,26 +127,26 @@ const App = () => {
               <Route path="*" element={<Navigate to="/login" />} />
             </Routes>
         ) : (
-          <Layout>
+          <Layout key={user?.id}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               {user?.role==='admin'&&<Route path="/executive" element={<ExecutiveDashboard key={user.id}/>} />}
               {user?.role==='admin'&&<Route path="/subscription" element={<SubscriptionCenter key={user.id}/>} />}
-              <Route path="/cash" element={<Cash />} />
-              <Route path="/pos" element={<POS />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/fournisseurs" element={<Fournisseurs />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/purchases" element={<Purchases />} />
-              <Route path="/stock-history" element={<StockHistory />} />
-              <Route path="/dettes" element={<Dettes />} />
+              {can('cash')&&<Route path="/cash" element={<Cash />} />}
+              {can('pos','sales.add','products')&&<Route path="/pos" element={<POS />} />}
+              {can('products')&&<Route path="/products" element={<Products />} />}
+              {can('clients')&&<Route path="/clients" element={<Clients />} />}
+              {user?.role==='admin'&&<Route path="/users" element={<UsersPage />} />}
+              {can('suppliers')&&<Route path="/fournisseurs" element={<Fournisseurs />} />}
+              {can('sales')&&<Route path="/sales" element={<Sales />} />}
+              {can('purchases')&&<Route path="/purchases" element={<Purchases />} />}
+              {can('products')&&<Route path="/stock-history" element={<StockHistory />} />}
+              {can('debts','clients')&&<Route path="/dettes" element={<Dettes />} />}
               <Route path="/settings" element={<Settings />} />
               {user&&<Route path="/notifications" element={<NotificationCenter key={user.id}/>} />}
-              <Route path="/activities" element={<Activities />} />
-              <Route path="/stats" element={<Stats />} />
+              {can('activities')||user?.role==='superadmin'&&<Route path="/activities" element={<Activities />} />}
+              {user?.role==='admin'&&<Route path="/stats" element={<Stats />} />}
               {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}
               {user?.role === 'admin' && <Route path="/access-governance" element={<AccessGovernance />} />}
               {(user?.role === 'admin'||user?.permissions?.includes('expenses.request')||user?.permissions?.includes('expenses.review')) && <Route path="/expense-approvals" element={<ExpenseApprovals />} />}
@@ -162,7 +170,7 @@ const App = () => {
             </Routes>
           </Layout>
         )}
-        </Suspense>
+        </Suspense></ScreenBoundary>
       </div>
     </BrowserRouter>
     </MotionConfig>

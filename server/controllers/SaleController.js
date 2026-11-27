@@ -12,6 +12,7 @@ const lots=require('../utils/lotService');
 const serials=require('../utils/serialService');
 const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round, money } = require('../utils/transactionSafety');
 const publicSale=(sale,user)=>{const row=sale.toJSON?sale.toJSON():{...sale};if(['admin','superadmin'].includes(user.role))return row;delete row.profitNet;row.articles=safeParseArticles(row.articles).map(({prixAchat,...item})=>item);return row;};
+exports.publicSale=publicSale;
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
   REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
