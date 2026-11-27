@@ -1,6 +1,6 @@
 const router=require('express').Router();
 const {protect,authorize}=require('../middleware/authMiddleware');
-const {Organization,Subscription,SubscriptionEvent}=require('../models');
+const {Organization,Subscription,SubscriptionEvent,Activite}=require('../models');
 const {sequelize}=require('../config/database');
 const {sendResponse}=require('../utils/response');
 const {fail}=require('../utils/transactionSafety');
@@ -18,7 +18,8 @@ router.post('/subscriptions/:ownerId/grant',async(req,res,next)=>{try{
  const now=new Date(),start=s.status==='ACTIVE'&&s.plan===plan&&s.endsAt&&new Date(s.endsAt)>now?new Date(s.endsAt):now;
  const endsAt=new Date(+start+days*86400000);
  await SubscriptionEvent.create({organizationId:org.id,actorId:req.user.id,kind:'MANUAL_GRANT',reference,details:{plan,days,reason,previousPlan:s.plan,previousEndsAt:s.endsAt,endsAt}},{transaction});
- await s.update({plan,status:'ACTIVE',startsAt:now,endsAt,...svc.plans[plan]},{transaction});return s;
+ await s.update({plan,status:'ACTIVE',startsAt:now,endsAt,...svc.plans[plan]},{transaction});
+ await Activite.create({UserId:req.user.id,shopId:req.user.id,type:'PLATFORM_SUBSCRIPTION_GRANT',module:'Platform',description:'Organisation #'+org.id+' : '+plan+' / '+days+' jours / '+reference},{transaction});return s;
  });
  return sendResponse(res,200,result,'Accès attribué manuellement — aucun paiement confirmé');
 }catch(e){next(e)}});

@@ -176,12 +176,10 @@ const getSuperadminStats = async (req, res, next) => {
     });
 
     // Dynamically calculate API costs from expenses categorized as 'API' or 'Maintenance'
-    let apiCosts = 0;
+    let apiCosts = null;
       
     // Si pas de dépense API déclarée, on estime via le nombre de requêtes IA (ex: 0.0015$ par message)
-    if (apiCosts === 0 && totalAiMessages > 0) {
-        apiCosts = parseFloat((totalAiMessages * 0.0015).toFixed(2));
-    }
+    // No verified billing or metering provider: do not fabricate API costs.
 
     const [usersCount, productsCount, activityCount] = counts;
 

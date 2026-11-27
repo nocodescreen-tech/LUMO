@@ -1,2 +1,4 @@
 # SuperAdmin platform console
 Replaces the legacy dashboard with a 5DEV-themed responsive console: operational overview, paginated owner/staff accounts, manual plan grants, audit, public inbox, newsletter template and subscriber list, internal broadcasts, and configuration. No fabricated revenue or uptime SLA. No unrestricted deletion, forced email verification or impersonation. All platform APIs require superadmin. Plan grants do not charge anyone. Current audit includes operational activity; immutable platform audit, billing payment provider, full localization, visual browser acceptance, and large newsletter pagination remain outstanding.
+
+Additional integration coverage: suspension reason, session revocation, platform-only actions, subscription grant audit, notification confirmation and settings allowlist. Legacy estimated AI cost removed. Platform operational audit is not yet immutable.

@@ -131,6 +131,27 @@ suite('Commercial PostgreSQL integration',()=>{
  expect(r.body.data.rows[0]).not.toHaveProperty('motDePasse');expect(r.body.data.rows[0]).not.toHaveProperty('activeSessions');
  expect((await get('/superadmin/console/overview',token)).body.data.billing.mrr).toBeNull();
  });
+ test('platform suspension revokes sessions and records audit; owner denied',async()=>{
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const url='/superadmin/users/'+b.id+'/suspend';
+ expect((await put(url,{suspended:true,reason:'Unauthorized owner'})).status).toBe(403);
+ const suspend=(body)=>request(app).put(url).set('Authorization','Bearer '+token).send(body);
+ expect((await suspend({suspended:true})).status).toBe(400);
+ expect((await suspend({suspended:true,reason:'Test suspension'})).status).toBe(200);
+ expect((await b.reload()).activeSessions).toEqual([]);
+ expect((await suspend({suspended:false,reason:'Test reactivation'})).status).toBe(200);
+ const audit=await request(app).get('/superadmin/console/audit?scope=platform').set('Authorization','Bearer '+token);
+ expect(audit.status).toBe(200);expect(audit.body.data.rows.some(x=>x.type==='PLATFORM_SUSPENSION')).toBe(true);
+ expect(audit.body.data.rows.some(x=>x.type==='PLATFORM_SUBSCRIPTION_GRANT')).toBe(true);
+ });
+ test('platform broadcast requires confirmation and settings are allowlisted',async()=>{
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const call=(url,body)=>request(app).post(url).set('Authorization','Bearer '+token).send(body);
+ const payload={titre:'Test message',message:'Integration test',type:'INFO'};
+ expect((await call('/superadmin/notify',payload)).status).toBe(400);
+ expect((await call('/superadmin/notify',{...payload,confirm:true})).status).toBe(200);
+ expect((await call('/superadmin/settings',{key:'unknown',value:'true'})).status).toBe(400);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
