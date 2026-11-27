@@ -38,7 +38,7 @@ platform.post('/prices',async(req,res,next)=>{try{const r=await action(req,'saas
  if(typeof b.enabled!=='boolean')throw fail('Activation invalide');
  return SaasPrice.create({...where,amount:amount(b.amount,c),enabled:b.enabled,actorId:actor.id,reason:clean(b.reason,250)},{transaction:t});
  });return respond(res,r,'Tarif enregistré');}catch(e){next(e)}});
-platform.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),where={};if(['ISSUED','PAID','VOID'].includes(req.query.status))where.status=req.query.status;if(req.query.ownerId)where.ownerId=id(Number(req.query.ownerId));
+platform.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),where={};if(['ISSUED','PAID','VOID'].includes(req.query.status))where.status=req.query.status;if(req.query.ownerId)where.ownerId=id(Number(req.query.ownerId));if(['USD','CDF'].includes(req.query.currency))where.currency=req.query.currency;if(plans.includes(req.query.plan))where.plan=req.query.plan;if(req.query.overdue==='true'){where.status='ISSUED';where.dueOn={[Op.lt]:today()};}
  const r=await SaasInvoice.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Factures SaaS');}catch(e){next(e)}});
 platform.post('/invoices',async(req,res,next)=>{try{const r=await action(req,'saas.invoice',SaasInvoice,async(actor,t)=>{
  const b=req.body,ownerId=id(b.ownerId),org=await svc.ensure(ownerId,t);

@@ -843,6 +843,19 @@ suite('Commercial PostgreSQL integration',()=>{
  const tr=await get('/finance/treasury/transfers?accountId='+account+'&currency='+transfer.currency);expect(tr.status).toBe(200);expect(tr.body.data.total).toBeGreaterThan(0);expect(tr.body.data.rows.every(v=>v.userId===a.id&&v.currency===transfer.currency&&(v.fromAccountId===account||v.toAccountId===account))).toBe(true);
  const requests=await get('/workspace/expense-approvals?status=PENDING');expect(requests.status).toBe(200);expect(Number(requests.body.data.counts.find(v=>v.status==='PENDING')?.count||0)).toBe(requests.body.data.total);
  });
+ test('platform account and invoice filters preserve privileged scope',async()=>{
+ const p=await User.findOne({where:{email:'platform@example.com'}}),token=generateToken(p.id,'test-session').accessToken;
+ const get=(path,auth=token)=>request(app).get(path).set('Authorization','Bearer '+auth);
+ const owner=await User.findOne({where:{email:'saas-test@example.com'}});
+ const found=await get('/superadmin/console/accounts?kind=owners&q='+owner.id);expect(found.status).toBe(200);expect(found.body.data.rows.some(v=>v.id===owner.id)).toBe(true);
+ const {Organization,Subscription,SaasInvoice}=require('../models'),org=await Organization.findOne({where:{ownerId:owner.id}}),sub=await Subscription.findOne({where:{organizationId:org.id}});
+ const filtered=await get('/superadmin/console/accounts?kind=owners&plan='+sub.plan+'&license='+require('../utils/workspaceService').effective(sub)+'&q='+owner.id);
+ expect(filtered.status).toBe(200);expect(filtered.body.data.rows.some(v=>v.id===owner.id)).toBe(true);
+ expect((await get('/superadmin/console/accounts?kind=owners&license=NONE&q='+owner.id)).body.data.rows.some(v=>v.id===owner.id)).toBe(false);
+ const inv=await SaasInvoice.findOne({where:{ownerId:owner.id}}),path='/platform/billing/commercial/invoices?ownerId='+owner.id+'&currency='+inv.currency+'&plan='+inv.plan;
+ const invoices=await get(path);expect(invoices.status).toBe(200);expect(invoices.body.data.rows.some(v=>v.id===inv.id)).toBe(true);expect(invoices.body.data.rows.every(v=>v.ownerId===owner.id&&v.currency===inv.currency&&v.plan===inv.plan)).toBe(true);
+ expect((await get(path,ta)).status).toBe(403);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
