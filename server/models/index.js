@@ -32,6 +32,7 @@ const payroll=require('./Payroll');
 const AccessRevision=require('./AccessRevision');
 const expenseApproval=require('./ExpenseApproval');
 const budgets=require('./Budget');
+const NotificationSetting=require('./NotificationSetting');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -78,5 +79,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables, ...repairBilling, AccountingLock, ...treasury, StaffAssignment, ...hr, ...payroll, AccessRevision, ...expenseApproval, ...budgets
+  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables, ...repairBilling, AccountingLock, ...treasury, StaffAssignment, ...hr, ...payroll, AccessRevision, ...expenseApproval, ...budgets, NotificationSetting
 };

@@ -31,6 +31,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.post('/expenses',protect,expenses.create);
  app.post('/expenses/:id/reverse',protect,expenses.reverse);
  app.post('/staff-payments',protect,staff.createPayment);
+ app.use('/notifications',require('../routes/notificationRoutes'));
  app.use('/backup',require('../routes/backupRoutes'));
  app.use('/support',require('../routes/supportRoutes'));
  app.use('/superadmin',require('../routes/superadminRoutes'));
@@ -698,6 +699,28 @@ suite('Commercial PostgreSQL integration',()=>{
  const foreign=await User.findOne({where:{email:'leave-foreign-owner@example.com'}}),foreignToken=generateToken(foreign.id,'leave-foreign-session').accessToken;
  expect((await request(app).post(url+'/revisions').set('Authorization','Bearer '+foreignToken).send({...config,operationId:'budget-foreign-test-01'})).status).toBe(404);
  await expect((await BudgetRevision.findByPk(monthly.body.data.id)).destroy()).rejects.toThrow();
+ });
+ test('personal notifications isolate inboxes, preferences and deduplication',async()=>{
+ const {Notification}=require('../models'),svc=require('../utils/notificationService');
+ const staff=await User.create({nom:'Alert user',email:'alert-user@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['expenses.request'],activeSessions:[{sessionId:'alert-user-session'}]});
+ const token=generateToken(staff.id,'alert-user-session').accessToken;
+ const get=(path,t=ta)=>request(app).get(path).set('Authorization','Bearer '+t);
+ const staffPut=(path,body)=>request(app).put(path).set('Authorization','Bearer '+token).send(body);
+ const n=await Notification.create({userId:a.id,titre:'Private owner',contenu:'Owner only',type:'INFO'});
+ expect((await get('/notifications',token)).body.some(x=>x.id===n.id)).toBe(false);
+ expect((await staffPut('/notifications/'+n.id+'/read',{})).status).toBe(404);
+ expect((await n.reload()).lu).toBe(false);
+ expect((await staffPut('/notifications/preferences',{muted:['BUDGET']})).status).toBe(400);
+ expect((await staffPut('/notifications/preferences',{muted:['PERSONAL_LEAVE']})).status).toBe(200);
+ const low=await Product.create({nom:'Alert low stock',prix:10,prixAchat:4,devise:'USD',stock:1,stockAlerte:5,userId:a.id});
+ await svc.scan(a.id,{force:true});const alert=await Notification.findOne({where:{userId:a.id,category:'STOCK'}});expect(alert).not.toBeNull();
+ const count=await Notification.count({where:{userId:a.id,category:'STOCK'}});
+ await svc.scan(a.id,{force:true});expect(await Notification.count({where:{userId:a.id,category:'STOCK'}})).toBe(count);
+ expect((await request(app).delete('/notifications/'+alert.id).set('Authorization','Bearer '+ta)).status).toBe(200);
+ await svc.scan(a.id,{force:true});expect(await Notification.count({where:{userId:a.id,category:'STOCK'}})).toBe(count);
+ expect((await get('/notifications/center')).body.data.rows.some(x=>x.id===alert.id)).toBe(false);
+ expect((await get('/notifications/summary')).body.data.unread).toBe(await Notification.count({where:{...svc.visibility(a),lu:false}}));
+ expect((await get('/notifications/center',token)).body.data.rows.every(x=>x.userId===staff.id)).toBe(true);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

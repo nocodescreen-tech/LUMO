@@ -82,7 +82,7 @@ io.use(async(socket,next)=>{
   next();
  }catch(_){next(new Error('Unauthorized'))}
 });
-io.on("connection",socket=>{socket.join(`user_${socket.data.tenantId}`);});
+io.on("connection",socket=>{socket.join(`user_${socket.data.userId}`);});
 
 setupSwagger(app);
 
@@ -212,6 +212,7 @@ if (require.main === module) {
     
     // Initialisation des tâches planifiées (Cron)
     initBackupCron();
+    require('./cron/notificationCron').initNotificationCron();
   });
 
   server.on('error', (err) => {

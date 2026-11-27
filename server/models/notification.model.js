@@ -23,6 +23,10 @@ const Notification = sequelize.define('Notification', {
         type: DataTypes.STRING,
         defaultValue: 'INFO'
     },
+    category:{type:DataTypes.STRING(32),allowNull:true},
+    dedupeKey:{type:DataTypes.STRING(160),allowNull:true},
+    targetPath:{type:DataTypes.STRING(80),allowNull:true},
+    archivedAt:{type:DataTypes.DATE,allowNull:true},
     lu: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
@@ -34,8 +38,7 @@ const Notification = sequelize.define('Notification', {
             const emit = () => {
             try {
                 if (global.io) {
-                    const data = notification.get({ plain: true });
-                    global.io.to(`user_${notification.userId}`).emit('notification', data);
+                    global.io.to(`user_${notification.userId}`).emit('notification', {refresh:true});
                 }
             } catch (err) {
                 console.error('Socket.io notification error:', err);
