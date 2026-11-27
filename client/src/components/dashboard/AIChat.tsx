@@ -123,7 +123,11 @@ const AIChat = () => {
 
             if (rawMessage.includes('Clé') || rawMessage.toUpperCase().includes('DEEPSEEK_API_KEY')) {
                 msg = "L'IA n'est pas configurée sur le serveur.";
-            } else if (status === 401 || status === 403) {
+            } else if (status === 429) {
+                msg = fr?'Quota ou limite de requêtes atteint. Consultez Mon abonnement.':'Request limit or quota reached. Check My subscription.';
+            } else if (status === 403) {
+                msg = fr?'Accès refusé. Vérifiez votre licence et vos permissions.':'Access denied. Check your subscription and permissions.';
+            } else if (status === 401) {
                 msg = "Authentification requise. Reconnectez-vous.";
             } else if (status === 400) {
                 msg = "Requête invalide. Vérifiez votre message.";
