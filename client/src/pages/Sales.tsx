@@ -1,3 +1,4 @@
+import './service-commercial.css';
 import { PageSkeleton } from '../design-system/PageSkeleton';
 import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
@@ -72,6 +73,7 @@ const Sales = () => {
     const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [filterDate, setFilterDate] = useState('');
+    const [saleStatus,setSaleStatus]=useState(''),[saleCurrencyFilter,setSaleCurrencyFilter]=useState('');
     const [filterMethod, setFilterMethod] = useState('');
     const [showReportModal, setShowReportModal] = useState(false);
     const [actionMenuId, setActionMenuId] = useState<number | null>(null);
@@ -212,8 +214,8 @@ const Sales = () => {
         });
     };
 
-    const handleExportExcel = () => {
-        if (sales.length === 0) return toast.error(t('noDataToExport'));
+    const handleExportExcel = async () => {
+        if (filteredSales.length === 0) return toast.error(t('noDataToExport'));
 
         const rows = filteredSales.map(s => ({
             [t('salesExcelReference')]: s.id,
@@ -223,31 +225,31 @@ const Sales = () => {
             [t('salesExcelItems')]: s.articles?.length || 0,
             [t('salesExcelOriginalAmount')]: `${s.montantTotal} ${s.devise}`,
             [t('salesExcelNormalizedAmount')]: `${getNormalizedAmount(s)} ${currency}`,
-            [t('salesExcelRate')]: s.tauxChange || exchangeRate
+            [t('salesExcelRate')]: s.tauxChange || '', Statut:s.statut||'Non renseigné'
         }));
 
-        exportToPDF(rows, `${t('salesReportFilePrefix')} ${currency}`, user);
-        toast.success(t('excelExportSuccess'));
+        try{const X=await import('xlsx'),wb=X.utils.book_new();X.utils.book_append_sheet(wb,X.utils.json_to_sheet(rows),'Ventes');X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([['Périmètre','Historique filtré parmi les ventes chargées uniquement'],['Montants convertis','Indicatifs ; taux historique ou taux de repli'],['Date du filtre',filterDate||'Toutes dates chargées'],['Fuseau du filtre','Africa/Kinshasa'],['Statut',saleStatus||'Tous']]),'Périmètre');X.writeFile(wb,'LUMO-ventes-'+new Date().toISOString().slice(0,10)+'.xlsx');toast.success(t('excelExportSuccess'))}catch{toast.error('Export Excel indisponible')}
     };
 
     const filteredSales = sales.filter(s => {
         const matchesSearch = s.id?.toString().includes(searchTerm) ||
             s.clientInfo?.nom?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
+        const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Kinshasa',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(s.createdAt));const day=['year','month','day'].map(k=>parts.find(p=>p.type===k)?.value).join('-');const matchesDate=!filterDate||day===filterDate;
         const matchesMethod = filterMethod ? s.methodePaiement === filterMethod : true;
 
-        return matchesSearch && matchesDate && matchesMethod;
+        return matchesSearch && matchesDate && matchesMethod&&(!saleStatus||s.statut===saleStatus)&&(!saleCurrencyFilter||s.devise===saleCurrencyFilter);
     });
 
     // Pagination Logic
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+    const totalPages = Math.max(1,Math.ceil(filteredSales.length / itemsPerPage));
+    useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterDate, filterMethod]);
+    }, [searchTerm, filterDate, filterMethod,saleStatus,saleCurrencyFilter]);
 
     // Report Calculations
     const reportStats = {
@@ -265,7 +267,7 @@ const Sales = () => {
     if (loading) return <PageSkeleton />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
+        <div className="service-sales" style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
             <div className="responsive-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
                 <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }}>
                     <h1 className="title-xl"><span className="text-gradient">{t('salesTitle')}</span></h1>
@@ -274,13 +276,12 @@ const Sales = () => {
                 <div className="responsive-flex" style={{ display: 'flex', gap: '14px' }}>
                     <button onClick={() => setShowReportModal(true)} className="btn-premium secondary"><BarChart2 size={18} /> {t('reports')}</button>
                     <button onClick={handleExportExcel} className="btn-premium secondary"><Download size={18} /> {t('excel')}</button>
-                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
-                        <button onClick={handleAllDelete} className="btn-premium secondary" style={{ color: 'var(--danger)', borderColor: 'rgba(214, 69, 69, 0.2)' }}><Trash2 size={18} /> {t('empty')}</button>
-                    )}
+
                     <button onClick={() => navigate('/pos')} className="btn-premium primary"><Zap size={18} /> {t('newSale')}</button>
                 </div>
             </div>
 
+            <div className="service-disclosure">Historique chargé : {sales.length} vente(s), maximum demandé 200. Les montants convertis sont indicatifs, incluant les opérations remboursées si elles correspondent aux filtres. Consultez la comptabilité pour les résultats nets enregistrés.</div><div className="service-filter"><label>Statut<select value={saleStatus} onChange={e=>setSaleStatus(e.target.value)}><option value="">Tous</option>{Array.from(new Set(sales.map(s=>s.statut).filter(Boolean))).map(k=><option key={k} value={k}>{k}</option>)}</select></label><label>Devise d’origine<select value={saleCurrencyFilter} onChange={e=>setSaleCurrencyFilter(e.target.value)}><option value="">Toutes</option><option>USD</option><option>CDF</option></select></label></div>
             {/* Stats Cards Section */}
             <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}>
                 <div className="premium-card" style={{ padding: '20px', background: 'linear-gradient(135deg, rgba(21,94,88,0.1) 0%, rgba(168,85,247,0.05) 100%)', border: '1px solid rgba(21,94,88,0.2)', position: 'relative', overflow: 'hidden' }}>
@@ -289,7 +290,7 @@ const Sales = () => {
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', background: 'var(--grad-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px var(--primary-glow)' }}>
                             <TrendingUp size={28} />
                         </div>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>{t('revenue')}</span>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.02em' }}>Total historique filtré</span>
                     </div>
                     <div style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: '1', letterSpacing: '-0.02em' }}>
                         {reportStats.totalRevenue.toLocaleString()} <span style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 700 }}>{currency}</span>
@@ -508,15 +509,6 @@ const Sales = () => {
                                                                         <RotateCcw size={16} /> {t('refund')}
                                                                     </button>
                                                                 )}
-                                                                <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
-                                                                <button
-                                                                    onClick={() => { deleteSale(sale.id); setActionMenuId(null); }}
-                                                                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--danger)', fontWeight: 700, borderRadius: '10px' }}
-                                                                    onMouseOver={e => e.currentTarget.style.background = 'rgba(214, 69, 69, 0.05)'}
-                                                                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-                                                                >
-                                                                    <Trash2 size={16} /> {t('deleteSale')}
-                                                                </button>
                                                             </motion.div>
                                                         )}
                                                     </AnimatePresence>
@@ -575,7 +567,7 @@ const Sales = () => {
                 )}
 
                 <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                    {t('showingRangeStart')} {indexOfFirstItem + 1} {t('to')} {Math.min(indexOfLastItem, filteredSales.length)} {t('of')} {filteredSales.length} {t('transactionsCount')}
+                    {t('showingRangeStart')} {filteredSales.length?indexOfFirstItem+1:0} {t('to')} {Math.min(indexOfLastItem, filteredSales.length)} {t('of')} {filteredSales.length} {t('transactionsCount')}
                 </div>
             </div>
 
@@ -670,7 +662,7 @@ const Sales = () => {
                             <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                                 <TrendingUp size={20} />
                             </div>
-                            <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('revenue')}</p>
+                            <p style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total historique filtré</p>
                             <h3 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>{reportStats.totalRevenue.toLocaleString()} {currency}</h3>
                         </div>
                         <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)' }}>
@@ -694,7 +686,7 @@ const Sales = () => {
                                     <div style={{ height: '8px', background: 'var(--bg-main)', borderRadius: '10px', overflow: 'hidden' }}>
                                         <motion.div
                                             initial={{ width: 0 }}
-                                            animate={{ width: `${(amount / reportStats.totalRevenue) * 100}%` }}
+                                            animate={{ width: `${reportStats.totalRevenue>0?Math.max(0,Math.min(100,amount/reportStats.totalRevenue*100)):0}%` }}
                                             style={{ height: '100%', background: 'var(--primary)', borderRadius: '10px' }}
                                         />
                                     </div>

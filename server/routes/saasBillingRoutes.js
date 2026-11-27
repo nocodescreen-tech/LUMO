@@ -88,6 +88,6 @@ customer.get('/',async(req,res,next)=>{try{const context=await svc.context(req.u
  const onboarding={profile:!!org.name&&!!org.currency,products:products>0,clients:clients>0,staff:staff>0,cash:cashSessions>0,sales:sales>0};
  const catalog=(await prices()).filter(v=>v.enabled).map(({id,plan,currency,days,amount})=>({id,plan,currency,days,amount}));
  return sendResponse(res,200,{...context,usage:{branches,warehouses},onboarding,entitlements:await rights.describe(uid),openInvoices,catalog,plans:plans.map(code=>({code,...svc.plans[code]})),enforcement:'registry-and-configured-features'},'Mon abonnement');}catch(e){next(e)}});
-customer.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),r=await SaasInvoice.findAndCountAll({where:{ownerId:req.user.id},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Mes factures');}catch(e){next(e)}});
+customer.get('/invoices',async(req,res,next)=>{try{const {page,limit}=paging(req.query),where={ownerId:req.user.id};if(['ISSUED','PAID','VOID'].includes(req.query.status))where.status=req.query.status;if(['USD','CDF'].includes(req.query.currency))where.currency=req.query.currency;const r=await SaasInvoice.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Mes factures');}catch(e){next(e)}});
 customer.get('/invoices/:id',(req,res,next)=>detail(req,res,next,false));
 module.exports={platform,customer};

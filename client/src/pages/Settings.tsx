@@ -1,3 +1,5 @@
+import './service-commercial.css';
+import {Link} from 'react-router-dom';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import BackupCenter from './BackupCenter';
@@ -432,6 +434,7 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
+    if(saving)return;
     if (profileData.motDePasse) {
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
       if (!passwordRegex.test(profileData.motDePasse)) {
@@ -485,10 +488,11 @@ const Settings = () => {
     { id: 'business', label: t('myBusiness'), icon: Store, color: 'var(--secondary)' },
     { id: 'appearance', label: t('interface'), icon: Palette, color: 'var(--warning)' },
     { id: 'modules', label: t('modulesAI'), icon: Cpu, color: 'var(--danger)', adminOnly: true },
-    { id: 'security', label: t('security'), icon: ShieldCheck, color: '#155E58', adminOnly: true },
+    { id: 'security', label: t('security'), icon: ShieldCheck, color: 'var(--primary)', adminOnly: true },
+    { id:'backup',label:language==='en'?'Data protection':'Protection des données',icon:Download,color:'var(--primary)',adminOnly:true },
   ];
 
-  const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
+  const tabs = allTabs.filter(tab => (!tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin')&&(tab.id!=='backup'||user?.role==='admin'));
 
   const activityTypes = Object.keys(BUSINESS_TYPES);
   const devises = [
@@ -497,7 +501,7 @@ const Settings = () => {
   ];
 
   return (
-    <motion.div
+    <motion.div className="service-settings"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1200px', margin: '0 auto', padding: '10px 0 80px 0' }}
@@ -529,18 +533,16 @@ const Settings = () => {
             </div>
           </div>
           {tabs.map((tab) => (
-            <motion.div
-              key={tab.id}
-              whileHover={{ x: 6 }}
-              whileTap={{ scale: 0.98 }}
+            <button type="button" className="service-setting-tab"
+              key={tab.id} aria-current={activeTab===tab.id?'page':undefined}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px', borderRadius: '20px', cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                backgroundColor: activeTab === tab.id ? `${tab.color}15` : 'transparent',
-                border: `1.5px solid ${activeTab === tab.id ? `${tab.color}40` : 'transparent'}`,
-                color: activeTab === tab.id ? tab.color : 'var(--text-muted)',
+                backgroundColor: activeTab === tab.id ? 'var(--primary-glow)' : 'transparent',
+                border: '1px solid '+(activeTab===tab.id?'var(--primary)':'transparent'),
+                color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -548,12 +550,12 @@ const Settings = () => {
                 <span style={{ fontWeight: '800', fontSize: '1rem' }}>{tab.label}</span>
               </div>
               {activeTab === tab.id && <ChevronRight size={16} />}
-            </motion.div>
-          ))}
+            </button>
+          ))}<div className="service-settings-links"><Link to="/notifications"><Bell size={16}/>{language==='en'?'Notifications':'Notifications'}</Link>{user?.role==='admin'&&<><Link to="/subscription"><CreditCard size={16}/>{language==='en'?'Subscription':'Abonnement'}</Link><Link to="/support"><ShieldCheck size={16}/>{language==='en'?'Support':'Assistance'}</Link></>}</div>
         </div>
 
         {/* Main Content */}
-        <div className="premium-card" style={{ padding: '48px', borderRadius: '32px', boxShadow: 'var(--shadow-lg)' }}>
+        <div className="premium-card service-settings-content" style={{ padding: '48px', borderRadius: '32px', boxShadow: 'var(--shadow-lg)' }}>
           <AnimatePresence mode="wait">
 
             {/* PROFILE */}
@@ -842,14 +844,14 @@ const Settings = () => {
                     <div style={{ position: 'relative' }}>
                       <Key size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? 'text' : 'password'} autoComplete="new-password"
                         placeholder={t('passwordPlaceholder')}
                         value={profileData.motDePasse}
                         maxLength={100}
                         onChange={(e) => setProfileData({ ...profileData, motDePasse: e.target.value })}
                         style={{ width: '100%', padding: '16px 56px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', fontWeight: '700' }}
                       />
-                      <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                      <button type="button" aria-label={language==='en'?'Toggle password visibility':'Afficher ou masquer le mot de passe'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
@@ -882,17 +884,18 @@ const Settings = () => {
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('passwordWarning')}</p>
                   </div>
 
-                  {user?.role==='admin'&&<BackupCenter/>}
+
 
                 </div>
               </motion.div>
             )}
 
 
+            {activeTab==='backup'&&user?.role==='admin'&&<motion.div key="backup"><BackupCenter/></motion.div>}
           </AnimatePresence>
 
           {/* Footer Save */}
-          <div style={{ marginTop: '48px', paddingTop: '32px', borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
+          {activeTab!=='backup'&&<div className="service-save" style={{ marginTop: '48px', paddingTop: '32px', borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -911,7 +914,7 @@ const Settings = () => {
               {saving ? <Loader2 size={20} className="animate-spin" /> : savedSuccess ? <CheckCircle size={20} /> : <Save size={20} />}
               {saving ? t('syncing') : savedSuccess ? t('changesApplied') : t('saveChanges')}
             </motion.button>
-          </div>
+          </div>}
         </div>
       </div>
       {/* Logout Confirmation Modal */}

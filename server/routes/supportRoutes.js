@@ -16,6 +16,7 @@ router.get('/',async(req,res,next)=>{try{
  const page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(50,parseInt(req.query.limit)||20)),where=whereFor(req);
  if(statuses.includes(req.query.status))where.status=req.query.status;
  if(priorities.includes(req.query.priority))where.priority=req.query.priority;
+ if(['TECHNICAL','BILLING','ACCOUNT','FEATURE','OTHER'].includes(req.query.category))where.category=req.query.category;
  if(typeof req.query.q==='string'&&req.query.q.trim())where.subject={[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'};
  const result=await SupportTicket.findAndCountAll({where,order:[['updatedAt','DESC'],['id','DESC']],limit,offset:(page-1)*limit});
  return sendResponse(res,200,{rows:result.rows,total:result.count,page,limit},'Tickets');
