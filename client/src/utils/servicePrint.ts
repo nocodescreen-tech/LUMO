@@ -14,7 +14,7 @@ export function buildServiceDocument(doc:Document,data:ServiceDocument,onPrint:(
  doc.head.replaceChildren(style);
  const node=(tag:string,text?:string,cls?:string)=>{const el=doc.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;};
  const button=node('button','Imprimer / enregistrer en PDF');button.addEventListener('click',onPrint);
- const head=node('header');head.append(node('div','LUMO / SERVICE','brand'),node('h1',data.title),node('p',data.reference),node('h2',data.company),node('p',[data.address,data.phone].filter(Boolean).join(' · ')));
+ const head=node('header');head.append(node('div','LUMO','brand'),node('h1',data.title),node('p',data.reference),node('h2',data.company),node('p',[data.address,data.phone].filter(Boolean).join(' · ')));
  const table=node('table');for(const [label,value] of data.fields){const tr=node('tr');tr.append(node('th',label),node('td',value||'—'));table.append(tr);}
  const children=[button,head,table,node('p',data.notice,'notice')];
  if(data.signatures){const sign=node('div',undefined,'sign');sign.append(node('div','Signature client'),node('div','Signature entreprise'));children.push(sign);}
