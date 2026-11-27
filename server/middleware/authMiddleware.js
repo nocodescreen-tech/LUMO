@@ -35,7 +35,7 @@ exports.protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, config.jwt.secret);
     // Reject refresh tokens used as access tokens
-    if (decoded.type && decoded.type !== 'access') {
+    if (decoded.type !== 'access') {
       logger.warn(`[AUTH_FAIL] Type de token invalide (${decoded.type}) pour ${req.originalUrl}`);
       return res.status(401).json({ message: 'Jeton invalide' });
     }
@@ -48,7 +48,7 @@ exports.protect = async (req, res, next) => {
     // Session validation (Concurrent Session Control)
     const sessions = req.user.activeSessions || [];
     const isSessionValid = sessions.some(s => s.sessionId === decoded.sessionId);
-    if (!isSessionValid && decoded.sessionId) {
+    if (!isSessionValid || !decoded.sessionId) {
       logger.warn(`[AUTH_FAIL] Session invalide/remplacée (SID: ${decoded.sessionId}) pour l'utilisateur ${req.user.id} sur ${req.originalUrl}`);
       return res.status(401).json({ message: 'Session expirée ou remplacée par une nouvelle connexion', code: 'SESSION_REPLACED' });
     }

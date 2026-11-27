@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getClients, createClient, updateClient, deleteClient, settleDebt, sendReminder, getClientSales, deleteAllClients } = require('../controllers/clientController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, checkPermission, authorize } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -21,7 +21,7 @@ const { protect } = require('../middleware/authMiddleware');
  *       200:
  *         description: Liste récupérée
  */
-router.get('/', protect, getClients);
+router.get('/', protect, checkPermission('clients'), getClients);
 
 /**
  * @swagger
@@ -34,7 +34,7 @@ router.get('/', protect, getClients);
  *       200:
  *         description: Base client vidée
  */
-router.delete('/all', protect, deleteAllClients);
+router.delete('/all', protect, authorize('admin','superadmin'), deleteAllClients);
 
 /**
  * @swagger
@@ -52,7 +52,7 @@ router.delete('/all', protect, deleteAllClients);
  *       200:
  *         description: Historique récupéré
  */
-router.get('/:id/sales', protect, getClientSales);
+router.get('/:id/sales', protect, checkPermission('clients'), getClientSales);
 
 /**
  * @swagger
@@ -65,7 +65,7 @@ router.get('/:id/sales', protect, getClientSales);
  *       201:
  *         description: Client créé
  */
-router.post('/', protect, createClient);
+router.post('/', protect, checkPermission('clients.add'), createClient);
 
 /**
  * @swagger
@@ -78,7 +78,7 @@ router.post('/', protect, createClient);
  *       200:
  *         description: Client mis à jour
  */
-router.put('/:id', protect, updateClient);
+router.put('/:id', protect, checkPermission('clients.edit'), updateClient);
 
 /**
  * @swagger
@@ -91,7 +91,7 @@ router.put('/:id', protect, updateClient);
  *       200:
  *         description: Client supprimé
  */
-router.delete('/:id', protect, deleteClient);
+router.delete('/:id', protect, checkPermission('clients.delete'), deleteClient);
 
 /**
  * @swagger
@@ -104,7 +104,7 @@ router.delete('/:id', protect, deleteClient);
  *       200:
  *         description: Dette mise à jour
  */
-router.post('/:id/regler', protect, settleDebt);
+router.post('/:id/regler', protect, checkPermission('debts'), settleDebt);
 
 /**
  * @swagger
@@ -117,6 +117,6 @@ router.post('/:id/regler', protect, settleDebt);
  *       200:
  *         description: Rappel envoyé
  */
-router.post('/:id/rappel', protect, sendReminder);
+router.post('/:id/rappel', protect, checkPermission('debts'), sendReminder);
 
 module.exports = router;

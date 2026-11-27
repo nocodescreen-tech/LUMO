@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { io, Socket } from 'socket.io-client';
+import { useAuthStore } from '../store/useAuthStore';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || (import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '') : window.location.origin);
 
@@ -11,6 +12,7 @@ class SocketService {
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket'],
+      auth: callback => callback({token:useAuthStore.getState().token}),
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000, // Ajout d'un délai pour éviter le spam
@@ -21,7 +23,7 @@ class SocketService {
       if (import.meta.env.DEV) {
           console.log('Connected to WebSocket server');
       }
-      this.socket?.emit('join', `user_${userId}`);
+      // Room membership is assigned by the authenticated server.
     });
 
     this.socket.on('connect_error', () => {

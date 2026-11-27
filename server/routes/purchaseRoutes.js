@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getPurchases, createPurchase, updatePurchase, deletePurchase } = require('../controllers/purchaseController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, checkPermission } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -21,7 +21,7 @@ const { protect } = require('../middleware/authMiddleware');
  *       200:
  *         description: Liste récupérée
  */
-router.get('/', protect, getPurchases);
+router.get('/', protect, checkPermission('purchases'), getPurchases);
 
 /**
  * @swagger
@@ -34,9 +34,9 @@ router.get('/', protect, getPurchases);
  *       201:
  *         description: Achat enregistré et produits créés/mis à jour
  */
-router.post('/', protect, createPurchase);
+router.post('/', protect, checkPermission('purchases.add'), createPurchase);
 
-router.put('/:id', protect, updatePurchase);
-router.delete('/:id', protect, deletePurchase);
+router.put('/:id', protect, checkPermission('purchases.edit'), updatePurchase);
+router.delete('/:id', protect, checkPermission('purchases.delete'), deletePurchase);
 
 module.exports = router;

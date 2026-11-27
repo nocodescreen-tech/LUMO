@@ -1,0 +1,22 @@
+name: Commercial backend validation
+on:
+  push:
+    branches: [commercial-v2]
+  pull_request:
+    branches: [main]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: find controllers middleware routes models utils -name '*.js' -print0 | xargs -0 -n1 node --check
+      - run: npm test -- --runInBand tests/transactionSafety.unit.test.js

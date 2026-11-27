@@ -28,6 +28,7 @@ const Login = () => {
   const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
   const [twoFAUserId, setTwoFAUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState('');
+  const [challenge,setChallenge]=useState('');
 
   const persistAuth = (data: any) => {
     // Let setAuth be the ONLY writer of hub-auth to avoid stale user data contamination
@@ -57,6 +58,7 @@ const Login = () => {
       const { data } = await api.post('/auth/login', { email, motDePasse: password });
       if (data.requires2FA) {
         setTwoFAUserId(data.userId);
+        setChallenge(data.challenge);
         setStep('2fa');
         toast.info(t('code2FASent'));
         return;
@@ -76,7 +78,7 @@ const Login = () => {
     if (twoFACode.length !== 6) return toast.error(t('enter6DigitCode'));
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/2fa/verify', { userId: twoFAUserId, code: twoFACode });
+      const { data } = await api.post('/auth/2fa/verify', { userId: twoFAUserId, code: twoFACode, challenge });
       persistAuth(data);
       toast.success(t('login2FASuccess'));
       navigate('/');

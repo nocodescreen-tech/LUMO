@@ -6,7 +6,7 @@ const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
-    message: err.message || 'Erreur Serveur Interne'
+    message: statusCode >= 500 ? 'Erreur Serveur Interne' : (err.message || 'Requête invalide')
   });
 };
 

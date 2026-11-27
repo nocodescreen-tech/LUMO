@@ -107,9 +107,9 @@ const validateFournisseur = (data) => {
 const validateSale = (data) => {
     const schema = Joi.object({
         items: Joi.array().items(Joi.object({
-            id: Joi.number().required(),
+            id: Joi.number().integer().positive().required(),
             nom: Joi.string().required(),
-            prix: Joi.number().required(),
+            prix: Joi.number().min(0).required(),
             prixUnitaire: Joi.number().min(0).optional(),
             prixAchat: Joi.number().min(0).optional(),
             deviseProduit: Joi.string().valid('USD', 'CDF').optional(),
@@ -127,7 +127,7 @@ const validatePurchase = (data) => {
     const schema = Joi.object({
         numeroFacture: Joi.string().required(),
         montantTotal: Joi.number().min(0).required(),
-        articles: Joi.array().min(1).required(),
+        articles: Joi.array().items(Joi.object({id:Joi.number().integer().positive().allow(null).optional(),nom:Joi.string().optional(),quantite:Joi.number().integer().positive().required(),prixAchat:Joi.number().min(0).required(),prix:Joi.number().min(0).optional()}).unknown(true)).min(1).max(1000).required(),
         fournisseurId: Joi.number().allow(null, '').optional(),
         devise: Joi.string().valid('USD', 'CDF').optional()
     }).unknown(true);

@@ -1,4 +1,7 @@
-const { Purchase, Product } = require('../models');
+const { Purchase, Product, Fournisseur, CashSession } = require('../models');
+const { sequelize } = require('../config/database');
+const { fail, pick, money, positiveQuantity, currency, round, rateFor } = require('../utils/transactionSafety');
+const { invalidateCache } = require('../utils/cache');
 const { validatePurchase } = require('../middleware/validators');
 const { logActivite } = require('./activiteController');
 const { getPagination, getPagingData } = require('../utils/pagination');
@@ -27,123 +30,44 @@ exports.getPurchases = async (req, res, next) => {
   }
 };
 
-exports.createPurchase = async (req, res, next) => {
-  const { error } = validatePurchase(req.body);
-  if (error) return res.status(400).json({ message: error.details[0].message });
-
-  try {
-    const userId = req.user.tenantId;
-    let { articles, fournisseurId, numeroFacture, description, montantTotal, statut, devise } = req.body;
-    if (!articles || !Array.isArray(articles) || articles.length === 0) {
-        return res.status(400).json({ message: 'La liste des articles ne peut pas être vide.' });
-    }
-
-    // Optimisation N+1 : Récupérer tous les produits en une seule requête
-    const productIds = articles.filter(a => a.id).map(a => a.id);
-    const existingProducts = await Product.findAll({ where: { id: productIds, userId } });
-    const productMap = existingProducts.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
-
-    for (let i = 0; i < articles.length; i++) {
-        let item = articles[i];
-        if (item.id && productMap[item.id]) {
-            const product = productMap[item.id];
-            product.stockUpdateRaison = 'Achat Fournisseur';
-            product.stock += (item.quantite || 0);
-            if (item.prixAchat) product.prixAchat = item.prixAchat;
-            await product.save();
-        } else if (item.nom) {
-            const newProduct = await Product.create({
-                userId,
-                nom: item.nom,
-                prix: item.prix || item.prixAchat || 0,
-                prixAchat: item.prixAchat || 0,
-                stock: item.quantite || 0,
-                stockUpdateRaison: 'Achat Fournisseur (Nouveau)'
-            });
-            articles[i].id = newProduct.id;
-        }
-    }
-
-    // Mise à jour de la session de caisse active
-    const { CashSession } = require('../models');
-    const activeSession = await CashSession.findOne({ 
-      where: { userId, status: 'OPEN' } 
-    });
-
-    if (activeSession) {
-      const owner = await User.findByPk(userId);
-      const rate = owner.entreprise?.exchangeRate || 2800;
-      const sessionDevise = owner.entreprise?.devise || 'CDF';
-      
-      const montantConverti = convertCurrency(montantTotal, devise || 'USD', sessionDevise, rate);
-      activeSession.expectedBalance = Number(activeSession.expectedBalance || 0) - Number(montantConverti);
-      await activeSession.save();
-    }
-
-    const payload = {
-      userId,
-      fournisseurId,
-      numeroFacture,
-      description,
-      montantTotal,
-      statut,
-      devise,
-      articles
-    };
-    
-    const purchase = await Purchase.create(payload);
-    await logActivite(req.user.id, 'ACHAT', `Nouvel achat: ${purchase.numeroFacture} (${purchase.montantTotal} ${purchase.devise})`, 'System', userId);
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 201, purchase, 'Achat enregistré');
-  } catch (error) {
-    console.error("Erreur lors de la création de l'achat:", error);
-    next(error);
-  }
+exports.createPurchase = async (req,res,next)=>{
+ const {error}=validatePurchase(req.body);if(error)return res.status(400).json({message:error.details[0].message});
+ try{
+  const userId=req.user.tenantId;
+  const purchase=await sequelize.transaction(async transaction=>{
+   const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
+   const devise=currency(req.body.devise||owner.entreprise?.devise),shopCurrency=currency(owner.entreprise?.devise),rate=rateFor(owner);
+   const fournisseurId=req.body.fournisseurId||null;
+   if(fournisseurId&&!await Fournisseur.findOne({where:{id:fournisseurId,userId},transaction}))throw fail('Fournisseur introuvable',404);
+   const ids=[...new Set(req.body.articles.filter(a=>a.id).map(a=>Number(a.id)))];
+   const products=await Product.findAll({where:{id:ids,userId},transaction,lock:transaction.LOCK.UPDATE,order:[['id','ASC']]});
+   if(products.length!==ids.length)throw fail('Produit introuvable dans cette entreprise',404);
+   const map=new Map(products.map(x=>[Number(x.id),x]));
+   let total=0;const articles=[];
+   for(const item of req.body.articles){
+    const qty=positiveQuantity(item.quantite),cost=money(item.prixAchat);let product;
+    if(item.id){product=map.get(Number(item.id));product.stockUpdateRaison='Achat Fournisseur';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});}
+    else {if(typeof item.nom!=='string'||!item.nom.trim())throw fail('Nom du produit obligatoire');product=await Product.create({userId,creatorId:req.user.id,nom:item.nom.trim(),prix:money(item.prix??cost),prixAchat:cost,stock:qty,devise},{transaction});}
+    articles.push({id:product.id,nom:product.nom,quantite:qty,prixAchat:cost});total+=qty*cost;
+   }
+   total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
+   const statut=req.body.statut||'Payé';if(!['Payé','En attente','Partiel','Impayé','Non payé'].includes(statut))throw fail('Statut d’achat invalide');
+   const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles},{transaction});
+   const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+   if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}
+   return result;
+  });
+  await invalidateCache('stats');await invalidateCache('products');await logActivite(req.user.id,'ACHAT',`Nouvel achat: ${purchase.numeroFacture}`,'System',userId);
+  return sendResponse(res,201,purchase,'Achat enregistré');
+ }catch(error){next(error);}
 };
-
-exports.updatePurchase = async (req, res, next) => {
-  const { error } = validatePurchase(req.body);
-  if (error) return res.status(400).json({ message: error.details[0].message });
-
-  try {
-    const userId = req.user.tenantId;
-    const purchase = await Purchase.findOne({ where: { id: req.params.id, userId } });
-    if (!purchase) return res.status(404).json({ message: 'Achat non trouvé' });
-    
-    await purchase.update(req.body);
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, purchase, 'Achat mis à jour');
-  } catch (error) {
-    next(error);
-  }
+exports.updatePurchase=async(req,res,next)=>{
+ try{
+  const purchase=await Purchase.findOne({where:{id:req.params.id,userId:req.user.tenantId}});
+  if(!purchase)throw fail('Achat non trouvé',404);
+  const fields=pick(req.body,['description','numeroFacture']);
+  if(!Object.keys(fields).length||Object.keys(req.body).some(k=>!['description','numeroFacture'].includes(k)))throw fail('Les achats financiers exigent un workflow de correction dédié',409);
+  await purchase.update(fields);return sendResponse(res,200,purchase,'Achat mis à jour');
+ }catch(error){next(error);}
 };
-
-exports.deletePurchase = async (req, res, next) => {
-  try {
-    const userId = req.user.tenantId;
-    const purchase = await Purchase.findOne({ where: { id: req.params.id, userId } });
-    if (!purchase) return res.status(404).json({ message: 'Achat non trouvé' });
-    
-    // Décrémenter le stock si l'achat est annulé
-    if (purchase.articles && Array.isArray(purchase.articles)) {
-        for (const item of purchase.articles) {
-            if (item.id) {
-               const product = await Product.findByPk(item.id);
-               if (product) {
-                  product.stockUpdateRaison = 'Annulation Achat Fournisseur';
-                  product.stock = Math.max(0, product.stock - (item.quantite || 0));
-                  await product.save();
-               }
-            }
-        }
-    }
-
-    const numFacture = purchase.numeroFacture;
-    await purchase.destroy();
-    await logActivite(req.user.id, 'ACHAT', `Suppression achat: ${numFacture}`, 'System', userId);
-    const { sendResponse } = require('../utils/response');
-    sendResponse(res, 200, null, 'Achat supprimé');
-  } catch (error) {
-    next(error);
-  }
-};
+exports.deletePurchase=async(req,res)=>res.status(409).json({message:"La suppression définitive des achats est désactivée. Un workflow d’annulation comptable est nécessaire."});

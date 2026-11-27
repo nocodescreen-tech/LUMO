@@ -6,6 +6,7 @@ const { logActivite } = require('./activiteController');
 const { convertCurrency } = require('../utils/currency');
 const { getPagination, getPagingData } = require('../utils/pagination');
 const { invalidateCache } = require('../utils/cache');
+const { fail, trustedLine, rateFor, isCash, isCredit: creditMethod, round } = require('../utils/transactionSafety');
 const REFUNDED_STATUSES = ['Remboursee', 'Remboursée'];
 const isRefundedStatus = (status = '') =>
   REFUNDED_STATUSES.includes(String(status)) || String(status).toLowerCase().includes('rembours');
@@ -91,10 +92,11 @@ exports.createSale = async (req, res, next) => {
 
     // Récupérer le propriétaire pour la devise et le taux de change
     const ownerId = req.user.parentId || userId;
-    const owner = await require('../models/User').findByPk(ownerId, { transaction });
+    const owner = await require('../models/User').findByPk(ownerId, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!owner) throw fail('Entreprise introuvable',404);
     const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
     const saleCurrency = devise || 'USD';
-    const finalRate = Number(owner?.preferences?.exchangeRate) || 2250;
+    const finalRate = rateFor(owner);
     if (!Number.isFinite(finalRate) || finalRate <= 0) {
       await transaction.rollback();
       return res.status(400).json({
@@ -102,30 +104,10 @@ exports.createSale = async (req, res, next) => {
       });
     }
 
-    // Mise à jour de la session de caisse active
-    const { CashSession } = require('../models');
-    const activeSession = await CashSession.findOne({ 
-      where: { userId, status: 'OPEN' } 
-    });
-
-    if (activeSession) {
-      // Normaliser le montant de la vente dans la devise de la caisse avant de l'accumuler
-      let saleAmountInShopCurrency = Number(montantTotal);
-      if (saleCurrency !== shopCurrency) {
-        if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-          saleAmountInShopCurrency = Math.round(saleAmountInShopCurrency * finalRate);
-        } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-          saleAmountInShopCurrency = Math.round((saleAmountInShopCurrency / finalRate) * 100) / 100;
-        }
-      }
-      activeSession.totalSales = Number(activeSession.totalSales || 0) + saleAmountInShopCurrency;
-      activeSession.expectedBalance = Number(activeSession.expectedBalance || 0) + saleAmountInShopCurrency;
-      await activeSession.save({ transaction });
-    }
-
     // Optimisation N+1 : Récupérer tous les produits concernés en une seule requête
     const productIds = items.map(item => item.id);
-    const products = await Product.findAll({ where: { id: productIds }, transaction });
+    const products = await Product.findAll({ where: { id: productIds, userId }, transaction, lock: transaction.LOCK.UPDATE, order: [['id','ASC']] });
+    if (products.length !== new Set(productIds.map(Number)).size) throw fail('Produit introuvable dans cette entreprise',404);
     const productMap = {};
     for (const p of products) {
       productMap[p.id] = p;
@@ -138,12 +120,13 @@ exports.createSale = async (req, res, next) => {
     for (const item of items) {
       const product = productMap[item.id];
       if (product) {
-        const requestedQty = Number(item.quantite || 0);
+        const trusted = trustedLine(product,item,saleCurrency,finalRate);
+        const requestedQty = trusted.qty;
         if (requestedQty <= 0) {
           throw new Error(`Quantité invalide pour ${product.nom}`);
         }
         if (Number(product.stock || 0) < requestedQty) {
-          throw new Error(`Stock insuffisant pour ${product.nom}`);
+          throw fail(`Stock insuffisant pour ${product.nom}`,409);
         }
         product.stockUpdateRaison = 'Vente';
         product.stock -= requestedQty;
@@ -158,7 +141,8 @@ exports.createSale = async (req, res, next) => {
     const computedTotalSaleCurrency = Array.isArray(items) ? items.reduce((acc, it) => acc + (Number(it.prixUnitaire ?? it.prix ?? 0) * Number(it.quantite || 0)), 0) : 0;
     const safeMontantTotal = Number.isFinite(computedTotalSaleCurrency) && computedTotalSaleCurrency > 0 ? computedTotalSaleCurrency : Number(montantTotal);
 
-    const montantTotalNormalized = safeMontantTotal;
+    const montantTotalNormalized = round(safeMontantTotal,saleCurrency);
+    if (Math.abs(Number(montantTotal)-montantTotalNormalized)>0.01) throw fail('Total du panier incohérent',409);
 
     // Normaliser prixUnitaire en CDF avant calcul du profitNet
     const articles = Array.isArray(items)
@@ -166,27 +150,15 @@ exports.createSale = async (req, res, next) => {
           const quantite = item.quantite || 1;
           const productRef = productMap[item.id];
           const prixUnitaire = Number(item.prixUnitaire ?? item.prix ?? 0);            // déjà en devise shop (CDF)
-          let prixUnitaireCDF = prixUnitaire;
-          if (saleCurrency === 'USD' && shopCurrency === 'CDF') {
-            prixUnitaireCDF = Math.round(prixUnitaire * finalRate);
-          } else if (saleCurrency === 'CDF' && shopCurrency === 'USD') {
-            prixUnitaireCDF = Math.round((prixUnitaire / finalRate) * 100) / 100;
-          }
-          const productDevise = item.deviseProduit || productRef?.devise || saleCurrency || shopCurrency;
-          const rawPrixAchat = Number(item.prixAchat || productRef?.prixAchat || 0);
-          let prixAchatCDF = rawPrixAchat;
-          if (productDevise !== shopCurrency) {
-            if (productDevise === 'USD' && shopCurrency === 'CDF') {
-              prixAchatCDF = Math.round(prixAchatCDF * finalRate * 100) / 100;
-            } else if (productDevise === 'CDF' && shopCurrency === 'USD') {
-              prixAchatCDF = Math.round((prixAchatCDF / finalRate) * 100) / 100;
-            }
-          }
+          const prixUnitaireCDF = convertCurrency(prixUnitaire,saleCurrency,'CDF',finalRate);
+          const productDevise = normalizeCurrency(productRef?.devise);
+          const rawPrixAchat = Number(productRef?.prixAchat ?? 0);
+          const prixAchatCDF = convertCurrency(rawPrixAchat,productDevise,'CDF',finalRate);
           profitNormalized += (prixUnitaireCDF - prixAchatCDF) * quantite;
 
           return {
                       id: item.id,
-                      nom: item.nom,
+                      nom: productRef.nom,
                       nomAffiche: item.nomAffiche || item.nom,
                       prixUnitaire,
                       quantite,
@@ -210,6 +182,7 @@ exports.createSale = async (req, res, next) => {
 
     // Résoudre le client avant création de la vente
     let resolvedClientId = clientId || null;
+    if (resolvedClientId && !await Client.findOne({where:{id:resolvedClientId,userId},transaction,lock:transaction.LOCK.UPDATE})) throw fail('Client introuvable dans cette entreprise',404);
     if (!resolvedClientId && clientInfo && clientInfo.nom && clientInfo.nom.trim() !== 'Client de passage') {
       const trimmedNom = clientInfo.nom.trim();
       const trimmedPhone = clientInfo.telephone?.trim();
@@ -233,6 +206,12 @@ exports.createSale = async (req, res, next) => {
       }
     }
 
+    const credit = creditMethod(methodePaiement);
+    if (!credit && !isCash(methodePaiement)) throw fail('Moyen de paiement non pris en charge');
+    if (credit && !resolvedClientId) throw fail('Un client est obligatoire pour une vente à crédit');
+    const {CashSession}=require('../models');
+    const activeSession=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
+    if(activeSession && !credit){const amount=convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);activeSession.totalSales=Number(activeSession.totalSales||0)+amount;activeSession.expectedBalance=Number(activeSession.expectedBalance||0)+amount;await activeSession.save({transaction});}
     const sale = await Sale.create({
       userId,
       clientId: resolvedClientId,
@@ -245,48 +224,24 @@ exports.createSale = async (req, res, next) => {
       devise: saleCurrency,
       tauxChange: finalRate,
       devisePaiement: devisePaiement || saleCurrency,
-      montantRecu: montantRecu || montantTotal,
+      montantRecu: credit ? 0 : (montantRecu ?? montantTotalNormalized),
+      statut: credit ? 'Dette' : 'Complétée',
       sellerId: req.user.id
     }, { transaction });
 
-    const isCredit = (methodePaiement && (
-      methodePaiement.toLowerCase().includes('crédit') || 
-      methodePaiement.toLowerCase().includes('credit') ||
-      methodePaiement.toLowerCase() === 'dette'
-    )) || req.body.statut === 'Dette' || req.body.statut === 'Crédit';
-    
-    // M4 Fix: Normalize debt amount to the shop's base currency
-    if (resolvedClientId && isCredit) {
-      const dbClient = await Client.findByPk(resolvedClientId, { transaction });
-      const owner = await require('../models/User').findByPk(userId);
-      const shopCurrency = normalizeCurrency(owner?.entreprise?.devise);
-      
-      let amountToAdd = Number(montantTotal - remise);
-      const effectiveDevise = devise || 'USD';
-      
-      // If sale currency differs from shop currency, convert it (authoritative server rate)
-      if (effectiveDevise !== shopCurrency) {
-        const rate = finalRate;
-        if (!Number.isFinite(rate) || rate <= 0) {
-          await transaction.rollback();
-          return res.status(400).json({ message: "Taux de change invalide pour la gestion des dettes." });
-        }
-        amountToAdd = convertCurrency(amountToAdd, devise, shopCurrency, rate);
-      }
-
-      if (dbClient) {
-        dbClient.detteTotale = Number(dbClient.detteTotale || 0) + amountToAdd;
-        await dbClient.save({ transaction });
-      }
+    if (resolvedClientId && credit) {
+      const dbClient=await Client.findOne({where:{id:resolvedClientId,userId},transaction,lock:transaction.LOCK.UPDATE});
+      if(!dbClient)throw fail('Client introuvable',404);
+      dbClient.detteTotale=Number(dbClient.detteTotale||0)+convertCurrency(montantTotalNormalized,saleCurrency,shopCurrency,finalRate);
+      await dbClient.save({transaction});
     }
-
     await transaction.commit();
     await invalidateCache('stats');
     await logActivite(req.user.id, 'VENTE', `Vente #${sale.id} (${sale.montantTotal} ${sale.devise})`, 'Ventes', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, sale, 'Vente enregistrée avec succès');
   } catch (error) {
-    if (transaction) await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
@@ -295,7 +250,7 @@ exports.deleteSale = async (req, res, next) => {
   let transaction;
   try {
     transaction = await sequelize.transaction();
-    const sale = await Sale.findByPk(req.params.id, { transaction });
+    const sale = await Sale.findOne({where:{id:req.params.id,userId:req.user.tenantId},transaction,lock:transaction.LOCK.UPDATE});
     if (!sale) {
       await transaction.rollback();
       return res.status(404).json({ message: "Vente non trouvée" });
@@ -311,7 +266,7 @@ exports.deleteSale = async (req, res, next) => {
     const saleArticles = safeParseArticles(sale.articles);
     if (!isRefundedStatus(sale.statut) && saleArticles.length > 0) {
       const productIds = saleArticles.map(item => item.id);
-      const products = await Product.findAll({ where: { id: productIds }, transaction });
+      const products = await Product.findAll({ where: { id: productIds, userId: sale.userId }, transaction, lock: transaction.LOCK.UPDATE });
       
       for (const item of saleArticles) {
         const product = products.find(p => p.id === item.id);
@@ -330,7 +285,7 @@ exports.deleteSale = async (req, res, next) => {
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit && !isRefundedStatus(sale.statut)) {
-        const client = await Client.findByPk(sale.clientId, { transaction });
+        const client = await Client.findOne({where:{id:sale.clientId,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
         if (client) {
           // Réduire la dette du client en convertissant dans la devise de la boutique
           const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
@@ -356,70 +311,13 @@ exports.deleteSale = async (req, res, next) => {
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, null, 'Vente supprimée avec succès');
   } catch (error) {
-    if (transaction) await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };
 
 
-exports.deleteAllSales = async (req, res, next) => {
-  try {
-    const userId = req.user.tenantId;
-    const transaction = await sequelize.transaction();
-
-    try {
-      const sales = await Sale.findAll({ where: { userId }, transaction });
-      
-      // Accumuler les mouvements de stock pour tous les produits
-      const stockAdjustments = {}; // productId -> adjustmentAmount
-
-      for (const sale of sales) {
-        if (sale.statut !== 'Remboursée' && sale.articles && Array.isArray(sale.articles)) {
-          for (const item of sale.articles) {
-            stockAdjustments[item.id] = (stockAdjustments[item.id] || 0) + item.quantite;
-          }
-        }
-      }
-
-      // Appliquer les ajustements en masse
-      const affectedProductIds = Object.keys(stockAdjustments);
-      if (affectedProductIds.length > 0) {
-        const products = await Product.findAll({ where: { id: affectedProductIds }, transaction });
-        for (const product of products) {
-          product.stockUpdateRaison = 'Suppression Masse';
-          product.stock += stockAdjustments[product.id];
-          await product.save({ transaction });
-        }
-      }
-
-      await Sale.destroy({ where: { userId }, transaction });
-      
-      // Enregistrer l'activité globale
-      const { Activite, User } = require('../models');
-      if (Activite) {
-          const user = await User.findByPk(userId, { transaction });
-          await Activite.create({
-              type: 'PURGE_HISTORIQUE',
-              description: `Purge complète de l'historique des ventes par l'utilisateur.`,
-              userNom: user ? user.nom : 'Utilisateur',
-              module: 'Caisse',
-              UserId: userId,
-              shopId: userId
-          }, { transaction });
-      }
-
-      await transaction.commit();
-      await invalidateCache('stats');
-      const { sendResponse } = require('../utils/response');
-      sendResponse(res, 200, null, 'Historique des ventes vidé et stocks restitués');
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
-  } catch (error) {
-    next(error);
-  }
-};
+exports.deleteAllSales = async (req,res) => res.status(409).json({message:"La purge de l'historique financier est désactivée. Conservez les transactions pour la traçabilité."});
 
 exports.updateSale = async (req, res, next) => {
   try {
@@ -427,7 +325,8 @@ exports.updateSale = async (req, res, next) => {
     const sale = await Sale.findOne({ where: { id: req.params.id, userId } });
     if (!sale) return res.status(404).json({ message: 'Vente non trouvée' });
     
-    const allowedFields = ['statut', 'methodePaiement', 'clientInfo'];
+    if (req.body.statut !== undefined || req.body.methodePaiement !== undefined) return res.status(409).json({message:'Utilisez un workflow de remboursement ou règlement pour modifier un paiement.'});
+    const allowedFields = ['clientInfo'];
     const payload = {};
     for (const key of allowedFields) {
       if (req.body[key] !== undefined) payload[key] = req.body[key];
@@ -449,13 +348,13 @@ exports.refundSale = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
     transaction = await sequelize.transaction();
-    const sale = await Sale.findOne({ where: { id: req.params.id, userId }, transaction });
+    const sale = await Sale.findOne({ where: { id: req.params.id, userId }, transaction, lock: transaction.LOCK.UPDATE });
     if (!sale) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Vente non trouvée' });
     }
     
-    if (sale.statut === 'Remboursée') {
+    if (isRefundedStatus(sale.statut)) {
       await transaction.rollback();
       return res.status(400).json({ message: 'Vente déjà remboursée' });
     }
@@ -463,7 +362,7 @@ exports.refundSale = async (req, res, next) => {
     // Restitution du stock
     if (sale.articles && Array.isArray(sale.articles)) {
       for (const item of sale.articles) {
-        const product = await Product.findByPk(item.id, { transaction });
+        const product = await Product.findOne({where:{id:item.id,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
         if (product) {
           product.stockUpdateRaison = 'Remboursement Vente';
           product.stock += item.quantite;
@@ -479,7 +378,7 @@ exports.refundSale = async (req, res, next) => {
     )) || sale.statut === 'Dette';
 
     if (sale.clientId && isCredit) {
-        const client = await Client.findByPk(sale.clientId, { transaction });
+        const client = await Client.findOne({where:{id:sale.clientId,userId:sale.userId},transaction,lock:transaction.LOCK.UPDATE});
         if (client) {
           // Convertir le montant dans la devise de la boutique avant de réduire la dette
           const ownerId = sale.userId; const owner = await require('../models/User').findByPk(ownerId, { transaction });
@@ -509,7 +408,7 @@ exports.refundSale = async (req, res, next) => {
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, sale, 'Vente remboursée et stock restitué');
   } catch (error) {
-    if (transaction) await transaction.rollback();
+    if (transaction && !transaction.finished) await transaction.rollback();
     next(error);
   }
 };

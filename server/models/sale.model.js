@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { convertCurrency }=require('../utils/currency');
 const { sequelize } = require('../config/database');
 
 const Sale = sequelize.define('Sale', {

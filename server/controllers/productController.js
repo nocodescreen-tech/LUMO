@@ -1,3 +1,4 @@
+const { pick }=require('../utils/transactionSafety');
 const Product = require('../models/Product');
 const { uploadImage } = require('../utils/cloudinary');
 const { logActivite } = require('./activiteController');
@@ -47,7 +48,7 @@ exports.createProduct = async (req, res, next) => {
 
   try {
     const tenantId = req.user.tenantId;
-    const productData = { ...req.body, userId: tenantId, creatorId: req.user.id };
+    const productData = { ...pick(req.body,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']), userId: tenantId, creatorId: req.user.id };
     // Le frontend envoie 'prixVente', mais la colonne BD est 'prix'
     if (productData.prixVente !== undefined && productData.prix === undefined) {
       productData.prix = productData.prixVente;
@@ -86,7 +87,7 @@ exports.updateProduct = async (req, res, next) => {
     const product = await Product.findOne({ where: { id: req.params.id, userId: tenantId } });
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
 
-    const updateData = { ...req.body };
+    const updateData = pick(req.body,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']);
     // Le frontend envoie 'prixVente', mais la colonne BD est 'prix'
     if (updateData.prixVente !== undefined && updateData.prix === undefined) {
       updateData.prix = updateData.prixVente;

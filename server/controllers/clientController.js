@@ -1,3 +1,4 @@
+const { pick }=require('../utils/transactionSafety');
 const Client = require('../models/Client');
 const { validateClient } = require('../middleware/validators');
 const { sendEmail, getDebtReminderTemplate } = require('../utils/emailService');
@@ -33,7 +34,7 @@ exports.createClient = async (req, res, next) => {
   try {
     const userId = req.user.tenantId;
     
-    const client = await Client.create({ ...req.body, userId });
+    const client = await Client.create({ ...pick(req.body,['nom','email','telephone','adresse']), userId });
     await logActivite(req.user.id, 'CLIENT', `Nouveau client: ${client.nom}`, 'System', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 201, client, 'Client créé avec succès');
@@ -51,7 +52,7 @@ exports.updateClient = async (req, res, next) => {
     
     const client = await Client.findOne({ where: { id: req.params.id, userId } });
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });
-    await client.update(req.body);
+    await client.update(pick(req.body,['nom','email','telephone','adresse']));
     await logActivite(req.user.id, 'CLIENT', `Mise à jour client: ${client.nom}`, 'System', userId);
     const { sendResponse } = require('../utils/response');
     sendResponse(res, 200, client, 'Client mis à jour');

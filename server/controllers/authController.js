@@ -4,6 +4,9 @@ const generateToken = require('../utils/generateToken');
 const { validateRegister, validateLogin } = require('../middleware/validators');
 const { logActivite } = require('./activiteController');
 const crypto = require('crypto');
+const {sequelize}=require('../config/database');
+const {fail}=require('../utils/transactionSafety');
+const hashMfa=value=>crypto.createHash('sha256').update(String(value)).digest('hex');
 const { sendEmail, getVerificationTemplate, getResetPasswordTemplate } = require('../utils/emailService');
 const { uploadImage } = require('../utils/cloudinary');
 const { authenticator } = require('otplib');
@@ -53,8 +56,8 @@ const registerAdmin = async (req, res, next) => {
     // Check if it's the first user ever
     const isFirstUser = (await User.count()) === 0;
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`[DEV ONLY] Code de vérification pour ${email} : ${verificationCode}`);
+    const verificationCode = crypto.randomInt(100000,1000000).toString();
+
     
     const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
 
@@ -161,7 +164,14 @@ const loginAdmin = async (req, res, next) => {
 
     // ---- 2FA CHECK (TOTP / Google Authenticator) ----
     if (user.twoFactorEnabled) {
+      const challenge=crypto.randomBytes(32).toString('hex');
+      const emailCode=user.twoFactorSecret?null:crypto.randomInt(100000,1000000).toString();
+      user.twoFactorCode='login:'+hashMfa(challenge)+(emailCode?':'+hashMfa(emailCode):'');
+      user.twoFactorExpire=Date.now()+5*60*1000;
+      await user.save({hooks:false});
+      if(emailCode)await sendEmail({email:user.email,subject:'Code de connexion LUMO',html:getVerificationTemplate(emailCode,user.nom)});
       return res.status(200).json({
+        challenge,
         requires2FA: true,
         userId: user.id,
         mfaType: user.twoFactorSecret ? 'totp' : 'email',
@@ -212,64 +222,26 @@ const loginAdmin = async (req, res, next) => {
 };
 
 // @desc  Verify 2FA OTP and return tokens
-const verify2FA = async (req, res, next) => {
-  const { userId, code } = req.body;
-  if (!userId || !code) return res.status(400).json({ message: 'userId et code requis' });
-
-  try {
-    const user = await User.findByPk(userId);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    let isVerified = false;
-
-    // Mode TOTP (Google Authenticator)
-    if (user.twoFactorSecret) {
-      authenticator.options = { window: 1 };
-      isVerified = authenticator.check(String(code), user.twoFactorSecret);
-    } 
-    // Mode Email (Fallback)
-    else {
-      const hashed = crypto.createHash('sha256').update(code).digest('hex');
-      if (user.twoFactorCode === hashed && user.twoFactorExpire > Date.now()) {
-        isVerified = true;
-      }
-    }
-
-    if (!isVerified) return res.status(400).json({ message: 'Code invalide ou expiré' });
-
-    // Clear temporary 2FA code (not secret)
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'CONNEXION', 'Connexion 2FA réussie', 'System', user.parentId || user.id);
-    
-    const sessionId = crypto.randomBytes(16).toString('hex');
-    const { accessToken, refreshToken } = generateToken(user.id, sessionId);
-    setRefreshTokenCookie(res, refreshToken);
-
-    // Manage sessions
-    let sessions = user.activeSessions || [];
-    sessions.push({ sessionId, createdAt: new Date(), userAgent: req.headers['user-agent'] });
-    if (sessions.length > 5) sessions.shift();
-    user.activeSessions = sessions;
-    await user.save({ hooks: false });
-    res.status(200).json({
-      id: user.id,
-      nom: user.nom,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      preferences: user.preferences,
-      entreprise: user.entreprise,
-      twoFactorEnabled: user.twoFactorEnabled,
-      token: accessToken,
-      // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
-      permissions: user.permissions,
-    });
-  } catch (error) {
-    next(error);
-  }
+const verify2FA=async(req,res,next)=>{
+ const {userId,code,challenge}=req.body;
+ if(!userId||!/^\d{6}$/.test(String(code))||typeof challenge!=='string'||!/^\w{64}$/.test(challenge))return res.status(400).json({message:'Tentative de connexion invalide'});
+ try{
+  const result=await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!user.twoFactorEnabled||user.isSuspended||(user.role!=='superadmin'&&(!user.isVerified||!user.isAdminValidated)))throw fail('Tentative de connexion invalide',401);
+   const parts=String(user.twoFactorCode||'').split(':');
+   if(parts[0]!=='login'||parts[1]!==hashMfa(challenge)||Number(user.twoFactorExpire)<=Date.now())throw fail('Tentative expirée, reconnectez-vous',401);
+   const valid=user.twoFactorSecret?authenticator.check(String(code),user.twoFactorSecret):parts[2]===hashMfa(code);
+   if(!valid)throw fail('Code invalide',400);
+   user.twoFactorCode=null;user.twoFactorExpire=null;
+   const sessionId=crypto.randomBytes(16).toString('hex'),tokens=generateToken(user.id,sessionId);
+   user.activeSessions=[...(user.activeSessions||[]),{sessionId,createdAt:new Date(),userAgent:req.headers['user-agent'],ip:req.ip}].slice(-5);
+   await user.save({hooks:false,transaction});return {user,tokens};
+  });
+  const {user,tokens}=result;setRefreshTokenCookie(res,tokens.refreshToken);
+  await logActivite(user.id,'CONNEXION','Connexion 2FA réussie','System',user.parentId||user.id);
+  return res.status(200).json({id:user.id,nom:user.nom,email:user.email,role:user.role,avatar:user.avatar,preferences:user.preferences,entreprise:user.entreprise,twoFactorEnabled:user.twoFactorEnabled,permissions:user.permissions,token:tokens.accessToken});
+ }catch(error){next(error);}
 };
 
 // @desc  Refresh access token using a valid refresh token
@@ -294,6 +266,7 @@ const refreshAccessToken = async (req, res, next) => {
     }
 
     const sessionId = decoded.sessionId;
+    if(!sessionId||!(user.activeSessions||[]).some(s=>s.sessionId===sessionId))return res.status(401).json({message:'Session révoquée',code:'SESSION_REPLACED'});
     const { accessToken, refreshToken: newRefreshToken } = generateToken(user.id, sessionId);
 
     setRefreshTokenCookie(res, newRefreshToken);
@@ -484,7 +457,7 @@ const forgotPassword = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: "Aucun utilisateur avec cet email" });
 
     // Générer un code OTP à 6 chiffres
-    const resetOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetOTP = crypto.randomInt(100000,1000000).toString();
     
     user.resetPasswordToken = crypto.createHash('sha256').update(resetOTP).digest('hex');
     user.resetPasswordExpire = Date.now() + 3600000; // 1 heure
@@ -735,8 +708,8 @@ const resendCode = async (req, res, next) => {
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     if (user.isVerified) return res.status(400).json({ message: 'Compte déjà vérifié' });
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`[DEV ONLY] NOUVEAU Code de vérification pour ${email} : ${verificationCode}`);
+    const verificationCode = crypto.randomInt(100000,1000000).toString();
+
     
     const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
     user.verificationCode = hashedVerificationCode;

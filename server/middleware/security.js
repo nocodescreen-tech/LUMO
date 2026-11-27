@@ -74,7 +74,7 @@ const securityMiddleware = (app) => {
             if (allowedOrigins.includes(origin)) return callback(null, true);
 
             // Allow any *.up.railway.app origin (covers preview deployments)
-            if (isRailwayOrigin(origin)) return callback(null, true);
+            if (process.env.NODE_ENV !== 'production' && isRailwayOrigin(origin)) return callback(null, true);
 
             callback(new Error('CORS: Origine non autorisée'));
         },
@@ -161,6 +161,8 @@ const securityMiddleware = (app) => {
     app.use('/api/auth/register', authLimiter);
     app.use('/api/v1/auth/forgot-password', authLimiter);
     app.use('/api/auth/forgot-password', authLimiter);
+    const otpLimiter=rateLimit({windowMs:15*60*1000,max:15,standardHeaders:true,legacyHeaders:false,message:{message:'Trop de tentatives. Réessayez plus tard.'}});
+    for(const prefix of ['/api/auth','/api/v1/auth'])for(const route of ['/2fa/verify','/verify-email','/verify-reset-code','/reset-password','/resend-verification'])app.use(prefix+route,otpLimiter);
 };
 
 module.exports = securityMiddleware;
