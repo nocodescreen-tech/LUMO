@@ -522,7 +522,8 @@ suite('Commercial PostgreSQL integration',()=>{
  const corrected=await post(base+employee.id+'/attendance',{...attendance,status:'ABSENT',workedMinutes:null,reason:'Correction',expectedRevisionId:ar.body.data.id,operationId:'hr-correction-00001'});expect(corrected.status).toBe(201);
  const team=await request(app).get(base+'team?day='+day).set('Authorization','Bearer '+ta);expect(team.status).toBe(200);const row=team.body.data.rows.find(x=>x.id===employee.id);expect(row.profile.jobTitle).toBe('Vendeur');expect(row.attendance.status).toBe('ABSENT');
  expect(await AttendanceRevision.count({where:{staffId:employee.id,day}})).toBe(2);expect((await AttendanceRevision.findByPk(ar.body.data.id)).status).toBe('PRESENT');await expect((await StaffProfileRevision.findByPk(first.body.data.id)).destroy()).rejects.toThrow();
- const foreign=generateToken(b.id,'test-session').accessToken;expect((await request(app).get(base+employee.id+'/history').set('Authorization','Bearer '+foreign)).status).toBe(404);
+ const foreignOwner=await User.create({nom:'HR foreign owner',email:'hr-foreign@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true,activeSessions:[{sessionId:'hr-foreign-session'}]});const foreign=generateToken(foreignOwner.id,'hr-foreign-session').accessToken;expect((await request(app).get(base+employee.id+'/history').set('Authorization','Bearer '+foreign)).status).toBe(404);
+ expect((await request(app).post(base+employee.id+'/attendance').set('Authorization','Bearer '+foreign).send({...attendance,operationId:'hr-foreign-write-001'})).status).toBe(404);
  const staffToken=generateToken(employee.id,'staff-test').accessToken;expect((await request(app).get(base+'team').set('Authorization','Bearer '+staffToken)).status).toBe(403);
  });
  test('revoked session denied',async()=>{
