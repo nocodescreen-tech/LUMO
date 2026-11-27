@@ -108,8 +108,12 @@ exports.updateProduct = async (req, res, next) => {
     }
     if (updateData.devise) updateData.devise = normalizeCurrency(updateData.devise);
 
-    if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)<await inventory.allocated(product))throw fail('Le stock total ne peut pas être inférieur aux quantités affectées',409);
-    await product.update(updateData);
+    await sequelize.transaction(async transaction=>{
+      const locked=await Product.findOne({where:{id:product.id,userId:tenantId},transaction,lock:transaction.LOCK.UPDATE});if(!locked)throw fail('Produit introuvable',404);
+      const allocated=await inventory.allocated(locked,transaction);
+      if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)!==Number(locked.stock)&&allocated>0)throw fail('Les produits affectés exigent un ajustement d’inventaire dédié',409);
+      await locked.update(updateData,{transaction});Object.assign(product.dataValues,locked.dataValues);
+    });
     await logActivite(req.user.id, 'PRODUIT', `Mise à jour du produit: ${product.nom}`, 'System', tenantId);
 
     // Invalidation du cache

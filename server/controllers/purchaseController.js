@@ -63,7 +63,7 @@ exports.createPurchase = async (req,res,next)=>{
    const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
    ledger.assertSessionCurrency(session,shopCurrency);
    if(statut==='Payé'&&!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
-   if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}
+   if(session&&statut==='Payé'){const amount=convertCurrency(total,devise,shopCurrency,rate);if(Number(session.expectedBalance)<amount)throw fail('Solde de caisse insuffisant',409);session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});}
    const base=convertCurrency(total,devise,shopCurrency,rate);
    if(received)await ledger.post(req,transaction,{event:'PURCHASE_RECEIPT',reference:result.id,debit:'INVENTORY',credit:'PAYABLE',amount:base,devise:shopCurrency,rate});
    if(statut==='Payé')await ledger.post(req,transaction,{event:'PURCHASE_PAYMENT',reference:result.id,debit:'PAYABLE',credit:'CASH',amount:base,devise:shopCurrency,rate,session});
@@ -111,6 +111,7 @@ exports.updatePurchase=async(req,res,next)=>{
      if(!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
      ledger.assertSessionCurrency(session,shopCurrency);
      const amount=convertCurrency(Number(row.montantTotal),devise,shopCurrency,rate);
+     if(Number(session.expectedBalance)<amount)throw fail('Solde de caisse insuffisant',409);
      session.totalExpenses=Number(session.totalExpenses||0)+amount;session.expectedBalance=Number(session.expectedBalance||0)-amount;await session.save({transaction});
      await ledger.post(req,transaction,{event:'PURCHASE_PAYMENT',reference:row.id,debit:'PAYABLE',credit:'CASH',amount,devise:shopCurrency,rate,session});
     }

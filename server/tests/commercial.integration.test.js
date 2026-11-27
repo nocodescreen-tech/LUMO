@@ -35,6 +35,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
  app.use('/inventory',require('../routes/inventoryRoutes'));
+ app.get('/test-products',protect,require('../controllers/productController').getProducts);
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
  const post=(url,body)=>request(app).post(url).set('Authorization','Bearer '+ta).send(body);
@@ -231,6 +232,24 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await product.reload()).stock).toBe(8);
  const other=generateToken(b.id,'support-test').accessToken;
  expect((await request(app).post('/inventory/transfers').set('Authorization','Bearer '+other).send({...body,operationId:'foreign-transfer-0001'})).status).toBe(404);
+ });
+ test('warehouse receipt and refund update the same allocation and catalog availability',async()=>{
+ const {Warehouse,Organization,WarehouseBalance}=require('../models');
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ const product=await Product.create({nom:'Warehouse receipt',prix:10,prixAchat:4,devise:'USD',stock:2,userId:a.id});
+ const receipt=await post('/purchases',{numeroFacture:'WH-TEST',montantTotal:12,devise:'USD',statut:'En attente',warehouseId:wh.id,articles:[{id:product.id,nom:product.nom,quantite:3,prixAchat:4}]});
+ expect(receipt.status).toBe(201);expect((await product.reload()).stock).toBe(2);
+ expect((await put('/purchases/'+receipt.body.data.id,{statut:'Reçu'})).status).toBe(200);
+ expect((await product.reload()).stock).toBe(5);
+ const balance=()=>WarehouseBalance.findOne({where:{warehouseId:wh.id,productId:product.id}});
+ expect((await balance()).quantity).toBe(3);
+ const sale=await post('/sales',payload(product,1,10,{warehouseId:wh.id}));expect(sale.status).toBe(201);
+ expect((await balance()).quantity).toBe(2);
+ expect((await post('/sales/'+sale.body.data.id+'/refund',{})).status).toBe(200);
+ expect((await balance()).quantity).toBe(3);expect((await product.reload()).stock).toBe(5);
+ const catalog=await request(app).get('/test-products?limit=100').set('Authorization','Bearer '+ta);expect(catalog.status).toBe(200);
+ const rows=catalog.body.data.items||catalog.body.data.products||catalog.body.data.data||catalog.body.data.rows||catalog.body.data;
+ const row=rows.find(x=>x.id===product.id);expect(Number(row.unallocatedStock)).toBe(2);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
