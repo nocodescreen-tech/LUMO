@@ -252,7 +252,7 @@ const Dashboard = () => {
           >
             <Download size={20} /> {t('report')}
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(21, 94, 88, 0.4)' }}>
+          <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => navigate('/pos')} className="btn-premium primary" style={{ padding: '16px 32px', borderRadius: '18px', boxShadow: '0 20px 40px -10px rgba(194, 65, 12, 0.4)' }}>
             <Plus size={22} /> {t('newSale')}
           </motion.button>
         </div>
