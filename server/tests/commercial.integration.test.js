@@ -16,7 +16,9 @@ suite('Commercial PostgreSQL integration',()=>{
  jest.setTimeout(45000);
  let a,b,pa,pb,ca,cb,ta;
  const app=express();
+ app.use(require('../utils/operationalMetrics').observe);
  app.use(express.json());
+ app.get('/test-failure',(_req,_res,next)=>next(new Error('SECRET_TEST_VALUE')));
  app.post('/sales',protect,checkPermission('pos'),sale.createSale);
  app.post('/sales/:id/refund',protect,checkPermission('sales.refund'),sale.refundSale);
  app.post('/purchases',protect,checkPermission('purchases.add'),purchase.createPurchase);
@@ -171,6 +173,29 @@ suite('Commercial PostgreSQL integration',()=>{
  await expect(event.update({description:'tampered'})).rejects.toThrow();
  await expect(event.destroy()).rejects.toThrow();
  const msg=await require('../models').SupportMessage.findOne({where:{ticketId:id}});await expect(msg.destroy()).rejects.toThrow();
+ });
+ test('operations metrics expose bounded sanitized process data and deny owners',async()=>{
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const failure=await request(app).get('/test-failure?secret=SECRET_TEST_VALUE');expect(failure.status).toBe(500);expect(failure.body.requestId).toBeTruthy();
+ const route='/superadmin/operations/metrics';
+ expect((await request(app).get(route).set('Authorization','Bearer '+ta)).status).toBe(403);
+ const report=await request(app).get(route).set('Authorization','Bearer '+token);expect(report.status).toBe(200);
+ expect(report.body.data.scope).toBe('single-process');expect(report.body.data.serverErrors).toBeGreaterThan(0);expect(JSON.stringify(report.body)).not.toContain('SECRET_TEST_VALUE');
+ expect(report.body.data.recentErrors.some(e=>e.requestId===failure.body.requestId)).toBe(true);
+ });
+ test('platform incident and feature controls are authorized and audited',async()=>{
+ const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
+ const base='/superadmin/operations',body={title:'Test incident',summary:'Test investigation',component:'API',severity:'HIGH'};
+ expect((await post(base+'/incidents',body)).status).toBe(403);
+ const r=await request(app).post(base+'/incidents').set('Authorization','Bearer '+token).send(body);expect(r.status).toBe(201);
+ const patch=await request(app).patch(base+'/incidents/'+r.body.data.id).set('Authorization','Bearer '+token).send({status:'RESOLVED',reason:'Test resolution'});expect(patch.status).toBe(200);expect(patch.body.data.resolvedAt).toBeTruthy();
+ const flag=(enabled)=>request(app).put(base+'/flags/support_new_tickets').set('Authorization','Bearer '+token).send({enabled,reason:'Integration control test'});
+ expect((await flag(false)).status).toBe(200);
+ expect((await post('/support',{subject:'Disabled',category:'TECHNICAL',body:'Test'})).status).toBe(503);
+ expect((await request(app).get('/support').set('Authorization','Bearer '+ta)).status).toBe(200);
+ expect((await flag(true)).status).toBe(200);
+ expect((await post('/support',{subject:'Enabled',category:'TECHNICAL',body:'Test'})).status).toBe(201);
+ const audit=await request(app).get('/superadmin/console/audit?scope=platform').set('Authorization','Bearer '+token);expect(audit.body.data.rows.some(e=>e.type==='PLATFORM_FLAG_UPDATE')).toBe(true);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

@@ -66,6 +66,8 @@ if (hasExplicitRedis || config.env === 'production') {
         logger.info('✅ Connecté à Redis');
     });
 
+    redisClient.on('close',()=>{isRedisAvailable=false;});
+    redisClient.on('end',()=>{isRedisAvailable=false;});
     redisClient.on('error', (err) => {
         if (!isRedisAvailable) {
             // Silence initial connection errors to avoid log spam
@@ -94,4 +96,4 @@ if (hasExplicitRedis || config.env === 'production') {
     redis = memoryFallback;
 }
 
-module.exports = redis;
+module.exports = new Proxy(redis,{get(target,prop){if(prop==='connectionMode')return ()=>isRedisAvailable?'redis':'process-memory';return target[prop];}});

@@ -11,7 +11,7 @@ router.put('/organization',async(req,res,next)=>{try{
  const org=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction);await org.update({name:svc.label(req.body.name)},{transaction});return org;});return sendResponse(res,200,org,'Entreprise mise à jour');
 }catch(e){next(e)}});
 router.get('/branches',async(req,res,next)=>{try{const {organization}=await svc.context(req.user.tenantId);return sendResponse(res,200,await Branch.findAll({where:{organizationId:organization.id},order:[['name','ASC']]}),'Succursales');}catch(e){next(e)}});
-router.post('/branches',async(req,res,next)=>{try{
+router.post('/branches',require('../utils/platformFlags').guard('workspace_registry_creation'),async(req,res,next)=>{try{
  const row=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction),s=await svc.subscription(org,transaction);svc.assertEntitled(org,s);
  if(await Branch.count({where:{organizationId:org.id},transaction})>=s.branchLimit)throw fail('Quota de succursales atteint',409);
  const code=svc.normalizeCode(req.body.code);if(await Branch.findOne({where:{organizationId:org.id,code},transaction}))throw fail('Code déjà utilisé',409);
@@ -19,7 +19,7 @@ router.post('/branches',async(req,res,next)=>{try{
  return sendResponse(res,201,row,'Succursale créée');
 }catch(e){next(e)}});
 router.get('/warehouses',async(req,res,next)=>{try{const {organization}=await svc.context(req.user.tenantId);return sendResponse(res,200,await Warehouse.findAll({where:{organizationId:organization.id},order:[['name','ASC']]}),'Entrepôts');}catch(e){next(e)}});
-router.post('/warehouses',async(req,res,next)=>{try{
+router.post('/warehouses',require('../utils/platformFlags').guard('workspace_registry_creation'),async(req,res,next)=>{try{
  const row=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction),s=await svc.subscription(org,transaction);svc.assertEntitled(org,s);
  const branch=await Branch.findOne({where:{id:req.body.branchId,organizationId:org.id,active:true},transaction});if(!branch)throw fail('Succursale introuvable',404);
  if(await Warehouse.count({where:{organizationId:org.id},transaction})>=s.warehouseLimit)throw fail('Quota d’entrepôts atteint',409);

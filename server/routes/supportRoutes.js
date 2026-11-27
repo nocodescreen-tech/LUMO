@@ -20,7 +20,7 @@ router.get('/',async(req,res,next)=>{try{
  const result=await SupportTicket.findAndCountAll({where,order:[['updatedAt','DESC'],['id','DESC']],limit,offset:(page-1)*limit});
  return sendResponse(res,200,{rows:result.rows,total:result.count,page,limit},'Tickets');
 }catch(e){next(e)}});
-router.post('/',authorize('admin'),async(req,res,next)=>{try{
+router.post('/',authorize('admin'),require('../utils/platformFlags').guard('support_new_tickets'),async(req,res,next)=>{try{
  const subject=clean(req.body.subject,160),body=clean(req.body.body,5000),category=req.body.category;
  if(!categories.includes(category))throw fail('Catégorie invalide');
  const row=await sequelize.transaction(async transaction=>{

@@ -87,6 +87,7 @@ io.on("connection",socket=>{socket.join(`user_${socket.data.tenantId}`);});
 setupSwagger(app);
 
 // Middlewares de base
+app.use(require('./utils/operationalMetrics').observe);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
@@ -100,7 +101,7 @@ app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
+    logger.info(`${req.method} ${res.statusCode} - ${duration}ms request=${req.operationRequestId}`);
   });
   next();
 });
@@ -174,14 +175,14 @@ app.get('/health', async (req, res) => {
         res.status(503).json({ 
             status: 'DOWN', 
             database: 'DISCONNECTED',
-            error: err.message 
+            timestamp: new Date() 
         });
     }
 });
 
 // Catch 404 and forward to error handler
 app.use((req, res, next) => {
-  const error = new Error(`Non trouvé - ${req.originalUrl}`);
+  const error = new Error('Route introuvable');
   error.statusCode = 404;
   next(error);
 });
