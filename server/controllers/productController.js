@@ -1,4 +1,5 @@
-const { pick }=require('../utils/transactionSafety');
+const { pick,fail }=require('../utils/transactionSafety');
+const inventory=require('../utils/inventoryService');
 const Product = require('../models/Product');
 const { uploadImage } = require('../utils/cloudinary');
 const { logActivite } = require('./activiteController');
@@ -105,6 +106,7 @@ exports.updateProduct = async (req, res, next) => {
     }
     if (updateData.devise) updateData.devise = normalizeCurrency(updateData.devise);
 
+    if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)<await inventory.allocated(product))throw fail('Le stock total ne peut pas être inférieur aux quantités affectées',409);
     await product.update(updateData);
     await logActivite(req.user.id, 'PRODUIT', `Mise à jour du produit: ${product.nom}`, 'System', tenantId);
 
@@ -123,8 +125,7 @@ exports.deleteProduct = async (req, res, next) => {
     const tenantId = req.user.tenantId;
     const product = await Product.findOne({ where: { id: req.params.id, userId: tenantId } });
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
-    const nomProduit = product.nom;
-    await product.destroy();
+    return res.status(409).json({message:'Suppression définitive indisponible : archivage requis pour préserver l’historique.'});
     await logActivite(req.user.id, 'PRODUIT', `Suppression du produit: ${nomProduit}`, 'System', tenantId);
 
     // Invalidation du cache

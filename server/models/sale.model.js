@@ -71,6 +71,7 @@ const Sale = sequelize.define('Sale', {
         type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
+    warehouseId:{type:DataTypes.INTEGER,allowNull:true},
     accountingCurrency: {type:DataTypes.STRING(3),allowNull:true},
     cashSessionId: {type:DataTypes.INTEGER,allowNull:true},
     sellerId: {

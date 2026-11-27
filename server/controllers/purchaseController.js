@@ -1,4 +1,5 @@
 const ledger=require('../utils/commercialLedger');
+const inventory=require('../utils/inventoryService');
 const { Purchase, Product, Fournisseur, CashSession } = require('../models');
 const { sequelize } = require('../config/database');
 const { fail, pick, money, positiveQuantity, currency, round, rateFor } = require('../utils/transactionSafety');
@@ -38,6 +39,8 @@ exports.createPurchase = async (req,res,next)=>{
   const purchase=await sequelize.transaction(async transaction=>{
    const owner=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});if(!owner)throw fail('Entreprise introuvable',404);
    const prior=await ledger.replay(req,'purchase.create',transaction);if(prior){const existing=await Purchase.findOne({where:{id:prior.resourceId,userId},transaction});if(!existing)throw fail('Transaction historique indisponible',409);return existing;}
+   if(req.body.warehouseId!=null&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+   const wh=await inventory.warehouse(userId,req.body.warehouseId,transaction);
    const devise=currency(req.body.devise||owner.entreprise?.devise),shopCurrency=currency(owner.entreprise?.devise),rate=rateFor(owner);
    const fournisseurId=req.body.fournisseurId||null;
    if(fournisseurId&&!await Fournisseur.findOne({where:{id:fournisseurId,userId},transaction}))throw fail('Fournisseur introuvable',404);
@@ -52,10 +55,11 @@ exports.createPurchase = async (req,res,next)=>{
     const qty=positiveQuantity(item.quantite),cost=money(item.prixAchat);let product;
     if(item.id){product=map.get(Number(item.id));if(received){product.stockUpdateRaison='Achat Fournisseur';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});}}
     else {if(typeof item.nom!=='string'||!item.nom.trim())throw fail('Nom du produit obligatoire');if(received)product=await Product.create({userId,creatorId:req.user.id,nom:item.nom.trim(),prix:money(item.prix??cost),prixAchat:cost,stock:qty,devise},{transaction});}
+    if(received)await inventory.change(product,wh,qty,transaction);
     articles.push({id:product?.id??null,nom:product?.nom??item.nom.trim(),quantite:qty,prixAchat:cost,received});total+=qty*cost;
    }
    total=round(total,devise);if(Math.abs(total-money(req.body.montantTotal))>0.01)throw fail('Total des achats incohérent',409);
-   const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles,tauxChange:rate,accountingCurrency:shopCurrency},{transaction});
+   const result=await Purchase.create({userId,fournisseurId,numeroFacture:req.body.numeroFacture,description:req.body.description,montantTotal:total,statut,devise,articles,warehouseId:wh?.id??null,tauxChange:rate,accountingCurrency:shopCurrency},{transaction});
    const session=await CashSession.findOne({where:{userId,status:'OPEN'},transaction,lock:transaction.LOCK.UPDATE});
    ledger.assertSessionCurrency(session,shopCurrency);
    if(statut==='Payé'&&!session)throw fail('Ouvrez une caisse pour enregistrer le paiement',409);
@@ -86,6 +90,7 @@ exports.updatePurchase=async(req,res,next)=>{
     const devise=currency(row.devise),shopCurrency=currency(owner.entreprise?.devise),rate=Number(row.tauxChange);
     if(row.accountingCurrency!==shopCurrency||!Number.isFinite(rate)||rate<=0)throw fail('Achat historique: rapprochement comptable nécessaire',409);
     if(['Reçu','Payé'].includes(fields.statut)){
+     const wh=await inventory.warehouse(userId,row.warehouseId,transaction);
      const updated=[];
      for(const item of row.articles){
       if(item.received){updated.push(item);continue;}
@@ -95,6 +100,7 @@ exports.updatePurchase=async(req,res,next)=>{
        if(!product)throw fail('Produit introuvable',409);
        product.stockUpdateRaison='Réception Achat';product.stock=Number(product.stock)+qty;product.prixAchat=convertCurrency(cost,devise,currency(product.devise),rate);await product.save({transaction});
       }else{product=await Product.create({userId,creatorId:req.user.id,nom:item.nom,prix:cost,prixAchat:cost,stock:qty,devise},{transaction});}
+      await inventory.change(product,wh,qty,transaction);
       updated.push({...item,id:product.id,received:true});
      }
      fields.articles=updated;

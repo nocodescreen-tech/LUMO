@@ -34,6 +34,7 @@ suite('Commercial PostgreSQL integration',()=>{
  app.use('/superadmin',require('../routes/superadminRoutes'));
  app.use('/finance',require('../routes/financeRoutes'));
  app.use('/workspace',require('../routes/workspaceRoutes'));
+ app.use('/inventory',require('../routes/inventoryRoutes'));
  app.use('/platform/billing',require('../routes/platformBillingRoutes'));
  app.use(errorHandler);
  const post=(url,body)=>request(app).post(url).set('Authorization','Bearer '+ta).send(body);
@@ -213,6 +214,23 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await request(app).get('/superadmin/backups').set('Authorization','Bearer '+ta)).status).toBe(403);
  const meta=await request(app).get('/superadmin/backups').set('Authorization','Bearer '+token);expect(meta.status).toBe(200);expect(meta.body.data.rows.some(x=>x.status==='GENERATED')).toBe(true);expect(JSON.stringify(meta.body)).not.toContain(envelope.ciphertext);
  }finally{if(previous===undefined)delete process.env.LUMO_BACKUP_KEY_HEX;else process.env.LUMO_BACKUP_KEY_HEX=previous;}
+ });
+ test('warehouse transfers preserve global stock and restrict legacy sales',async()=>{
+ const {Warehouse,Organization,WarehouseBalance}=require('../models');
+ const org=await Organization.findOne({where:{ownerId:a.id}}),wh=await Warehouse.findOne({where:{organizationId:org.id}});
+ const product=await Product.create({nom:'Allocated item',prix:10,prixAchat:4,devise:'USD',stock:10,userId:a.id});
+ const body={productId:product.id,fromWarehouseId:null,toWarehouseId:wh.id,quantity:8,reason:'Allocation test',operationId:'transfer-test-key-0001'};
+ expect((await post('/inventory/transfers',body)).status).toBe(201);expect((await post('/inventory/transfers',body)).status).toBe(200);
+ expect((await product.reload()).stock).toBe(10);
+ expect((await post('/sales',payload(product,3,10))).status).toBe(409);
+ expect((await post('/sales',payload(product,2,10,{warehouseId:wh.id}))).status).toBe(201);
+ expect((await product.reload()).stock).toBe(8);
+ expect((await WarehouseBalance.findOne({where:{productId:product.id,warehouseId:wh.id}})).quantity).toBe(6);
+ await expect(product.update({stock:1})).rejects.toThrow();
+ const r=await post('/inventory/transfers',{...body,operationId:'transfer-test-key-0002',fromWarehouseId:wh.id,toWarehouseId:null,quantity:3});expect(r.status).toBe(201);
+ expect((await product.reload()).stock).toBe(8);
+ const other=generateToken(b.id,'support-test').accessToken;
+ expect((await request(app).post('/inventory/transfers').set('Authorization','Bearer '+other).send({...body,operationId:'foreign-transfer-0001'})).status).toBe(404);
  });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;

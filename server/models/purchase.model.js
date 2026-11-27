@@ -33,6 +33,7 @@ const Purchase = sequelize.define('Purchase', {
         defaultValue: 0.0
     },
     tauxChange:{type:DataTypes.DECIMAL(20,8),allowNull:true},
+    warehouseId:{type:DataTypes.INTEGER,allowNull:true},
     accountingCurrency:{type:DataTypes.STRING(3),allowNull:true},
     statut: {
         type: DataTypes.STRING,
