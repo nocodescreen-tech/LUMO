@@ -34,6 +34,7 @@ import { socketService } from '../../utils/socket';
 import { toast } from 'sonner';
 import SessionTimeoutModal from './SessionTimeoutModal';
 import Modal from '../common/Modal';
+import './workspace-commercial.css';
 
 
 import { translations } from '../../translations';
@@ -65,18 +66,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     // Recherche API avec debounce
     useEffect(() => {
+        let cancelled=false;
         if (searchQuery.length >= 2) {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = setTimeout(async () => {
                 try {
                     const { data } = await api.get('/search?q=' + encodeURIComponent(searchQuery));
-                    setApiSearchResults(data);
-                } catch { setApiSearchResults(null); }
+                    if(!cancelled)setApiSearchResults(data);
+                } catch { if(!cancelled)setApiSearchResults(null); }
             }, 300);
         } else {
             setApiSearchResults(null);
         }
-        return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+        return () => { cancelled=true;if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
     }, [searchQuery]);
     const navigate = useNavigate();
     const location = useLocation();
@@ -162,7 +164,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
-    const navItems = [
+    const rawNavItems = [
         ...(user?.role==='admin' ? [{name:language==='en'?'My subscription':'Mon abonnement',icon:CreditCard,path:'/subscription',group:'STORE'}] : []),
         ...(user?.role==='admin' ? [{name:language==='en'?'Executive overview':'Direction générale',icon:LayoutDashboard,path:'/executive',group:'STORE'}] : []),
         ...(user?.role==='admin'||user?.permissions?.includes('crm.manage') ? [{name:language==='en'?'Sales CRM':'CRM et performance',icon:Users,path:'/crm',group:'STORE'}] : []),
@@ -206,11 +208,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         ...(user?.role !== 'superadmin' ? [{ name: t.settings, icon: Settings, path: '/settings', group: 'STORE' }] : []),
     ];
 
-    const groups = [...new Set(navItems.map(i => i.group))];
+    const order=['PILOT','SALES','INVENTORY','FINANCE','TEAM','SYSTEM','PLATFORM'];
+    const section:Record<string,string>={'/':'PILOT','/executive':'PILOT','/stats':'PILOT','/pos':'SALES','/sales':'SALES','/clients':'SALES','/crm':'SALES','/documents':'SALES','/repairs':'SALES','/products':'INVENTORY','/inventory':'INVENTORY','/purchases':'INVENTORY','/stock-history':'INVENTORY','/fournisseurs':'INVENTORY','/cash':'FINANCE','/treasury':'FINANCE','/accounting':'FINANCE','/receivables':'FINANCE','/dettes':'FINANCE','/budgets':'FINANCE','/expense-approvals':'FINANCE','/subusers':'TEAM','/staff-assignments':'TEAM','/hr':'TEAM','/leave':'TEAM','/payroll':'TEAM','/access-governance':'TEAM'};
+    const required:Record<string,string[]>={'/pos':['pos','sales.add','products'],'/products':['products'],'/clients':['clients'],'/sales':['sales'],'/purchases':['purchases'],'/stock-history':['products'],'/cash':['cash'],'/fournisseurs':['suppliers'],'/dettes':['debts'],'/activities':['activities']};
+    const navItems=rawNavItems.filter(i=>{
+        if(user?.role==='superadmin')return i.group==='PLATFORM'||i.path==='/notifications';
+        if(user?.role==='admin')return true;
+        if(i.path==='/stats')return false;
+        return !required[i.path]||required[i.path].every(p=>user?.permissions?.includes(p));
+    }).map(i=>({...i,group:i.group==='PLATFORM'?'PLATFORM':section[i.path]||'SYSTEM'})).sort((a,b)=>order.indexOf(a.group)-order.indexOf(b.group)||((a.path==='/'?-1:0)-(b.path==='/'?-1:0)));
+    const groups=order.filter(g=>navItems.some(i=>i.group===g));
+    const groupNames:Record<string,[string,string]>={PILOT:['Pilotage','Overview'],SALES:['Commerce','Sales'],INVENTORY:['Stock et achats','Inventory'],FINANCE:['Finance','Finance'],TEAM:['Équipe et RH','People'],SYSTEM:['Administration','Administration'],PLATFORM:['Plateforme','Platform']};
 
     const getAvatarUrl = () => {
         if (!user?.avatar || user.avatar === 'default_avatar.png') {
-            return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=80`;
+            return undefined;
         }
         return user.avatar;
     };
@@ -344,7 +356,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             <React.Fragment key={group}>
                                 {isSidebarOpen && (
                                     <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'var(--text-muted)', letterSpacing: '0.1em', padding: '16px 12px 8px', textTransform: 'uppercase' }}>
-                                        {group === 'PLATFORM' ? (language === 'fr' ? 'Plateforme' : 'Platform') : (language === 'fr' ? 'Gestion commerciale' : 'Business')}
+                                        {groupNames[group]?.[language==='en'?1:0]}
                                     </div>
                                 )}
                                 {items.map(item => (
@@ -392,7 +404,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             flexShrink: 0,
                             overflow: 'hidden'
                         }}>
-                            <img src={getAvatarUrl()} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {getAvatarUrl()?<img src={getAvatarUrl()} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span className="lumo-avatar-initial">{(user?.nom||"U").trim().slice(0,2).toUpperCase()}</span>}
                         </div>
                         {isSidebarOpen && (
                             <div style={{ overflow: 'hidden' }}>
@@ -515,10 +527,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 ];
 
                                 const q = searchQuery.toLowerCase();
-                                const matches = searchItems.filter(item =>
-                                    item.name.toLowerCase().includes(q) ||
-                                    item.category.toLowerCase().includes(q)
-                                );
+                                const matches = searchItems.filter(item => navItems.some(n=>n.path===item.path.split('#')[0])&&(user?.role==='admin'||user?.role==='superadmin'||!item.path.includes('#'))&&(item.name.toLowerCase().includes(q)||item.category.toLowerCase().includes(q)));
                                 // Déduplique par path (modules principaux peuvent apparaître deux fois)
                                 const seen = new Set<string>();
                                 const unique = matches.filter(m => {
@@ -676,7 +685,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>{new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}</div>
                             </div>
                             <div className="flex-center" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', padding: '2px', overflow: 'hidden', background: 'var(--bg-card)' }}>
-                                <img src={getAvatarUrl()} alt="" style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }} />
+                                {getAvatarUrl()?<img src={getAvatarUrl()} alt="" style={{width:"100%",height:"100%",borderRadius:12,objectFit:"cover"}}/>:<span className="lumo-avatar-initial">{(user?.nom||"U").trim().slice(0,2).toUpperCase()}</span>}
                             </div>
                         </div>
                     </div>
