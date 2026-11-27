@@ -44,3 +44,31 @@ jobs:
       - run: find controllers middleware routes models utils migrations -name '*.js' -print0 | xargs -0 -n1 node --check
       - run: npm test -- --runInBand tests/transactionSafety.unit.test.js
       - run: npm test -- --runInBand tests/commercial.integration.test.js
+
+      - name: Isolated PostgreSQL recovery drill
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          dump="$(mktemp)"
+          trap 'rm -f "$dump"' EXIT
+          docker exec "$PG_CONTAINER" pg_dump -U lumo_test -Fc --no-owner --no-privileges lumo_commercial_test > "$dump"
+          docker exec "$PG_CONTAINER" createdb -U lumo_test lumo_recovery_drill
+          docker exec -i "$PG_CONTAINER" pg_restore -U lumo_test --exit-on-error --no-owner --no-privileges -d lumo_recovery_drill < "$dump"
+          for table in Users Products Sales Purchases JournalEntries CashSessions SupportTickets SupportMessages BackupRuns LumoSchemaMigrations; do
+            query="SELECT count(*) FROM \"$table\";"
+            source_count="$(docker exec "$PG_CONTAINER" psql -U lumo_test -d lumo_commercial_test -At -v ON_ERROR_STOP=1 -c "$query")"
+            restore_count="$(docker exec "$PG_CONTAINER" psql -U lumo_test -d lumo_recovery_drill -At -v ON_ERROR_STOP=1 -c "$query")"
+            test "$source_count" = "$restore_count"
+            echo "$table: $restore_count rows verified"
+          done
+          docker exec "$PG_CONTAINER" psql -U lumo_test -d lumo_recovery_drill -At -v ON_ERROR_STOP=1 -c "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('lumo_journal_immutable','lumo_platform_audit_immutable','lumo_support_message_immutable') ORDER BY tgname" | tee /tmp/lumo-recovery-triggers
+          test "$(wc -l < /tmp/lumo-recovery-triggers)" -eq 3
+      - name: Record validation manifest
+        run: |
+          node -e 'const fs=require("fs"),crypto=require("crypto");const migrations=fs.readdirSync("migrations").filter(x=>/^\d+.*\.sql$/.test(x)).sort().map(name=>({name,sha256:crypto.createHash("sha256").update(fs.readFileSync("migrations/"+name)).digest("hex")}));fs.writeFileSync("release-validation.json",JSON.stringify({commit:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,packageVersion:require("./package.json").version,backendIntegration:"passed",isolatedRecoveryDrill:"passed",migrations},null,2))'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-release-validation
+          path: server/release-validation.json
+          retention-days: 30
