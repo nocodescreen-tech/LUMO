@@ -214,7 +214,7 @@ const Clients = () => {
               <Users size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Total Clients</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{language==='en'?'Matching clients':'Clients correspondants'}</span>
               <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-main)' }}>{totalClients}</div>
             </div>
           </div>
@@ -224,7 +224,7 @@ const Clients = () => {
               <AlertCircle size={20} />
             </div>
             <div>
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Avec Dettes</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{language==='en'?'Positive balances on page':'Soldes positifs sur la page'}</span>
               <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--danger)' }}>{clientsWithDebt}</div>
             </div>
           </div>
