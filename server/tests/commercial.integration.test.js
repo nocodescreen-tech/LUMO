@@ -157,6 +157,7 @@ suite('Commercial PostgreSQL integration',()=>{
  const platform=await User.findOne({where:{role:'superadmin'}}),token=generateToken(platform.id,'test-session').accessToken;
  const r=await post('/support',{subject:'Erreur de caisse',category:'TECHNICAL',body:'La clôture ne fonctionne pas.'});expect(r.status).toBe(201);
  const id=r.body.data.id;
+ const overview=await request(app).get('/superadmin/console/overview').set('Authorization','Bearer '+token);expect(overview.status).toBe(200);expect(overview.body.data.support.open).toBeGreaterThan(0);
  await b.update({activeSessions:[{sessionId:'support-test'}]});
  const tb=generateToken(b.id,'support-test').accessToken;
  expect((await request(app).get('/support/'+id).set('Authorization','Bearer '+tb)).status).toBe(404);

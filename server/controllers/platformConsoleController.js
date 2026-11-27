@@ -1,4 +1,4 @@
-const {User,Organization,Subscription,Branch,Warehouse,Sale,Product,Activite,GlobalSetting,Newsletter}=require('../models');
+const {User,Organization,Subscription,Branch,Warehouse,Sale,Product,Activite,GlobalSetting,Newsletter,SupportTicket}=require('../models');
 const {sequelize}=require('../config/database');
 const {Op}=require('sequelize');
 const {sendResponse}=require('../utils/response');
@@ -12,8 +12,9 @@ exports.overview=async(req,res,next)=>{try{
  ]);
  const counts={ACTIVE:0,TRIAL:0,EXPIRED:0,OTHER:0};for(const s of subscriptions){const status=effective(s);counts[Object.hasOwn(counts,status)?status:'OTHER']++;}
  const [growth]=await sequelize.query(`SELECT to_char(date_trunc('day',"createdAt" AT TIME ZONE 'UTC'),'YYYY-MM-DD') AS day,count(*)::int AS count FROM "Users" WHERE role='admin' AND "parentId" IS NULL AND "createdAt">= :since GROUP BY 1 ORDER BY 1`,{replacements:{since}});
+ const [openTickets,urgentTickets,waitingTickets]=await Promise.all([SupportTicket.count({where:{status:{[Op.notIn]:['CLOSED','RESOLVED']}}}),SupportTicket.count({where:{priority:'URGENT',status:{[Op.notIn]:['CLOSED','RESOLVED']}}}),SupportTicket.count({where:{status:'WAITING_CUSTOMER'}})]);
  const config=Object.fromEntries(settings.map(s=>[s.key,s.value]));
- return sendResponse(res,200,{owners,staff,suspended,pending,recent,orgs,branches,warehouses,subscriptions:counts,sales,products,newsletter,visits,growth,maintenance:config.maintenance_mode==='true',registration:config.registration_enabled!=='false',generatedAt:now.toISOString(),system:{database:'reachable',requestMs:Date.now()-start,processUptimeSeconds:Math.floor(process.uptime()),node:process.version},billing:{collectedRevenue:null,mrr:null,reason:'No verified billing provider connected'}},'Supervision plateforme');
+ return sendResponse(res,200,{owners,staff,suspended,pending,recent,orgs,branches,warehouses,subscriptions:counts,sales,products,newsletter,visits,growth,support:{open:openTickets,urgent:urgentTickets,waiting:waitingTickets},maintenance:config.maintenance_mode==='true',registration:config.registration_enabled!=='false',generatedAt:now.toISOString(),system:{database:'reachable',requestMs:Date.now()-start,processUptimeSeconds:Math.floor(process.uptime()),node:process.version},billing:{collectedRevenue:null,mrr:null,reason:'No verified billing provider connected'}},'Supervision plateforme');
 }catch(e){next(e)}};
 exports.accounts=async(req,res,next)=>{try{
  const {page,limit}=pageOf(req.query),where={},q=typeof req.query.q==='string'?req.query.q.trim().slice(0,100):'';
