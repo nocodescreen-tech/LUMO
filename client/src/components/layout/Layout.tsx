@@ -178,6 +178,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const navItems = [
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Access governance':'Accès et permissions',icon:Activity,path:'/access-governance',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Payroll':'Paie et rémunérations',icon:Activity,path:'/payroll',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Human resources':'Ressources humaines',icon:Activity,path:'/hr',group:'STORE'}] : []),
         ...(user?.role === 'admin' ? [{name:language==='en'?'Staff assignments':'Affectations équipe',icon:Activity,path:'/staff-assignments',group:'STORE'}] : []),
@@ -199,7 +200,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.pos, icon: ShoppingCart, path: '/pos', group: 'STORE' },
         { name: t.products, icon: Package, path: '/products', group: 'STORE' },
         { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
-        ...(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'gerant'
+        ...(user?.role === 'admin'
           ? [{ name: t.team || 'Équipe', icon: UserPlus, path: '/subusers', group: 'STORE' }]
           : []),
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },

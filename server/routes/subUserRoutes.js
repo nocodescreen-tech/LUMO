@@ -18,6 +18,7 @@ router.get('/permissions', catalog);
 router.get('/:id/access-history', getHistory);
 router.get('/:id/activity', getSubUserActivity);
 router.put('/:id', updateSubUser);
+router.post('/:id/access-update', updateSubUser);
 router.delete('/:id', deleteSubUser);
 
 module.exports = router;

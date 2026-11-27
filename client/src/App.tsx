@@ -44,6 +44,7 @@ const Treasury = lazy(() => import('./pages/Treasury'));
 const StaffAssignments = lazy(() => import('./pages/StaffAssignments'));
 const HumanResources = lazy(() => import('./pages/HumanResources'));
 const Payroll = lazy(() => import('./pages/Payroll'));
+const AccessGovernance = lazy(() => import('./pages/AccessGovernance'));
 
 const Landing = lazy(() => import('./pages/Landing'));
 
@@ -128,7 +129,8 @@ const App = () => {
               <Route path="/settings" element={<Settings />} />
               <Route path="/activities" element={<Activities />} />
               <Route path="/stats" element={<Stats />} />
-              <Route path="/subusers" element={<SubusersPage />} />
+              {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}
+              {user?.role === 'admin' && <Route path="/access-governance" element={<AccessGovernance />} />}
               {user?.role === 'admin' && <Route path="/support" element={<SupportCenter />} />}
               {user?.role === 'admin' && <Route path="/inventory" element={<InventoryEnterprise />} />}
               {user?.role === 'admin' && <Route path="/repairs" element={<RepairCenter />} />}

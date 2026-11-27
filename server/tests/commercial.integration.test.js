@@ -557,7 +557,7 @@ suite('Commercial PostgreSQL integration',()=>{
  const account=await User.findByPk(u.id);await account.update({activeSessions:[{sessionId:'gov-test'}]});const token=generateToken(u.id,'gov-test').accessToken;
  expect((await request(app).get('/subusers').set('Authorization','Bearer '+token)).status).toBe(403);
  expect((await request(app).get('/test-permission').set('Authorization','Bearer '+token)).status).toBe(403);
- const change={role:'vendeur',permissions:['pos','products'],expectedUpdatedAt:account.updatedAt.toISOString(),reason:'Least privilege',operationId:'access-governance-001'};
+ const change={role:'vendeur',permissions:['pos','products'],expectedRevisionId:(await AccessRevision.findOne({where:{userId:a.id,staffId:u.id},order:[['id','DESC']]})).id,reason:'Least privilege',operationId:'access-governance-001'};
  expect((await put('/subusers/'+u.id,{...change,permissions:['superadmin']})).status).toBe(400);
  expect((await put('/subusers/'+u.id,change)).status).toBe(200);expect((await put('/subusers/'+u.id,change)).status).toBe(200);
  expect((await request(app).get('/test-permission').set('Authorization','Bearer '+token)).status).toBe(401);
