@@ -1,0 +1,98 @@
+name: Commercial security qualification
+on:
+  push:
+    branches: [commercial-v2]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: commercial-security-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  repository-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SECURITY_OUTPUT: ${{ runner.temp }}/lumo-security
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare isolated reports
+        run: |
+          mkdir -p "$SECURITY_OUTPUT/raw" "$SECURITY_OUTPUT/summary"
+          chmod 700 "$SECURITY_OUTPUT/raw"
+          git rev-parse HEAD > "$SECURITY_OUTPUT/summary/revision.txt"
+          git rev-list --all --count > "$SECURITY_OUTPUT/summary/reachable-commit-count.txt"
+      - name: Scan current files and reachable Git history for secrets
+        id: secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/gitleaks/gitleaks:latest
+          image="$(docker image inspect ghcr.io/gitleaks/gitleaks:latest --format '{{index .RepoDigests 0}}')"
+          printf '%s\n' "$image" > "$SECURITY_OUTPUT/summary/gitleaks-image.txt"
+          for mode in git dir; do
+            set +e
+            extra=()
+            if [ "$mode" = git ]; then extra+=(--log-opts=--all); fi
+            docker run --rm --network none --user "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/src:ro" -v "$SECURITY_OUTPUT/raw:/out" "$image" "$mode" /src "${extra[@]}" --redact=100 --report-format json --report-path "/out/gitleaks-$mode.json" --exit-code 23 > "$SECURITY_OUTPUT/raw/gitleaks-$mode.log" 2>&1
+            status=$?
+            set -e
+            printf '%s' "$status" > "$SECURITY_OUTPUT/raw/gitleaks-$mode.status"
+          done
+          node scripts/security-summary.cjs secrets "$SECURITY_OUTPUT"
+      - name: Static security scan of commercial and legacy source
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull semgrep/semgrep:latest
+          image="$(docker image inspect semgrep/semgrep:latest --format '{{index .RepoDigests 0}}')"
+          printf '%s\n' "$image" > "$SECURITY_OUTPUT/summary/semgrep-image.txt"
+          # Scan the current tree, plus the default branch if present and different.
+          legacy="$SECURITY_OUTPUT/legacy"
+          mkdir -p "$legacy"
+          default_ref="$(git symbolic-ref -q refs/remotes/origin/HEAD || true)"
+          if [ -z "$default_ref" ]; then
+            for candidate in refs/remotes/origin/main refs/remotes/origin/master; do
+              if git show-ref --verify --quiet "$candidate"; then default_ref="$candidate"; break; fi
+            done
+          fi
+          scan() {
+            local name="$1" source="$2" status
+            set +e
+            docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$source:/src:ro" -v "$SECURITY_OUTPUT/raw:/out" "$image" semgrep scan --config p/owasp-top-ten --config p/javascript --metrics=off --disable-version-check --json --output "/out/semgrep-$name.json" /src > "$SECURITY_OUTPUT/raw/semgrep-$name.log" 2>&1
+            status=$?
+            set -e
+            printf '%s' "$status" > "$SECURITY_OUTPUT/raw/semgrep-$name.status"
+          }
+          scan commercial "$GITHUB_WORKSPACE"
+          if [ -n "$default_ref" ] && [ "$(git rev-parse "$default_ref")" != "$(git rev-parse HEAD)" ]; then
+            git archive "$default_ref" | tar -x -C "$legacy"
+            git rev-parse "$default_ref" > "$SECURITY_OUTPUT/summary/legacy-revision.txt"
+            scan legacy "$legacy"
+          fi
+          node scripts/security-summary.cjs sast "$SECURITY_OUTPUT"
+      - name: Generate dependency inventories
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          for dir in server client; do
+            (cd "$dir" && npm sbom --package-lock-only --omit=dev --sbom-format cyclonedx > "$SECURITY_OUTPUT/raw/sbom-$dir.json")
+          done
+          node scripts/security-summary.cjs sbom "$SECURITY_OUTPUT"
+      - name: Upload aggregate evidence only
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: commercial-security-summary
+          path: ${{ runner.temp }}/lumo-security/summary/
+          retention-days: 30
+      - name: Remove raw scanner data
+        if: ${{ always() }}
+        run: rm -rf -- "$SECURITY_OUTPUT"
