@@ -52,6 +52,7 @@ const AIChat = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Lumo-Client': '1',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ message: input })
@@ -101,19 +102,14 @@ const AIChat = () => {
                                     return newMsgs;
                                 });
                             } catch (e) {
-                                console.error("Parse error on chunk:", dataStr, e);
+                                console.error("Invalid AI stream frame");
                             }
                         }
                     }
                 }
             }
         } catch (error: any) {
-            console.error("AIChat error:", {
-                message: error?.message,
-                status: error?.status,
-                data: error?.data,
-                error
-            });
+            console.error("AI request failed",error?.status||"network");
 
             const status = error?.status;
             const serverMessage = error?.data?.message;

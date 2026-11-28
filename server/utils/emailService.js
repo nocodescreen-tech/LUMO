@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const {safeEmailPayload,escapeHtml}=require('./providerSafety');
 
 // ─────────────────────────────────────────────────────────────
 //  LOGO LUMO — SVG inline direct (source: /public/lumo_logo.svg)
@@ -51,7 +52,6 @@ const sendViaResend = async ({ email, subject, html, attachments }) => {
 
     const fromEmail = (process.env.FROM_EMAIL || 'Lumo <onboarding@resend.dev>').replace(/['"]/g, '').trim();
 
-    console.log(`[EMAIL/RESEND] Envoi vers: ${email} (from: ${fromEmail})`);
 
     const payload = {
         from: fromEmail,
@@ -70,11 +70,9 @@ const sendViaResend = async ({ email, subject, html, attachments }) => {
     const { data, error } = await resend.emails.send(payload);
 
     if (error) {
-        console.error('[EMAIL/RESEND] ❌ Erreur API Resend:', JSON.stringify(error));
-        throw new Error(error.message || 'Resend API error');
+        throw new Error('Service email indisponible');
     }
 
-    console.log(`[EMAIL/RESEND] ✅ Envoyé avec succès. ID: ${data.id}`);
     return true;
 };
 
@@ -90,12 +88,15 @@ const sendViaSMTP = async ({ email, subject, html, attachments }) => {
 
     const fromFinal = fromEmail.includes('<') ? fromEmail : `"Lumo" <${smtpUser}>`;
 
-    console.log(`[EMAIL/SMTP] Envoi vers: ${email} via ${smtpHost}:${smtpPort} (from: ${fromFinal})`);
 
     const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: smtpPort,
         secure: smtpPort === 465,
+        requireTLS: smtpPort !== 465,
+        tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+        disableFileAccess: true,
+        disableUrlAccess: true,
         auth: { user: smtpUser, pass: smtpPass },
         // Force IPv4 — Railway ne route pas IPv6 sortant (ENETUNREACH sur adresse ::)
         family: 4,
@@ -105,23 +106,10 @@ const sendViaSMTP = async ({ email, subject, html, attachments }) => {
     });
 
     try {
-        await transporter.verify();
-        console.log('[EMAIL/SMTP] ✅ Connexion SMTP OK');
-    } catch (verifyError) {
-        console.error('[EMAIL/SMTP] ❌ Connexion SMTP ÉCHOUÉE:', verifyError.message);
-        throw verifyError;
-    }
-
-    const info = await transporter.sendMail({
-        from: fromFinal,
-        to: email,
-        subject,
-        html,
-        attachments: attachments || [],
-    });
-
-    console.log(`[EMAIL/SMTP] ✅ Envoyé avec succès. ID: ${info.messageId}`);
-    return true;
+        const info=await transporter.sendMail({from:fromFinal,to:email,subject,html,attachments:attachments||[]});
+        if(!Array.isArray(info.accepted)||!info.accepted.length)throw new Error('Email non accepté');
+        return true;
+    } finally { transporter.close(); }
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -129,27 +117,18 @@ const sendViaSMTP = async ({ email, subject, html, attachments }) => {
 //  Priorité : SMTP Gmail (si configuré) → Resend API (fallback)
 //  Raison : Resend nécessite un domaine vérifié pour envoyer à n'importe qui
 // ─────────────────────────────────────────────────────────────
-const sendEmail = async ({ email, subject, html, attachments }) => {
-    // Si SMTP configuré → priorité absolue (pas de restriction de domaine)
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        try {
-            return await sendViaSMTP({ email, subject, html, attachments });
-        } catch (smtpError) {
-            console.error('[EMAIL] ⚠️ SMTP échoué, tentative Resend:', smtpError.message);
-            // Fallback Resend si disponible
-            if (process.env.RESEND_API_KEY) {
-                return await sendViaResend({ email, subject, html, attachments });
-            }
-            throw smtpError;
-        }
+const sendEmail=async input=>{
+    const payload=safeEmailPayload(input);
+    try{
+        // Do not retry a potentially delivered SMTP message through another provider.
+        const selected=process.env.LUMO_EMAIL_PROVIDER||((process.env.SMTP_USER&&process.env.SMTP_PASS)?'smtp':'resend');
+        if(selected==='smtp'&&process.env.SMTP_USER&&process.env.SMTP_PASS)return await sendViaSMTP(payload);
+        if(selected==='resend'&&process.env.RESEND_API_KEY)return await sendViaResend(payload);
+        throw new Error('Service email non configuré');
+    }catch{
+        console.warn('Email delivery unavailable');
+        throw new Error('Service email indisponible');
     }
-
-    // Pas de SMTP → Resend (nécessite domaine vérifié pour autres emails)
-    if (process.env.RESEND_API_KEY) {
-        return await sendViaResend({ email, subject, html, attachments });
-    }
-
-    throw new Error('[EMAIL] Aucun service email configuré (SMTP_USER ou RESEND_API_KEY requis)');
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -177,14 +156,14 @@ const getVerificationTemplate = (code, name) => {
                 <!-- Body -->
                 <tr>
                     <td style="padding: 40px;">
-                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${name}</strong>,</p>
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${escapeHtml(name)}</strong>,</p>
                         <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Merci de rejoindre <strong>Lumo</strong>. Pour finaliser la création de votre compte professionnel, veuillez utiliser le code de vérification suivant :</p>
 
                         <!-- OTP Box -->
                         <table width="100%" cellpadding="0" cellspacing="0" border="0">
                             <tr><td align="center" style="padding: 8px 0 32px;">
                                 <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 2px solid #7c3aed; border-radius: 20px; text-align: center;">
-                                    <span style="font-size: 42px; font-weight: 900; color: #6d28d9; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${code}</span>
+                                    <span style="font-size: 42px; font-weight: 900; color: #6d28d9; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${escapeHtml(code)}</span>
                                     <p style="margin: 10px 0 0; color: #9ca3af; font-size: 13px;">⏱️ Ce code expire dans <strong>15 minutes</strong></p>
                                 </div>
                             </td></tr>
@@ -231,15 +210,15 @@ const getResetPasswordTemplate = (code, name) => {
                 <!-- Body -->
                 <tr>
                     <td style="padding: 40px;">
-                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${name}</strong>,</p>
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${escapeHtml(name)}</strong>,</p>
                         <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Nous avons reçu une demande de réinitialisation pour votre compte Lumo. Utilisez le code suivant pour sécuriser votre accès :</p>
 
                         <!-- OTP Box -->
                         <table width="100%" cellpadding="0" cellspacing="0" border="0">
                             <tr><td align="center" style="padding: 8px 0 32px;">
                                 <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #ea580c; border-radius: 20px; text-align: center;">
-                                    <span style="font-size: 42px; font-weight: 900; color: #ea580c; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${code}</span>
-                                    <p style="margin: 10px 0 0; color: #9ca3af; font-size: 13px;">⏱️ Ce code expire dans <strong>1 heure</strong></p>
+                                    <span style="font-size: 42px; font-weight: 900; color: #ea580c; letter-spacing: 0.3em; font-family: 'Courier New', monospace;">${escapeHtml(code)}</span>
+                                    <p style="margin: 10px 0 0; color: #9ca3af; font-size: 13px;">⏱️ Ce code expire dans <strong>15 minutes</strong></p>
                                 </div>
                             </td></tr>
                         </table>
@@ -269,7 +248,7 @@ const getNewsletterWelcomeTemplate = (title, body, logoUrl) => {
     const finalBody = body || 'Votre inscription à la newsletter <strong>Lumo</strong> a été confirmée avec succès. Vous recevrez désormais en avant-première nos actualités, mises à jour et conseils pour booster votre commerce.';
 
     const customLogoImg = logoUrl
-        ? `<img src="${logoUrl}" alt="Lumo" style="height: 52px; width: auto; display: block; margin: 0 auto 24px;" />`
+        ? `<img src="${escapeHtml(logoUrl)}" alt="Lumo" style="height: 52px; width: auto; display: block; margin: 0 auto 24px;" />`
         : logoBlockLight();
 
     return `<!DOCTYPE html>
@@ -284,7 +263,7 @@ const getNewsletterWelcomeTemplate = (title, body, logoUrl) => {
                 <tr>
                     <td style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 40px 36px; text-align: center;">
                         ${customLogoImg}
-                        <h1 style="margin: 12px 0 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.03em;">${finalTitle}</h1>
+                        <h1 style="margin: 12px 0 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.03em;">${escapeHtml(finalTitle)}</h1>
                     </td>
                 </tr>
 
@@ -343,7 +322,7 @@ const getDebtReminderTemplate = (clientName, montant, currency) => {
                 <!-- Body -->
                 <tr>
                     <td style="padding: 40px;">
-                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${clientName}</strong>,</p>
+                        <p style="margin: 0 0 16px; color: #475569; font-size: 16px; line-height: 1.6;">Bonjour <strong style="color: #1e293b;">${escapeHtml(clientName)}</strong>,</p>
                         <p style="margin: 0 0 32px; color: #475569; font-size: 15px; line-height: 1.7;">Nous espérons que vous allez bien. Sauf erreur de notre part, nous remarquons qu'un montant reste en attente de règlement sur votre compte.</p>
 
                         <!-- Amount Box -->
@@ -351,7 +330,7 @@ const getDebtReminderTemplate = (clientName, montant, currency) => {
                             <tr><td align="center" style="padding: 8px 0 32px;">
                                 <p style="margin: 0 0 10px; color: #64748b; font-size: 14px;">Montant restant dû</p>
                                 <div style="display: inline-block; padding: 24px 48px; background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border: 2px solid #e11d48; border-radius: 20px; text-align: center;">
-                                    <span style="font-size: 38px; font-weight: 900; color: #e11d48; letter-spacing: 0.05em;">${montant} ${currency}</span>
+                                    <span style="font-size: 38px; font-weight: 900; color: #e11d48; letter-spacing: 0.05em;">${escapeHtml(montant)} ${escapeHtml(currency)}</span>
                                 </div>
                             </td></tr>
                         </table>
