@@ -9,7 +9,7 @@ async function socketIdentity(token,origin){
  try{
   if(await redis.exists('blacklist:'+token))return null;
   const decoded=jwt.verify(token,config.jwt.secret,{algorithms:['HS256']});
-  if(decoded.type!=='access'||!decoded.sessionId)return null;
+  if(decoded.type!=='access'||!decoded.sessionId||decoded.isImpersonating)return null;
   const user=await User.findByPk(decoded.id,{attributes:['id','role','parentId','isSuspended','isVerified','isAdminValidated','activeSessions']});
   if(!user||user.isSuspended||!(user.activeSessions||[]).some(s=>s.sessionId===decoded.sessionId))return null;
   if(user.role!=='superadmin'&&(!user.isVerified||!user.isAdminValidated))return null;

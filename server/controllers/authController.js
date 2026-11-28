@@ -252,7 +252,7 @@ const refreshAccessToken = async (req, res, next) => {
     const config = require('../config');
     const decoded = jwt.verify(refreshToken, config.jwt.secret,{algorithms:['HS256']});
 
-    if (decoded.type !== 'refresh') {
+    if (decoded.type !== 'refresh'||decoded.isImpersonating) {
       return res.status(401).json({ message: 'Token invalide' });
     }
 
@@ -279,98 +279,64 @@ const refreshAccessToken = async (req, res, next) => {
 };
 
 // @desc  Setup TOTP (Generate QR Code)
-const setupTOTP = async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    // Réinitialiser seulement les champs actifs de setup précédent (pas twoFactorEnabled)
-    // pour éviter de perdre l'état activé si on re-scanne le QR code
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-
-    const secret = authenticator.generateSecret();
-    const otpauth = authenticator.keyuri(user.email, 'LUMO Pro', secret);
-
-    // Le secret est stocké dans twoFactorCode (champ réutilisé temporairement)
-    user.twoFactorCode = secret;
-    user.twoFactorExpire = Date.now() + 15 * 60 * 1000;
-    await user.save({ hooks: false });
-
-    const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
-    res.status(200).json({
-      qrCode: qrCodeDataUrl,
-      secret: secret,
-      message: "Scannez le QR Code avec Google Authenticator."
-    });
-  } catch (error) {
-    next(error);
-  }
+const validCurrentPassword=value=>typeof value==='string'&&value.length>0&&Buffer.byteLength(value,'utf8')<=1024;
+const setupTOTP=async(req,res,next)=>{
+ try{
+  const password=req.body?.currentPassword;
+  if(!validCurrentPassword(password))throw fail('Mot de passe actuel requis');
+  const result=await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(!await user.matchMotDePasse(password))throw fail('Mot de passe actuel incorrect',403);
+   if(user.twoFactorEnabled)throw fail('Double authentification déjà activée',409);
+   const secret=authenticator.generateSecret();
+   user.twoFactorCode='setup:'+req.authSessionId+':'+secret;user.twoFactorExpire=Date.now()+15*60*1000;
+   await user.save({hooks:false,transaction});
+   return {secret,email:user.email};
+  });
+  const qrCode=await qrcode.toDataURL(authenticator.keyuri(result.email,'LUMO Pro',result.secret));
+  res.set('Cache-Control','private, no-store');
+  return res.json({qrCode,secret:result.secret,message:'Scannez le QR Code avec Google Authenticator.'});
+ }catch(e){next(e)}
 };
-
-// @desc  Verify and enable TOTP
-const activateTOTP = async (req, res, next) => {
-  try {
-    const { code } = req.body;
-    const user = await User.findByPk(req.user.id);
-
-    // Le secret temporaire était dans twoFactorCode
-    const secret = user.twoFactorCode;
-    if (!secret) return res.status(400).json({ message: "Session d'activation expirée." });
-
-    // Vérifier l'expiration de la session de setup TOTP
-    if (user.twoFactorExpire && Number(user.twoFactorExpire) < Date.now()) {
-      // Nettoyage de sécurité
-      user.twoFactorCode = null;
-      user.twoFactorExpire = null;
-      await user.save({ hooks: false });
-      return res.status(400).json({ message: "Session d'activation TOTP expirée. Recommencez depuis le début." });
-    }
-
-    authenticator.options = { window: 1 }; // Allow 1 step (30s) before/after
-    const isVerified = authenticator.check(String(code), secret);
-    if (!isVerified) return res.status(400).json({ message: "Code incorrect. Réessayez." });
-
-    user.twoFactorSecret = secret;
-    user.twoFactorEnabled = true;
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'SECURITE', 'Double authentification TOTP activée', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Double authentification activée avec succès.' });
-  } catch (error) {
-    next(error);
-  }
+const activateTOTP=async(req,res,next)=>{
+ try{
+  const code=String(req.body?.code??'');if(!/^\d{6}$/.test(code))throw fail('Code invalide');
+  await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(user.twoFactorEnabled)throw fail('Double authentification déjà activée',409);
+   const [kind,sessionId,secret]=String(user.twoFactorCode||'').split(':');
+   if(kind!=='setup'||sessionId!==req.authSessionId||!secret||!(Number(user.twoFactorExpire)>Date.now()))throw fail('Configuration expirée ou autre session',400);
+   if(!authenticator.check(code,secret))throw fail('Code incorrect',400);
+   user.twoFactorSecret=secret;user.twoFactorEnabled=true;user.twoFactorCode=null;user.twoFactorExpire=null;
+   user.activeSessions=(user.activeSessions||[]).filter(v=>v.sessionId===req.authSessionId);
+   await user.save({hooks:false,transaction});
+  });
+  await logActivite(req.user.id,'SECURITE','Double authentification TOTP activée','System',req.user.tenantId);
+  res.json({message:'Double authentification activée. Autres sessions révoquées.'});
+ }catch(e){next(e)}
 };
-
-// @desc  Disable 2FA for current user
-const disable2FA = async (req, res, next) => {
-  try {
-    const { motDePasse } = req.body;
-    if (!motDePasse) {
-      return res.status(400).json({ message: 'Mot de passe requis pour désactiver la 2FA' });
-    }
-
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    const valid = await user.matchMotDePasse(motDePasse);
-    if (!valid) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
-    }
-
-    user.twoFactorEnabled = false;
-    user.twoFactorSecret = null;
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'SECURITE', 'Double authentification désactivée', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Double authentification désactivée', twoFactorEnabled: false });
-  } catch (error) {
-    next(error);
-  }
+const disable2FA=async(req,res,next)=>{
+ try{
+  const password=req.body?.motDePasse;
+  if(!validCurrentPassword(password))throw fail('Mot de passe requis');
+  await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(!await user.matchMotDePasse(password))throw fail('Mot de passe incorrect',403);
+   if(!user.twoFactorEnabled)throw fail('Double authentification déjà désactivée',409);
+   if(user.twoFactorSecret){
+    const code=String(req.body?.code??'');
+    if(!/^\d{6}$/.test(code)||!authenticator.check(code,user.twoFactorSecret))throw fail('Code authentificateur requis ou incorrect',403);
+   }
+   user.twoFactorEnabled=false;user.twoFactorSecret=null;user.twoFactorCode=null;user.twoFactorExpire=null;
+   user.activeSessions=(user.activeSessions||[]).filter(v=>v.sessionId===req.authSessionId);
+   await user.save({hooks:false,transaction});
+  });
+  await logActivite(req.user.id,'SECURITE','Double authentification désactivée','System',req.user.tenantId);
+  res.json({message:'Double authentification désactivée. Autres sessions révoquées.',twoFactorEnabled:false});
+ }catch(e){next(e)}
 };
 
 // @desc    Vérifier l'email avec le code

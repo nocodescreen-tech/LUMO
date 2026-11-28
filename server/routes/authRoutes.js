@@ -150,7 +150,8 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);
 router.post('/refresh', require('../middleware/sessionOrigin').protectRefresh, refreshAccessToken);
-router.get('/2fa/setup', protect, setupTOTP);
+router.get('/2fa/setup', protect,(_req,res)=>res.status(405).set('Allow','POST').json({message:'Utilisez POST avec le mot de passe actuel.'}));
+router.post('/2fa/setup', protect, setupTOTP);
 router.post('/2fa/activate', protect, activateTOTP);
 router.post('/2fa/disable', protect, disable2FA);
 

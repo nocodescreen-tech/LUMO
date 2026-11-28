@@ -70,11 +70,9 @@ exports.protect = async (req, res, next) => {
     if(req.user.parentId&&['admin','superadmin'].includes(req.user.role))return res.status(403).json({message:'Rôle collaborateur invalide'});
     if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended','isVerified','isAdminValidated']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended||!owner.isVerified||!owner.isAdminValidated)return res.status(403).json({message:'Entreprise indisponible'});}
 
-    // Impersonation Support
-    if (decoded.isImpersonating) {
-        req.isImpersonating = true;
-        req.originalAdminId = decoded.originalAdminId;
-    }
+    // Delegated support is disabled. Reject any remaining legacy tokens.
+    if(decoded.isImpersonating)return res.status(403).json({message:'Accès délégué désactivé'});
+    req.authSessionId=decoded.sessionId;
 
     // Attach tenantId (the admin ID) for data filtering securely
     const resolvedTenantId = req.user.parentId || req.user.id;

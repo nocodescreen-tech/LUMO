@@ -1021,6 +1021,26 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await post('/sales',oversized)).status).toBe(400);
  expect(await Sale.count({where:{userId:a.id}})).toBe(before);
  });
+ test('TOTP enrollment is password confirmed, session bound and cannot replace active factor',async()=>{
+ const {authenticator}=require('otplib');
+ const actor=await User.create({nom:'MFA fixture',email:'totp-fixture@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'totp-current'},{sessionId:'totp-other'}]});
+ const current=generateToken(actor.id,'totp-current'),other=generateToken(actor.id,'totp-other');
+ const fixture=express();fixture.use(express.json());fixture.use('/auth',require('../routes/authRoutes'));fixture.use(errorHandler);
+ const send=(endpoint,body,token=current.accessToken)=>request(fixture).post('/auth/2fa/'+endpoint).set('Authorization','Bearer '+token).send(body);
+ expect((await request(fixture).get('/auth/2fa/setup').set('Authorization','Bearer '+current.accessToken)).status).toBe(405);
+ expect((await send('setup',{})).status).toBe(400);
+ expect((await send('setup',{currentPassword:'wrong'})).status).toBe(403);
+ const setup=await send('setup',{currentPassword:'TestOnlyPassword123!'});expect(setup.status).toBe(200);
+ const code=authenticator.generate(setup.body.secret);
+ expect((await send('activate',{code},other.accessToken)).status).toBe(400);
+ expect((await send('activate',{code})).status).toBe(200);
+ expect((await actor.reload()).twoFactorEnabled).toBe(true);
+ expect(actor.activeSessions.map(v=>v.sessionId)).toEqual(['totp-current']);
+ expect((await send('setup',{currentPassword:'TestOnlyPassword123!'})).status).toBe(409);
+ expect((await send('disable',{motDePasse:'TestOnlyPassword123!'})).status).toBe(403);
+ expect((await send('disable',{motDePasse:'TestOnlyPassword123!',code:authenticator.generate(setup.body.secret)})).status).toBe(200);
+ expect((await actor.reload()).twoFactorEnabled).toBe(false);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

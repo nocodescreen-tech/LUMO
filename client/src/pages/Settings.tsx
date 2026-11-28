@@ -67,6 +67,9 @@ const TwoFASection = () => {
   const { t } = useTranslation();
   const { user, updateUser } = useAuthStore();
   const [loading2FA, setLoading2FA] = React.useState(false);
+  const [showSetupPassword,setShowSetupPassword]=React.useState(false);
+  const [setupPassword,setSetupPassword]=React.useState('');
+  const [disableCode,setDisableCode]=React.useState('');
   const [showDisableModal, setShowDisableModal] = React.useState(false);
   const [disablePassword, setDisablePassword] = React.useState('');
   const [showSetupModal, setShowSetupModal] = React.useState(false);
@@ -77,9 +80,11 @@ const TwoFASection = () => {
   const is2FAEnabled = !!(user as any)?.twoFactorEnabled;
 
   const handleEnable2FA = async () => {
+    if(!setupPassword||loading2FA)return;
     setLoading2FA(true);
     try {
-      const { data } = await api.get('/auth/2fa/setup');
+      const { data } = await api.post('/auth/2fa/setup',{currentPassword:setupPassword});
+      setSetupPassword('');setShowSetupPassword(false);
       setQrCode(data.qrCode);
       setSecret(data.secret);
       setOtpCode('');
@@ -103,7 +108,7 @@ const TwoFASection = () => {
       updateUser({ ...(user as any), twoFactorEnabled: true });
       toast.success(data.message || 'Double authentification activée avec succès');
       setShowSetupModal(false);
-      setOtpCode('');
+      setOtpCode('');setQrCode('');setSecret('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Code incorrect. Réessayez.');
     } finally {
@@ -118,11 +123,11 @@ const TwoFASection = () => {
     }
     setLoading2FA(true);
     try {
-      const { data } = await api.post('/auth/2fa/disable', { motDePasse: disablePassword });
+      const { data } = await api.post('/auth/2fa/disable', { motDePasse: disablePassword,code:disableCode });
       updateUser({ ...(user as any), twoFactorEnabled: false });
       toast.success(data.message || t('twoFADisabledSuccess'));
       setShowDisableModal(false);
-      setDisablePassword('');
+      setDisablePassword('');setDisableCode('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('twoFADeactivateError'));
     } finally {
@@ -154,7 +159,7 @@ const TwoFASection = () => {
           </div>
         </div>
         <button
-          onClick={is2FAEnabled ? () => setShowDisableModal(true) : handleEnable2FA}
+          onClick={is2FAEnabled ? () => setShowDisableModal(true) : ()=>setShowSetupPassword(true)}
           disabled={loading2FA}
           style={{
             padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
@@ -168,6 +173,12 @@ const TwoFASection = () => {
         </button>
       </div>
 
+      <Modal isOpen={showSetupPassword} onClose={()=>{if(!loading2FA){setShowSetupPassword(false);setSetupPassword('')}}} title="Confirmer votre identité">
+        <form onSubmit={e=>{e.preventDefault();void handleEnable2FA()}} style={{display:'grid',gap:16}}>
+          <label style={{display:'grid',gap:8}}>{t('currentPassword')}<input type="password" autoComplete="current-password" value={setupPassword} onChange={e=>setSetupPassword(e.target.value)} required style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/></label>
+          <button type="submit" className="btn-premium" disabled={loading2FA||!setupPassword}>{loading2FA?t('inProgress'):t('confirmBtn')}</button>
+        </form>
+      </Modal>
       {/* TOTP Setup Modal */}
       {showSetupModal && createPortal((
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -271,10 +282,11 @@ const TwoFASection = () => {
                 autoFocus
               />
               
+              <label style={{display:'grid',gap:8}}>Code authentificateur (si configuré)<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={disableCode} onChange={e=>setDisableCode(e.target.value.replace(/\D/g,''))} style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/></label>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
-                  onClick={() => { setShowDisableModal(false); setDisablePassword(''); }}
+                  onClick={() => { setShowDisableModal(false); setDisablePassword('');setDisableCode(''); }}
                   style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
                 >
                   {t('cancelBtn')}
