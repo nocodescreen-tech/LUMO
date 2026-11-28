@@ -17,23 +17,23 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          filter: 'drop-shadow(0 6px 14px rgba(62, 156, 148, 0.35))'
+          filter: 'drop-shadow(0 6px 14px rgba(194, 65, 12, 0.35))'
         }}
         title="LUMO - Intelligence Commerce"
       >
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', transform: 'scale(1.15)' }}>
           <defs>
             <linearGradient id={gradientIds.top} x1="10" y1="45" x2="90" y2="45" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#1F7A72" />
-              <stop offset="1" stopColor="#C98A1B" />
+              <stop stopColor="#C2410C" />
+              <stop offset="1" stopColor="#FDBA74" />
             </linearGradient>
             <linearGradient id={gradientIds.left} x1="10" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#B04A26" />
-              <stop offset="1" stopColor="#1F7A72" />
+              <stop stopColor="#9A3412" />
+              <stop offset="1" stopColor="#C2410C" />
             </linearGradient>
             <linearGradient id={gradientIds.right} x1="90" y1="45" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#C98A1B" />
-              <stop offset="1" stopColor="#1F7A72" />
+              <stop stopColor="#FDBA74" />
+              <stop offset="1" stopColor="#C2410C" />
             </linearGradient>
           </defs>
           {/* Back faceted glow */}
@@ -54,7 +54,7 @@ const Logo = ({ size = 42, showText = true, textColor }: { size?: number, showTe
           fontSize: size * 0.72,
           fontWeight: 900,
           letterSpacing: '-0.05em',
-          color: textColor || 'var(--text-main, #17130C)',
+          color: textColor || 'var(--text-main, #18181B)',
           display: 'inline-block',
           fontFamily: "'Inter', 'Outfit', sans-serif",
           whiteSpace: 'nowrap'

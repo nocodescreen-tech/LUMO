@@ -1,3 +1,6 @@
+import './inventory-commercial.css';
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { 
@@ -36,6 +39,7 @@ const StockHistory = () => {
 
     const [movements, setMovements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [dateFilter, setDateFilter] = useState('');
@@ -58,8 +62,9 @@ const StockHistory = () => {
             }
             
             setMovements(movementsList);
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('stockHistoryLoadError'));
+            setLoadError(true); toast.error(t('stockHistoryLoadError'));
         } finally {
             setLoading(false);
         }
@@ -77,7 +82,7 @@ const StockHistory = () => {
         const matchesType = typeFilter === 'ALL' || m.type === typeFilter;
         let matchesDate = true;
         if (dateFilter) {
-            const moveDate = new Date(m.createdAt).toISOString().split('T')[0];
+            const parsed=new Date(m.createdAt);const moveDate=Number.isFinite(parsed.getTime())?new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Kinshasa',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(parsed).filter(p=>['year','month','day'].includes(p.type)).map(p=>p.value).join('-'):'';
             matchesDate = moveDate === dateFilter;
         }
         return matchesSearch && matchesType && matchesDate;
@@ -86,7 +91,9 @@ const StockHistory = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filtered.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const totalPages = Math.max(1,Math.ceil(filtered.length / itemsPerPage));
+    useEffect(()=>{setCurrentPage(1)},[searchTerm,typeFilter,dateFilter]);
+    useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
     const getIcon = (type: string) => {
         if (type === 'ENTREE') return <div style={{ background: 'rgba(15, 157, 106, 0.1)', color: 'var(--success)', padding: '10px', borderRadius: '12px' }}><ArrowUpRight size={20} /></div>;
@@ -94,16 +101,17 @@ const StockHistory = () => {
         return <div style={{ background: 'rgba(62, 110, 142, 0.1)', color: '#2E6E8E', padding: '10px', borderRadius: '12px' }}><Layers size={20} /></div>;
     };
 
+    if (!loading && loadError) return <LoadFailure onRetry={fetchMovements} />;
     return (
-        <motion.div 
+        <motion.div className="ic-page ic-history"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
         >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl"><span className="text-gradient">{t('stockHistoryTitle')} {t('stockHistoryGradient')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('stockHistoryDesc')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('stockHistoryDesc')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button 
@@ -131,7 +139,7 @@ const StockHistory = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="premium-card" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="ic-metrics">{[{label:language==='en'?'Matching movements':'Mouvements filtrés',n:filtered.length},{label:language==='en'?'Entries':'Entrées',n:filtered.filter(m=>m.type==='ENTREE').length},{label:language==='en'?'Exits':'Sorties',n:filtered.filter(m=>m.type==='SORTIE').length},{label:language==='en'?'Adjustments':'Ajustements',n:filtered.filter(m=>m.type==='AJUSTEMENT').length}].map(v=><article key={v.label}><small>{v.label}</small><strong>{v.n}</strong></article>)}</div><div className="premium-card ic-history-filters" style={{ padding: '16px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                     <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input 
@@ -147,6 +155,7 @@ const StockHistory = () => {
                     {['ALL', 'ENTREE', 'SORTIE', 'AJUSTEMENT'].map(tVal => (
                         <button
                             key={tVal}
+                            aria-pressed={typeFilter===tVal}
                             onClick={() => setTypeFilter(tVal)}
                             style={{
                                 padding: '8px 16px',
@@ -182,7 +191,7 @@ const StockHistory = () => {
             {/* Table */}
             <div className="premium-card" style={{ padding: '32px', borderRadius: '32px' }}>
                 <div className="table-responsive">
-                    <table className="table-stockhist" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 12px' }}>
+                    <table className="table-stockhist" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 4px' }}>
                         <thead>
                             <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>
                                 <th style={{ padding: '0 24px' }}>{t('dateAndProduct')}</th>
@@ -233,7 +242,7 @@ const StockHistory = () => {
                                                 {getIcon(m.type)}
                                                 <span style={{ 
                                                     fontWeight: 900, 
-                                                    fontSize: '1.1rem',
+                                                    fontSize: '0.95rem',
                                                     color: m.type === 'ENTREE' ? 'var(--success)' : m.type === 'SORTIE' ? 'var(--danger)' : 'var(--primary)'
                                                 }}>
                                                     {m.type === 'ENTREE' ? '+' : '-'}{m.quantite}

@@ -38,13 +38,19 @@ router.use(protect, authorize('superadmin'));
  *       200:
  *         description: Liste récupérée
  */
+const consoleController=require('../controllers/platformConsoleController');
+router.use('/operations',require('./platformOperationsRoutes'));
+router.use('/backups',require('./platformBackupRoutes'));
+router.get('/console/overview',consoleController.overview);
+router.get('/console/accounts',consoleController.accounts);
+router.get('/console/audit',consoleController.audit);
 router.get('/users', getSuperadminUsers);
 
 router.put('/users/:id/suspend', suspendUser);
 router.put('/users/:id/validate', validateUser);
 router.put('/users/:id/verify', verifyUserEmail);
 router.post('/users/:id/impersonate', impersonateUser);
-router.delete('/users/:id', deleteUser);
+router.delete('/users/:id', (req,res)=>res.status(409).json({message:'Utilisez la suspension. La suppression définitive nécessite un processus de conservation des données et de clôture.'}));
 
 router.get('/logs', getSuperadminLogs);
 router.get('/stats', getSuperadminStats);

@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { convertCurrency }=require('../utils/currency');
 const { sequelize } = require('../config/database');
 
 const Sale = sequelize.define('Sale', {
@@ -27,16 +28,16 @@ const Sale = sequelize.define('Sale', {
         defaultValue: []
     },
     montantTotal: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: false,
         defaultValue: 0.0
     },
     remise: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
     profitNet: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
     methodePaiement: {
@@ -59,7 +60,7 @@ const Sale = sequelize.define('Sale', {
         defaultValue: 'USD'
     },
     tauxChange: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 8),
         defaultValue: 1.0
     },
     devisePaiement: {
@@ -67,9 +68,12 @@ const Sale = sequelize.define('Sale', {
         defaultValue: 'USD'
     },
     montantRecu: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.DECIMAL(20, 2),
         defaultValue: 0.0
     },
+    warehouseId:{type:DataTypes.INTEGER,allowNull:true},
+    accountingCurrency: {type:DataTypes.STRING(3),allowNull:true},
+    cashSessionId: {type:DataTypes.INTEGER,allowNull:true},
     sellerId: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -89,8 +93,8 @@ const Sale = sequelize.define('Sale', {
                     let userNom = 'Système';
                     let shopCurrency = 'USD';
                     if (User) {
-                        const seller = await User.findByPk(sale.sellerId || sale.userId);
-                        const tenant = await User.findByPk(sale.userId);
+                        const seller = await User.findByPk(sale.sellerId || sale.userId,{transaction:options.transaction});
+                        const tenant = sale.sellerId===sale.userId? seller:await User.findByPk(sale.userId,{transaction:options.transaction});
                         if (seller) {
                             userNom = seller.nom;
                         }
@@ -106,7 +110,7 @@ const Sale = sequelize.define('Sale', {
                     // Récupérer le taux de change de l'entreprise si celui de la vente est invalide (1)
                     let rate = sale.tauxChange;
                     if ((!rate || rate === 1) && User) {
-                        const owner = await User.findByPk(sale.userId);
+                        const owner = await User.findByPk(sale.userId,{transaction:options.transaction});
                         rate = owner?.preferences?.exchangeRate || 2800;
                     }
                     
@@ -137,7 +141,7 @@ const Sale = sequelize.define('Sale', {
                     const User = sequelize.models.User;
                     let userNom = 'Système';
                     if (User) {
-                        const seller = await User.findByPk(sale.sellerId || sale.userId);
+                        const seller = await User.findByPk(sale.sellerId || sale.userId,{transaction:options.transaction});
                         if (seller) userNom = seller.nom;
                     }
                     await Activite.create({

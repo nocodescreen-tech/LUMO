@@ -1,0 +1,11 @@
+const router=require('express').Router();
+const {SerialUnit,SerialEvent,Product}=require('../models');
+const {Op}=require('sequelize');
+const {sendResponse}=require('../utils/response');
+const {invalidateCache}=require('../utils/cache');
+const serials=require('../utils/serialService');
+const pageOf=q=>({page:Math.max(1,Math.min(100000,parseInt(q.page)||1)),limit:Math.max(1,Math.min(100,parseInt(q.limit)||25))});
+router.get('/',async(req,res,next)=>{try{const {page,limit}=pageOf(req.query),where={userId:req.user.tenantId};if(['AVAILABLE','SOLD','QUARANTINE'].includes(req.query.status))where.status=req.query.status;if(typeof req.query.q==='string'&&req.query.q.trim()){const q='%'+req.query.q.trim().slice(0,100)+'%';where[Op.or]=[{serial:{[Op.iLike]:q}},{imei:{[Op.iLike]:q}}];}const r=await SerialUnit.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});const products=await Product.findAll({where:{userId:req.user.tenantId,id:r.rows.map(u=>u.productId)},attributes:['id','nom']});return sendResponse(res,200,{rows:r.rows.map(u=>({...u.toJSON(),productName:products.find(p=>p.id===u.productId)?.nom})),total:r.count,page,limit},'Unités identifiées');}catch(e){next(e)}});
+router.get('/:id/events',async(req,res,next)=>{try{const {page,limit}=pageOf(req.query),unit=await SerialUnit.findOne({where:{id:req.params.id,userId:req.user.tenantId}});if(!unit)return res.status(404).json({message:'Unité introuvable'});const r=await SerialEvent.findAndCountAll({where:{userId:req.user.tenantId,unitId:unit.id},order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Historique');}catch(e){next(e)}});
+for(const [route,fn] of [['register',serials.register],['transfer',serials.transfer],['release',serials.release]])router.post('/'+route,async(req,res,next)=>{try{const r=await fn(req);await invalidateCache('products');return sendResponse(res,r.replayed?200:201,r.row,'Opération enregistrée')}catch(e){next(e)}});
+module.exports=router;

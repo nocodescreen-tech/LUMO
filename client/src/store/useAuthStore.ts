@@ -68,58 +68,16 @@ interface AuthState {
   syncPreferencesToServer: (prefs: Partial<UserPreferences>) => Promise<void>;
 }
 
-// ─── SECURITY: localStorage stores ONLY the access token ─────────────────────
-// The full user object (email, phone, enterprise info, preferences) is kept in
-// memory (Zustand store) only and re-fetched from the server on page reload.
-// This prevents sensitive PII from being readable in DevTools localStorage.
-const LEGACY_AUTH_STORAGE_KEYS = [
-  'lumo-auth',
-  'lumo-token',
-  'lumo-token-superadmin',
-  'token',
-  'refreshToken',
-];
-
-let memoryToken: string | null = null;
-
-export const getMemoryToken = (): string | null => memoryToken;
-
-export const setMemoryToken = (token: string | null) => {
-  memoryToken = token;
-};
-
-const clearLegacyAuthStorage = () => {
-  // Only clear truly legacy keys — preserve lumo-token (managed by setStoredToken)
-  // and lumo-token-superadmin (managed by impersonation flow)
-  ['lumo-auth', 'token', 'refreshToken'].forEach((key) => localStorage.removeItem(key));
-};
-
-const getStoredToken = (): string | null => {
-  // Memory-first, localStorage as fallback for cross-reload persistence (impersonation, etc.)
-  return getMemoryToken() || localStorage.getItem('lumo-token');
-};
-
-const setStoredToken = (token: string | null) => {
-  setMemoryToken(token);
-  if (token) {
-    localStorage.setItem('lumo-token', token);
-  } else {
-    localStorage.removeItem('lumo-token');
-  }
-  // Clean up other legacy keys but preserve lumo-token
-  ['lumo-auth', 'lumo-token-superadmin', 'token', 'refreshToken'].forEach((key) => {
-    // Don't delete lumo-token-superadmin here — it's managed by impersonation flow
-    if (key === 'lumo-token-superadmin') return;
-    localStorage.removeItem(key);
-  });
-};
-
-const loadInitialAuth = () => {
-  clearLegacyAuthStorage();
-  return { user: null as User | null, token: null as string | null };
-};
-
+// Access token stays in memory. Reloads use the HttpOnly refresh cookie.
+let memoryToken:string|null=null;
+export const getMemoryToken=()=>memoryToken;
+export const setMemoryToken=(token:string|null)=>{memoryToken=token};
+const clearLegacyAuthStorage=()=>{try{['lumo-auth','lumo-token','lumo-token-superadmin','token','refreshToken'].forEach(k=>localStorage.removeItem(k))}catch{}};
+const getStoredToken=()=>getMemoryToken();
+const setStoredToken=(token:string|null)=>{setMemoryToken(token);clearLegacyAuthStorage()};
+const loadInitialAuth=()=>{clearLegacyAuthStorage();return {user:null as User|null,token:null as string|null}};
 const initialAuth = loadInitialAuth();
+let hydrationPromise:Promise<boolean>|null=null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialAuth.user,
@@ -157,8 +115,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  hydrateFromRefresh: async () => {
-    try {
+  hydrateFromRefresh: () => {
+    if(hydrationPromise)return hydrationPromise;
+    hydrationPromise=(async()=>{try {
       const refreshResponse = await api.post('/auth/refresh');
       const token = refreshResponse.data?.token;
       if (!token) {
@@ -169,6 +128,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       setStoredToken(token);
 
       const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+      if(!getMemoryToken()){set({hydrating:false});return false;}
       const user = data.user || data;
       const prefs = user.preferences || {};
 
@@ -197,12 +157,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       clearLegacyAuthStorage();
       set({ token: null, user: null, hydrating: false });
       return false;
-    }
+    }finally{hydrationPromise=null}})();return hydrationPromise;
   },
 
   logout: async (shouldRedirect = true) => {
     try {
-      await api.post('/auth/logout');
+      await api.post('/auth/logout',{},{timeout:8000});
     } catch (e) {
       // Ignorer si déjà expiré ou réseau coupé
     }
@@ -217,6 +177,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         theme: 'light',
         language: 'fr',
         currency: 'CDF',
+        exchangeRate:0,
         enabledModules: []
     });
 
@@ -227,6 +188,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async (shouldRedirect = true) => {
+    const initialUserId=useAuthStore.getState().user?.id;
     clearLegacyAuthStorage();
     let token = getStoredToken();
     if (!token) {
@@ -239,6 +201,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       // Ajout d'un cache-buster (?t=...) pour forcer le réseau et ignorer le cache PWA/Navigateur
       const { data } = await api.get(`/auth/profile?t=${Date.now()}`);
+      if(!getMemoryToken()||useAuthStore.getState().user&&useAuthStore.getState().user?.id!==(data.user||data).id)return;
       const user = data.user || data;
       const prefs = user.preferences || {};
 
@@ -251,7 +214,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // SECURITY: user object is kept in memory only — NOT persisted to localStorage.
       set({
         user,
-        token,
+        token:getMemoryToken(),
         theme: theme as any,
         language: lang as any,
         enabledModules: modules,
@@ -261,7 +224,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       document.documentElement.setAttribute('data-theme', theme);
     } catch (err) {
-      // Token probably invalid
+      // Network or service failures are not proof that a valid session was revoked.
+      const status=(err as any)?.response?.status;
+      if(status!==401&&status!==403)throw err;
+      if(!getMemoryToken()||useAuthStore.getState().user?.id!==initialUserId)throw err;
       setStoredToken(null);
       clearLegacyAuthStorage();
       set({ token: null, user: null });

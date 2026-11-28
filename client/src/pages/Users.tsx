@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect } from 'react';
 import {
   Users as UsersIcon, Search, Plus, Phone, Mail, Shield, Edit, Trash2, X,
@@ -232,6 +234,7 @@ const Users = () => {
   const { t } = useTranslation();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -257,7 +260,8 @@ const Users = () => {
       if (d.success && d.data) list = Array.isArray(d.data) ? d.data : d.data.data || [];
       else list = Array.isArray(d) ? d : d.data || [];
       setUsers(list);
-    } catch { toast.error(t('usersLoadError')); }
+            setLoadError(false);
+    } catch { setLoadError(true); toast.error(t('usersLoadError')); }
     finally { setLoading(false); }
   };
 
@@ -355,7 +359,8 @@ const Users = () => {
   );
 
   // ─── Rendu ──────────────────────────────────────────────────────
-  return (
+  if (!loading && loadError) return <LoadFailure onRetry={fetchUsers} />;
+    return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '28px', paddingBottom: '40px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
@@ -363,7 +368,7 @@ const Users = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
             <ShieldCheck size={14} /> {t('usersTeamBadge')}
           </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0 }}>
             {t('usersTeamTitle')} <span className="text-gradient">{t('usersTeamGradient')}</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', marginTop: '4px' }}>{t('usersTeamSubtitle')}</p>
@@ -372,7 +377,7 @@ const Users = () => {
           <div className="glass" style={{ padding: '12px 18px', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
             <UsersIcon size={18} color="var(--primary)" />
             <div><span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Équipe</span>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{users.length} membres</div>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{users.length} membres</div>
             </div>
           </div>
           <button onClick={() => { setShowAddModal(true); setNewUser({ ...emptyUser }); setNewPerms(ROLE_PRESETS.caissier); setNewLimits({ ...emptyLimits }); }}

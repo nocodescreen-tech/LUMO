@@ -1,7 +1,6 @@
 const express = require('express');
 const Sentry = require("@sentry/node");
 const compression = require('compression');
-const helmet = require('helmet');
 const { connectDB, sequelize } = require('./config/database');
 const config = require('./config');
 const securityMiddleware = require('./middleware/security');
@@ -16,6 +15,10 @@ const Redis = require("ioredis");
 
 // Initialisation de l'application
 const app = express();
+app.disable('x-powered-by');
+app.use(require('./middleware/backendHeaders'));
+// ERP responses must not be stored by browser or intermediary HTTP caches.
+app.use('/api',(_req,res,next)=>{res.set('Cache-Control','private, no-store');next()});
 
 // Sentry Initialization (Must be first)
 if (process.env.SENTRY_DSN) {
@@ -29,9 +32,12 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Socket.io with Redis Adapter (for PM2 Cluster stability)
-const io = new Server(server, { 
-    cors: { origin: "*" },
-    transports: ['websocket', 'polling']
+const {allowedOrigin}=require('./middleware/sessionOrigin');
+const {socketIdentity}=require('./middleware/socketAuth');
+const io = new Server(server, {
+    cors:{origin:(origin,callback)=>callback(null,!origin||allowedOrigin(origin))},
+    allowRequest:(req,callback)=>callback(null,!req.headers.origin||allowedOrigin(req.headers.origin)),
+    transports:['websocket','polling']
 });
 
 // Setup Redis Adapter (supports REDIS_URL for Railway or individual env vars)
@@ -69,15 +75,31 @@ pubClient.connect().then(() => {
 
 global.io = io;
 
-io.on("connection", (socket) => {
-    socket.on("join", (userId) => {
-        socket.join(`user_${userId}`);
-    });
+io.use(async(socket,next)=>{
+ const identity=await socketIdentity(socket.handshake.auth?.token,socket.handshake.headers.origin);
+ if(!identity)return next(new Error('Unauthorized'));
+ Object.assign(socket.data,identity);
+ next();
+});
+io.on('connection',socket=>{
+ socket.join('user_'+socket.data.userId);
+ let checking=false;
+ const timer=setInterval(async()=>{
+  if(checking)return;checking=true;
+  try{
+   const identity=await socketIdentity(socket.handshake.auth?.token,socket.handshake.headers.origin);
+   if(!identity||identity.userId!==socket.data.userId||identity.tenantId!==socket.data.tenantId)socket.disconnect(true);
+  }finally{checking=false}
+ },60000);
+ timer.unref?.();socket.once('disconnect',()=>clearInterval(timer));
 });
 
-setupSwagger(app);
+// Developer documentation is not public by default in production.
+if(config.env!=='production'||process.env.LUMO_PUBLIC_API_DOCS==='true')setupSwagger(app);
 
 // Middlewares de base
+app.use(require('./utils/operationalMetrics').observe);
+app.use(['/api/backup/preview','/api/v1/backup/preview'],express.json({limit:'8mb'}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
@@ -91,7 +113,7 @@ app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
+    logger.info(`${req.method} ${res.statusCode} - ${duration}ms request=${req.operationRequestId}`);
   });
   next();
 });
@@ -138,6 +160,15 @@ v1Routes.use('/superadmin', require('./routes/superadminRoutes'));
 v1Routes.use('/notifications', require('./routes/notificationRoutes'));
 v1Routes.use('/cash-sessions', require('./routes/cashRoutes'));
 v1Routes.use('/cash', require('./routes/cashRoutes'));
+v1Routes.use('/finance', require('./routes/financeRoutes'));
+v1Routes.use('/workspace', require('./routes/workspaceRoutes'));
+v1Routes.use('/inventory', require('./routes/inventoryRoutes'));
+v1Routes.use('/repairs', require('./routes/repairRoutes'));
+v1Routes.use('/documents', require('./routes/documentRoutes'));
+v1Routes.use('/platform/billing', require('./routes/platformBillingRoutes'));
+v1Routes.use('/support', require('./routes/supportRoutes'));
+v1Routes.use('/expenses', require('./routes/depenseRoutes'));
+v1Routes.use('/depenses', require('./routes/depenseRoutes'));
 v1Routes.use('/backup', require('./routes/backupRoutes'));
 v1Routes.use('/ux', require('./routes/uxRoutes'));
 v1Routes.use('/subusers', require('./routes/subUserRoutes'));
@@ -159,14 +190,14 @@ app.get('/health', async (req, res) => {
         res.status(503).json({ 
             status: 'DOWN', 
             database: 'DISCONNECTED',
-            error: err.message 
+            timestamp: new Date() 
         });
     }
 });
 
 // Catch 404 and forward to error handler
 app.use((req, res, next) => {
-  const error = new Error(`Non trouvé - ${req.originalUrl}`);
+  const error = new Error('Route introuvable');
   error.statusCode = 404;
   next(error);
 });
@@ -192,6 +223,7 @@ if (require.main === module) {
     
     // Initialisation des tâches planifiées (Cron)
     initBackupCron();
+    require('./cron/notificationCron').initNotificationCron();
   });
 
   server.on('error', (err) => {

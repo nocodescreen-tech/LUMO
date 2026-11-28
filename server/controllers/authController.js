@@ -4,6 +4,10 @@ const generateToken = require('../utils/generateToken');
 const { validateRegister, validateLogin } = require('../middleware/validators');
 const { logActivite } = require('./activiteController');
 const crypto = require('crypto');
+const {sequelize}=require('../config/database');
+const {fail}=require('../utils/transactionSafety');
+const emailPattern=value=>String(value??'').replace(/[\\%_]/g,c=>'\\'+c);
+const hashMfa=value=>crypto.createHash('sha256').update(String(value)).digest('hex');
 const { sendEmail, getVerificationTemplate, getResetPasswordTemplate } = require('../utils/emailService');
 const { uploadImage } = require('../utils/cloudinary');
 const { authenticator } = require('otplib');
@@ -38,8 +42,7 @@ const registerAdmin = async (req, res, next) => {
     console.warn(`[LUMO_VAL_FAIL] ${error.details[0].message}`);
     return res.status(400).json({ 
       message: error.details[0].message,
-      field: error.details[0].path[0],
-      receivedData: { ...req.body, motDePasse: '***' } 
+      field: error.details[0].path[0] 
     });
   }
 
@@ -47,16 +50,17 @@ const registerAdmin = async (req, res, next) => {
 
   try {
     const { Op } = require('sequelize');
-    const userExists = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const userExists = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     if (userExists) return res.status(400).json({ message: 'Cet email est déjà utilisé par un autre compte' });
 
     // Check if it's the first user ever
-    const isFirstUser = (await User.count()) === 0;
+    // Platform administrators must be provisioned explicitly outside public registration.
+    const isFirstUser = false;
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`[DEV ONLY] Code de vérification pour ${email} : ${verificationCode}`);
+    const verificationCode = crypto.randomInt(100000,1000000).toString();
+
     
-    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const hashedVerificationCode = 'v1:'+Date.now()+':'+hashMfa(verificationCode);
 
     const avatarUrl = req.file ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype) : 'default_avatar.png';
 
@@ -127,9 +131,9 @@ const loginAdmin = async (req, res, next) => {
 
   const startTime = Date.now();
   try {
-    console.log(`[AUTH_PERF] Login start for ${email}`);
+    console.log('[AUTH_PERF] Login start');
     const { Op } = require('sequelize');
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     console.log(`[AUTH_PERF] DB FindUser: ${Date.now() - startTime}ms`);
 
     if (!user) {
@@ -161,7 +165,18 @@ const loginAdmin = async (req, res, next) => {
 
     // ---- 2FA CHECK (TOTP / Google Authenticator) ----
     if (user.twoFactorEnabled) {
+      const challenge=crypto.randomBytes(32).toString('hex');
+      const emailCode=user.twoFactorSecret?null:crypto.randomInt(100000,1000000).toString();
+      await sequelize.transaction(async transaction=>{
+       const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+       if(!locked||locked.motDePasse!==user.motDePasse||locked.isSuspended||!locked.twoFactorEnabled||locked.twoFactorSecret!==user.twoFactorSecret||(locked.role!=='superadmin'&&(!locked.isVerified||!locked.isAdminValidated)))throw fail('Identifiants ou état du compte modifiés, reconnectez-vous',401);
+       locked.twoFactorCode='login:'+hashMfa(challenge)+(emailCode?':'+hashMfa(emailCode):'');
+       locked.twoFactorExpire=Date.now()+5*60*1000;
+       await locked.save({hooks:false,transaction});
+      });
+      if(emailCode)await sendEmail({email:user.email,subject:'Code de connexion LUMO',html:getVerificationTemplate(emailCode,user.nom)});
       return res.status(200).json({
+        challenge,
         requires2FA: true,
         userId: user.id,
         mfaType: user.twoFactorSecret ? 'totp' : 'email',
@@ -173,20 +188,13 @@ const loginAdmin = async (req, res, next) => {
     const sessionId = crypto.randomBytes(16).toString('hex');
     const { accessToken, refreshToken } = generateToken(user.id, sessionId);
 
-    setRefreshTokenCookie(res, refreshToken);
-
-    // Manage concurrent sessions (limit to 5)
-    let sessions = user.activeSessions || [];
-    sessions.push({ 
-        sessionId, 
-        userAgent: req.headers['user-agent'], 
-        ip: req.ip,
-        createdAt: new Date() 
+    await sequelize.transaction(async transaction=>{
+      const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+      if(!locked||locked.motDePasse!==user.motDePasse||locked.isSuspended||locked.twoFactorEnabled||(locked.role!=='superadmin'&&(!locked.isVerified||!locked.isAdminValidated)))throw fail('Identifiants ou état du compte modifiés, reconnectez-vous',401);
+      locked.activeSessions=[...(locked.activeSessions||[]),{sessionId,userAgent:req.headers['user-agent'],ip:req.ip,createdAt:new Date()}].slice(-5);
+      await locked.save({hooks:false,transaction});
     });
-    if (sessions.length > 5) sessions.shift(); // Remove oldest
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
+    setRefreshTokenCookie(res,refreshToken);
 
     // Non-blocking activity log (Fire and Forget for better performance)
     logActivite(user.id, 'CONNEXION', 'Utilisateur s\'est connecté', req.ip, user.parentId || user.id, user.nom);
@@ -212,115 +220,54 @@ const loginAdmin = async (req, res, next) => {
 };
 
 // @desc  Verify 2FA OTP and return tokens
-const verify2FA = async (req, res, next) => {
-  const { userId, code } = req.body;
-  if (!userId || !code) return res.status(400).json({ message: 'userId et code requis' });
-
-  try {
-    const user = await User.findByPk(userId);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    let isVerified = false;
-
-    // Mode TOTP (Google Authenticator)
-    if (user.twoFactorSecret) {
-      authenticator.options = { window: 1 };
-      isVerified = authenticator.check(String(code), user.twoFactorSecret);
-    } 
-    // Mode Email (Fallback)
-    else {
-      const hashed = crypto.createHash('sha256').update(code).digest('hex');
-      if (user.twoFactorCode === hashed && user.twoFactorExpire > Date.now()) {
-        isVerified = true;
-      }
-    }
-
-    if (!isVerified) return res.status(400).json({ message: 'Code invalide ou expiré' });
-
-    // Clear temporary 2FA code (not secret)
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'CONNEXION', 'Connexion 2FA réussie', 'System', user.parentId || user.id);
-    
-    const sessionId = crypto.randomBytes(16).toString('hex');
-    const { accessToken, refreshToken } = generateToken(user.id, sessionId);
-    setRefreshTokenCookie(res, refreshToken);
-
-    // Manage sessions
-    let sessions = user.activeSessions || [];
-    sessions.push({ sessionId, createdAt: new Date(), userAgent: req.headers['user-agent'] });
-    if (sessions.length > 5) sessions.shift();
-    user.activeSessions = sessions;
-    await user.save({ hooks: false });
-    res.status(200).json({
-      id: user.id,
-      nom: user.nom,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      preferences: user.preferences,
-      entreprise: user.entreprise,
-      twoFactorEnabled: user.twoFactorEnabled,
-      token: accessToken,
-      // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
-      permissions: user.permissions,
-    });
-  } catch (error) {
-    next(error);
-  }
+const verify2FA=async(req,res,next)=>{
+ const {userId,code,challenge}=req.body;
+ if(!userId||!/^\d{6}$/.test(String(code))||typeof challenge!=='string'||!/^\w{64}$/.test(challenge))return res.status(400).json({message:'Tentative de connexion invalide'});
+ try{
+  const result=await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(userId,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!user.twoFactorEnabled||user.isSuspended||(user.role!=='superadmin'&&(!user.isVerified||!user.isAdminValidated)))throw fail('Tentative de connexion invalide',401);
+   const parts=String(user.twoFactorCode||'').split(':');
+   if(parts[0]!=='login'||parts[1]!==hashMfa(challenge)||Number(user.twoFactorExpire)<=Date.now())throw fail('Tentative expirée, reconnectez-vous',401);
+   const valid=user.twoFactorSecret?authenticator.check(String(code),user.twoFactorSecret):parts[2]===hashMfa(code);
+   if(!valid)throw fail('Code invalide',400);
+   user.twoFactorCode=null;user.twoFactorExpire=null;
+   const sessionId=crypto.randomBytes(16).toString('hex'),tokens=generateToken(user.id,sessionId);
+   user.activeSessions=[...(user.activeSessions||[]),{sessionId,createdAt:new Date(),userAgent:req.headers['user-agent'],ip:req.ip}].slice(-5);
+   await user.save({hooks:false,transaction});return {user,tokens};
+  });
+  const {user,tokens}=result;setRefreshTokenCookie(res,tokens.refreshToken);
+  await logActivite(user.id,'CONNEXION','Connexion 2FA réussie','System',user.parentId||user.id);
+  return res.status(200).json({id:user.id,nom:user.nom,email:user.email,role:user.role,avatar:user.avatar,preferences:user.preferences,entreprise:user.entreprise,twoFactorEnabled:user.twoFactorEnabled,permissions:user.permissions,token:tokens.accessToken});
+ }catch(error){next(error);}
 };
 
 // @desc  Refresh access token using a valid refresh token
 const refreshAccessToken = async (req, res, next) => {
-  const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
   if (!refreshToken) return res.status(400).json({ message: 'Refresh token requis' });
 
   try {
     const jwt = require('jsonwebtoken');
     const config = require('../config');
-    const decoded = jwt.verify(refreshToken, config.jwt.secret);
+    const decoded = jwt.verify(refreshToken, config.jwt.secret,{algorithms:['HS256']});
 
-    if (decoded.type !== 'refresh') {
+    if (decoded.type !== 'refresh'||decoded.isImpersonating) {
       return res.status(401).json({ message: 'Token invalide' });
     }
 
     const user = await User.findByPk(decoded.id);
     if (!user) return res.status(401).json({ message: 'Utilisateur non trouvé' });
 
-    if (user.isSuspended) {
-      return res.status(403).json({ message: 'Votre compte est suspendu' });
-    }
-
+    if(user.isSuspended|| (user.role!=='superadmin'&&(!user.isVerified||!user.isAdminValidated)))return res.status(403).json({message:'Compte indisponible'});
+    if(user.parentId){const owner=await User.findByPk(user.parentId,{attributes:['id','role','parentId','isSuspended','isVerified','isAdminValidated']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended||!owner.isVerified||!owner.isAdminValidated)return res.status(403).json({message:'Entreprise indisponible'});}
     const sessionId = decoded.sessionId;
+    if(!sessionId||!(user.activeSessions||[]).some(s=>s.sessionId===sessionId))return res.status(401).json({message:'Session révoquée',code:'SESSION_REPLACED'});
     const { accessToken, refreshToken: newRefreshToken } = generateToken(user.id, sessionId);
 
     setRefreshTokenCookie(res, newRefreshToken);
 
-    // M6 Fix: Ne pas écraser activeSessions si le sessionId est le même,
-    // mais on peut quand même mettre à jour les métadonnées (userAgent, IP)
-    let sessions = user.activeSessions || [];
-    const currentSession = sessions.find(s => s.sessionId === sessionId);
-    if (currentSession) {
-      currentSession.userAgent = req.headers['user-agent'];
-      currentSession.ip = req.ip;
-      currentSession.updatedAt = new Date();
-    } else {
-      // Au cas où la session n'existait plus en BDD (nettoyage agressif), on la recrée
-      sessions.push({ 
-        sessionId, 
-        userAgent: req.headers['user-agent'], 
-        ip: req.ip,
-        createdAt: new Date() 
-      });
-      if (sessions.length > 5) sessions.shift();
-    }
-    
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
-
+    // Refresh never rewrites activeSessions: concurrent revocations must remain durable.
     // SECURITY: refreshToken is only set as an httpOnly cookie, not returned in JSON body.
     res.status(200).json({ token: accessToken });
   } catch (error) {
@@ -332,162 +279,96 @@ const refreshAccessToken = async (req, res, next) => {
 };
 
 // @desc  Setup TOTP (Generate QR Code)
-const setupTOTP = async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    // Réinitialiser seulement les champs actifs de setup précédent (pas twoFactorEnabled)
-    // pour éviter de perdre l'état activé si on re-scanne le QR code
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-
-    const secret = authenticator.generateSecret();
-    const otpauth = authenticator.keyuri(user.email, 'LUMO Pro', secret);
-
-    // Le secret est stocké dans twoFactorCode (champ réutilisé temporairement)
-    user.twoFactorCode = secret;
-    user.twoFactorExpire = Date.now() + 15 * 60 * 1000;
-    await user.save({ hooks: false });
-
-    const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
-    res.status(200).json({
-      qrCode: qrCodeDataUrl,
-      secret: secret,
-      message: "Scannez le QR Code avec Google Authenticator."
-    });
-  } catch (error) {
-    next(error);
-  }
+const validCurrentPassword=value=>typeof value==='string'&&value.length>0&&Buffer.byteLength(value,'utf8')<=1024;
+const setupTOTP=async(req,res,next)=>{
+ try{
+  const password=req.body?.currentPassword;
+  if(!validCurrentPassword(password))throw fail('Mot de passe actuel requis');
+  const result=await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(!await user.matchMotDePasse(password))throw fail('Mot de passe actuel incorrect',403);
+   if(user.twoFactorEnabled)throw fail('Double authentification déjà activée',409);
+   const secret=authenticator.generateSecret();
+   user.twoFactorCode='setup:'+req.authSessionId+':'+secret;user.twoFactorExpire=Date.now()+15*60*1000;
+   await user.save({hooks:false,transaction});
+   return {secret,email:user.email};
+  });
+  const qrCode=await qrcode.toDataURL(authenticator.keyuri(result.email,'LUMO Pro',result.secret));
+  res.set('Cache-Control','private, no-store');
+  return res.json({qrCode,secret:result.secret,message:'Scannez le QR Code avec Google Authenticator.'});
+ }catch(e){next(e)}
 };
-
-// @desc  Verify and enable TOTP
-const activateTOTP = async (req, res, next) => {
-  try {
-    const { code } = req.body;
-    const user = await User.findByPk(req.user.id);
-
-    // Le secret temporaire était dans twoFactorCode
-    const secret = user.twoFactorCode;
-    if (!secret) return res.status(400).json({ message: "Session d'activation expirée." });
-
-    // Vérifier l'expiration de la session de setup TOTP
-    if (user.twoFactorExpire && Number(user.twoFactorExpire) < Date.now()) {
-      // Nettoyage de sécurité
-      user.twoFactorCode = null;
-      user.twoFactorExpire = null;
-      await user.save({ hooks: false });
-      return res.status(400).json({ message: "Session d'activation TOTP expirée. Recommencez depuis le début." });
-    }
-
-    authenticator.options = { window: 1 }; // Allow 1 step (30s) before/after
-    const isVerified = authenticator.check(String(code), secret);
-    if (!isVerified) return res.status(400).json({ message: "Code incorrect. Réessayez." });
-
-    user.twoFactorSecret = secret;
-    user.twoFactorEnabled = true;
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'SECURITE', 'Double authentification TOTP activée', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Double authentification activée avec succès.' });
-  } catch (error) {
-    next(error);
-  }
+const activateTOTP=async(req,res,next)=>{
+ try{
+  const code=String(req.body?.code??'');if(!/^\d{6}$/.test(code))throw fail('Code invalide');
+  await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(user.twoFactorEnabled)throw fail('Double authentification déjà activée',409);
+   const [kind,sessionId,secret]=String(user.twoFactorCode||'').split(':');
+   if(kind!=='setup'||sessionId!==req.authSessionId||!secret||!(Number(user.twoFactorExpire)>Date.now()))throw fail('Configuration expirée ou autre session',400);
+   if(!authenticator.check(code,secret))throw fail('Code incorrect',400);
+   user.twoFactorSecret=secret;user.twoFactorEnabled=true;user.twoFactorCode=null;user.twoFactorExpire=null;
+   user.activeSessions=(user.activeSessions||[]).filter(v=>v.sessionId===req.authSessionId);
+   await user.save({hooks:false,transaction});
+  });
+  await logActivite(req.user.id,'SECURITE','Double authentification TOTP activée','System',req.user.tenantId);
+  res.json({message:'Double authentification activée. Autres sessions révoquées.'});
+ }catch(e){next(e)}
 };
-
-// @desc  Disable 2FA for current user
-const disable2FA = async (req, res, next) => {
-  try {
-    const { motDePasse } = req.body;
-    if (!motDePasse) {
-      return res.status(400).json({ message: 'Mot de passe requis pour désactiver la 2FA' });
-    }
-
-    const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
-
-    const valid = await user.matchMotDePasse(motDePasse);
-    if (!valid) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
-    }
-
-    user.twoFactorEnabled = false;
-    user.twoFactorSecret = null;
-    user.twoFactorCode = null;
-    user.twoFactorExpire = null;
-    await user.save({ hooks: false });
-
-    await logActivite(user.id, 'SECURITE', 'Double authentification désactivée', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Double authentification désactivée', twoFactorEnabled: false });
-  } catch (error) {
-    next(error);
-  }
+const disable2FA=async(req,res,next)=>{
+ try{
+  const password=req.body?.motDePasse;
+  if(!validCurrentPassword(password))throw fail('Mot de passe requis');
+  await sequelize.transaction(async transaction=>{
+   const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});
+   if(!user||!(user.activeSessions||[]).some(v=>v.sessionId===req.authSessionId))throw fail('Session invalide',401);
+   if(!await user.matchMotDePasse(password))throw fail('Mot de passe incorrect',403);
+   if(!user.twoFactorEnabled)throw fail('Double authentification déjà désactivée',409);
+   if(user.twoFactorSecret){
+    const code=String(req.body?.code??'');
+    if(!/^\d{6}$/.test(code)||!authenticator.check(code,user.twoFactorSecret))throw fail('Code authentificateur requis ou incorrect',403);
+   }
+   user.twoFactorEnabled=false;user.twoFactorSecret=null;user.twoFactorCode=null;user.twoFactorExpire=null;
+   user.activeSessions=(user.activeSessions||[]).filter(v=>v.sessionId===req.authSessionId);
+   await user.save({hooks:false,transaction});
+  });
+  await logActivite(req.user.id,'SECURITE','Double authentification désactivée','System',req.user.tenantId);
+  res.json({message:'Double authentification désactivée. Autres sessions révoquées.',twoFactorEnabled:false});
+ }catch(e){next(e)}
 };
 
 // @desc    Vérifier l'email avec le code
-const verifyEmail = async (req, res, next) => {
-  const { email, code } = req.body;
-  try {
-    const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
-    const user = await User.findOne({ 
-      where: { 
-        email: { [Op.iLike]: email }, 
-        verificationCode: hashedCode 
-      } 
-    });
-    if (!user) return res.status(400).json({ message: 'Code de vérification invalide' });
-
-    user.isVerified = true;
-    user.isAdminValidated = true; // Auto-validate once email is verified via OTP
-    user.verificationCode = null;
-
-    const sessionId = crypto.randomBytes(16).toString('hex');
-    const tokens = generateToken(user.id, sessionId);
-    let sessions = user.activeSessions || [];
-    sessions.push({
-      sessionId,
-      userAgent: req.headers['user-agent'],
-      ip: req.ip,
-      createdAt: new Date()
-    });
-    if (sessions.length > 5) sessions.shift();
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
-
-    setRefreshTokenCookie(res, tokens.refreshToken);
-
-    res.status(200).json({
-      id: user.id,
-      nom: user.nom,
-      email: user.email,
-      role: user.role,
-      avatar: user.avatar,
-      preferences: user.preferences,
-      entreprise: user.entreprise,
-      twoFactorEnabled: user.twoFactorEnabled,
-      token: tokens.accessToken,
-      message: 'Email vérifié avec succès'
-    });
-  } catch (error) {
-    next(error);
-  }
+const verifyEmail=async(req,res,next)=>{
+ const {email,code}=req.body;
+ if(typeof email!=='string'||!/^\d{6}$/.test(String(code)))return res.status(400).json({message:'Code de vérification invalide'});
+ try{
+ const result=await sequelize.transaction(async transaction=>{
+  const user=await User.findOne({where:{email:{[Op.iLike]:emailPattern(email)}},transaction,lock:transaction.LOCK.UPDATE});
+  const [version,issued,hash]=String(user?.verificationCode||'').split(':');
+  if(!user||user.isVerified||user.isSuspended||version!=='v1'||Date.now()-Number(issued)>15*60*1000||!Number.isFinite(Number(issued))||hash!==hashMfa(code))throw fail('Code invalide ou expiré; demandez un nouveau code',400);
+  user.isVerified=true;user.isAdminValidated=true;user.verificationCode=null;
+  const sessionId=crypto.randomBytes(16).toString('hex'),tokens=generateToken(user.id,sessionId);
+  user.activeSessions=[...(user.activeSessions||[]),{sessionId,createdAt:new Date(),ip:req.ip,userAgent:req.headers['user-agent']}].slice(-5);
+  await user.save({hooks:false,transaction});return {user,tokens};
+ });
+ const {user,tokens}=result;setRefreshTokenCookie(res,tokens.refreshToken);return res.json({id:user.id,nom:user.nom,email:user.email,role:user.role,avatar:user.avatar,preferences:user.preferences,entreprise:user.entreprise,twoFactorEnabled:user.twoFactorEnabled,permissions:user.permissions,token:tokens.accessToken,message:'Email vérifié avec succès'});
+ }catch(e){next(e)}
 };
 
 // @desc    Mot de passe oublié (Envoi OTP)
 const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
-    if (!user) return res.status(404).json({ message: "Aucun utilisateur avec cet email" });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
+    if (!user) return res.status(200).json({message:'Si ce compte existe, un code de récupération sera envoyé.'});
 
     // Générer un code OTP à 6 chiffres
-    const resetOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetOTP = crypto.randomInt(100000,1000000).toString();
     
     user.resetPasswordToken = crypto.createHash('sha256').update(resetOTP).digest('hex');
-    user.resetPasswordExpire = Date.now() + 3600000; // 1 heure
+    user.resetPasswordExpire = new Date(Date.now()+15*60*1000);
 
     await user.save();
 
@@ -517,7 +398,7 @@ const verifyResetCode = async (req, res, next) => {
     
     const user = await User.findOne({
       where: {
-        email: { [Op.iLike]: email },
+        email: { [Op.iLike]:emailPattern(email) },
         resetPasswordToken,
         resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
       }
@@ -532,44 +413,42 @@ const verifyResetCode = async (req, res, next) => {
 };
 
 // @desc    Réinitialiser le mot de passe final
-const resetPassword = async (req, res, next) => {
-  const { email, code, motDePasse } = req.body;
-  try {
-    const resetPasswordToken = crypto.createHash('sha256').update(code).digest('hex');
-    
-    const user = await User.findOne({
-      where: {
-        email: { [Op.iLike]: email },
-        resetPasswordToken,
-        resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
-      }
-    });
-
-    if (!user) return res.status(400).json({ message: 'Session de récupération expirée' });
-
-    user.motDePasse = motDePasse;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
-    await user.save();
-
-    await logActivite(user.id, 'SECURITE', 'Mot de passe réinitialisé', 'System', user.parentId || user.id);
-    res.status(200).json({ message: 'Votre mot de passe a été modifié avec succès' });
-  } catch (error) {
-    next(error);
-  }
+const resetPassword=async(req,res,next)=>{
+ const {email,code,motDePasse}=req.body;
+ if(typeof email!=='string'||!/^\d{6}$/.test(String(code))||typeof motDePasse!=='string'||!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,72}$/.test(motDePasse)||Buffer.byteLength(motDePasse)>72)return res.status(400).json({message:'Code ou mot de passe invalide'});
+ try{
+ const user=await sequelize.transaction(async transaction=>{
+  const row=await User.findOne({where:{email:{[Op.iLike]:emailPattern(email)},resetPasswordToken:hashMfa(code),resetPasswordExpire:{[Op.gt]:new Date()}},transaction,lock:transaction.LOCK.UPDATE});
+  if(!row||row.isSuspended)throw fail('Session de récupération expirée');
+  row.motDePasse=motDePasse;row.resetPasswordToken=null;row.resetPasswordExpire=null;row.activeSessions=[];row.twoFactorCode=null;row.twoFactorExpire=null;await row.save({transaction});return row;
+ });
+ await logActivite(user.id,'SECURITE','Mot de passe réinitialisé','System',user.parentId||user.id);return res.json({message:'Votre mot de passe a été modifié avec succès'});
+ }catch(e){next(e)}
 };
 
 // @desc    Mise à jour du profil / paramètres (y compris avatar)
 const updateProfile = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id);
-    const { nom, telephone, email, entreprise, preferences, typeActivite, avatar, motDePasse } = req.body;
+    const { nom, telephone, email, entreprise, preferences, typeActivite, avatar, motDePasse, currentPassword } = req.body;
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
+    // Require re-authentication before any profile mutation that changes credentials.
+    let sessionId=null;
+    if(motDePasse){
+      if(typeof currentPassword!=='string'||!currentPassword||Buffer.byteLength(currentPassword,'utf8')>1024)return res.status(400).json({message:'Mot de passe actuel requis'});
+      if(typeof motDePasse!=='string'||Buffer.byteLength(motDePasse,'utf8')>72)return res.status(400).json({message:'Le nouveau mot de passe ne doit pas dépasser 72 octets'});
+      if(!await user.matchMotDePasse(currentPassword))return res.status(403).json({message:'Mot de passe actuel incorrect'});
+      const decoded=require('jsonwebtoken').verify(req.headers.authorization.split(' ')[1],require('../config').jwt.secret,{algorithms:['HS256']});
+      sessionId=decoded.sessionId;
+      if(!sessionId)return res.status(401).json({message:'Session invalide'});
+    }
+    const originalHash=user.motDePasse;
+
     // Use explicit undefined checks to prevent falsy values (like "") from keeping old data
     if (nom !== undefined && nom !== null && nom.trim() !== '') user.nom = nom.trim();
-    if (email !== undefined && email !== null) user.email = email;
+    if(email!==undefined&&email!==null&&email!==user.email)return res.status(409).json({message:'Le changement d’adresse email nécessite une procédure de vérification. Contactez le support.'});
     if (telephone !== undefined && telephone !== null) user.telephone = telephone;
     if (typeActivite !== undefined && typeActivite !== null) user.typeActivite = typeActivite;
     if (entreprise !== undefined && entreprise !== null) user.entreprise = entreprise;
@@ -595,7 +474,6 @@ const updateProfile = async (req, res, next) => {
           message: 'Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).'
         });
       }
-      user.motDePasse = motDePasse;
     }
 
     if (preferences?.exchangeRate !== undefined) {
@@ -605,7 +483,15 @@ const updateProfile = async (req, res, next) => {
       }
     }
 
-    const updatedUser = await user.save();
+    const updatedUser=motDePasse?await sequelize.transaction(async transaction=>{
+      const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+      if(!locked||locked.motDePasse!==originalHash||!(locked.activeSessions||[]).some(v=>v.sessionId===sessionId))throw fail('Session ou mot de passe modifié, reconnectez-vous',401);
+      for(const field of user.changed()||[])locked.set(field,user.get(field));
+      locked.motDePasse=motDePasse;
+      locked.activeSessions=(locked.activeSessions||[]).filter(v=>v.sessionId===sessionId);
+      locked.twoFactorCode=null;locked.twoFactorExpire=null;locked.resetPasswordToken=null;locked.resetPasswordExpire=null;
+      return locked.save({transaction});
+    }):await user.save();
     
     // Log activity
     await logActivite(
@@ -673,7 +559,9 @@ const logoutAdmin = async (req, res, next) => {
     
     if (token) {
         const { blacklistToken } = require('../middleware/authMiddleware');
-        blacklistToken(token);
+        await blacklistToken(token);
+        const decoded=require('jsonwebtoken').verify(token,require('../config').jwt.secret);
+        await sequelize.transaction(async transaction=>{const user=await User.findByPk(req.user.id,{transaction,lock:transaction.LOCK.UPDATE});if(user){user.activeSessions=(user.activeSessions||[]).filter(s=>s.sessionId!==decoded.sessionId);await user.save({hooks:false,transaction});}});
     }
     
     await logActivite(req.user.id, 'DECONNEXION', 'Utilisateur déconnecté (Jeton révoqué)', 'System', req.user.tenantId);
@@ -731,16 +619,16 @@ const resendCode = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email requis' });
 
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     if (user.isVerified) return res.status(400).json({ message: 'Compte déjà vérifié' });
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log(`[DEV ONLY] NOUVEAU Code de vérification pour ${email} : ${verificationCode}`);
+    const verificationCode = crypto.randomInt(100000,1000000).toString();
+
     
-    const hashedVerificationCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const hashedVerificationCode = 'v1:'+Date.now()+':'+hashMfa(verificationCode);
     user.verificationCode = hashedVerificationCode;
-    user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    // Expiration is encoded in the persisted verificationCode field.
     await user.save();
 
     const { sendEmail, getVerificationTemplate } = require('../utils/emailService');

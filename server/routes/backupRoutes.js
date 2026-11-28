@@ -1,11 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
-const { exportBackup, exportEmailBackup, importBackup, previewBackup } = require('../controllers/backupController');
-
-router.get('/export', protect, exportBackup);
-router.get('/email', protect, exportEmailBackup);
-router.post('/import', protect, importBackup);
-router.post('/preview', protect, previewBackup);
-
-module.exports = router;
+const router=require('express').Router();
+const {protect,authorize}=require('../middleware/authMiddleware');
+const controller=require('../controllers/backupController');
+const rateLimit=require('express-rate-limit');
+const limiter=rateLimit({windowMs:60000,max:10,standardHeaders:true,legacyHeaders:false});
+router.use(protect,authorize('admin'),limiter);
+router.get('/export',controller.exportBackup);
+router.post('/email',controller.exportEmailBackup);
+router.post('/preview',controller.previewBackup);
+router.post('/import',controller.importBackup);
+router.get('/history',controller.history);
+module.exports=router;

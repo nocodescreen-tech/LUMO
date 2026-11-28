@@ -10,6 +10,8 @@ interface CartItem {
   quantite: number;
   image?: string;
   prixAchat?: number;
+  serialTracked?: boolean;
+  serialInput?: string;
   selectedVariantes?: { nom: string; valeur: string }[];
   cartId: string; // composite key: id + variant values string
 }
@@ -20,6 +22,7 @@ interface CartState {
   removeFromCart: (cartId: string) => void;
   updateQuantity: (cartId: string, qte: number) => void;
   clearCart: () => void;
+  setSerialInput: (cartId:string,value:string)=>void;
   getTotal: () => number;
 }
 
@@ -38,7 +41,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   cart: [],
   addToCart: (product, globalCurrency = 'CDF', exchangeRate = 2250, selectedVariantes = []) => {
     const { cart } = get();
-    const rawPrice = product.prixVente || product.prix || 0;
+    const available=Number(product.stock);
+    if(Number.isFinite(available)&&cart.filter(i=>i.id===product.id).reduce((sum,i)=>sum+i.quantite,0)>=available)return;
+    const rawPrice = product.prixVente ?? product.prix ?? 0;
     const productDevise = product.devise || globalCurrency;
     const normalizedPrice = normalize(rawPrice, productDevise, globalCurrency, exchangeRate);
 
@@ -61,6 +66,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         quantite: 1,
         image: product.image,
         prixAchat: product.prixAchat || 0,
+        serialTracked:product.serialTracked===true,serialInput:'',
         selectedVariantes,
         cartId
       }] });
@@ -70,8 +76,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ cart: get().cart.filter(item => item.cartId !== cartId) });
   },
   updateQuantity: (cartId, qte) => {
+    if(!Number.isSafeInteger(qte)||qte<1)return;
     set({ cart: get().cart.map(item => item.cartId === cartId ? { ...item, quantite: qte } : item) });
   },
+  setSerialInput:(cartId,value)=>set({cart:get().cart.map(item=>item.cartId===cartId?{...item,serialInput:value}:item)}),
   clearCart: () => set({ cart: [] }),
   getTotal: () => {
     return get().cart.reduce((acc, item) => {

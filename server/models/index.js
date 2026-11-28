@@ -12,6 +12,30 @@ const StockMovement = require('./StockMovement');
 const CashSession = require('./CashSession');
 const Feedback = require('./Feedback');
 const StaffPayment = require('./StaffPayment');
+const Depense=require('./Depense');
+const JournalEntry=require('./JournalEntry');
+const OperationReceipt=require('./OperationReceipt');
+const workspace=require('./Workspace');
+const support=require('./Support');
+const PlatformIncident=require('./PlatformIncident');
+const BackupRun=require('./BackupRun');
+const inventory=require('./Inventory');
+const repair=require('./Repair');
+const documents=require('./CommercialDocument');
+const receivables=require('./Receivable');
+const repairBilling=require('./RepairBilling');
+const AccountingLock=require('./AccountingLock');
+const treasury=require('./Treasury');
+const StaffAssignment=require('./StaffAssignment');
+const hr=require('./HumanResources');
+const payroll=require('./Payroll');
+const AccessRevision=require('./AccessRevision');
+const expenseApproval=require('./ExpenseApproval');
+const budgets=require('./Budget');
+const NotificationSetting=require('./NotificationSetting');
+const crm=require('./CRM');
+const billing=require('./SaasBilling');
+const entitlements=require('./PlanEntitlement');
 
 // Associations
 Product.hasMany(StockMovement, { foreignKey: 'productId', as: 'historiqueStock' });
@@ -58,5 +82,5 @@ module.exports = {
   StockMovement,
   CashSession,
   Feedback,
-  StaffPayment
+  StaffPayment, Depense, JournalEntry, OperationReceipt, ...workspace, ...support, PlatformIncident, BackupRun, ...inventory, ...repair, ...documents, ...receivables, ...repairBilling, AccountingLock, ...treasury, StaffAssignment, ...hr, ...payroll, AccessRevision, ...expenseApproval, ...budgets, NotificationSetting, ...crm, ...billing, ...entitlements
 };

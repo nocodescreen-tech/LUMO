@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS "Depenses"(id serial PRIMARY KEY,"userId" integer NOT NULL,"actorId" integer NOT NULL,description varchar(250) NOT NULL,categorie varchar(80) NOT NULL,montant numeric(20,2) NOT NULL CHECK(montant>0),devise varchar(3) NOT NULL CHECK(devise IN ('USD','CDF')),"accountingCurrency" varchar(3) NOT NULL CHECK("accountingCurrency" IN ('USD','CDF')),"tauxChange" numeric(20,8) NOT NULL CHECK("tauxChange">0),"cashSessionId" integer NOT NULL,reference varchar(100),status varchar(16) NOT NULL DEFAULT 'POSTED' CHECK(status IN ('POSTED','REVERSED')),"createdAt" timestamptz NOT NULL DEFAULT now(),"updatedAt" timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS expense_tenant_date ON "Depenses"("userId","createdAt");
+CREATE OR REPLACE FUNCTION lumo_guard_journal() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Financial journal is append-only'; END; $$;
+DROP TRIGGER IF EXISTS lumo_journal_immutable ON "JournalEntries";
+CREATE TRIGGER lumo_journal_immutable BEFORE UPDATE OR DELETE ON "JournalEntries" FOR EACH ROW EXECUTE FUNCTION lumo_guard_journal();

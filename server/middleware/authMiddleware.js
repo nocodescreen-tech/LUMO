@@ -33,9 +33,9 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Session révoquée, veuillez vous reconnecter' });
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret,{algorithms:['HS256']});
     // Reject refresh tokens used as access tokens
-    if (decoded.type && decoded.type !== 'access') {
+    if (decoded.type !== 'access') {
       logger.warn(`[AUTH_FAIL] Type de token invalide (${decoded.type}) pour ${req.originalUrl}`);
       return res.status(401).json({ message: 'Jeton invalide' });
     }
@@ -48,7 +48,7 @@ exports.protect = async (req, res, next) => {
     // Session validation (Concurrent Session Control)
     const sessions = req.user.activeSessions || [];
     const isSessionValid = sessions.some(s => s.sessionId === decoded.sessionId);
-    if (!isSessionValid && decoded.sessionId) {
+    if (!isSessionValid || !decoded.sessionId) {
       logger.warn(`[AUTH_FAIL] Session invalide/remplacée (SID: ${decoded.sessionId}) pour l'utilisateur ${req.user.id} sur ${req.originalUrl}`);
       return res.status(401).json({ message: 'Session expirée ou remplacée par une nouvelle connexion', code: 'SESSION_REPLACED' });
     }
@@ -66,11 +66,13 @@ exports.protect = async (req, res, next) => {
         return res.status(403).json({ message: 'Votre compte a été suspendu par l\'administrateur. Veuillez contacter le support.' });
     }
 
-    // Impersonation Support
-    if (decoded.isImpersonating) {
-        req.isImpersonating = true;
-        req.originalAdminId = decoded.originalAdminId;
-    }
+    if(req.user.role!=='superadmin'&&(!req.user.isVerified||!req.user.isAdminValidated))return res.status(403).json({message:'Compte indisponible'});
+    if(req.user.parentId&&['admin','superadmin'].includes(req.user.role))return res.status(403).json({message:'Rôle collaborateur invalide'});
+    if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended','isVerified','isAdminValidated']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended||!owner.isVerified||!owner.isAdminValidated)return res.status(403).json({message:'Entreprise indisponible'});}
+
+    // Delegated support is disabled. Reject any remaining legacy tokens.
+    if(decoded.isImpersonating)return res.status(403).json({message:'Accès délégué désactivé'});
+    req.authSessionId=decoded.sessionId;
 
     // Attach tenantId (the admin ID) for data filtering securely
     const resolvedTenantId = req.user.parentId || req.user.id;
@@ -119,12 +121,8 @@ exports.checkPermission = (permissionId) => {
       return next();
     }
 
-    // If checking an action (e.g. 'products.add'), also accept the parent module ('products') as sufficient
-    // This allows admins to grant blanket module access without listing all sub-actions
-    const parentModule = permissionId.includes('.') ? permissionId.split('.')[0] : null;
-    if (parentModule && userPerms.includes(parentModule)) {
-      return next();
-    }
+    // Explicit read alias preserves the historic cash module read access only.
+    if(permissionId==='cash.view'&&userPerms.includes('cash'))return next();
 
     return res.status(403).json({ 
       message: `Accès refusé. Permission requise : "${permissionId}".` 

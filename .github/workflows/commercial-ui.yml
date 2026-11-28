@@ -1,0 +1,38 @@
+name: Commercial UI validation
+on:
+  push:
+    branches: [commercial-v2]
+  pull_request:
+    branches: [main, master]
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run test -- --run
+      - run: npm run build
+      - name: Chromium public route smoke test
+        run: node scripts/browser-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: commercial-browser-smoke
+          path: client/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Record bundle size evidence
+        run: node scripts/bundle-report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commercial-bundle-report
+          path: client/bundle-report.json
+          retention-days: 30

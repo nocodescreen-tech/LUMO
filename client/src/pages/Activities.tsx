@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import {
@@ -37,6 +39,7 @@ const Activities = () => {
     const user = useAuthStore(state => state.user);
     const [activities, setActivities] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState('ALL');
     const [dateFilter, setDateFilter] = useState('');
@@ -71,8 +74,9 @@ const Activities = () => {
             setActivities(activityList);
             setTotalItems(total);
             setTotalPages(pages);
+            setLoadError(false);
         } catch (error) {
-            console.error('Failed to fetch activities:', error);
+            setLoadError(true); console.error('Failed to fetch activities:', error);
         } finally {
             setLoading(false);
         }
@@ -133,21 +137,22 @@ const Activities = () => {
         setCurrentPage(1);
     }, [searchTerm, filter, dateFilter]);
 
+    if (!loading && loadError) return <LoadFailure onRetry={fetchActivities} />;
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
         >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
                         <Database size={14} /> {t('activitiesAuditBadge')}
                     </div>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
+                    <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0 }}>
                         {t('activitiesTitlePrefix')}<span className="text-gradient">{t('activitiesTitleSuffix')}</span>
                     </h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('activitiesSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('activitiesSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button
@@ -244,7 +249,7 @@ const Activities = () => {
                     <div style={{ textAlign: 'center', padding: '120px' }}>
                         <Database size={100} style={{ margin: '0 auto 32px', opacity: 0.1, color: 'var(--text-muted)' }} />
                         <h2 style={{ fontSize: '1.8rem', fontWeight: '800' }}>{t('noData')}</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: '600' }}>{t('activitiesNoMatch')}</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: '600' }}>{t('activitiesNoMatch')}</p>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>

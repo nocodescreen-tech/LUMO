@@ -3,6 +3,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import './design-system/commercial.css'
 
 // Désactiver les logs en production pour une console propre
 if (import.meta.env.PROD) {

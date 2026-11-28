@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS "PayRates"(id serial PRIMARY KEY,"userId" integer NOT NULL,"staffId" integer NOT NULL,"actorId" integer NOT NULL,"effectiveMonth" varchar(7) NOT NULL,currency varchar(3) NOT NULL,base numeric(20,2) NOT NULL,reason varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "PayrollSlips"(id serial PRIMARY KEY,"userId" integer NOT NULL,"staffId" integer NOT NULL,"actorId" integer NOT NULL,"rateId" integer NOT NULL,month varchar(7) NOT NULL,currency varchar(3) NOT NULL,base numeric(20,2) NOT NULL,bonus numeric(20,2) NOT NULL,allowance numeric(20,2) NOT NULL,total numeric(20,2) NOT NULL,paid numeric(20,2) NOT NULL,status varchar(16) NOT NULL,reason varchar(250) NOT NULL,"employeeName" varchar(160) NOT NULL,issuer jsonb NOT NULL,"approvedAt" timestamptz,"createdAt" timestamptz NOT NULL DEFAULT now(),"updatedAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "PayrollMovements"(id serial PRIMARY KEY,"userId" integer NOT NULL,"slipId" integer NOT NULL,"actorId" integer NOT NULL,"cashSessionId" integer NOT NULL,kind varchar(16) NOT NULL,amount numeric(20,2) NOT NULL,currency varchar(3) NOT NULL,"reversalOf" integer,note varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS payroll_active_month ON "PayrollSlips"("userId","staffId",month) WHERE status<>'CANCELLED';
+CREATE UNIQUE INDEX IF NOT EXISTS payroll_rate_identity ON "PayRates"("userId","staffId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS payroll_slip_identity ON "PayrollSlips"("userId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS payroll_movement_identity ON "PayrollMovements"("userId","slipId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS payroll_reversal_unique ON "PayrollMovements"("userId","reversalOf");
+CREATE INDEX IF NOT EXISTS payroll_rate_history ON "PayRates"("userId","staffId","effectiveMonth",id);
+CREATE INDEX IF NOT EXISTS payroll_movement_history ON "PayrollMovements"("userId","slipId",id);
+ALTER TABLE "PayRates" ADD CONSTRAINT payroll_rate_values CHECK(currency IN ('USD','CDF') AND base>0 AND "effectiveMonth" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$');
+ALTER TABLE "PayrollSlips" ADD CONSTRAINT payroll_slip_values CHECK(currency IN ('USD','CDF') AND month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$' AND base>0 AND bonus>=0 AND allowance>=0 AND total=base+bonus+allowance AND paid>=0 AND paid<=total AND status IN ('DRAFT','APPROVED','CANCELLED') AND ((status='APPROVED')=("approvedAt" IS NOT NULL)) AND (status<>'CANCELLED' OR paid=0));
+ALTER TABLE "PayrollSlips" ADD CONSTRAINT payroll_rate_fk FOREIGN KEY("userId","staffId","rateId") REFERENCES "PayRates"("userId","staffId",id) ON DELETE RESTRICT;
+ALTER TABLE "PayrollMovements" ADD CONSTRAINT payroll_movement_fk FOREIGN KEY("userId","slipId") REFERENCES "PayrollSlips"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "PayrollMovements" ADD CONSTRAINT payroll_reversal_fk FOREIGN KEY("userId","slipId","reversalOf") REFERENCES "PayrollMovements"("userId","slipId",id) ON DELETE RESTRICT;
+ALTER TABLE "PayrollMovements" ADD CONSTRAINT payroll_movement_values CHECK(currency IN ('USD','CDF') AND amount>0 AND kind IN ('ADVANCE','PAYMENT','REVERSAL') AND ((kind='REVERSAL')=("reversalOf" IS NOT NULL)));
+CREATE TRIGGER lumo_payrate_tenant BEFORE INSERT ON "PayRates" FOR EACH ROW EXECUTE FUNCTION lumo_guard_hr_tenant();
+CREATE TRIGGER lumo_payrate_immutable BEFORE UPDATE OR DELETE ON "PayRates" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE TRIGGER lumo_payroll_movement_immutable BEFORE UPDATE OR DELETE ON "PayrollMovements" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE OR REPLACE FUNCTION lumo_payroll_guard() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Payroll history immutable'; END IF;
+ IF (to_jsonb(OLD)-'status'-'paid'-'approvedAt'-'updatedAt') IS DISTINCT FROM (to_jsonb(NEW)-'status'-'paid'-'approvedAt'-'updatedAt') THEN RAISE EXCEPTION 'Payroll snapshot immutable'; END IF;
+ IF OLD.status='CANCELLED' OR OLD.status='APPROVED' AND (NEW.status<>'APPROVED' OR NEW."approvedAt" IS DISTINCT FROM OLD."approvedAt" OR NEW.paid<OLD.paid) THEN RAISE EXCEPTION 'Invalid payroll transition'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER lumo_payroll_slip_guard BEFORE UPDATE OR DELETE ON "PayrollSlips" FOR EACH ROW EXECUTE FUNCTION lumo_payroll_guard();

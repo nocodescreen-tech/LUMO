@@ -1,5 +1,8 @@
+import './service-commercial.css';
+import {Link} from 'react-router-dom';
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import BackupCenter from './BackupCenter';
 import {
   Lock,
   User as UserIcon,
@@ -64,6 +67,9 @@ const TwoFASection = () => {
   const { t } = useTranslation();
   const { user, updateUser } = useAuthStore();
   const [loading2FA, setLoading2FA] = React.useState(false);
+  const [showSetupPassword,setShowSetupPassword]=React.useState(false);
+  const [setupPassword,setSetupPassword]=React.useState('');
+  const [disableCode,setDisableCode]=React.useState('');
   const [showDisableModal, setShowDisableModal] = React.useState(false);
   const [disablePassword, setDisablePassword] = React.useState('');
   const [showSetupModal, setShowSetupModal] = React.useState(false);
@@ -74,9 +80,11 @@ const TwoFASection = () => {
   const is2FAEnabled = !!(user as any)?.twoFactorEnabled;
 
   const handleEnable2FA = async () => {
+    if(!setupPassword||loading2FA)return;
     setLoading2FA(true);
     try {
-      const { data } = await api.get('/auth/2fa/setup');
+      const { data } = await api.post('/auth/2fa/setup',{currentPassword:setupPassword});
+      setSetupPassword('');setShowSetupPassword(false);
       setQrCode(data.qrCode);
       setSecret(data.secret);
       setOtpCode('');
@@ -100,7 +108,7 @@ const TwoFASection = () => {
       updateUser({ ...(user as any), twoFactorEnabled: true });
       toast.success(data.message || 'Double authentification activée avec succès');
       setShowSetupModal(false);
-      setOtpCode('');
+      setOtpCode('');setQrCode('');setSecret('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Code incorrect. Réessayez.');
     } finally {
@@ -115,11 +123,11 @@ const TwoFASection = () => {
     }
     setLoading2FA(true);
     try {
-      const { data } = await api.post('/auth/2fa/disable', { motDePasse: disablePassword });
+      const { data } = await api.post('/auth/2fa/disable', { motDePasse: disablePassword,code:disableCode });
       updateUser({ ...(user as any), twoFactorEnabled: false });
       toast.success(data.message || t('twoFADisabledSuccess'));
       setShowDisableModal(false);
-      setDisablePassword('');
+      setDisablePassword('');setDisableCode('');
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('twoFADeactivateError'));
     } finally {
@@ -142,7 +150,7 @@ const TwoFASection = () => {
             <ShieldCheck size={26} />
           </div>
           <div>
-            <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{t('twoFactorAuth')}</p>
+            <p style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>{t('twoFactorAuth')}</p>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>
               {is2FAEnabled
                 ? t('twoFactorEnabledDesc')
@@ -151,7 +159,7 @@ const TwoFASection = () => {
           </div>
         </div>
         <button
-          onClick={is2FAEnabled ? () => setShowDisableModal(true) : handleEnable2FA}
+          onClick={is2FAEnabled ? () => setShowDisableModal(true) : ()=>setShowSetupPassword(true)}
           disabled={loading2FA}
           style={{
             padding: '12px 24px', borderRadius: '14px', border: 'none', cursor: loading2FA ? 'not-allowed' : 'pointer',
@@ -165,6 +173,12 @@ const TwoFASection = () => {
         </button>
       </div>
 
+      <Modal isOpen={showSetupPassword} onClose={()=>{if(!loading2FA){setShowSetupPassword(false);setSetupPassword('')}}} title="Confirmer votre identité">
+        <form onSubmit={e=>{e.preventDefault();void handleEnable2FA()}} style={{display:'grid',gap:16}}>
+          <label style={{display:'grid',gap:8}}>{t('currentPassword')}<input type="password" autoComplete="current-password" value={setupPassword} onChange={e=>setSetupPassword(e.target.value)} required style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/></label>
+          <button type="submit" className="btn-premium" disabled={loading2FA||!setupPassword}>{loading2FA?t('inProgress'):t('confirmBtn')}</button>
+        </form>
+      </Modal>
       {/* TOTP Setup Modal */}
       {showSetupModal && createPortal((
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -268,10 +282,11 @@ const TwoFASection = () => {
                 autoFocus
               />
               
+              <label style={{display:'grid',gap:8}}>Code authentificateur (si configuré)<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={disableCode} onChange={e=>setDisableCode(e.target.value.replace(/\D/g,''))} style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/></label>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
-                  onClick={() => { setShowDisableModal(false); setDisablePassword(''); }}
+                  onClick={() => { setShowDisableModal(false); setDisablePassword('');setDisableCode(''); }}
                   style={{ flex: 1, padding: '14px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800, cursor: 'pointer' }}
                 >
                   {t('cancelBtn')}
@@ -318,6 +333,7 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword,setCurrentPassword]=useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -431,7 +447,10 @@ const Settings = () => {
   };
 
   const handleSave = async () => {
+    if(saving)return;
     if (profileData.motDePasse) {
+      if(!currentPassword)return toast.error(language==='en'?'Current password required':'Mot de passe actuel requis');
+      if(new TextEncoder().encode(profileData.motDePasse).length>72)return toast.error(language==='en'?'Password exceeds 72 bytes':'Le mot de passe dépasse 72 octets');
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
       if (!passwordRegex.test(profileData.motDePasse)) {
         return toast.error("Le nouveau mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
@@ -456,7 +475,7 @@ const Settings = () => {
           backupTime,
           notificationSoundEnabled
         },
-        ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse } : {})
+        ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse,currentPassword } : {})
       };
 
       await api.put('/auth/profile', payload);
@@ -466,7 +485,7 @@ const Settings = () => {
       // which re-renders the sidebar with the correct modules.
       await checkAuth(false);
 
-      setProfileData(prev => ({ ...prev, motDePasse: '' }));
+      setProfileData(prev => ({ ...prev, motDePasse: '' }));setCurrentPassword('');
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
       toast.success(t('settingsSaved'));
@@ -479,123 +498,16 @@ const Settings = () => {
   };
 
 
-  const [backupLoading, setBackupLoading] = React.useState(false);
-  const [emailBackupLoading, setEmailBackupLoading] = React.useState(false);
-
-  const handleBackup = async () => {
-    setBackupLoading(true);
-    toast('Génération de la sauvegarde en cours...');
-    try {
-      const response = await api.get(`/backup/export?_t=${Date.now()}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/json' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `lumo_sauvegarde_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success(t('backupDownloaded'));
-    } catch (error) {
-      toast.error(t('backupGenerateError'));
-    } finally {
-      setBackupLoading(false);
-    }
-  };
-
-  const handleEmailBackup = async () => {
-    setEmailBackupLoading(true);
-    toast('Envoi de la sauvegarde par e-mail...');
-    try {
-      await api.get(`/backup/email?_t=${Date.now()}`);
-    } finally {
-      setEmailBackupLoading(false);
-    }
-  };
-
-  const [restoreLoading, setRestoreLoading] = React.useState(false);
-  const [restorePreview, setRestorePreview] = React.useState<any>(null);
-  const fileInputRest = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const isEncrypted = file.name.endsWith('.enc') || file.name.endsWith('.json.enc');
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        let content;
-        if (isEncrypted) {
-          const dataUrl = event.target?.result as string;
-          const base64 = dataUrl.split(',')[1];
-          content = { encryptedData: base64 };
-        } else {
-          try {
-            content = JSON.parse(event.target?.result as string);
-          } catch (jsonErr) {
-            // Fallback: file might be encrypted but doesn't have the .enc extension
-            const binaryReader = new FileReader();
-            binaryReader.onload = async (binEvent) => {
-              try {
-                const binDataUrl = binEvent.target?.result as string;
-                const binBase64 = binDataUrl.split(',')[1];
-                const response = await api.post('/backup/preview', { encryptedData: binBase64 });
-                setRestorePreview({ ...response.data, rawData: { encryptedData: binBase64 } });
-              } catch (err: any) {
-                const errorMsg = err?.response?.data?.message || t('invalidBackupFile') || 'Fichier de sauvegarde invalide.';
-                toast.error(errorMsg);
-              }
-            };
-            binaryReader.readAsDataURL(file);
-            return;
-          }
-        }
-
-        const response = await api.post('/backup/preview', content);
-        setRestorePreview({ ...response.data, rawData: content });
-      } catch (error: any) {
-        const errorMsg = error?.response?.data?.message || t('invalidBackupFile') || 'Fichier de sauvegarde invalide.';
-        toast.error(errorMsg);
-      }
-    };
-
-    if (isEncrypted) {
-      reader.readAsDataURL(file);
-    } else {
-      reader.readAsText(file);
-    }
-  };
-
-
-  const confirmRestore = async () => {
-    if (!restorePreview?.rawData) return;
-
-    setRestoreLoading(true);
-    toast('Restauration des données en cours...');
-    try {
-      const response = await api.post('/backup/import', restorePreview.rawData);
-      const r = response.data?.restored || {};
-      toast.success(`Restauration réussie ! Produits: ${r.products ?? 0}, Ventes: ${r.sales ?? 0}, Clients: ${r.clients ?? 0}, Équipe: ${r.subUsers ?? 0}`);
-      setRestorePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (error) {
-      toast.error(t('invalidBackupFile'));
-    } finally {
-      setRestoreLoading(false);
-    }
-  };
-
   const allTabs = [
     { id: 'profile', label: t('myProfile'), icon: UserIcon, color: 'var(--primary)' },
     { id: 'business', label: t('myBusiness'), icon: Store, color: 'var(--secondary)' },
     { id: 'appearance', label: t('interface'), icon: Palette, color: 'var(--warning)' },
     { id: 'modules', label: t('modulesAI'), icon: Cpu, color: 'var(--danger)', adminOnly: true },
-    { id: 'security', label: t('security'), icon: ShieldCheck, color: '#155E58', adminOnly: true },
+    { id: 'security', label: t('security'), icon: ShieldCheck, color: 'var(--primary)', adminOnly: true },
+    { id:'backup',label:language==='en'?'Data protection':'Protection des données',icon:Download,color:'var(--primary)',adminOnly:true },
   ];
 
-  const tabs = allTabs.filter(tab => !tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin');
+  const tabs = allTabs.filter(tab => (!tab.adminOnly || user?.role === 'admin' || user?.role === 'superadmin')&&(tab.id!=='backup'||user?.role==='admin'));
 
   const activityTypes = Object.keys(BUSINESS_TYPES);
   const devises = [
@@ -604,15 +516,15 @@ const Settings = () => {
   ];
 
   return (
-    <motion.div
+    <motion.div className="service-settings"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '1200px', margin: '0 auto', padding: '10px 0 80px 0' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>{t('settingsSystem').split(' ')[0]} <span style={{ color: 'var(--primary)', opacity: 0.5 }}>{t('settingsSystem').split(' ').slice(1).join(' ')}</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontWeight: 500 }}>{t('settingsSubtitle')}</p>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.05em' }}>{t('settingsSystem').split(' ')[0]} <span style={{ color: 'var(--primary)', opacity: 0.5 }}>{t('settingsSystem').split(' ').slice(1).join(' ')}</span></h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontWeight: 500 }}>{t('settingsSubtitle')}</p>
         </div>
         <button
           onClick={() => setShowLogoutConfirm(true)}
@@ -623,9 +535,9 @@ const Settings = () => {
         </button>
       </div>
 
-      <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '32px' }}>
+      <div className="responsive-grid lumo-settings-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(0, 3fr)', gap: '20px' }}>
         {/* Tab Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="lumo-settings-nav" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div className="premium-card" style={{ padding: '24px', borderRadius: '28px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '18px', overflow: 'hidden', border: '3px solid var(--primary)', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', fontWeight: '900', color: 'var(--primary)', flexShrink: 0 }}>
               {user?.avatar && user.avatar !== 'default_avatar.png' ? <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.nom?.charAt(0)}
@@ -636,18 +548,16 @@ const Settings = () => {
             </div>
           </div>
           {tabs.map((tab) => (
-            <motion.div
-              key={tab.id}
-              whileHover={{ x: 6 }}
-              whileTap={{ scale: 0.98 }}
+            <button type="button" className="service-setting-tab"
+              key={tab.id} aria-current={activeTab===tab.id?'page':undefined}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px 20px', borderRadius: '20px', cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                backgroundColor: activeTab === tab.id ? `${tab.color}15` : 'transparent',
-                border: `1.5px solid ${activeTab === tab.id ? `${tab.color}40` : 'transparent'}`,
-                color: activeTab === tab.id ? tab.color : 'var(--text-muted)',
+                backgroundColor: activeTab === tab.id ? 'var(--primary-glow)' : 'transparent',
+                border: '1px solid '+(activeTab===tab.id?'var(--primary)':'transparent'),
+                color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -655,12 +565,12 @@ const Settings = () => {
                 <span style={{ fontWeight: '800', fontSize: '1rem' }}>{tab.label}</span>
               </div>
               {activeTab === tab.id && <ChevronRight size={16} />}
-            </motion.div>
-          ))}
+            </button>
+          ))}<div className="service-settings-links"><Link to="/notifications"><Bell size={16}/>{language==='en'?'Notifications':'Notifications'}</Link>{user?.role==='admin'&&<><Link to="/subscription"><CreditCard size={16}/>{language==='en'?'Subscription':'Abonnement'}</Link><Link to="/support"><ShieldCheck size={16}/>{language==='en'?'Support':'Assistance'}</Link></>}</div>
         </div>
 
         {/* Main Content */}
-        <div className="premium-card" style={{ padding: '48px', borderRadius: '32px', boxShadow: 'var(--shadow-lg)' }}>
+        <div className="premium-card service-settings-content" style={{ padding: '48px', borderRadius: '32px', boxShadow: 'var(--shadow-lg)' }}>
           <AnimatePresence mode="wait">
 
             {/* PROFILE */}
@@ -782,7 +692,7 @@ const Settings = () => {
                     )}
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontWeight: '900', fontSize: '1.1rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
+                    <p style={{ margin: 0, fontWeight: '900', fontSize: '0.95rem', color: 'var(--secondary)' }}>{profileData.entreprise.nom || 'Commerce sans nom'}</p>
                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>{getBusinessTypeLabel(profileData.typeActivite)} · {language === 'en' ? 'Management system' : 'Systeme de gestion'} {currency}</p>
                   </div>
                   <input type="file" ref={logoInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
@@ -917,7 +827,7 @@ const Settings = () => {
                         <mod.icon size={26} />
                       </div>
                       <div>
-                        <p style={{ fontWeight: '900', fontSize: '1.1rem', margin: 0 }}>{mod.label}</p>
+                        <p style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>{mod.label}</p>
                         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', margin: '4px 0 0 0', fontWeight: 600 }}>{mod.desc}</p>
                       </div>
                     </div>
@@ -949,17 +859,18 @@ const Settings = () => {
                     <div style={{ position: 'relative' }}>
                       <Key size={17} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', opacity: 0.7 }} />
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? 'text' : 'password'} autoComplete="new-password"
                         placeholder={t('passwordPlaceholder')}
                         value={profileData.motDePasse}
                         maxLength={100}
                         onChange={(e) => setProfileData({ ...profileData, motDePasse: e.target.value })}
                         style={{ width: '100%', padding: '16px 56px 16px 48px', borderRadius: '16px', border: '1.5px solid var(--border)', backgroundColor: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none', fontWeight: '700' }}
                       />
-                      <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                      <button type="button" aria-label={language==='en'?'Toggle password visibility':'Afficher ou masquer le mot de passe'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
+                    {profileData.motDePasse&&<label style={{display:'grid',gap:8,fontWeight:700,fontSize:'.88rem'}}>{language==='en'?'Current password':'Mot de passe actuel'}<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/><small style={{color:'var(--text-muted)'}}>{language==='en'?'Other sessions will be revoked.':'Les autres sessions seront révoquées.'}</small></label>}
                     {profileData.motDePasse && (
                       <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {[
@@ -989,256 +900,18 @@ const Settings = () => {
                     <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.85rem' }}>{t('passwordWarning')}</p>
                   </div>
 
-                  <div style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1.5px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Save size={20} color="var(--primary)" /> {t('dataManagement')}
-                    </h3>
 
-                    <div style={{
-                      padding: '24px', borderRadius: '24px',
-                      background: 'rgba(21,94,88,0.03)', border: '2px solid rgba(21,94,88,0.1)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                    }}>
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <div style={{
-                          width: '48px', height: '48px', borderRadius: '14px',
-                          background: autoBackupEnabled ? 'rgba(16,185,129,0.1)' : 'rgba(0,0,0,0.05)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: autoBackupEnabled ? 'var(--success)' : 'var(--text-muted)'
-                        }}>
-                          <Clock size={24} />
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, fontWeight: 900, fontSize: '1rem' }}>{t('autoBackupTitle')}</p>
-                          <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                            {autoBackupEnabled
-                              ? t('autoBackupEnabled')
-                              : t('autoBackupDisabled')}
-                          </p>
-                        </div>
-                      </div>
-                      <div
-                        onClick={() => {
-                          const newVal = !autoBackupEnabled;
-                          setAutoBackupEnabled(newVal);
-                          if (user) {
-                            useAuthStore.getState().syncPreferencesToServer({
-                              autoBackupEnabled: newVal,
-                              backupTime: backupTime
-                            });
-                          }
-                        }}
-                        style={{
-                          width: '54px', height: '28px', borderRadius: '50px',
-                          background: autoBackupEnabled ? 'var(--success)' : 'var(--text-muted)',
-                          padding: '3px', cursor: 'pointer', position: 'relative', transition: 'all 0.3s'
-                        }}
-                      >
-                        <motion.div
-                          animate={{ x: autoBackupEnabled ? 26 : 0 }}
-                          style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
-                        />
-                      </div>
-                    </div>
 
-                    {autoBackupEnabled && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{
-                          padding: '20px', borderRadius: '20px',
-                          background: 'rgba(21,94,88,0.02)', border: '1.5px dashed rgba(21,94,88,0.2)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          marginTop: '-8px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <Clock size={18} style={{ color: 'var(--primary)' }} />
-                          <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>{t('dailyBackupTime')}</span>
-                        </div>
-                        <input
-                          type="time"
-                          value={backupTime}
-                          onChange={(e) => {
-                            const newTime = e.target.value;
-                            setBackupTime(newTime);
-                            useAuthStore.getState().syncPreferencesToServer({ backupTime: newTime });
-                          }}
-                          style={{
-                            padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)',
-                            background: 'var(--bg-main)', color: 'var(--text-main)', fontWeight: 800,
-                            outline: 'none', cursor: 'pointer'
-                          }}
-                        />
-                      </motion.div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '8px' }}>
-                      <motion.button
-                        whileHover={!backupLoading ? { scale: 1.05, y: -2 } : {}}
-                        whileTap={!backupLoading ? { scale: 0.95 } : {}}
-                        onClick={handleBackup}
-                        disabled={backupLoading}
-                        style={{
-                          flex: 1, padding: '14px 24px', borderRadius: '14px',
-                          background: 'var(--bg-main)', border: '1.5px solid var(--border)',
-                          color: 'var(--text-main)', fontWeight: 800, cursor: backupLoading ? 'not-allowed' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'all 0.3s'
-                        }}
-                      >
-                        {backupLoading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                        {t('downloadJson')}
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={!emailBackupLoading ? { scale: 1.05, y: -2 } : {}}
-                        whileTap={!emailBackupLoading ? { scale: 0.95 } : {}}
-                        onClick={handleEmailBackup}
-                        disabled={emailBackupLoading}
-                        style={{
-                          flex: 1, padding: '14px 24px', borderRadius: '14px',
-                          background: 'var(--bg-main)', border: '1.5px solid var(--border)',
-                          color: 'var(--text-main)', fontWeight: 800, cursor: emailBackupLoading ? 'not-allowed' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'all 0.3s'
-                        }}
-                      >
-                        {emailBackupLoading ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
-                        {t('sendByEmail')}
-                      </motion.button>
-                    </div>
-
-                    {/* Section Restauration */}
-                    <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1.5px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <RefreshCcw size={20} color="var(--secondary)" /> {t('restoreData')}
-                      </h3>
-                      <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 500, lineHeight: 1.5 }}>
-                        {t('restoreDataDesc')}
-                      </p>
-
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept=".json"
-                          style={{ display: 'none' }}
-                        />
-                        <motion.button
-                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(21,94,88,0.08)' }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => fileInputRef.current?.click()}
-                          style={{
-                            width: '100%', padding: '20px', borderRadius: '18px',
-                            border: '2px dashed var(--border)', background: 'transparent',
-                            color: 'var(--text-main)', cursor: 'pointer',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'
-                          }}
-                        >
-                          <Upload size={32} color="var(--text-muted)" />
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{t('clickToChooseJSON')}</span>
-                        </motion.button>
-                      </div>
-
-                      {/* Modal/Preview de Restauration */}
-                      <AnimatePresence>
-                        {restorePreview && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            style={{
-                              padding: '24px', borderRadius: '24px', background: 'var(--bg-main)',
-                              border: '2px solid var(--secondary)', boxShadow: 'var(--shadow-xl)',
-                              display: 'flex', flexDirection: 'column', gap: '20px'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <FileJson size={24} color="var(--success)" />
-                              </div>
-                              <div>
-                                <h4 style={{ margin: 0, fontWeight: 900, fontSize: '1.1rem' }}>Aperçu de la sauvegarde</h4>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Exportée le : {new Date(restorePreview.exportedAt).toLocaleString()}</p>
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
-                              {[
-                                { label: 'Produits', count: restorePreview.counts?.products ?? 0, icon: Package, color: '#155E58' },
-                                { label: 'Ventes', count: restorePreview.counts?.sales ?? 0, icon: CreditCard, color: 'var(--success)' },
-                                { label: 'Clients', count: restorePreview.counts?.clients ?? 0, icon: UserIcon, color: 'var(--warning)' },
-                                { label: 'Fournisseurs', count: restorePreview.counts?.fournisseurs ?? 0, icon: Truck, color: '#2E6E8E' },
-                                { label: 'Achats', count: restorePreview.counts?.purchases ?? 0, icon: ShoppingCart, color: 'var(--primary)' },
-                                { label: 'Mouvements stock', count: restorePreview.counts?.movements ?? 0, icon: RefreshCcw, color: '#7C3AED' },
-                                { label: 'Sessions caisse', count: restorePreview.counts?.sessions ?? 0, icon: Wallet, color: '#C07E12' },
-                                { label: 'Activités', count: restorePreview.counts?.activities ?? 0, icon: Activity, color: '#155E58' },
-                                { label: 'Notifications', count: restorePreview.counts?.notifications ?? 0, icon: Bell, color: '#DB2777' },
-                                { label: 'Équipe', count: restorePreview.counts?.subUsers ?? 0, icon: Users, color: '#0EA5E9' },
-                                { label: 'Paiements équipe', count: restorePreview.counts?.staffPayments ?? 0, icon: DollarSign, color: '#059669' },
-                                { label: 'Feedbacks', count: restorePreview.counts?.feedbacks ?? 0, icon: Sparkles, color: '#F59E0B' }
-                              ].map((item, idx) => (
-                                <div key={idx} style={{ padding: '16px', borderRadius: '16px', background: 'rgba(0,0,0,0.03)', textAlign: 'center' }}>
-                                  <item.icon size={20} color={item.color} style={{ marginBottom: '8px' }} />
-                                  <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>{item.count}</div>
-                                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</div>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.1)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                              <AlertTriangle size={20} color="var(--danger)" style={{ flexShrink: 0 }} />
-                              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--danger)', fontWeight: 600, lineHeight: 1.4 }}>
-                                Cette action va fusionner ces données avec vos données actuelles. Les ventes déjà existantes ne seront pas dupliquées.
-                              </p>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={confirmRestore}
-                                disabled={restoreLoading}
-                                style={{
-                                  flex: 2, padding: '16px', borderRadius: '14px',
-                                  background: 'var(--secondary)', color: '#fff', border: 'none',
-                                  fontWeight: 900, fontSize: '1rem', cursor: restoreLoading ? 'not-allowed' : 'pointer',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-                                }}
-                              >
-                                {restoreLoading ? <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> : <History size={20} />}
-                                {restoreLoading ? 'Restauration...' : 'Confirmer la restauration'}
-                              </motion.button>
-                              <motion.button
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => setRestorePreview(null)}
-                                style={{
-                                  flex: 1, padding: '16px', borderRadius: '14px',
-                                  background: 'rgba(0,0,0,0.05)', color: 'var(--text-main)', border: 'none',
-                                  fontWeight: 800, cursor: 'pointer'
-                                }}
-                              >
-                                Annuler
-                              </motion.button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                  </div>
                 </div>
               </motion.div>
             )}
 
 
+            {activeTab==='backup'&&user?.role==='admin'&&<motion.div key="backup"><BackupCenter/></motion.div>}
           </AnimatePresence>
 
           {/* Footer Save */}
-          <div style={{ marginTop: '48px', paddingTop: '32px', borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
+          {activeTab!=='backup'&&<div className="service-save" style={{ marginTop: '48px', paddingTop: '32px', borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -1257,7 +930,7 @@ const Settings = () => {
               {saving ? <Loader2 size={20} className="animate-spin" /> : savedSuccess ? <CheckCircle size={20} /> : <Save size={20} />}
               {saving ? t('syncing') : savedSuccess ? t('changesApplied') : t('saveChanges')}
             </motion.button>
-          </div>
+          </div>}
         </div>
       </div>
       {/* Logout Confirmation Modal */}

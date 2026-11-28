@@ -1,0 +1,6 @@
+const {DataTypes:D}=require('sequelize');const {sequelize}=require('../config/database');
+const int=(allowNull=false)=>({type:D.INTEGER,allowNull});const str=(n,allowNull=false)=>({type:D.STRING(n),allowNull});
+const Opportunity=sequelize.define('Opportunity',{userId:int(),assigneeId:int(),actorId:int(),clientId:int(true),title:str(160),contactName:str(160),contactPhone:str(50,true),contactEmail:str(254,true),amount:{type:D.DECIMAL(20,2),allowNull:false},currency:str(3),stage:str(24),followUpOn:{type:D.DATEONLY,allowNull:true},version:{...int(),defaultValue:1}},{indexes:[{fields:['userId','assigneeId','stage']}]});
+const OpportunityEvent=sequelize.define('OpportunityEvent',{userId:int(),opportunityId:int(),actorId:int(),kind:str(24),note:str(500),snapshot:{type:D.JSONB,allowNull:false}},{updatedAt:false,indexes:[{fields:['userId','opportunityId','id']}]});
+const SalesTarget=sequelize.define('SalesTarget',{userId:int(),sellerKey:int(),actorId:int(),month:{type:D.DATEONLY,allowNull:false},currency:str(3),amount:{type:D.DECIMAL(20,2),allowNull:false},reason:str(250)},{updatedAt:false,indexes:[{fields:['userId','month','currency','sellerKey','id']}]});
+module.exports={Opportunity,OpportunityEvent,SalesTarget};

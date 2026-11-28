@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS "BudgetCenters"(id serial PRIMARY KEY,"userId" integer NOT NULL,"actorId" integer NOT NULL,"branchKey" integer NOT NULL,department varchar(120) NOT NULL,name varchar(120) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "BudgetRevisions"(id serial PRIMARY KEY,"userId" integer NOT NULL,"centerId" integer NOT NULL,"actorId" integer NOT NULL,currency varchar(3) NOT NULL,"periodKind" varchar(8) NOT NULL,"periodStart" date NOT NULL,amount numeric(20,2) NOT NULL,mode varchar(8) NOT NULL,reason varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS budget_center_tenant ON "BudgetCenters"("userId",id);
+CREATE UNIQUE INDEX IF NOT EXISTS budget_center_name ON "BudgetCenters"("userId","branchKey",lower(department),lower(name));
+CREATE INDEX IF NOT EXISTS budget_revision_latest ON "BudgetRevisions"("userId",currency,"periodKind","periodStart","centerId",id DESC);
+ALTER TABLE "BudgetCenters" ADD CONSTRAINT budget_center_branch CHECK("branchKey">=0);
+ALTER TABLE "BudgetRevisions" ADD CONSTRAINT budget_revision_values CHECK(currency IN ('USD','CDF') AND amount>0 AND (currency<>'CDF' OR amount=trunc(amount)) AND mode IN ('WARN','BLOCK') AND (("periodKind"='MONTH' AND extract(day from "periodStart")=1) OR ("periodKind"='YEAR' AND extract(day from "periodStart")=1 AND extract(month from "periodStart")=1)));
+ALTER TABLE "BudgetRevisions" ADD CONSTRAINT budget_revision_center_fk FOREIGN KEY("userId","centerId") REFERENCES "BudgetCenters"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "ExpenseRequests" ADD COLUMN IF NOT EXISTS "budgetCenterId" integer;
+ALTER TABLE "Depenses" ADD COLUMN IF NOT EXISTS "budgetCenterId" integer;
+ALTER TABLE "ExpenseRequests" ADD CONSTRAINT expense_request_budget_fk FOREIGN KEY("userId","budgetCenterId") REFERENCES "BudgetCenters"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "Depenses" ADD CONSTRAINT expense_budget_fk FOREIGN KEY("userId","budgetCenterId") REFERENCES "BudgetCenters"("userId",id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS budget_expense_center ON "Depenses"("userId","budgetCenterId",id);
+CREATE INDEX IF NOT EXISTS budget_commitment_center ON "ExpenseRequests"("userId","budgetCenterId",currency,status);
+CREATE TRIGGER budget_center_immutable BEFORE UPDATE OR DELETE ON "BudgetCenters" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE TRIGGER budget_revision_immutable BEFORE UPDATE OR DELETE ON "BudgetRevisions" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE OR REPLACE FUNCTION lumo_expense_budget_identity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF OLD."budgetCenterId" IS DISTINCT FROM NEW."budgetCenterId" THEN RAISE EXCEPTION 'Expense cost center immutable'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER expense_budget_identity BEFORE UPDATE ON "Depenses" FOR EACH ROW EXECUTE FUNCTION lumo_expense_budget_identity();

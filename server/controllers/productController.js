@@ -1,4 +1,7 @@
+const { pick,fail }=require('../utils/transactionSafety');
+const inventory=require('../utils/inventoryService');
 const Product = require('../models/Product');
+const {sequelize}=require('../config/database');
 const { uploadImage } = require('../utils/cloudinary');
 const { logActivite } = require('./activiteController');
 const { validateProduct } = require('../middleware/validators');
@@ -16,17 +19,24 @@ exports.getProducts = async (req, res, next) => {
   try {
     const tenantId = req.user.tenantId;
     const { page, limit } = req.query;
-    const { limit: l, offset } = getPagination(page, limit);
+    const { limit: l, offset } = getPagination(Math.max(1,Math.min(100000,parseInt(page)||1)),Math.max(1,Math.min(100,parseInt(limit)||10)));
+    if(req.query.warehouseId!=null&&!req.user.parentId&&req.user.role!=='admin')throw fail('Sélection d’entrepôt réservée au propriétaire',403);
+    const wh=await require('../utils/staffScope').resolve(req.user,req.query.warehouseId,undefined,{read:true});
+    const locationSql=wh?'COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id AND w."warehouseId"='+Number(wh.id)+'),0)':'("Product".stock - COALESCE((SELECT SUM(w.quantity) FROM "WarehouseBalances" w WHERE w."userId"="Product"."userId" AND w."productId"="Product".id),0))';
 
+    const lotSql='CASE WHEN EXISTS(SELECT 1 FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id) THEN COALESCE((SELECT SUM(l.quantity) FROM "InventoryLots" l WHERE l."userId"="Product"."userId" AND l."productId"="Product".id AND l."locationKey"='+Number(wh?.id||0)+' AND (l."expiresOn" IS NULL OR l."expiresOn">=(now() AT TIME ZONE \'Africa/Kinshasa\')::date)),0) ELSE '+locationSql+' END';
+    const serialTrackedSql='EXISTS(SELECT 1 FROM "SerialUnits" s WHERE s."userId"="Product"."userId" AND s."productId"="Product".id)';
+    const availableSql='CASE WHEN '+serialTrackedSql+' THEN (SELECT COUNT(*) FROM "SerialUnits" s WHERE s."userId"="Product"."userId" AND s."productId"="Product".id AND s."locationKey"='+Number(wh?.id||0)+" AND s.status='AVAILABLE') ELSE "+lotSql+' END';
     const data = await Product.findAndCountAll({
       where: { userId: tenantId },
-      order: [['createdAt', 'DESC']],
+      attributes:{include:[[sequelize.literal('(\"Product\".stock - COALESCE((SELECT SUM(w.quantity) FROM \"WarehouseBalances\" w WHERE w.\"userId\"=\"Product\".\"userId\" AND w.\"productId\"=\"Product\".id),0))'),'unallocatedStock'],[sequelize.literal(availableSql),'availableStock'],[sequelize.literal(serialTrackedSql),'serialTracked']]},
+      order: [['createdAt', 'DESC'],['id','DESC']],
       limit: l,
       offset
     });
 
     // Sécurité : masquer le prix d'achat pour les caissiers
-    if (req.user.role === 'caissier') {
+    if (['caissier','vendeur'].includes(req.user.role)||(!['admin','superadmin'].includes(req.user.role)&&!(req.user.permissions||[]).includes('products.view_purchase_price'))) {
       data.rows = data.rows.map(p => {
         const product = p.get({ clone: true });
         delete product.prixAchat;
@@ -34,7 +44,8 @@ exports.getProducts = async (req, res, next) => {
       });
     }
 
-    const response = getPagingData(data, page, l);
+    if(req.user.parentId)data.rows=data.rows.map(p=>{const row=p.toJSON?p.toJSON():p;delete row.unallocatedStock;row.stock=Number(row.availableStock);return row;});
+    const response = {...getPagingData(data, page, l),warehouseId:wh?.id??null,warehouseName:wh?.name??null,branchKey:wh?.branchId??0};
     sendResponse(res, 200, response, 'Produits récupérés avec succès');
   } catch (error) {
     next(error);
@@ -47,7 +58,7 @@ exports.createProduct = async (req, res, next) => {
 
   try {
     const tenantId = req.user.tenantId;
-    const productData = { ...req.body, userId: tenantId, creatorId: req.user.id };
+    const productData = { ...pick(req.body,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']), userId: tenantId, creatorId: req.user.id };
     // Le frontend envoie 'prixVente', mais la colonne BD est 'prix'
     if (productData.prixVente !== undefined && productData.prix === undefined) {
       productData.prix = productData.prixVente;
@@ -86,7 +97,7 @@ exports.updateProduct = async (req, res, next) => {
     const product = await Product.findOne({ where: { id: req.params.id, userId: tenantId } });
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
 
-    const updateData = { ...req.body };
+    const updateData = pick(req.body,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']);
     // Le frontend envoie 'prixVente', mais la colonne BD est 'prix'
     if (updateData.prixVente !== undefined && updateData.prix === undefined) {
       updateData.prix = updateData.prixVente;
@@ -104,7 +115,12 @@ exports.updateProduct = async (req, res, next) => {
     }
     if (updateData.devise) updateData.devise = normalizeCurrency(updateData.devise);
 
-    await product.update(updateData);
+    await sequelize.transaction(async transaction=>{
+      const locked=await Product.findOne({where:{id:product.id,userId:tenantId},transaction,lock:transaction.LOCK.UPDATE});if(!locked)throw fail('Produit introuvable',404);
+      const allocated=await inventory.allocated(locked,transaction);
+      if(Object.hasOwn(updateData,'stock')&&Number(updateData.stock)!==Number(locked.stock)&&(allocated>0||await require('../utils/lotService').tracked(locked,transaction)||await require('../utils/serialService').tracked(locked,transaction)))throw fail('Les produits affectés exigent un ajustement d’inventaire dédié',409);
+      await locked.update(updateData,{transaction});Object.assign(product.dataValues,locked.dataValues);
+    });
     await logActivite(req.user.id, 'PRODUIT', `Mise à jour du produit: ${product.nom}`, 'System', tenantId);
 
     // Invalidation du cache
@@ -122,8 +138,7 @@ exports.deleteProduct = async (req, res, next) => {
     const tenantId = req.user.tenantId;
     const product = await Product.findOne({ where: { id: req.params.id, userId: tenantId } });
     if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
-    const nomProduit = product.nom;
-    await product.destroy();
+    return res.status(409).json({message:'Suppression définitive indisponible : archivage requis pour préserver l’historique.'});
     await logActivite(req.user.id, 'PRODUIT', `Suppression du produit: ${nomProduit}`, 'System', tenantId);
 
     // Invalidation du cache
@@ -147,7 +162,7 @@ exports.createBulkProducts = async (req, res, next) => {
     }
 
     const products = req.body.products.map(p => {
-      const productData = { ...p };
+      const productData = pick(p,['nom','description','prix','prixVente','prixAchat','stock','stockAlerte','categorie','codeBarre','image','unite','devise','taxe','metadata','variantes']);
       if (productData.prixVente !== undefined && productData.prix === undefined) {
         productData.prix = productData.prixVente;
       }

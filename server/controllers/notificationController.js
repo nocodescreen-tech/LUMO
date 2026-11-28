@@ -1,82 +1,20 @@
-const { Notification } = require('../models');
-
-exports.getNotifications = async (req, res, next) => {
-    try {
-        // Use tenantId so ALL shop users (admin, cashier, seller) see the shop notifications
-        // Notifications are created with product.userId which equals the shop owner's tenantId
-        const userId = req.user.tenantId || req.user.id;
-        const page = Math.max(1, parseInt(req.query.page) || 1);
-        const limit = Math.min(100, parseInt(req.query.limit) || 50);
-        const offset = (page - 1) * limit;
-
-        const { count, rows } = await Notification.findAndCountAll({
-            where: { userId },
-            order: [['createdAt', 'DESC']],
-            limit,
-            offset
-        });
-
-        // Return array directly at top level for frontend compatibility
-        res.status(200).json(rows);
-    } catch (error) {
-        next(error);
-    }
-};
-
-exports.markAsRead = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user.tenantId || req.user.id;
-
-        if (!id) return res.status(400).json({ message: 'ID de notification requis' });
-
-        await Notification.update(
-            { lu: true },
-            { where: { id, userId } }
-        );
-        res.status(200).json({ message: 'Notification marquée comme lue' });
-    } catch (error) {
-        next(error);
-    }
-};
-
-exports.markAllAsRead = async (req, res, next) => {
-    try {
-        const userId = req.user.tenantId || req.user.id;
-        await Notification.update(
-            { lu: true },
-            { where: { userId, lu: false } }
-        );
-        res.status(200).json({ message: 'Toutes les notifications marquées comme lues' });
-    } catch (error) {
-        next(error);
-    }
-};
-
-exports.deleteNotification = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user.tenantId || req.user.id;
-
-        if (!id) return res.status(400).json({ message: 'ID de notification requis' });
-
-        await Notification.destroy({
-            where: { id, userId }
-        });
-        res.status(200).json({ message: 'Notification supprimée' });
-    } catch (error) {
-        next(error);
-    }
-};
-
-exports.deleteAllNotifications = async (req, res, next) => {
-    try {
-        const userId = req.user.tenantId || req.user.id;
-        await Notification.destroy({
-            where: { userId }
-        });
-        res.status(200).json({ message: 'Toutes les notifications ont été supprimées' });
-    } catch (error) {
-        next(error);
-    }
-};
+const {Notification}=require('../models');
+const {Op}=require('sequelize');
+const {sendResponse}=require('../utils/response');
+const {fail}=require('../utils/transactionSafety');
+const svc=require('../utils/notificationService');
+const paging=q=>({page:Math.max(1,Math.min(100000,parseInt(q.page)||1)),limit:Math.max(1,Math.min(100,parseInt(q.limit)||50))});
+const order=[['createdAt','DESC'],['id','DESC']];
+exports.getNotifications=async(req,res,next)=>{try{const {page,limit}=paging(req.query);res.set('Cache-Control','no-store');return res.json(await Notification.findAll({where:svc.visibility(req.user),order,limit,offset:(page-1)*limit}));}catch(e){next(e)}};
+exports.center=async(req,res,next)=>{try{const {page,limit}=paging(req.query),base=svc.visibility(req.user),where={...base};if(req.query.unread==='true')where.lu=false;if(svc.categories(req.user).includes(req.query.category))where.category=req.query.category;if(['INFO','SUCCESS','WARNING','ERROR'].includes(req.query.priority))where.type=req.query.priority;
+ const [r,unread]=await Promise.all([Notification.findAndCountAll({where,order,limit,offset:(page-1)*limit}),Notification.count({where:{...base,lu:false}})]);
+ res.set('Cache-Control','no-store');return sendResponse(res,200,{rows:r.rows,total:r.count,unread,page,limit},'Notifications personnelles');}catch(e){next(e)}};
+exports.summary=async(req,res,next)=>{try{res.set('Cache-Control','no-store');return sendResponse(res,200,{unread:await Notification.count({where:{...svc.visibility(req.user),lu:false}})},'Notifications non lues');}catch(e){next(e)}};
+exports.refresh=async(req,res,next)=>{try{return sendResponse(res,200,await svc.scan(req.user.id),'Contrôle des alertes');}catch(e){next(e)}};
+exports.getPreferences=async(req,res,next)=>{try{return sendResponse(res,200,await svc.preferences(req.user.id),'Préférences');}catch(e){next(e)}};
+exports.setPreferences=async(req,res,next)=>{try{if(!Array.isArray(req.body.muted))throw fail('Préférences requises');return sendResponse(res,200,await svc.preferences(req.user.id,req.body.muted),'Préférences enregistrées');}catch(e){next(e)}};
+async function update(req,res,next,all,patch){try{const where=svc.visibility(req.user);if(!all)where.id=req.params.id;const [n]=await Notification.update(patch,{where});if(!all&&!n)throw fail('Notification introuvable',404);return sendResponse(res,200,{updated:n},'Notifications mises à jour');}catch(e){next(e)}}
+exports.markAsRead=(req,res,next)=>update(req,res,next,false,{lu:true});
+exports.markAllAsRead=(req,res,next)=>update(req,res,next,true,{lu:true});
+exports.deleteNotification=(req,res,next)=>update(req,res,next,false,{archivedAt:new Date(),lu:true});
+exports.deleteAllNotifications=(req,res,next)=>update(req,res,next,true,{archivedAt:new Date(),lu:true});

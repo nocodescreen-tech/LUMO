@@ -3,15 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, TrendingUp, AlertCircle, Zap } from 'lucide-react';
 import api from '../../api/axios';
 import { useTranslation } from '../../hooks/useTranslation';
+import { LoadFailure } from '../../design-system/LoadFailure';
 
 const AISuggestions = () => {
     const { t, language } = useTranslation();
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [analysis, setAnalysis] = useState('');
     const [loading, setLoading] = useState(true);
+    const [loadError,setLoadError]=useState(false);
+    const [retry,setRetry]=useState(0);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
+            setLoading(true);
             try {
                 const { data } = await api.get(`/ai/insights?lang=${language}`);
                 setAnalysis(data.analysis || '');
@@ -30,24 +34,27 @@ const AISuggestions = () => {
                 }));
 
                 setSuggestions(mapped);
+                setLoadError(false);
                 setLoading(false);
             } catch (error) {
+                setLoadError(true);
                 console.error("Erreur suggestions IA:", error);
                 setLoading(false);
             }
         };
         fetchSuggestions();
-    }, [language]);
+    }, [language,retry]);
 
     if (loading) return (
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <Sparkles size={40} className="animate-pulse" style={{ color: 'var(--primary)', marginBottom: '16px' }} />
-                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('aiLoading') || 'Analyse prédictive en cours...'}</p>
+                <p style={{ color: 'var(--text-muted)', fontWeight: '600' }}>{t('aiLoading') || 'Calcul des indicateurs en cours…'}</p>
             </div>
         </div>
     );
 
+    if (loadError) return <LoadFailure onRetry={()=>setRetry(n=>n+1)} />;
     const getBadgeLabel = (type: string) => {
         const upper = type.toUpperCase();
         if (upper === 'STOCK') return t('stockBadge') || 'STOCK';
@@ -60,7 +67,7 @@ const AISuggestions = () => {
         <div className="glass" style={{ padding: '32px', borderRadius: '32px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Sparkles size={24} color="var(--primary)" /> {t('aiInsightsTitle') || 'LUMO Insights'}
+                        <Sparkles size={24} color="var(--primary)" /> {language==='fr'?'Recommandations de gestion':'Business recommendations'}
                     </h3>
             </div>
 
@@ -72,6 +79,7 @@ const AISuggestions = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <AnimatePresence>
+                    {!suggestions.length && !analysis && <p style={{color:'var(--text-muted)'}}>{language==='fr'?'Aucune recommandation disponible':'No recommendations available'}</p>}
                     {suggestions.map((s, i) => (
                         <motion.div
                             key={s.id}
@@ -110,23 +118,8 @@ const AISuggestions = () => {
                                     </div>
                                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 12px 0', lineHeight: '1.4' }}>{s.desc}</p>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'white' }}>{s.impact}</span>
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                import('sonner').then(({ toast }) => {
-                                                    const launchedText = t('aiActionLaunched') || 'Action IA :';
-                                                    const successText = t('aiActionSuccess') || 'lancée avec succès !';
-                                                    const prepText = t('aiActionPreparing') || "L'assistant prépare les modifications stratégiques...";
-                                                    toast.success(`${launchedText} "${s.title}" ${successText}`, {
-                                                        description: prepText
-                                                    });
-                                                });
-                                            }}
-                                            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
-                                        >
-                                            {t('apply') || 'Appliquer'} <ArrowRight size={14} />
-                                        </button>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-main)' }}>{s.impact}</span>
+                                        <span style={{fontSize:"0.8rem",color:"var(--text-muted)"}}>{language==="fr"?"Recommandation à examiner":"Recommendation to review"}</span>
                                     </div>
                                 </div>
                             </div>

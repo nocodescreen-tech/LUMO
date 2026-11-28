@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS "TreasuryAccounts"(id serial PRIMARY KEY,"userId" integer NOT NULL,name varchar(120) NOT NULL,kind varchar(20) NOT NULL,currency varchar(3) NOT NULL,balance numeric(20,2) NOT NULL,provider varchar(100),"referenceHint" varchar(80),"createdAt" timestamptz NOT NULL DEFAULT now(),"updatedAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "TreasuryTransfers"(id serial PRIMARY KEY,"userId" integer NOT NULL,"actorId" integer NOT NULL,"fromAccountId" integer,"toAccountId" integer,"cashSessionId" integer,amount numeric(20,2) NOT NULL,currency varchar(3) NOT NULL,note varchar(250) NOT NULL,"externalReference" varchar(100),"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS "TreasuryReconciliations"(id serial PRIMARY KEY,"userId" integer NOT NULL,"actorId" integer NOT NULL,"accountId" integer NOT NULL,currency varchar(3) NOT NULL,expected numeric(20,2) NOT NULL,observed numeric(20,2) NOT NULL,difference numeric(20,2) NOT NULL,"statementDate" date NOT NULL,note varchar(250) NOT NULL,"createdAt" timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS treasury_account_name ON "TreasuryAccounts"("userId",name);
+CREATE UNIQUE INDEX IF NOT EXISTS treasury_account_owner ON "TreasuryAccounts"("userId",id);
+CREATE INDEX IF NOT EXISTS treasury_transfer_history ON "TreasuryTransfers"("userId",id);
+CREATE INDEX IF NOT EXISTS treasury_reconciliation_history ON "TreasuryReconciliations"("userId","accountId",id);
+ALTER TABLE "TreasuryAccounts" ADD CONSTRAINT treasury_account_values CHECK(kind IN ('BANK','MOBILE_MONEY') AND currency IN ('USD','CDF') AND balance>=0);
+ALTER TABLE "TreasuryTransfers" ADD CONSTRAINT treasury_transfer_values CHECK(amount>0 AND currency IN ('USD','CDF') AND "fromAccountId" IS DISTINCT FROM "toAccountId" AND (("cashSessionId" IS NOT NULL)=("fromAccountId" IS NULL OR "toAccountId" IS NULL)));
+ALTER TABLE "TreasuryTransfers" ADD CONSTRAINT treasury_source_fk FOREIGN KEY("userId","fromAccountId") REFERENCES "TreasuryAccounts"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "TreasuryTransfers" ADD CONSTRAINT treasury_destination_fk FOREIGN KEY("userId","toAccountId") REFERENCES "TreasuryAccounts"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "TreasuryReconciliations" ADD CONSTRAINT treasury_reconciliation_fk FOREIGN KEY("userId","accountId") REFERENCES "TreasuryAccounts"("userId",id) ON DELETE RESTRICT;
+ALTER TABLE "TreasuryReconciliations" ADD CONSTRAINT treasury_reconciliation_values CHECK(currency IN ('USD','CDF') AND expected>=0 AND observed>=0 AND difference=observed-expected);
+CREATE TRIGGER lumo_treasury_transfer_immutable BEFORE UPDATE OR DELETE ON "TreasuryTransfers" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE TRIGGER lumo_treasury_reconciliation_immutable BEFORE UPDATE OR DELETE ON "TreasuryReconciliations" FOR EACH ROW EXECUTE FUNCTION lumo_guard_support_message();
+CREATE OR REPLACE FUNCTION lumo_guard_treasury_account() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Treasury account immutable'; END IF; IF (to_jsonb(OLD)-'balance'-'updatedAt') IS DISTINCT FROM (to_jsonb(NEW)-'balance'-'updatedAt') THEN RAISE EXCEPTION 'Treasury identity immutable'; END IF; RETURN NEW; END; $$;
+CREATE TRIGGER lumo_treasury_account_guard BEFORE UPDATE OR DELETE ON "TreasuryAccounts" FOR EACH ROW EXECUTE FUNCTION lumo_guard_treasury_account();

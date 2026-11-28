@@ -1,0 +1,47 @@
+const router=require('express').Router();
+const {protect,authorize}=require('../middleware/authMiddleware');
+const {sequelize}=require('../config/database');
+const {Branch,Warehouse,Organization}=require('../models');
+const {sendResponse}=require('../utils/response');
+const {fail}=require('../utils/transactionSafety');
+const svc=require('../utils/workspaceService');
+const scope=require('../utils/staffScope');
+const {User,StaffAssignment}=require('../models');
+const {Op}=require('sequelize');
+router.get('/pos-location',protect,async(req,res,next)=>{try{const w=await scope.location(req.user);return sendResponse(res,200,{warehouseId:w?.id??null,name:w?.name??null},'Emplacement POS');}catch(e){next(e)}});
+router.use('/expense-approvals',require('./expenseApprovalRoutes'));
+router.use('/leave',require('./leaveRoutes'));
+router.use('/crm',require('./crmRoutes'));
+router.use(protect,authorize('admin'));
+router.get('/staff-assignments',async(req,res,next)=>{try{const uid=req.user.tenantId,page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20)),where={parentId:uid};if(typeof req.query.q==='string'&&req.query.q.trim())where.nom={[Op.iLike]:'%'+req.query.q.trim().slice(0,100)+'%'};
+ const result=await User.findAndCountAll({where,attributes:['id','nom','role','isSuspended'],order:[['nom','ASC'],['id','ASC']],limit,offset:(page-1)*limit});
+ const [latest]=await sequelize.query('SELECT DISTINCT ON ("staffId") * FROM "StaffAssignments" WHERE "userId"= :uid AND "staffId" IN (:ids) ORDER BY "staffId",id DESC',{replacements:{uid,ids:result.rows.length?result.rows.map(r=>r.id):[-1]}});
+ return sendResponse(res,200,{rows:result.rows.map(r=>({...r.toJSON(),assignment:latest.find(a=>a.staffId===r.id)||null})),total:result.count,page,limit},'Affectations');}catch(e){next(e)}});
+router.get('/staff-assignments/history',async(req,res,next)=>{try{const uid=req.user.tenantId,page=Math.max(1,Math.min(100000,parseInt(req.query.page)||1)),limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20)),where={userId:uid};if(req.query.staffId){const id=Number(req.query.staffId);if(!Number.isSafeInteger(id)||id<=0)throw fail('Collaborateur invalide');where.staffId=id;}const r=await StaffAssignment.findAndCountAll({where,order:[['id','DESC']],limit,offset:(page-1)*limit});return sendResponse(res,200,{rows:r.rows,total:r.count,page,limit},'Historique des affectations');}catch(e){next(e)}});
+router.post('/staff-assignments',async(req,res,next)=>{try{const r=await scope.assign(req);return sendResponse(res,r.replayed?200:201,r.row,'Affectation enregistrée')}catch(e){next(e)}});
+router.use('/hr',require('./hrRoutes'));
+router.use('/budgets',require('./budgetRoutes'));
+router.use('/executive',require('./executiveRoutes'));
+router.use('/subscription',require('./saasBillingRoutes').customer);
+router.get('/context',async(req,res,next)=>{try{return sendResponse(res,200,await svc.context(req.user.tenantId),'Espace de travail');}catch(e){next(e)}});
+router.put('/organization',async(req,res,next)=>{try{
+ const org=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction);await org.update({name:svc.label(req.body.name)},{transaction});return org;});return sendResponse(res,200,org,'Entreprise mise à jour');
+}catch(e){next(e)}});
+router.get('/branches',async(req,res,next)=>{try{const {organization}=await svc.context(req.user.tenantId);return sendResponse(res,200,await Branch.findAll({where:{organizationId:organization.id},order:[['name','ASC']]}),'Succursales');}catch(e){next(e)}});
+router.post('/branches',require('../utils/platformFlags').guard('workspace_registry_creation'),async(req,res,next)=>{try{
+ const row=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction),s=await svc.subscription(org,transaction);svc.assertEntitled(org,s);
+ if(await Branch.count({where:{organizationId:org.id},transaction})>=s.branchLimit)throw fail('Quota de succursales atteint',409);
+ const code=svc.normalizeCode(req.body.code);if(await Branch.findOne({where:{organizationId:org.id,code},transaction}))throw fail('Code déjà utilisé',409);
+ return Branch.create({organizationId:org.id,name:svc.label(req.body.name),code,address:req.body.address?svc.label(req.body.address,250):null},{transaction});});
+ return sendResponse(res,201,row,'Succursale créée');
+}catch(e){next(e)}});
+router.get('/warehouses',async(req,res,next)=>{try{const {organization}=await svc.context(req.user.tenantId);return sendResponse(res,200,await Warehouse.findAll({where:{organizationId:organization.id},order:[['name','ASC']]}),'Entrepôts');}catch(e){next(e)}});
+router.post('/warehouses',require('../utils/platformFlags').guard('workspace_registry_creation'),async(req,res,next)=>{try{
+ const row=await sequelize.transaction(async transaction=>{const org=await svc.ensure(req.user.tenantId,transaction),s=await svc.subscription(org,transaction);svc.assertEntitled(org,s);
+ const branch=await Branch.findOne({where:{id:req.body.branchId,organizationId:org.id,active:true},transaction});if(!branch)throw fail('Succursale introuvable',404);
+ if(await Warehouse.count({where:{organizationId:org.id},transaction})>=s.warehouseLimit)throw fail('Quota d’entrepôts atteint',409);
+ const code=svc.normalizeCode(req.body.code);if(await Warehouse.findOne({where:{organizationId:org.id,code},transaction}))throw fail('Code déjà utilisé',409);
+ return Warehouse.create({organizationId:org.id,branchId:branch.id,name:svc.label(req.body.name),code},{transaction});});
+ return sendResponse(res,201,row,'Entrepôt créé');
+}catch(e){next(e)}});
+module.exports=router;

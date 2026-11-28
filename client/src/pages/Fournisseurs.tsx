@@ -1,3 +1,6 @@
+import './inventory-commercial.css';
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,9 +15,11 @@ import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 
 const Fournisseurs = () => {
-  const { t } = useTranslation();
+  const { t,language } = useTranslation();
+  const [view,setView]=useState<'table'|'grid'>('table');
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
@@ -68,8 +73,9 @@ const Fournisseurs = () => {
       }
 
       setSuppliers(suppliersList);
+            setLoadError(false);
     } catch (error) {
-      toast.error(t('suppliersLoadError'));
+      setLoadError(true); toast.error(t('suppliersLoadError'));
     } finally {
       setLoading(false);
     }
@@ -144,27 +150,29 @@ const Fournisseurs = () => {
   const filteredSuppliers = suppliers.filter(s =>
     s.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.telephone?.toLowerCase().includes(searchTerm.toLowerCase())
+    s.telephone?.toLowerCase().includes(searchTerm.toLowerCase()) || String(s.categorie??'').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage) || 1;
   const currentItems = filteredSuppliers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
-  return (
-    <motion.div
+  if (!loading && loadError) return <LoadFailure onRetry={fetchSuppliers} />;
+    return (
+    <motion.div className="ic-page ic-suppliers"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '40px' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '900', fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase' }}>
             <Truck size={14} /> {t('suppliersMgmtPrefix')}
           </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', margin: 0 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0 }}>
             <span className="text-gradient">{t('suppliers')}</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('suppliersSubtitle')}</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('suppliersSubtitle')}</p>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -174,13 +182,13 @@ const Fournisseurs = () => {
             </div>
             <div>
               <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>{t('totalPartners')}</span>
-              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)' }}>{suppliers.length}</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-main)' }}>{suppliers.length}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="glass" style={{ padding: '16px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '16px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+      <div className="glass lumo-record-toolbar" style={{ padding: '12px', borderRadius: 'var(--radius-md)', display: 'flex', gap: '12px', alignItems: 'center', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={22} style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
@@ -228,8 +236,9 @@ const Fournisseurs = () => {
         </div>
       </div>
 
+      <div className="ic-filters"><span>{filteredSuppliers.length} {language==='en'?'suppliers':'fournisseurs'}</span><div className="ic-view-switch"><button aria-pressed={view==='table'} onClick={()=>setView('table')}>{language==='en'?'Table':'Tableau'}</button><button aria-pressed={view==='grid'} onClick={()=>setView('grid')}>{language==='en'?'Cards':'Grille'}</button></div></div>
       <div className="glass" style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ overflowX: 'auto' }}>
+        {view==='grid'?<div className="ic-grid">{loading?<PageSkeleton/>:!currentItems.length?<p className="ic-empty">{language==='en'?'No suppliers':'Aucun fournisseur'}</p>:currentItems.map(s=><article key={s.id} className="ic-card ic-supplier-card"><div className="ic-card-body"><span className="ic-supplier-icon"><Truck size={22}/></span><small>#{s.id} · {s.categorie||'—'}</small><h3>{s.nom}</h3><div className="ic-contact-line"><Mail size={15}/><span>{s.email||'—'}</span></div><div className="ic-contact-line"><Phone size={15}/><span>{s.telephone||'—'}</span></div><div className="ic-contact-line"><MapPin size={15}/><span>{s.adresse||'—'}</span></div><div className="ic-card-actions">{canDo('suppliers.edit')&&<button aria-label={language==='en'?'Edit':'Modifier'} onClick={()=>openEditModal(s)}><Edit size={17}/></button>}{canDo('suppliers.delete')&&<button aria-label={language==='en'?'Delete':'Supprimer'} onClick={()=>handleDeleteSupplier(s.id,s.nom)}><Trash2 size={17}/></button>}</div></div></article>)}</div>:<div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -332,9 +341,9 @@ const Fournisseurs = () => {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+        <div className="ic-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
             {t('showingClients')
               .replace('{start}', (filteredSuppliers.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1).toString())

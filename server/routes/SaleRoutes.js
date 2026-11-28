@@ -100,7 +100,7 @@ router.delete('/all', protect, authorize('admin', 'superadmin'), deleteAllSales)
  *       200:
  *         description: Vente mise à jour
  */
-router.put('/:id', protect, checkPermission('sales'), updateSale);
+router.put('/:id', protect, checkPermission('sales.edit'), updateSale);
 
 /**
  * @swagger

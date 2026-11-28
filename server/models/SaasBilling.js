@@ -1,0 +1,7 @@
+const {DataTypes:D}=require('sequelize');const {sequelize}=require('../config/database');
+const i=(allowNull=false)=>({type:D.INTEGER,allowNull}),s=(n,allowNull=false)=>({type:D.STRING(n),allowNull}),a=()=>({type:D.DECIMAL(20,2),allowNull:false});
+const SaasPrice=sequelize.define('SaasPrice',{plan:s(32),currency:s(3),days:i(),amount:a(),enabled:{type:D.BOOLEAN,allowNull:false},actorId:i(),reason:s(250)},{updatedAt:false,indexes:[{fields:['plan','currency','days','id']}]});
+const SaasInvoice=sequelize.define('SaasInvoice',{organizationId:i(),ownerId:i(),priceId:i(),actorId:i(),plan:s(32),currency:s(3),days:i(),amount:a(),status:s(16),dueOn:{type:D.DATEONLY,allowNull:false},reference:s(100),reason:s(250)},{indexes:[{fields:['ownerId','status']},{unique:true,fields:['reference']}]});
+const SaasPayment=sequelize.define('SaasPayment',{invoiceId:{...i(),unique:true},organizationId:i(),ownerId:i(),actorId:i(),amount:a(),currency:s(3),method:s(24),externalReference:s(100),note:s(250),periodStart:{type:D.DATE,allowNull:false},periodEnd:{type:D.DATE,allowNull:false}},{updatedAt:false,indexes:[{unique:true,fields:['method','externalReference']}]});
+const SaasInvoiceEvent=sequelize.define('SaasInvoiceEvent',{invoiceId:i(),ownerId:i(),actorId:i(),kind:s(16),reason:s(250)},{updatedAt:false,indexes:[{fields:['ownerId','invoiceId','id']}]});
+module.exports={SaasPrice,SaasInvoice,SaasPayment,SaasInvoiceEvent};

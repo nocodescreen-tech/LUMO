@@ -24,8 +24,8 @@ export default defineConfig({
         name: 'LUMO',
         short_name: 'LUMO',
         description: 'Solution ERP complète pour commerçants en RDC',
-        theme_color: '#155E58',
-        background_color: '#F8F4EA',
+        theme_color: '#C2410C',
+        background_color: '#FAFAF9',
         display: 'standalone',
         start_url: '/',
         scope: '/',
@@ -58,6 +58,9 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 4194304,
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Heavy optional tools and screenshots load only when actually requested.
+        globIgnores:['**/screen*.png','**/team/*.png','**/xlsx-*.js','**/BarcodeScanner-*.js'],
+        navigateFallbackDenylist:[/^\/api(?:\/|$)/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -91,7 +94,8 @@ export default defineConfig({
             // ALL API routes must bypass Service Worker — no cache for backend calls
             urlPattern: /\/api\/.*/i,
             handler: 'NetworkOnly'
-          }
+          },
+          {urlPattern: /\/assets\/(?:xlsx|BarcodeScanner)-[^/]+\.js$/i,handler:'CacheFirst',options:{cacheName:'lumo-optional-tools-v1',expiration:{maxEntries:8,maxAgeSeconds:7*86400},cacheableResponse:{statuses:[200]}}}
         ]
       }
     })

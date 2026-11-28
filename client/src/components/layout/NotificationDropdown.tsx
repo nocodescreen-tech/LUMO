@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bell, Check, Trash2, X, RefreshCw } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../common/ConfirmModal';
 
 interface Props {
@@ -11,8 +12,10 @@ interface Props {
 }
 
 const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
+  const navigate=useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError,setLoadError]=useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -20,8 +23,10 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
     try {
       setLoading(true);
       const { data } = await api.get('/notifications');
-      setNotifications(Array.isArray(data) ? data : (data?.notifications || []));
+      setNotifications(Array.isArray(data) ? data : (data?.notifications || data?.data?.notifications || (Array.isArray(data?.data)?data.data:[])));
+      setLoadError(false);
     } catch (error) {
+      setLoadError(true);
       console.error('Failed to fetch notifications', error);
     } finally {
       setLoading(false);
@@ -58,7 +63,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
       await api.delete('/notifications/all');
       setNotifications([]);
       onRefresh?.();
-      toast.success('Historique des notifications vidé');
+      toast.success('Notifications archivées');
     } catch {
       toast.error('Erreur lors de la suppression');
     }
@@ -77,7 +82,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
   const unreadCount = (Array.isArray(notifications) ? notifications : []).filter(n => !n.lu).length;
 
   const getNotifColor = (type: string) => {
-    switch (type) {
+    switch (String(type||'').toLowerCase()) {
       case 'success': return 'var(--success)';
       case 'warning': return 'var(--warning)';
       case 'error': return 'var(--danger)';
@@ -106,7 +111,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
         zIndex: 200,
         padding: '0',
       }}
-      className="premium-scroll"
+      className="premium-scroll lumo-notification-panel"
     >
       {/* Header */}
       <div style={{
@@ -152,12 +157,13 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
             <button
               onClick={() => setShowDeleteModal(true)}
               style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '6px', borderRadius: '8px', display: 'flex' }}
-              title="Tout supprimer"
+              title="Tout archiver"
             >
               <Trash2 size={14} />
             </button>
           )}
           <button
+            aria-label="Fermer les notifications"
             onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px', display: 'flex', borderRadius: '8px' }}
           >
@@ -174,7 +180,7 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
               <div key={i} style={{ height: '72px', borderRadius: '16px', background: 'var(--bg-main)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
-        ) : !Array.isArray(notifications) || notifications.length === 0 ? (
+        ) : loadError ? <div role="alert" style={{padding:16,color:'var(--text-muted)'}}>Impossible de charger les notifications.<button type="button" className="btn-premium secondary" onClick={fetchNotifications}>Réessayer</button></div> : !Array.isArray(notifications) || notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px' }}>
             <Bell size={40} style={{ opacity: 0.15, marginBottom: '12px', display: 'block', margin: '0 auto 12px' }} />
             <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.9rem' }}>Aucune notification</p>
@@ -214,13 +220,14 @@ const NotificationDropdown = ({ onClose, onRefresh }: Props) => {
         )}
       </div>
       
+      <div style={{padding:12,borderTop:'1px solid var(--border)'}}><button className="btn-premium secondary" style={{width:'100%'}} onClick={()=>{onClose();navigate('/notifications')}}>Ouvrir le centre de notifications</button></div>
       <ConfirmModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={deleteAll}
-        title="Vider les notifications"
-        message="Êtes-vous sûr de vouloir supprimer TOUTES vos notifications ? Cette action est irréversible."
-        confirmText="Supprimer tout"
+        title="Archiver les notifications"
+        message="Archiver toutes vos notifications ? Les alertes archivées ne réapparaîtront pas à l’identique."
+        confirmText="Tout archiver"
         type="danger"
       />
     </motion.div>

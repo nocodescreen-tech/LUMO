@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, checkPermission } = require('../middleware/authMiddleware');
 const { Activite, User, Op } = require('../models');
 
 // Fetch activities
 // - SuperAdmin → toutes les activités
 // - Utilisateur normal → uniquement ses propres activités
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, checkPermission('activities'), async (req, res) => {
     try {
-        const { limit = 20, page = 1, type, module } = req.query;
+        const { type, module } = req.query;
+        const limit=Math.max(1,Math.min(100,parseInt(req.query.limit)||20)),page=Math.max(1,parseInt(req.query.page)||1);
         const offset = (page - 1) * limit;
 
         const isSuperAdmin = req.user.role === 'superadmin';

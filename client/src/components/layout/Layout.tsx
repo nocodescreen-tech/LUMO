@@ -34,6 +34,7 @@ import { socketService } from '../../utils/socket';
 import { toast } from 'sonner';
 import SessionTimeoutModal from './SessionTimeoutModal';
 import Modal from '../common/Modal';
+import './workspace-commercial.css';
 
 
 import { translations } from '../../translations';
@@ -65,18 +66,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
     // Recherche API avec debounce
     useEffect(() => {
-        if (searchQuery.length >= 2) {
+        const ctl=new AbortController();
+        if (searchQuery.trim().length >= 2) {
             if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
             searchTimeoutRef.current = setTimeout(async () => {
                 try {
-                    const { data } = await api.get('/search?q=' + encodeURIComponent(searchQuery));
-                    setApiSearchResults(data);
-                } catch { setApiSearchResults(null); }
+                    const { data } = await api.get('/search',{params:{q:searchQuery.trim()},signal:ctl.signal});
+                    if(!ctl.signal.aborted)setApiSearchResults(data);
+                } catch { if(!ctl.signal.aborted)setApiSearchResults(null); }
             }, 300);
         } else {
             setApiSearchResults(null);
         }
-        return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+        return () => { ctl.abort();if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
     }, [searchQuery]);
     const navigate = useNavigate();
     const location = useLocation();
@@ -97,56 +99,45 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
+            osc.onended=()=>{void ctx.close().catch(()=>{})};
             osc.stop(ctx.currentTime + 0.2);
         } catch (_) {
             // Silent fallback if audio is blocked by browser policy
         }
     }, []);
 
-    const fetchUnreadCount = async () => {
+    const unreadBusy=useRef(false),unreadAgain=useRef(false);
+    const fetchUnreadCount = React.useCallback(async function fetchCount() {
+        const id=user?.id;
+        if(!id||document.visibilityState==='hidden')return;
+        if(unreadBusy.current){unreadAgain.current=true;return;}
+        unreadBusy.current=true;
         try {
-            const { data } = await api.get('/notifications');
-            const notifications = Array.isArray(data) ? data : [];
-            const count = notifications.filter((n: any) => !n.lu).length;
-            setUnreadCount(count);
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
-        }
-    };
+            const {data}=await api.get('/notifications/summary');
+            if(useAuthStore.getState().user?.id===id)setUnreadCount(Number(data?.data?.unread)||0);
+        } catch (_) { /* Preserve last known count on network error. */ }finally{unreadBusy.current=false;if(unreadAgain.current){unreadAgain.current=false;if(useAuthStore.getState().user?.id===id)void fetchCount();}}
+    },[user?.id]);
 
-    useEffect(() => {
-        fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 60000); // 1m poll backup
-        
-        // Socket.io integration
-        if (user?.id) {
-            const socket = socketService.connect(user.id);
-            
-            socket.on('notification', (notif: any) => {
-                setUnreadCount(prev => prev + 1);
-                const soundEnabled = user?.preferences?.notificationSoundEnabled !== false;
-                if (soundEnabled) {
-                    playNotificationCling();
-                }
-                toast.info(notif.titre || 'Nouvelle notification', {
-                    description: notif.contenu || notif.message,
-                    duration: 5000,
-                    action: {
-                        label: 'Voir',
-                        onClick: () => setShowNotifications(true)
-                    }
-                });
-            });
-
-            return () => {
-                socket.off('notification');
-                socketService.disconnect();
-                clearInterval(interval);
-            };
-        }
-        
-        return () => clearInterval(interval);
-    }, [user?.id, playNotificationCling]);
+    useEffect(()=>{
+        setUnreadCount(0);setShowNotifications(false);
+        if(!user?.id)return;
+        const id=user.id;
+        let stopped=false,scanning=false;
+        const poll=async()=>{
+            if(stopped||scanning||document.visibilityState==='hidden'||useAuthStore.getState().user?.id!==id)return;
+            scanning=true;
+            try{if(user.role!=='superadmin')await api.post('/notifications/refresh',{});}catch(_){}
+            finally{scanning=false;if(!stopped)void fetchUnreadCount();}
+        };
+        void poll();
+        const interval=setInterval(poll,60000);document.addEventListener('visibilitychange',poll);
+        const socket=socketService.connect(id);
+        const onNotification=()=>{if(!stopped&&useAuthStore.getState().user?.id===id)void fetchUnreadCount();};
+        const onLocalChange=()=>void fetchUnreadCount();
+        socket.on('notification',onNotification);
+        window.addEventListener('lumo-notifications-change',onLocalChange);
+        return()=>{stopped=true;clearInterval(interval);document.removeEventListener('visibilitychange',poll);socket.off('notification',onNotification);socketService.disconnect();window.removeEventListener('lumo-notifications-change',onLocalChange);};
+    },[user?.id,user?.role,fetchUnreadCount]);
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
@@ -177,7 +168,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
-    const navItems = [
+    const rawNavItems = [
+        ...(user?.role==='admin' ? [{name:language==='en'?'My subscription':'Mon abonnement',icon:CreditCard,path:'/subscription',group:'STORE'}] : []),
+        ...(user?.role==='admin' ? [{name:language==='en'?'Executive overview':'Direction générale',icon:LayoutDashboard,path:'/executive',group:'STORE'}] : []),
+        ...(user?.role==='admin'||user?.permissions?.includes('crm.manage') ? [{name:language==='en'?'Sales CRM':'CRM et performance',icon:Users,path:'/crm',group:'STORE'}] : []),
+        ...(user ? [{name:language==='en'?'Notifications':'Notifications',icon:Bell,path:'/notifications',group:'STORE'}] : []),
+        ...(user?.role==='admin' ? [{name:language==='en'?'Budgets':'Budgets et engagements',icon:Activity,path:'/budgets',group:'STORE'}] : []),
+        ...(user&&user.role!=='superadmin' ? [{name:language==='en'?'Leave requests':'Congés et absences',icon:Activity,path:'/leave',group:'STORE'}] : []),
+        ...(user?.role === 'admin'||user?.permissions?.includes('expenses.request')||user?.permissions?.includes('expenses.review') ? [{name:language==='en'?'Expense approvals':'Approbations de dépenses',icon:Activity,path:'/expense-approvals',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Access governance':'Accès et permissions',icon:Activity,path:'/access-governance',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Payroll':'Paie et rémunérations',icon:Activity,path:'/payroll',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Human resources':'Ressources humaines',icon:Activity,path:'/hr',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Staff assignments':'Affectations équipe',icon:Activity,path:'/staff-assignments',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Treasury':'Trésorerie',icon:Activity,path:'/treasury',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Accounting':'Comptabilité',icon:Activity,path:'/accounting',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Receivables':'Créances et échéances',icon:Activity,path:'/receivables',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Documents':'Documents commerciaux',icon:Activity,path:'/documents',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Repairs':'Service après-vente',icon:Activity,path:'/repairs',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Warehouses':'Entrepôts',icon:Package,path:'/inventory',group:'STORE'}] : []),
+        ...(user?.role === 'admin' ? [{name:language==='en'?'Support':'Assistance',icon:Activity,path:'/support',group:'STORE'}] : []),
         ...(user?.role === 'superadmin'
             ? [
                 { name: t.adminPlatform || 'Admin Platform', icon: ShieldCheck, path: '/superadmin', group: 'PLATFORM' },
@@ -189,7 +198,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { name: t.pos, icon: ShoppingCart, path: '/pos', group: 'STORE' },
         { name: t.products, icon: Package, path: '/products', group: 'STORE' },
         { name: t.clients, icon: Users, path: '/clients', group: 'STORE' },
-        ...(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'gerant'
+        ...(user?.role === 'admin'
           ? [{ name: t.team || 'Équipe', icon: UserPlus, path: '/subusers', group: 'STORE' }]
           : []),
         { name: t.sales, icon: Wallet, path: '/sales', group: 'STORE' },
@@ -203,17 +212,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         ...(user?.role !== 'superadmin' ? [{ name: t.settings, icon: Settings, path: '/settings', group: 'STORE' }] : []),
     ];
 
-    const groups = [...new Set(navItems.map(i => i.group))];
+    const order=['PILOT','SALES','INVENTORY','FINANCE','TEAM','SYSTEM','PLATFORM'];
+    const section:Record<string,string>={'/':'PILOT','/executive':'PILOT','/stats':'PILOT','/pos':'SALES','/sales':'SALES','/clients':'SALES','/crm':'SALES','/documents':'SALES','/repairs':'SALES','/products':'INVENTORY','/inventory':'INVENTORY','/purchases':'INVENTORY','/stock-history':'INVENTORY','/fournisseurs':'INVENTORY','/cash':'FINANCE','/treasury':'FINANCE','/accounting':'FINANCE','/receivables':'FINANCE','/dettes':'FINANCE','/budgets':'FINANCE','/expense-approvals':'FINANCE','/subusers':'TEAM','/staff-assignments':'TEAM','/hr':'TEAM','/leave':'TEAM','/payroll':'TEAM','/access-governance':'TEAM'};
+    const required:Record<string,string[]>={'/pos':['pos','sales.add','products'],'/products':['products'],'/clients':['clients'],'/sales':['sales'],'/purchases':['purchases'],'/stock-history':['products'],'/cash':['cash'],'/fournisseurs':['suppliers'],'/dettes':['debts'],'/activities':['activities']};
+    const navItems=rawNavItems.filter(i=>{
+        if(user?.role==='superadmin')return i.group==='PLATFORM'||i.path==='/notifications';
+        if(user?.role==='admin')return true;
+        if(i.path==='/stats')return false;
+        return !required[i.path]||required[i.path].every(p=>user?.permissions?.includes(p));
+    }).map(i=>({...i,group:i.group==='PLATFORM'?'PLATFORM':section[i.path]||'SYSTEM'})).sort((a,b)=>order.indexOf(a.group)-order.indexOf(b.group)||((a.path==='/'?-1:0)-(b.path==='/'?-1:0)));
+    const groups=order.filter(g=>navItems.some(i=>i.group===g));
+    const groupNames:Record<string,[string,string]>={PILOT:['Pilotage','Overview'],SALES:['Commerce','Sales'],INVENTORY:['Stock et achats','Inventory'],FINANCE:['Finance','Finance'],TEAM:['Équipe et RH','People'],SYSTEM:['Administration','Administration'],PLATFORM:['Plateforme','Platform']};
 
     const getAvatarUrl = () => {
         if (!user?.avatar || user.avatar === 'default_avatar.png') {
-            return `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nom || 'U')}&background=6366f1&color=fff&bold=true&size=80`;
+            return undefined;
         }
         return user.avatar;
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
+        <div className="lumo-shell" style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)', position: 'relative' }}>
             {/* Session Timeout Warning Modal */}
             <SessionTimeoutModal />
 
@@ -274,8 +293,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             {/* Sidebar */}
             <motion.aside
+                className="lumo-sidebar"
                 animate={{ 
-                    width: isSidebarOpen ? (isMobile ? 280 : 300) : (isMobile ? 0 : 120),
+                    width: isSidebarOpen ? (isMobile ? 280 : 248) : (isMobile ? 0 : 72),
                     x: isMobile && !isSidebarOpen ? -280 : 0
                 }}
                 transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
@@ -297,13 +317,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
                 {/* Logo area */}
                 <div style={{
-                    padding: isSidebarOpen ? '28px 24px' : '28px 16px',
+                    padding: isSidebarOpen ? '16px 18px' : '16px 8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: isSidebarOpen ? 'space-between' : 'center',
                     borderBottom: '1px solid var(--border)',
                     gap: '12px',
-                    height: '90px'
+                    height: '68px'
                 }}>
                     {(isSidebarOpen || !isMobile) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
@@ -328,15 +348,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     )}
                 </div>
 
-                {/* Nav */}
-                <nav style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }} className="premium-scroll">
+                {isSidebarOpen && <div className="lumo-workspace">
+ <div className="lumo-workspace-icon"><ShoppingBag size={18}/></div>
+ <div className="lumo-workspace-text"><span>{language === 'fr' ? 'Espace de travail' : 'Workspace'}</span><strong>{user?.entreprise?.nom || user?.nom || 'LUMO'}</strong></div>
+ </div>}
+ {/* Nav */}
+                <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }} className="premium-scroll">
                     {groups.map(group => {
                         const items = navItems.filter(i => i.group === group);
                         return (
                             <React.Fragment key={group}>
                                 {isSidebarOpen && (
                                     <div style={{ fontSize: '0.65rem', fontWeight: 900, color: 'var(--text-muted)', letterSpacing: '0.1em', padding: '16px 12px 8px', textTransform: 'uppercase' }}>
-                                        {group}
+                                        {groupNames[group]?.[language==='en'?1:0]}
                                     </div>
                                 )}
                                 {items.map(item => (
@@ -344,11 +368,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                         key={item.path}
                                         to={item.path}
                                         end={item.path === '/'}
+                                        title={item.name}
+                                        aria-label={item.name}
                                         onClick={() => isMobile && setIsSidebarOpen(false)}
                                         className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                                        style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center', padding: isSidebarOpen ? '12px 20px' : '14px' }}
+                                        style={{ justifyContent: isSidebarOpen ? 'flex-start' : 'center', padding: isSidebarOpen ? '10px 12px' : '10px' }}
                                     >
-                                        <item.icon size={22} style={{ flexShrink: 0 }} />
+                                        <item.icon size={19} style={{ flexShrink: 0 }} />
                                         <AnimatePresence>
                                             {isSidebarOpen && (
                                                 <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -363,7 +389,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     })}
                 </nav>
 
-                <div style={{ padding: isSidebarOpen ? '24px 16px' : '24px 12px', borderTop: '1px solid var(--border)' }}>
+                <div style={{ padding: isSidebarOpen ? '12px' : '8px', borderTop: '1px solid var(--border)' }}>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
                         className="nav-link"
@@ -382,7 +408,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             flexShrink: 0,
                             overflow: 'hidden'
                         }}>
-                            <img src={getAvatarUrl()} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {getAvatarUrl()?<img src={getAvatarUrl()} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span className="lumo-avatar-initial">{(user?.nom||"U").trim().slice(0,2).toUpperCase()}</span>}
                         </div>
                         {isSidebarOpen && (
                             <div style={{ overflow: 'hidden' }}>
@@ -396,12 +422,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             {/* Main Content */}
             <main
-                className="premium-scroll"
+                className="premium-scroll lumo-main"
+                id="lumo-main"
                 style={{
                     flex: 1,
-                    marginLeft: isMobile ? 0 : isTablet && !isSidebarOpen ? 120 : (isSidebarOpen ? 300 : 120),
+                    marginLeft: isMobile ? 0 : (isSidebarOpen ? 248 : 72),
                     transition: 'margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                    padding: isMobile ? '16px 16px 24px 16px' : '0 40px 40px 40px',
+                    padding: isMobile ? '0 12px 90px' : '0 28px 32px',
+                    minWidth: 0,
                     height: '100vh',
                     overflowY: 'auto',
                     overflowX: 'hidden',
@@ -409,11 +437,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 }}
             >
                 {/* Navbar */}
-                <header style={{
+                <header className="lumo-topbar" style={{
                     position: 'sticky',
                     top: 0,
-                    margin: isMobile ? '0 -16px' : '0 -40px',
-                    padding: isMobile ? '16px' : '20px 40px',
+                    margin: isMobile ? '0 -12px' : '0 -28px',
+                    padding: isMobile ? '10px 12px' : '12px 28px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -428,16 +456,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <button
+                            type="button"
+                            aria-label={language === 'fr' ? 'Menu de navigation' : 'Navigation menu'}
+                            aria-expanded={isSidebarOpen}
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="flex-center"
                             style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', flexShrink: 0 }}
                         >
                             <Menu size={20} />
                         </button>
-                        <div className="mobile-search-wrap" style={{ position: 'relative' }}>
+                        <div className="mobile-search-wrap lumo-global-search" style={{ position: 'relative' }}>
                             <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
                             <input
                                 type="text"
+                                aria-label={t.search || 'Search'}
                                 placeholder={t.search || 'Navigate to...'}
                                 value={searchQuery}
                                 onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(e.target.value.length > 0); }}
@@ -481,7 +513,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                     // Sous-sections des Paramètres
                                     { name: t.searchProfilEntreprise || 'Profil & Entreprise', icon: Settings, path: '/settings#profil', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchEquipeUtilisateurs || 'Équipe & Utilisateurs', icon: Users, path: '/settings#equipe', category: t.searchCategoryParametres || 'Paramètres' },
-                                    { name: t.searchNotifications || 'Notifications', icon: Bell, path: '/settings#notifications', category: t.searchCategoryParametres || 'Paramètres' },
+                                    { name: t.searchNotifications || 'Notifications', icon: Bell, path: '/notifications', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchSecurite || 'Sécurité & Mot de passe', icon: ShieldCheck, path: '/settings#securite', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchThemeApparence || 'Thème & Apparence', icon: Moon, path: '/settings#theme', category: t.searchCategoryParametres || 'Paramètres' },
                                     { name: t.searchDeviseTaux || 'Devise & Taux de change', icon: DollarSign, path: '/settings#devise', category: t.searchCategoryParametres || 'Paramètres' },
@@ -499,10 +531,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                                 ];
 
                                 const q = searchQuery.toLowerCase();
-                                const matches = searchItems.filter(item =>
-                                    item.name.toLowerCase().includes(q) ||
-                                    item.category.toLowerCase().includes(q)
-                                );
+                                const matches = searchItems.filter(item => navItems.some(n=>n.path===item.path.split('#')[0])&&(user?.role==='admin'||user?.role==='superadmin'||!item.path.includes('#'))&&(item.name.toLowerCase().includes(q)||item.category.toLowerCase().includes(q)));
                                 // Déduplique par path (modules principaux peuvent apparaître deux fois)
                                 const seen = new Set<string>();
                                 const unique = matches.filter(m => {
@@ -596,6 +625,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
                         <button
                             onClick={toggleTheme}
+                            aria-label={language === 'fr' ? 'Changer le thème' : 'Change theme'}
                             className="flex-center"
                             style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--text-main)', boxShadow: 'var(--shadow-sm)' }}
                         >
@@ -612,6 +642,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         <div style={{ position: 'relative' }}>
                             <button
                                 className="flex-center btn-hover"
+                                aria-label="Notifications"
+                                aria-expanded={showNotifications}
                                 onClick={(e) => { e.stopPropagation(); setShowNotifications(!showNotifications); }}
                                 style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', background: 'var(--bg-card)', position: 'relative', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', color: 'var(--text-main)', padding: 0 }}
                             >
@@ -649,32 +681,36 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                             </AnimatePresence>
                         </div>
 
-                        <div style={{ height: '32px', width: '1px', backgroundColor: 'var(--border)', margin: '0 8px' }}></div>
+                        <div className="hidden-mobile" style={{ height: '32px', width: '1px', backgroundColor: 'var(--border)', margin: '0 4px' }}></div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="lumo-topbar-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div className="hidden-mobile" style={{ textAlign: 'right' }}>
                                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>{user?.nom?.split(' ')[0] || 'Admin'}</div>
                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>{new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'short' })}</div>
                             </div>
                             <div className="flex-center" style={{ width: '44px', height: '44px', borderRadius: '14px', border: '1px solid var(--border)', padding: '2px', overflow: 'hidden', background: 'var(--bg-card)' }}>
-                                <img src={getAvatarUrl()} alt="" style={{ width: '100%', height: '100%', borderRadius: '12px', objectFit: 'cover' }} />
+                                {getAvatarUrl()?<img src={getAvatarUrl()} alt="" style={{width:"100%",height:"100%",borderRadius:12,objectFit:"cover"}}/>:<span className="lumo-avatar-initial">{(user?.nom||"U").trim().slice(0,2).toUpperCase()}</span>}
                             </div>
                         </div>
                     </div>
                 </header>
 
-                <div style={{ marginTop: '32px' }}>
+                <div className="lumo-page" style={{ marginTop: '24px' }}>
                     <motion.div
                         key={location.pathname}
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                     >
                         {children}
                     </motion.div>
                 </div>
             </main>
-        </div>
+ {isMobile && !isSidebarOpen && <nav className="lumo-mobile-nav" aria-label={language === 'fr' ? 'Accès rapides' : 'Quick navigation'}>
+ {navItems.filter(item=>['/','/products','/pos','/sales'].includes(item.path)).map(item=><NavLink key={item.path} to={item.path} end={item.path==='/'} className={({isActive})=>isActive?'is-active':''}><item.icon size={21}/><span>{item.name}</span></NavLink>)}
+ <button type="button" onClick={()=>setIsSidebarOpen(true)}><Menu size={21}/><span>{language==='fr'?'Plus':'More'}</span></button>
+ </nav>}
+ </div>
     );
 };
 

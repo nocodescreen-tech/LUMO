@@ -26,23 +26,12 @@ class ToolRegistry {
     }
 
     getAllSchemas() {
-        return this.schemas;
+        // Mutating tools are unavailable until explicit confirmation and audit are implemented.
+        return [];
     }
 
-    async execute(functionName, args, user) {
-        const handler = this.tools.get(functionName);
-        if (!handler) {
-            console.warn(`[AI Agent] Tentative d'appel d'un outil inexistant: ${functionName}`);
-            return { success: false, error: `L'outil ${functionName} n'existe pas.` };
-        }
-        try {
-            console.log(`[AI Agent] Exécution de l'outil ${functionName} par l'utilisateur ${user.id}`);
-            return await handler(args, user);
-        } catch (error) {
-            console.error(`[AI Agent] Erreur exécution outil ${functionName}:`, error.message);
-            return { success: false, error: error.message };
-        }
-    }
+    async execute() { return {success:false,error:'Action IA suspendue: une validation humaine et un workflow audité sont nécessaires.'}; }
+
 }
 
 module.exports = new ToolRegistry();

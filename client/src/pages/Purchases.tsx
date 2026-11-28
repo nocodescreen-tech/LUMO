@@ -1,3 +1,7 @@
+import './inventory-commercial.css';
+import '../design-system/warehouse.css';
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +25,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { normalizeAmount } from '../utils/currencyHelpers';
 import { getDisplayAmount } from '../utils/currencyHelpers';
 import api from '../api/axios';
+import { postFinancial } from '../api/financialOperation';
+import {useWarehouseOptions} from '../hooks/useWarehouseOptions';
 import { toast } from 'sonner';
 import { exportToPDF } from '../utils/reportPDF';
 import { useTranslation } from '../hooks/useTranslation';
@@ -28,10 +34,14 @@ import { useTranslation } from '../hooks/useTranslation';
 const Purchases = () => {
     const { t } = useTranslation();
     const { currency, user } = useAuthStore();
+    const [warehouseId,setWarehouseId]=useState('');
+    const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
     const [purchases, setPurchases] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [approvalFilter,setApprovalFilter]=useState('ALL'),[purchaseStatus,setPurchaseStatus]=useState('ALL');
     const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -40,7 +50,28 @@ const Purchases = () => {
     const [showProductSuggestions, setShowProductSuggestions] = useState(false);
     const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
+    const [decisionReason,setDecisionReason]=useState('');
+    const [decisionConfirm,setDecisionConfirm]=useState(false);
+    const [decisionBusy,setDecisionBusy]=useState(false);
+    const owner=user?.role==='admin';
+    const approvalLabels:Record<string,string>={PENDING:'À approuver',APPROVED:'Approuvé',REJECTED:'Refusé'};
+    const openPurchase=(purchase:any)=>{setSelectedPurchase(purchase);setDecisionReason('');setDecisionConfirm(false);setShowDetailModal(true);};
+    const decidePurchase=async(action:'APPROVE'|'REJECT')=>{
+        if(!selectedPurchase||decisionBusy||!decisionReason.trim()||!decisionConfirm)return;
+        setDecisionBusy(true);
+        try{
+            const r=await postFinancial('/purchases/'+selectedPurchase.id,{approvalAction:action,expectedApprovalState:'PENDING',reason:decisionReason.trim(),confirm:true},'purchase.approval','put');
+            setSelectedPurchase(r.data.data);setDecisionReason('');setDecisionConfirm(false);toast.success('Décision enregistrée');await fetchData();
+        }catch(e:any){toast.error(e.response?.data?.message||e.message||'Décision impossible');}finally{setDecisionBusy(false);}
+    };
+    const advancePurchase=async(statut:string)=>{
+        if(!selectedPurchase||decisionBusy||!decisionConfirm)return;
+        setDecisionBusy(true);
+        try{
+            const r=await api.put('/purchases/'+selectedPurchase.id,{statut});
+            setSelectedPurchase(r.data.data);setDecisionConfirm(false);toast.success('Achat mis à jour');await fetchData();
+        }catch(e:any){toast.error(e.response?.data?.message||e.message||'Opération impossible');}finally{setDecisionBusy(false);}
+    };
 
     const [formData, setFormData] = useState({
         fournisseurId: null,
@@ -60,6 +91,7 @@ const Purchases = () => {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
             const [purRes, fourRes, prodRes] = await Promise.all([
                 api.get(`/purchases?_t=${Date.now()}`),
@@ -89,8 +121,9 @@ const Purchases = () => {
             setPurchases(processData(purRes));
             setFournisseurs(processData(fourRes));
             setAllProducts(processData(prodRes));
+            setLoadError(false);
         } catch (error) {
-            toast.error(t('dataLoadError'));
+            setLoadError(true); toast.error(t('dataLoadError'));
         } finally {
             setLoading(false);
         }
@@ -127,8 +160,10 @@ const Purchases = () => {
                 }
             }
 
-            await api.post('/purchases', {
+            await postFinancial('/purchases', {
                 ...formData,
+                statut:owner?formData.statut:'En attente',
+                warehouseId:warehouseId?Number(warehouseId):null,
                 fournisseurId: finalFournisseurId ? Number(finalFournisseurId) : null,
                 montantTotal: Number(formData.montantTotal),
                 articles: items.map(item => ({
@@ -137,8 +172,8 @@ const Purchases = () => {
                     quantite: item.quantite,
                     prixAchat: item.prixAchat
                 }))
-            });
-            toast.success(t('purchaseRecorded'));
+            },'purchase.create');
+            toast.success(owner?t('purchaseRecorded'):'Demande transmise pour approbation');
             setShowModal(false);
             fetchData();
             setFormData({
@@ -151,17 +186,18 @@ const Purchases = () => {
                 devise: 'USD'
             });
             setItems([]);
+            setWarehouseId('');
         } catch (error: any) {
-            toast.error(error.response?.data?.message || t('purchaseSaveError'));
+            toast.error(error.response?.data?.message || error.message || t('purchaseSaveError'));
         } finally {
             setSubmitting(false);
         }
     };
 
-    const filteredPurchases = purchases.filter(p => 
-        p.numeroFacture?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPurchases=purchases.filter(p=>{
+        const q=searchTerm.trim().toLowerCase(),supplier=fournisseurs.find(f=>f.id===p.fournisseurId)?.nom;
+        return [p.numeroFacture,p.description,p.id,supplier].some(v=>String(v??'').toLowerCase().includes(q))&&(approvalFilter==='ALL'||p.approvalState===approvalFilter)&&(purchaseStatus==='ALL'||p.statut===purchaseStatus);
+    });
 
     const getStatusStyle = (status: string) => {
         const s = status?.toLowerCase() || '';
@@ -176,31 +212,18 @@ const Purchases = () => {
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredPurchases.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
+    const totalPages = Math.max(1,Math.ceil(filteredPurchases.length / itemsPerPage));
+    useEffect(()=>{if(currentPage>totalPages)setCurrentPage(totalPages)},[currentPage,totalPages]);
 
-    const handleDeletePurchase = async (id: number, facture: string) => {
-        if (!confirm(`Supprimer l'achat ${facture || '#' + id} ?`)) return;
-        try {
-            await api.delete(`/purchases/${id}`);
-            toast.success('Achat supprimé');
-            fetchData();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Erreur suppression');
-        }
-    };
-
-    if (loading) return (
-        <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-        </div>
-    );
+    if (!loading && loadError) return <LoadFailure onRetry={fetchData} />;
+    if (loading) return <PageSkeleton />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div className="ic-page ic-purchases" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="lumo-record-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="title-xl">{t('purchasesMgmtPrefix')} <span className="text-gradient">{t('purchases')}</span></h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{t('purchasesSubtitle')}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>{t('purchasesSubtitle')}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <button 
@@ -230,7 +253,8 @@ const Purchases = () => {
                 </div>
             </div>
 
-            <div className="premium-card glass" style={{ padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+            <div className="ic-metrics">{[{label:'Dossiers chargés',n:purchases.length},{label:'À approuver',n:purchases.filter(p=>p.approvalState==='PENDING').length},{label:'Reçus',n:purchases.filter(p=>p.statut==='Reçu').length},{label:'Payés',n:purchases.filter(p=>p.statut==='Payé').length}].map(v=><article key={v.label}><small>{v.label}</small><strong>{v.n}</strong></article>)}</div>
+            <div className="premium-card glass" style={{ padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
                     <div style={{ position: 'relative', width: '400px', maxWidth: '100%' }}>
                         <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -247,6 +271,7 @@ const Purchases = () => {
                     </div>
                 </div>
 
+                <div className="ic-filters"><label>Approbation<select value={approvalFilter} onChange={e=>{setApprovalFilter(e.target.value);setCurrentPage(1)}}><option value="ALL">Toutes</option>{Object.entries(approvalLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Statut logistique<select value={purchaseStatus} onChange={e=>{setPurchaseStatus(e.target.value);setCurrentPage(1)}}><option value="ALL">Tous</option>{Array.from(new Set(purchases.map(p=>p.statut).filter(Boolean))).map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}</select></label><button onClick={()=>{setSearchTerm('');setApprovalFilter('ALL');setPurchaseStatus('ALL');setCurrentPage(1)}}>Réinitialiser</button></div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -280,8 +305,7 @@ const Purchases = () => {
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         onClick={() => {
-                                            setSelectedPurchase(purchase);
-                                            setShowDetailModal(true);
+                                            openPurchase(purchase);
                                         }}
                                         style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s', cursor: 'pointer' }}
                                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
@@ -302,13 +326,14 @@ const Purchases = () => {
                                             <span style={{ padding: '6px 12px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', backgroundColor: st.bg, color: st.color }}>
                                                 {localizedStatus}
                                             </span>
+                                            {purchase.approvalState&&<div style={{fontSize:'.75rem',marginTop:6,color:purchase.approvalState==='REJECTED'?'var(--danger)':'var(--text-muted)'}}>{approvalLabels[purchase.approvalState]}</div>}
                                         </td>
                                         <td style={{ padding: '16px', textAlign: 'right' }}>
                                             {(() => {
                                                 const result = getDisplayAmount(purchase.montantTotal || 0, purchase.devise || 'USD', currency, exchangeRate);
                                                 return (
                                                     <>
-                                                        <div style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '1.1rem' }}>{result.main}</div>
+                                                        <div style={{ fontWeight: 900, color: 'var(--text-main)', fontSize: '0.95rem' }}>{result.main}</div>
                                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>≙ {result.sub}</div>
                                                     </>
                                                 );
@@ -317,21 +342,14 @@ const Purchases = () => {
                                         <td style={{ padding: '16px', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                 <button
-                                                    onClick={() => { setSelectedPurchase(purchase); setShowEditModal(true); }}
+                                                    onClick={e => {e.stopPropagation();openPurchase(purchase);}}
                                                     className="glass btn-hover"
                                                     style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Modifier"
+                                                    title="Ouvrir le dossier" aria-label="Ouvrir le dossier"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDeletePurchase(purchase.id, purchase.numeroFacture)}
-                                                    className="glass btn-hover"
-                                                    style={{ width: '36px', height: '36px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Supprimer"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+
                                             </div>
                                         </td>
                                     </motion.tr>
@@ -345,7 +363,7 @@ const Purchases = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>
                         {t('showingPurchases')
-                          .replace('{start}', (indexOfFirstItem + 1).toString())
+                          .replace('{start}', (filteredPurchases.length?indexOfFirstItem+1:0).toString())
                           .replace('{end}', Math.min(indexOfLastItem, filteredPurchases.length).toString())
                           .replace('{total}', filteredPurchases.length.toString())}
                     </div>
@@ -455,6 +473,7 @@ const Purchases = () => {
                                     )}
                                 </div>
 
+                                {user?.role==='admin'&&<div className="lumo-pos-location"><label>Entrepôt de réception<select value={warehouseId} disabled={submitting||warehouseOptions.loading} onChange={e=>setWarehouseId(e.target.value)}><option value="">Stock non affecté</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button type="button" onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}<small>La réception ultérieure conserve cet emplacement.</small></div>}
                                 {/* Facture + Statut */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -466,7 +485,7 @@ const Purchases = () => {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                         <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('status')}</label>
-                                        <select value={formData.statut} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
+                                        <select disabled={!owner} value={owner?formData.statut:'En attente'} onChange={e => setFormData({ ...formData, statut: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', color: 'var(--text-main)', outline: 'none', fontWeight: 600, appearance: 'none' }}>
                                             <option value="En attente">{t('statusPending') || 'En attente'}</option>
                                             <option value="Expédié">{t('statusShipping') || 'En livraison'}</option>
                                             <option value="Reçu">{t('statusReceived') || 'Reçu en stock'}</option>
@@ -626,7 +645,7 @@ const Purchases = () => {
                             <div style={{ padding: '16px 28px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0, background: 'var(--bg-card)' }}>
                                 <button type="button" onClick={() => setShowModal(false)} className="btn-premium secondary" style={{ padding: '12px 24px', borderRadius: '12px' }}>{t('cancel')}</button>
                                 <button form="purchase-form" type="submit" disabled={submitting} className="btn-premium primary" style={{ padding: '12px 28px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {t('registerPurchaseBtn')}
+                                    {submitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {owner?t('registerPurchaseBtn'):'Soumettre pour approbation'}
                                 </button>
                             </div>
 
@@ -639,22 +658,22 @@ const Purchases = () => {
             <AnimatePresence>
                 {showDetailModal && selectedPurchase && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', background: 'var(--bg-card)', padding: '32px', borderRadius: '24px' }}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="premium-card" style={{ width: '100%', maxWidth: '600px', maxHeight:'90dvh', overflowY:'auto', background: 'var(--bg-card)', padding: '20px', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                                   <FileText size={24} color="var(--primary)" /> {t('purchaseDetailsTitle')}
                                 </h2>
-                                <button onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+                                <button disabled={decisionBusy} onClick={() => setShowDetailModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('invoice') || 'Facture'}</label>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{selectedPurchase.numeroFacture || `Achat #${selectedPurchase.id}`}</div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('supplier') || 'Fournisseur'}</label>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || t('unknownSupplier')}</div>
+                                    <div style={{ fontSize: '0.95rem', fontWeight: 800 }}>{fournisseurs.find(f => f.id === selectedPurchase.fournisseurId)?.nom || t('unknownSupplier')}</div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('date') || 'Date'}</label>
@@ -673,6 +692,28 @@ const Purchases = () => {
                                 </div>
                             </div>
 
+                            {selectedPurchase.approvalState&&<section style={{padding:16,border:'1px solid var(--border)',borderRadius:12,marginBottom:20,display:'grid',gap:12}}>
+                                <strong>Contrôle d’achat · {approvalLabels[selectedPurchase.approvalState]}</strong>
+                                <span>Demandeur #{selectedPurchase.requestedBy}</span>
+                                {selectedPurchase.decidedBy&&<div style={{color:'var(--text-muted)'}}>Décision par #{selectedPurchase.decidedBy} · {new Date(selectedPurchase.decidedAt).toLocaleString('fr-FR')}<p>{selectedPurchase.decisionReason}</p></div>}
+                                {selectedPurchase.approvalState==='PENDING'&&<p>Aucun stock ni paiement ne peut être enregistré avant validation.</p>}
+                                {owner&&selectedPurchase.approvalState==='PENDING'&&<>
+                                    <label htmlFor="purchase-approval-reason">Motif de la décision</label>
+                                    <textarea id="purchase-approval-reason" maxLength={250} rows={3} value={decisionReason} onChange={e=>setDecisionReason(e.target.value)} disabled={decisionBusy} style={{padding:10,border:'1px solid var(--border)',borderRadius:8,background:'var(--bg-main)',color:'var(--text-main)'}}/>
+                                    <label><input type="checkbox" checked={decisionConfirm} onChange={e=>setDecisionConfirm(e.target.checked)} disabled={decisionBusy}/> Je confirme avoir contrôlé les articles et le montant.</label>
+                                    <div style={{display:'flex',flexWrap:'wrap',gap:8}}><button className="btn-premium primary" disabled={decisionBusy||!decisionConfirm||!decisionReason.trim()} onClick={()=>decidePurchase('APPROVE')}>Approuver</button><button className="btn-premium secondary" disabled={decisionBusy||!decisionConfirm||!decisionReason.trim()} onClick={()=>decidePurchase('REJECT')}>Refuser</button></div>
+                                </>}
+                            </section>}
+                            {owner&&(!selectedPurchase.approvalState||selectedPurchase.approvalState==='APPROVED')&&selectedPurchase.statut!=='Payé'&&<section style={{padding:16,border:'1px solid var(--border)',borderRadius:12,marginBottom:20,display:'grid',gap:10}}>
+                                <strong>Exécution de l’achat</strong>
+                                <p>La réception ajoute le stock. Le paiement débite la caisse ; confirmez uniquement après l’opération physique correspondante.</p>
+                                <label><input type="checkbox" checked={decisionConfirm} onChange={e=>setDecisionConfirm(e.target.checked)} disabled={decisionBusy}/> Je confirme l’opération physique sélectionnée.</label>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                                    {selectedPurchase.statut==='En attente'&&<button className="btn-premium secondary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Expédié')}>Expédié</button>}
+                                    {['En attente','Expédié'].includes(selectedPurchase.statut)&&<button className="btn-premium primary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Reçu')}>Enregistrer la réception</button>}
+                                    {selectedPurchase.statut==='Reçu'&&<button className="btn-premium primary" disabled={!decisionConfirm||decisionBusy} onClick={()=>advancePurchase('Payé')}>Enregistrer le paiement</button>}
+                                </div>
+                            </section>}
                             <div style={{ marginBottom: '24px' }}>
                                 <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Package size={18} /> {t('orderedItemsTitle')}
@@ -724,7 +765,7 @@ const Purchases = () => {
                             </div>
 
                             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
-                                <button onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>{t('close')}</button>
+                                <button disabled={decisionBusy} onClick={() => setShowDetailModal(false)} className="btn-premium primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>{t('close')}</button>
                             </div>
                         </motion.div>
                     </div>

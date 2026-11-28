@@ -13,12 +13,14 @@ const validateRegister = (data) => {
         }).label('Email'),
         motDePasse: Joi.string()
             .min(8)
-            .max(100)
+            .max(72)
+            .custom((value,helpers)=>Buffer.byteLength(value,'utf8')<=72&&!/^\$2[aby]\$/.test(value)?value:helpers.error('any.invalid'))
             .pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])'))
             .required()
             .messages({
                 'string.min': 'Le mot de passe doit contenir au moins 8 caractères',
-                'string.max': 'Le mot de passe ne peut pas dépasser 100 caractères',
+                'string.max': 'Le mot de passe ne peut pas dépasser 72 caractères',
+                'any.invalid': 'Le mot de passe doit être du texte et ne pas dépasser 72 octets UTF-8',
                 'string.pattern.base': 'Le mot de passe doit contenir au moins une lettre majuscule, une lettre minuscule, un chiffre et un caractère spécial (@$!%*?&#)',
                 'string.empty': 'Un mot de passe est indispensable',
                 'any.required': 'Le mot de passe est obligatoire'
@@ -38,7 +40,7 @@ const validateRegister = (data) => {
 const validateLogin = (data) => {
     const schema = Joi.object({
         email: Joi.string().email().required(),
-        motDePasse: Joi.string().required()
+        motDePasse: Joi.string().max(1024).required()
     });
     return schema.validate(data);
 };
@@ -107,14 +109,14 @@ const validateFournisseur = (data) => {
 const validateSale = (data) => {
     const schema = Joi.object({
         items: Joi.array().items(Joi.object({
-            id: Joi.number().required(),
+            id: Joi.number().integer().positive().required(),
             nom: Joi.string().required(),
-            prix: Joi.number().required(),
+            prix: Joi.number().min(0).required(),
             prixUnitaire: Joi.number().min(0).optional(),
             prixAchat: Joi.number().min(0).optional(),
             deviseProduit: Joi.string().valid('USD', 'CDF').optional(),
             quantite: Joi.number().integer().positive().required()
-        }).unknown(true)).min(1).required(),
+        }).unknown(true)).min(1).max(500).required(),
         montantTotal: Joi.number().min(0).required(),
         methodePaiement: Joi.string().required(),
         devise: Joi.string().valid('USD', 'CDF').required(),
@@ -127,7 +129,7 @@ const validatePurchase = (data) => {
     const schema = Joi.object({
         numeroFacture: Joi.string().required(),
         montantTotal: Joi.number().min(0).required(),
-        articles: Joi.array().min(1).required(),
+        articles: Joi.array().items(Joi.object({id:Joi.number().integer().positive().allow(null).optional(),nom:Joi.string().optional(),quantite:Joi.number().integer().positive().required(),prixAchat:Joi.number().min(0).required(),prix:Joi.number().min(0).optional()}).unknown(true)).min(1).max(1000).required(),
         fournisseurId: Joi.number().allow(null, '').optional(),
         devise: Joi.string().valid('USD', 'CDF').optional()
     }).unknown(true);

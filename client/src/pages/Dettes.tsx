@@ -1,3 +1,5 @@
+import { PageSkeleton } from '../design-system/PageSkeleton';
+import { LoadFailure } from '../design-system/LoadFailure';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -34,6 +36,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { postFinancial } from '../api/financialOperation';
 import { getDisplayAmount, useCurrency, normalizeAmount } from '../utils/currencyHelpers';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -79,6 +82,7 @@ const Dettes = () => {
   // Data
   const [clients, setClients] = useState<ClientDebt[]>([]);
   const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
   // Debt list search & filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,9 +131,10 @@ const Dettes = () => {
           type: 'client' as const,
         }));
       setClients(withDebt);
+            setLoadError(false);
     } catch (err) {
       console.error(err);
-      toast.error(t('errorLoadingDebts'));
+      setLoadError(true); toast.error(t('errorLoadingDebts'));
     } finally {
       setLoading(false);
     }
@@ -204,9 +209,9 @@ const Dettes = () => {
     setSettleLoading(true);
     try {
       // Convert back to base currency for backend
-      const baseAmount = normalizeAmount(amount, shopCurrency, currency, exchangeRate);
+      const baseAmount = normalizeAmount(amount, currency, shopCurrency, exchangeRate);
 
-      await api.post(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount });
+      await postFinancial(`/clients/${settleModal.client.id}/regler`, { montant: baseAmount },'debt.settle');
       toast.success(t('debtSettledFor').replace('{amount}', amount.toLocaleString()).replace('{currency}', currency).replace('{name}', settleModal.client.nom));
       setSettleModal({ open: false, client: null });
       setSettleAmount('');
@@ -246,14 +251,15 @@ const Dettes = () => {
   // ─────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '60px' }}>
+  if (!loading && loadError) return <LoadFailure onRetry={fetchClients} />;
+    return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
         <div>
-          <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '6px' }}>
+          <h1 className="title-xl">{t('debtsMgmtPrefix')} <span className="text-gradient">{t('debts')}</span></h1><button className="btn-premium" onClick={()=>navigate('/receivables')}>Créances par vente et échéances</button>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
             {t('debtsSubtitle')}
           </p>
         </div>
@@ -280,7 +286,7 @@ const Dettes = () => {
       </div>
 
       {/* ── Stats Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '24px' }}>
         {[
           { label: t('totalDebtsLabel'), value: totalDebtConverted, icon: AlertCircle, color: 'var(--danger)' },
           { label: t('urgentDebtors'), value: urgentCount, icon: Clock, color: 'var(--warning)', unit: t('clientsUnit'), noFormat: true },

@@ -1,6 +1,9 @@
+import '../design-system/warehouse.css';
+import './checkout-commercial.css';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PageSkeleton } from '../design-system/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Search, 
@@ -19,10 +22,12 @@ import {
     ScanLine
 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
-import BarcodeScanner from '../components/common/BarcodeScanner';
+const BarcodeScanner=React.lazy(()=>import('../components/common/BarcodeScanner'));
 import api from '../api/axios';
+import { postFinancial } from '../api/financialOperation';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import {useWarehouseOptions} from '../hooks/useWarehouseOptions';
 import { toast } from 'sonner';
 import { normalizeAmount, getEffectiveRate } from '../utils/currencyHelpers';
 import { generateInvoice, generateTicket } from '../utils/printHelpers';
@@ -40,8 +45,18 @@ const POS = () => {
     const [clientPhone, setClientPhone] = useState('');
     const [clientEmail, setClientEmail] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Espèces');
-    const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal } = useCartStore();
+    const [deposit,setDeposit]=useState('');
+    const [dueOn,setDueOn]=useState('');
+    const isCreditPayment=/crédit|credit|dette/i.test(paymentMethod);
+    const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotal,setSerialInput } = useCartStore();
     const { currency, user, exchangeRate: storeRate, enabledModules, checkAuth } = useAuthStore();
+    const [warehouseId,setWarehouseId]=useState('');
+    const staffMode=!!user&&!['admin','superadmin'].includes(user.role);
+    const [staffLocation,setStaffLocation]=useState<{actor:number;id:number|null;name:string|null}|null>(null);
+    const staffLocationRef=React.useRef<{actor:number;id:number|null;name:string|null}|null>(null);
+    const warehouseOptions=useWarehouseOptions(user?.role==='admin',user?.id);
+    const catalogRequest=React.useRef(0);
+    const [catalogError,setCatalogError]=useState(false);
     // Taux vivant : sync avec le store + fallback + rechargement au focus
     const [liveRate, setLiveRate] = useState(Number(storeRate) || 2250);
 
@@ -75,6 +90,9 @@ const POS = () => {
     };
     
     const [cashSession, setCashSession] = useState<any>(null);
+    const [cashBranch,setCashBranch]=useState<number|null>(null);
+    const cashBranchRef=React.useRef<number|null>(null);
+    const cashRequest=React.useRef(0);
     const [showCashModal, setShowCashModal] = useState(false);
     const [openingBalance, setOpeningBalance] = useState('0');
     // Variant state
@@ -94,12 +112,13 @@ const POS = () => {
             setCheckingSession(true);
             // M5 Fix: Force fresh auth state to avoid stale localStorage issues
             try { await useAuthStore.getState().checkAuth(false); } catch(e) {}
-            await Promise.all([fetchProducts(), checkCashSession()]);
-            setCheckingSession(false);
+            // Catalogue load resolves the authoritative cash branch.
         };
         init();
     }, []);
 
+    useEffect(()=>{clearCart();setWarehouseId('');setStaffLocation(null);staffLocationRef.current=null;cashBranchRef.current=null;setCashBranch(null);setCashSession(null);},[user?.id]);
+    useEffect(()=>{void fetchProducts(warehouseId);return()=>{catalogRequest.current++}},[warehouseId,user?.id]);
     const [showClientModal, setShowClientModal] = useState(false);
     const [allClients, setAllClients] = useState<any[]>([]);
     const [filteredClients, setFilteredClients] = useState<any[]>([]);
@@ -225,48 +244,33 @@ const POS = () => {
         }
     };
 
-    const checkCashSession = async () => {
-        try {
-            const { data } = await api.get(`/cash/current?_t=${Date.now()}`);
-            setCashSession(data || null);
-            console.log("Cash session status:", data ? "OPEN" : "CLOSED");
-        } catch (error) {
-            console.error("Failed to check cash session:", error);
-            setCashSession(null);
-        }
+    const checkCashSession = async (branch=cashBranchRef.current) => {
+        const run=++cashRequest.current;
+        if(branch===null){setCashSession(null);setCheckingSession(true);return;}
+        setCheckingSession(true);
+        try{const {data}=await api.get('/cash/current',{params:{branchKey:branch,_t:Date.now()}});if(run===cashRequest.current&&branch===cashBranchRef.current)setCashSession(data||null);}
+        catch(e){if(run===cashRequest.current)setCashSession(null);}
+        finally{if(run===cashRequest.current&&branch===cashBranchRef.current)setCheckingSession(false);}
     };
 
-    const fetchProducts = async () => {
+    const fetchProducts = async (location=warehouseId) => {
+        const run=++catalogRequest.current;
+        setLoading(true);setCatalogError(false);cashBranchRef.current=null;setCashBranch(null);setCashSession(null);setCheckingSession(true);setShowCashModal(false);
         try {
-            const response = await api.get(`/products?_t=${Date.now()}`);
-            const resData = response.data;
-            
-            let productsList = [];
-            
-            // Structure standard: { success, data: { data: [] } }
-            if (resData.success && resData.data) {
-                if (Array.isArray(resData.data.data)) {
-                    productsList = resData.data.data;
-                } else if (Array.isArray(resData.data)) {
-                    productsList = resData.data;
-                } else if (typeof resData.data === 'object') {
-                    productsList = resData.data.products || resData.data.items || resData.data.data || [];
-                }
-            }
-            // Fallback
-            else {
-                const data = resData;
-                if (Array.isArray(data)) productsList = data;
-                else if (data && Array.isArray(data.data)) productsList = data.data;
-                else if (data && Array.isArray(data.products)) productsList = data.products;
-            }
-            
-            setProducts(productsList);
-        } catch (error) {
-            toast.error(t('errorLoadingProducts'));
-        } finally {
-            setLoading(false);
-        }
+            const list:any[]=[];let page=1,pages=1;let branch:number|null=null;let assigned:{actor:number;id:number|null;name:string|null}|null=null;
+            do{
+                const {data}=await api.get('/products',{params:{page,limit:100,...(location?{warehouseId:Number(location)}:{}),_t:Date.now()}});
+                if(run!==catalogRequest.current)return;
+                const rows=data?.data?.data;
+                if(!Array.isArray(rows))throw new Error('Catalogue invalide');
+                const nextBranch=data.data.branchKey;if(!Number.isSafeInteger(nextBranch)||nextBranch<0||branch!==null&&branch!==nextBranch)throw new Error('Succursale modifiée');branch=nextBranch;
+                if(staffMode&&user){const id=data.data.warehouseId;if(id!==null&&(!Number.isSafeInteger(id)||id<=0))throw new Error('Emplacement invalide');if(assigned&&assigned.id!==id)throw new Error('Affectation modifiée pendant le chargement');assigned={actor:user.id,id,name:data.data.warehouseName||null};}
+                list.push(...rows);pages=Number(data.data.pagination?.pages||1);page++;
+                if(pages>200)throw new Error('Catalogue trop volumineux pour ce POS');
+            }while(page<=pages);
+            if(run===catalogRequest.current){if(assigned){if(staffLocationRef.current&&staffLocationRef.current.id!==assigned.id){clearCart();toast.error('Affectation modifiée : panier réinitialisé.');}staffLocationRef.current=assigned;setStaffLocation(assigned);}setProducts(list.map(p=>({...p,stock:Number(p.availableStock??p.unallocatedStock??p.stock)})));cashBranchRef.current=branch;setCashBranch(branch);void checkCashSession(branch);}
+        }catch(e){if(run===catalogRequest.current){setProducts([]);setCatalogError(true);toast.error(t('errorLoadingProducts'));}}
+        finally{if(run===catalogRequest.current)setLoading(false)}
     };
 
     const filteredProducts = products.filter(p =>
@@ -275,6 +279,7 @@ const POS = () => {
     );
 
     const handleProductClick = (product: any) => {
+            if(Number(product.stock)<=cart.filter(i=>i.id===product.id).reduce((sum,i)=>sum+i.quantite,0)){toast.error(language==='fr'?'Stock disponible insuffisant':'Insufficient available stock');return;}
             if (product.variantes && product.variantes.length > 0) {
                 // Modèle configurations : chaque ligne = UNE configuration complète (Y7, Y9...), on garde la liste telle quelle
                 setSelectedProductForVariants({ ...product, variantes: product.variantes });
@@ -350,11 +355,12 @@ const POS = () => {
     }, [currency]);
 
     const handleOpenSession = async () => {
-        if (openingCash) return;
+        if (openingCash||cashBranchRef.current===null||checkingSession) return;
+        const branch=cashBranchRef.current;
         setOpeningCash(true);
         try {
-            const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance) });
-            setCashSession(data);
+            const { data } = await api.post('/cash/open', { openingBalance: Number(openingBalance),branchKey:branch });
+            if(cashBranchRef.current===branch)setCashSession(data?.data??data);
             setShowCashModal(false);
             toast.success(t('cashOpened'));
         } catch (error: any) {
@@ -371,14 +377,8 @@ const POS = () => {
         }
     };
 
-    const handleCloseSession = async () => {
-        try {
-            await api.post('/cash/close');
-            setCashSession(null);
-            toast.success(t('cashClosed'));
-        } catch (error) {
-            toast.error(t('cashCloseError'));
-        }
+    const handleCloseSession = () => {
+        if(cashBranchRef.current!==null)navigate('/cash?branchKey='+cashBranchRef.current);
     };
 
     const getCartItemPriceInSaleCurrency = (item: any) => {
@@ -405,6 +405,11 @@ const POS = () => {
     };
 
     const executeSale = async (finalClientName: string, finalClientPhone: string, finalClientEmail: string = '') => {
+        if(catalogError||cashBranchRef.current===null||checkingSession||(staffMode&&staffLocation?.actor!==user?.id)){toast.error('Actualisez le catalogue et l’emplacement avant de vendre.');return;}
+        if(!navigator.onLine){toast.error(language==='fr'?'Connexion requise : aucune vente ne sera validée hors ligne.':'Connection required to complete a sale.');return;}
+        const identifiers=cart.filter(item=>item.serialTracked).flatMap(item=>(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim().toUpperCase()).filter(Boolean));
+        if(cart.some(item=>item.serialTracked&&(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).length!==item.quantite)||new Set(identifiers).size!==identifiers.length){toast.error('Indiquez un numéro de série distinct par appareil.');return;}
+        if(isCreditPayment&&(!Number.isFinite(Number(deposit||0))||Number(deposit||0)<0||Number(deposit||0)>=getSaleTotal())){toast.error('Acompte inférieur au montant total requis.');return;}
         setLoading(true);
         setClientName(finalClientName);
         setClientPhone(finalClientPhone);
@@ -412,6 +417,7 @@ const POS = () => {
         
         const saleTotal = getSaleTotal();
                 const salePayload = {
+                    warehouseId:staffMode?staffLocation?.id??null:warehouseId?Number(warehouseId):null,
                     items: cart.map(item => {
                         const itemSalePrice = getCartItemPriceInSaleCurrency(item);
                         const cleanVariantes = dedupeSelectedVariantes(item.selectedVariantes || []);
@@ -427,6 +433,7 @@ const POS = () => {
                         prixAchat: item.prixAchat || 0,
                         deviseProduit: item.deviseOriginal || saleCurrency || currency || 'USD',
                         quantite: item.quantite,
+                        serialNumbers:item.serialTracked?(item.serialInput||'').split(/[,\n]+/).map(s=>s.trim()).filter(Boolean):[],
                         selectedVariantes: cleanVariantes,
                         metadata: cleanVariantes.reduce((acc: Record<string, string>, v: { nom: string; valeur: string }) => {
                             acc[v.nom] = v.valeur;
@@ -438,31 +445,18 @@ const POS = () => {
             devise: saleCurrency || currency || 'USD',
             tauxChange: liveRate,
             methodePaiement: paymentMethod || 'Espèces',
-            montantRecu: paymentMethod === 'Espèces' ? Number(amountReceived) || saleTotal : saleTotal,
+            ...(isCreditPayment?{acompte:Number(deposit||0),dueOn:dueOn||null}:{}),
+            montantRecu: paymentMethod === 'Espèces' ? (amountReceived===''?saleTotal:Number(amountReceived)) : 0,
+            clientId: allClients.find(c=>c.nom.toLowerCase()===finalClientName.trim().toLowerCase() && (!finalClientPhone || c.telephone===finalClientPhone))?.id || null,
             clientInfo: {
-                nom: finalClientName.trim() || t('walkInClient'),
+                nom: finalClientName.trim()===t('walkInClient')?'Client de passage':(finalClientName.trim()||'Client de passage'),
                 telephone: finalClientPhone.trim() || '',
                 email: finalClientEmail.trim() || ''
             }
         };
 
         try {
-            if (finalClientName.trim() && finalClientName !== t('walkInClient')) {
-                const exists = allClients.find(c => c.nom.toLowerCase() === finalClientName.toLowerCase());
-                if (!exists) {
-                    try {
-                        await api.post('/clients', {
-                            nom: finalClientName.trim(),
-                            telephone: finalClientPhone.trim(),
-                            email: finalClientEmail.trim()
-                        });
-                    } catch (clientError) {
-                        console.warn('Client non créé silencieusement:', clientError);
-                    }
-                }
-            }
-
-            const response = await api.post('/sales', salePayload);
+            const response=await postFinancial('/sales',salePayload,'sale.create');
             const createdSale = response.data?.success ? response.data.data : response.data;
             setLastSale(createdSale);
 
@@ -470,82 +464,42 @@ const POS = () => {
             setShowSuccess(true);
             setShowClientModal(false);
             clearCart();
-            await checkCashSession();
+            await Promise.all([checkCashSession(),fetchProducts(warehouseId)]);
         } catch (error: any) {
-            if (!navigator.onLine || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-                const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
-                const offlineSale = {
-                    ...salePayload,
-                    articles: salePayload.items,
-                    id: 'OFFLINE_' + Date.now(),
-                    createdAt: new Date().toISOString(),
-                    status: 'OFFLINE'
-                };
-                pending.push(offlineSale);
-                localStorage.setItem('pending-sales', JSON.stringify(pending));
-                setLastSale(offlineSale);
-                toast.info(t('saleSavedOffline'));
-                setShowSuccess(true);
-                setShowClientModal(false);
-                clearCart();
-            } else {
-                toast.error(error.response?.data?.message || t('saleError'));
-            }
+            if(!error.response && (error.code==='ERR_NETWORK'||!navigator.onLine)){
+                toast.error(language==='fr'?'Résultat incertain. Conservez le panier et réessayez la même vente après reconnexion.':'Result uncertain. Keep the cart and retry the same sale after reconnecting.');
+            } else toast.error(error.response?.data?.message || error.message || t('saleError'));
         } finally {
             setLoading(false);
             setClientEmail('');
         }
     };
 
-    // Auto-sync offline sales
-    useEffect(() => {
-        const syncOffline = async () => {
-            if (!navigator.onLine) return;
-            const pending = JSON.parse(localStorage.getItem('pending-sales') || '[]');
-            if (pending.length === 0) return;
+    // Legacy queue has no reliable tenant identity. Never replay it automatically.
+    useEffect(()=>{
+        if(localStorage.getItem('pending-sales')) toast.warning(language==='fr'?'Anciennes ventes hors ligne détectées. Vérification manuelle nécessaire; aucune synchronisation automatique.':'Legacy offline sales detected. Manual reconciliation required.');
+    },[language]);
 
-            const syncMsg = language === 'fr'
-  ? `Synchronisation de ${pending.length} vente(s) hors-ligne...`
-  : `Syncing ${pending.length} offline sale(s)...`;
-toast.info(syncMsg);
-            const remaining = [];
-            for (const sale of pending) {
-                try {
-                    await api.post('/sales', sale);
-                } catch (err) {
-                    remaining.push(sale);
-                }
-            }
-            localStorage.setItem('pending-sales', JSON.stringify(remaining));
-            if (remaining.length === 0) {
-                toast.success("" + t('allOfflineSynced'));
-            }
-        };
-
-        window.addEventListener('online', syncOffline);
-        syncOffline(); // Initial check
-        return () => window.removeEventListener('online', syncOffline);
-    }, []);
-
-    if (loading) return (
-        <div style={{ height: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-        </div>
-    );
+    if (loading) return <PageSkeleton />;
 
     return (
-        <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '20px', height: 'calc(100vh - 140px)' }}>
+        <div className="responsive-grid lumo-pos lumo-pos-commercial" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: '16px', height: 'calc(100dvh - 120px)' }}>
             {/* Catalog */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
-                <div className="glass" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="pc-catalog-pane" style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'hidden' }}>
+                <header className="pc-heading"><div><small>LUMO / POS</small><h1>{language==='fr'?'Point de vente':'Point of sale'}</h1></div><span className={cashSession?'pc-status open':'pc-status'} role="status">{checkingSession?(language==='fr'?'Vérification…':'Checking…'):cashSession?(language==='fr'?'Caisse ouverte':'Register open'):(language==='fr'?'Caisse fermée':'Register closed')}</span></header>
+                {user?.role==='admin'&&<div className="lumo-pos-location"><label>{language==='fr'?'Emplacement de vente':'Sales location'} <select aria-label="Emplacement de vente" value={warehouseId} disabled={cart.length>0||warehouseOptions.loading} onChange={e=>{if(cart.length===0){setProducts([]);cashBranchRef.current=null;setCashBranch(null);setCashSession(null);setShowCashModal(false);setWarehouseId(e.target.value)}}}><option value="">{language==='fr'?'Stock non affecté':'Unallocated stock'}</option>{warehouseOptions.options.map(w=><option key={w.id} value={w.id}>{w.name} · {w.code}</option>)}</select></label>{warehouseOptions.failed&&<button onClick={warehouseOptions.retry}>Réessayer les entrepôts</button>}{cart.length>0&&<small>Videz le panier pour changer d’emplacement.</small>}</div>}
+                {staffMode&&<div className="lumo-pos-location"><strong>Emplacement de vente : {staffLocation?.actor===user?.id?(staffLocation?.name||'Stock non affecté'):'Vérification requise'}</strong><small>Défini par le responsable. Rechargez le catalogue si votre affectation change.</small><button onClick={()=>fetchProducts('')}>Actualiser l’affectation</button></div>}
+                {catalogError&&<button className="btn-premium" onClick={()=>fetchProducts(warehouseId)}>Recharger le catalogue</button>}
+                <div className="glass lumo-pos-toolbar" style={{ padding: '12px', borderRadius: '12px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                         <Search style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={20} />
                         <input 
                             type="text" 
+                            aria-label={t('searchProduct')}
                             placeholder={t('searchProduct')} 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '16px 20px 16px 48px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
+                            style={{ width: '100%', padding: enabledModules.includes('barcode') ? '12px 116px 12px 44px' : '12px 12px 12px 44px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '1rem', outline: 'none' }}
                         />
                         {enabledModules.includes('barcode') && (
                             <button 
@@ -563,7 +517,7 @@ toast.info(syncMsg);
                             if (checkingSession) return;
                             cashSession ? handleCloseSession() : setShowCashModal(true);
                         }}
-                        disabled={checkingSession}
+                        disabled={checkingSession||cashBranch===null}
                         className={`btn-hover ${cashSession ? 'danger' : 'primary'}`}
                         style={{ padding: '14px 24px', borderRadius: '16px', fontWeight: 800, border: 'none', background: cashSession ? 'rgba(214, 69, 69, 0.1)' : 'var(--primary)', color: cashSession ? 'var(--danger)' : 'white', cursor: checkingSession ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: checkingSession ? 0.6 : 1 }}
                     >
@@ -576,18 +530,20 @@ toast.info(syncMsg);
                     </button>
                 </div>
 
-                <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(160px, 100%, 220px), 1fr))', gap: '20px', overflowY: 'auto', paddingRight: '12px', paddingBottom: '20px' }}>
+                <div className="lumo-pos-catalog pc-products" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(150px, 100%), 1fr))', gap: '12px', alignContent: 'start', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
+                    {filteredProducts.length === 0 && <div className="lumo-pos-empty"><Package size={32}/><p>{language==='fr'?'Aucun produit trouvé':'No products found'}</p></div>}
                     {filteredProducts.map((product) => (
-                        <motion.div
+                        <motion.button
+                            type="button"
                             key={product.id}
-                            whileHover={{ y: -5 }}
+                            whileHover={{ y: -1 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => handleProductClick(product)}
-                            className="premium-card"
-                            style={{ padding: '16px', position: 'relative', cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: '300px' }}
+                            className="premium-card lumo-pos-product"
+                            style={{ padding: '10px', textAlign: 'left', color: 'var(--text-main)', position: 'relative', cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: '190px' }}
                         >
-                            <div style={{ width: '100%', height: '140px', flexShrink: 0, borderRadius: '16px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--primary)', border: '1px solid var(--border)' }}>
-                                {product.image ? <img src={product.image} alt={product.nom} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '14px' }} /> : <Package size={48} opacity={0.5} />}
+                            <div style={{ width: '100%', height: '92px', flexShrink: 0, borderRadius: '8px', backgroundColor: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+                                {product.image ? <img src={product.image} alt={product.nom} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} /> : <Package size={48} opacity={0.5} />}
                             </div>
                             <h3 style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.nom}</h3>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '12px', justifyContent: 'space-between' }}>
@@ -613,16 +569,17 @@ toast.info(syncMsg);
                                 </div>
                             </div>
                             {product.stock <= 5 && (
-                                <div style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: 'var(--danger)', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800 }}>Rupture proche</div>
+                                <div style={{ position: 'absolute', top: '24px', right: '24px', backgroundColor: 'var(--danger)', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 800 }}>{language==='fr'?'Stock faible':'Low stock'}</div>
                             )}
-                        </motion.div>
+                        </motion.button>
                     ))}
                 </div>
+                <button type="button" className="lumo-pos-cart-jump btn-premium primary" onClick={()=>document.getElementById('lumo-pos-cart')?.scrollIntoView({block:'start',behavior:'smooth'})}><ShoppingCart size={18}/>{language==='fr'?'Voir le panier':'View cart'} · {cart.length} · {getSaleTotal().toLocaleString()} {saleCurrency}</button>
             </div>
 
             {/* Cart */}
-            <div className="glass" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div id="lumo-pos-cart" className="glass lumo-pos-cart pc-cart" style={{ borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ width: '56px', height: '56px', borderRadius: '18px', backgroundColor: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <ShoppingCart size={28} />
@@ -637,7 +594,7 @@ toast.info(syncMsg);
                     )}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ flex: 1, minHeight: 100, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <AnimatePresence>
                         {cart.length === 0 ? (
                             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', gap: '16px' }}>
@@ -658,6 +615,7 @@ toast.info(syncMsg);
                                     </div>
                                     <div style={{ flex: 1 }}>
                                         <h4 style={{ fontWeight: 800, margin: '0 0 2px 0' }}>{item.nom}</h4>
+                                        {item.serialTracked&&<label style={{display:'grid',gap:4,fontSize:12,margin:'8px 0'}}>Numéros de série ({item.quantite})<textarea aria-label={'Numéros de série '+item.nom} rows={Math.min(4,item.quantite)} value={item.serialInput||''} onChange={e=>setSerialInput(item.cartId,e.target.value)} placeholder="Un numéro par ligne" maxLength={101000} style={{width:'100%',minWidth:0,padding:8,border:'1px solid var(--border)',borderRadius:8,background:'var(--bg-card)',color:'var(--text-main)'}}/></label>}
                                         {item.selectedVariantes && item.selectedVariantes.length > 0 && (
                                             dedupeSelectedVariantes(item.selectedVariantes).map((v, idx) => (
                                                 <div key={idx} style={{ marginBottom: '4px' }}>
@@ -697,8 +655,8 @@ toast.info(syncMsg);
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.8rem', marginBottom: '6px' }}>{t('saleCurrency')}</div>
                             <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: '10px', padding: '4px', border: '1px solid var(--border)', gap: '4px' }}>
-                                <button onClick={() => setSaleCurrency('USD')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
-                                <button onClick={() => setSaleCurrency('CDF')} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
+                                <button aria-pressed={saleCurrency==='USD'} onClick={() => {setSaleCurrency('USD');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'USD' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'USD' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>$ USD</button>
+                                <button aria-pressed={saleCurrency==='CDF'} onClick={() => {setSaleCurrency('CDF');setDeposit('');setAmountReceived('');}} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: saleCurrency === 'CDF' ? 'var(--primary)' : 'transparent', color: saleCurrency === 'CDF' ? 'white' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>FC CDF</button>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -717,7 +675,8 @@ toast.info(syncMsg);
                             ].filter(m => !m.module || enabledModules?.includes(m.module)).map(m => (
                                 <button
                                     key={m.value}
-                                    onClick={() => setPaymentMethod(m.value)}
+                                    aria-pressed={paymentMethod===m.value}
+                                    onClick={() => {setPaymentMethod(m.value);setDeposit('');setDueOn('');}}
                                     style={{
                                         padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', flex: 1,
                                         border: `1.5px solid ${paymentMethod === m.value ? 'var(--primary)' : 'var(--border)'}`,
@@ -734,6 +693,7 @@ toast.info(syncMsg);
                     </div>
 
                     {/* Calculateur de monnaie à rendre (uniquement Espèces) */}
+                    {isCreditPayment&&<div className="lumo-pos-location"><label>Acompte encaissé ({saleCurrency})<input type="number" min={0} step={saleCurrency==='CDF'?1:0.01} value={deposit} onChange={e=>setDeposit(e.target.value)} placeholder="0"/></label><label>Échéance facultative<input type="date" value={dueOn} onChange={e=>setDueOn(e.target.value)}/></label><small>Solde : {Math.max(0,getSaleTotal()-Number(deposit||0)).toLocaleString('fr-FR')} {saleCurrency}. La créance est enregistrée dans la devise comptable.</small></div>}
                     {paymentMethod === 'Espèces' && (
                         <div style={{ background: 'linear-gradient(135deg, rgba(21,94,88,0.1), rgba(168,85,247,0.05))', borderRadius: '16px', border: '1px solid rgba(21,94,88,0.2)', padding: '16px' }}>
                             <div style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>{t('changeToReturn')}</div>
@@ -767,7 +727,7 @@ toast.info(syncMsg);
 
                     <button
                         onClick={handleCheckout}
-                        disabled={(enabledModules?.includes('cash') && !cashSession) || cart.length === 0}
+                        disabled={checkingSession||cashBranch===null||catalogError||(enabledModules?.includes('cash') && !cashSession) || cart.length === 0}
                         className="btn-premium primary"
                         style={{ width: '100%', padding: '18px', borderRadius: '16px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: ((enabledModules?.includes('cash') && !cashSession) || cart.length === 0) ? 0.5 : 1 }}
                     >
@@ -838,7 +798,7 @@ toast.info(syncMsg);
                                 <Zap size={40} fill="var(--primary)" />
                             </div>
                             <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '8px' }}>{t('cashRegisterOpening')}</h2>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', currency)}</p>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>{t('initialBalanceHint').replace('{currency}', user?.entreprise?.devise==='USD'?'USD':'CDF')}</p>
                             <input type="number" value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} autoFocus style={{ width: '100%', padding: '20px', borderRadius: '16px', border: '2px solid var(--primary)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', outline: 'none', marginBottom: '32px' }} />
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <button onClick={() => setShowCashModal(false)} className="btn-premium secondary" style={{ flex: 1, padding: '16px' }}>{t('cancelBtn')}</button>
@@ -872,7 +832,7 @@ toast.info(syncMsg);
                                 </button>
                             </div>
                             )}
-                            <button onClick={() => { setShowSuccess(false); setAmountReceived(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>{t('newSale')}</button>
+                            <button onClick={() => { setShowSuccess(false); setAmountReceived('');setDeposit('');setDueOn(''); setClientName(''); setClientPhone(''); setClientEmail(''); }} className="btn-premium primary" style={{ width: '100%', padding: '16px', borderRadius: '18px' }}>{t('newSale')}</button>
                         </motion.div>
                     </motion.div>
                 )}
@@ -965,13 +925,13 @@ toast.info(syncMsg);
             {/* ── Real Barcode Scanner Modal (ZXing + USB HID) ── */}
             <AnimatePresence>
                 {showCameraModal && (
-                    <BarcodeScanner
+                    <React.Suspense fallback={<div role="status" className="glass" style={{position:'fixed',inset:0,zIndex:1000,display:'grid',placeContent:'center',gap:12,background:'var(--bg-card)'}}><Loader2 className="animate-spin" size={24}/><span>{language==='en'?'Loading scanner…':'Chargement du scanner…'}</span><button className="btn-premium secondary" onClick={()=>setShowCameraModal(false)}>{language==='en'?'Cancel':'Annuler'}</button></div>}><BarcodeScanner
                         onDetected={(code) => {
                             processBarcode(code);
                             setShowCameraModal(false);
                         }}
                         onClose={() => setShowCameraModal(false)}
-                    />
+                    /></React.Suspense>
                 )}
             </AnimatePresence>
         </div>
