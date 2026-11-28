@@ -29,9 +29,12 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Socket.io with Redis Adapter (for PM2 Cluster stability)
-const io = new Server(server, { 
-    cors: { origin: [process.env.CLIENT_URL,process.env.RAILWAY_PUBLIC_DOMAIN && `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`, "http://localhost:5173","http://localhost","https://localhost","capacitor://localhost","tauri://localhost","http://tauri.localhost","https://tauri.localhost"].filter(Boolean) },
-    transports: ['websocket', 'polling']
+const {allowedOrigin}=require('./middleware/sessionOrigin');
+const {socketIdentity}=require('./middleware/socketAuth');
+const io = new Server(server, {
+    cors:{origin:(origin,callback)=>callback(null,!origin||allowedOrigin(origin))},
+    allowRequest:(req,callback)=>callback(null,!req.headers.origin||allowedOrigin(req.headers.origin)),
+    transports:['websocket','polling']
 });
 
 // Setup Redis Adapter (supports REDIS_URL for Railway or individual env vars)
@@ -70,19 +73,23 @@ pubClient.connect().then(() => {
 global.io = io;
 
 io.use(async(socket,next)=>{
- try{
-  const token=socket.handshake.auth?.token;
-  const jwt=require('jsonwebtoken'),redis=require('./utils/redis'),User=require('./models/User');
-  if(typeof token!=='string'||await redis.exists('blacklist:'+token))return next(new Error('Unauthorized'));
-  const decoded=jwt.verify(token,config.jwt.secret,{algorithms:['HS256']});
-  if(decoded.type!=='access'||!decoded.sessionId)return next(new Error('Unauthorized'));
-  const user=await User.findByPk(decoded.id);
-  if(!user||user.isSuspended||!(user.activeSessions||[]).some(s=>s.sessionId===decoded.sessionId))return next(new Error('Unauthorized'));
-  socket.data.userId=user.id;socket.data.tenantId=user.parentId||user.id;
-  next();
- }catch(_){next(new Error('Unauthorized'))}
+ const identity=await socketIdentity(socket.handshake.auth?.token,socket.handshake.headers.origin);
+ if(!identity)return next(new Error('Unauthorized'));
+ Object.assign(socket.data,identity);
+ next();
 });
-io.on("connection",socket=>{socket.join(`user_${socket.data.userId}`);});
+io.on('connection',socket=>{
+ socket.join('user_'+socket.data.userId);
+ let checking=false;
+ const timer=setInterval(async()=>{
+  if(checking)return;checking=true;
+  try{
+   const identity=await socketIdentity(socket.handshake.auth?.token,socket.handshake.headers.origin);
+   if(!identity||identity.userId!==socket.data.userId||identity.tenantId!==socket.data.tenantId)socket.disconnect(true);
+  }finally{checking=false}
+ },60000);
+ timer.unref?.();socket.once('disconnect',()=>clearInterval(timer));
+});
 
 setupSwagger(app);
 

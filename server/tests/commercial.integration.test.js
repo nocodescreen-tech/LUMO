@@ -979,6 +979,21 @@ suite('Commercial PostgreSQL integration',()=>{
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/X1sAAAAASUVORK5CYII=','base64');expect((await upload(png,'pixel.png','image/png')).status).toBe(204);
  console.log('LUMO_SECURITY_REGRESSION '+JSON.stringify({anonymousRoutes:routes.length*2,staffDenied:14,verificationRevocation:'passed',uploadChecks:4,tenantBoundary:'passed'}));
  },120000);
+ test('websocket and HTTP authorization reject invalid account and parent state',async()=>{
+ const {socketIdentity}=require('../middleware/socketAuth');
+ const owner=await User.create({nom:'Socket owner',email:'socket-owner@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'socket-owner'}]});
+ const member=await User.create({nom:'Socket member',email:'socket-member@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'vendeur',parentId:owner.id,permissions:['products'],activeSessions:[{sessionId:'socket-member'}]});
+ const tokens=generateToken(member.id,'socket-member');
+ expect(await socketIdentity(tokens.accessToken)).toEqual({userId:member.id,tenantId:owner.id});
+ expect(await socketIdentity(tokens.refreshToken)).toBeNull();expect(await socketIdentity(tokens.accessToken,'https://untrusted.example')).toBeNull();
+ await owner.update({isAdminValidated:false},{hooks:false});
+ expect(await socketIdentity(tokens.accessToken)).toBeNull();
+ expect((await request(app).get('/test-products').set('Authorization','Bearer '+tokens.accessToken)).status).toBe(403);
+ expect((await request(app).post('/auth/refresh').set('X-Lumo-Client','1').set('Cookie','refreshToken='+tokens.refreshToken)).status).toBe(403);
+ await owner.update({isAdminValidated:true},{hooks:false});
+ await member.update({isAdminValidated:false},{hooks:false});expect(await socketIdentity(tokens.accessToken)).toBeNull();
+ await member.update({isAdminValidated:true,activeSessions:[]},{hooks:false});expect(await socketIdentity(tokens.accessToken)).toBeNull();
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

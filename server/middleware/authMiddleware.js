@@ -68,7 +68,7 @@ exports.protect = async (req, res, next) => {
 
     if(req.user.role!=='superadmin'&&(!req.user.isVerified||!req.user.isAdminValidated))return res.status(403).json({message:'Compte indisponible'});
     if(req.user.parentId&&['admin','superadmin'].includes(req.user.role))return res.status(403).json({message:'Rôle collaborateur invalide'});
-    if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended)return res.status(403).json({message:'Entreprise indisponible'});}
+    if(req.user.parentId){const owner=await User.findByPk(req.user.parentId,{attributes:['id','parentId','role','isSuspended','isVerified','isAdminValidated']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended||!owner.isVerified||!owner.isAdminValidated)return res.status(403).json({message:'Entreprise indisponible'});}
 
     // Impersonation Support
     if (decoded.isImpersonating) {

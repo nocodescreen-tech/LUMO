@@ -141,7 +141,7 @@ const App = () => {
               {can('debts','clients')&&<Route path="/dettes" element={<Dettes />} />}
               <Route path="/settings" element={<Settings />} />
               {user&&<Route path="/notifications" element={<NotificationCenter key={user.id}/>} />}
-              {can('activities')||user?.role==='superadmin'&&<Route path="/activities" element={<Activities />} />}
+              {(can('activities')||user?.role==='superadmin')&&<Route path="/activities" element={<Activities />} />}
               {user?.role==='admin'&&<Route path="/stats" element={<Stats />} />}
               {user?.role === 'admin' && <Route path="/subusers" element={<SubusersPage />} />}
               {user?.role === 'admin' && <Route path="/access-governance" element={<AccessGovernance />} />}
