@@ -19,7 +19,7 @@ async function executeDailyBackup(){
  if((owner.preferences?.backupTime||'00:00')!==clock)continue;
  let row;try{row=await BackupRun.create({ownerId:owner.id,mode:'SCHEDULED',scheduleKey:day,status:'RUNNING'});}catch(e){if(e.name==='SequelizeUniqueConstraintError')continue;logger.warn('Backup claim failed');continue;}
  let dir;
- try{const output=await archive.create(owner.id);dir=await fs.mkdtemp(path.join(os.tmpdir(),'lumo-backup-'));const filename='lumo-'+output.archive.archiveId+'.json',file=path.join(dir,filename);await fs.writeFile(file,output.buffer,{mode:0o600});if(await uploadBackup(file,filename)!==true)throw Error('Remote storage unavailable');
+ try{const output=await archive.create(owner.id);dir=await fs.mkdtemp(path.join(os.tmpdir(),'lumo-backup-'));const filename='lumo-'+output.archive.archiveId+'.json',file=path.join(dir,filename);await fs.writeFile(file,output.buffer,{mode:0o600});if(await uploadBackup(file,filename,owner.id)!==true)throw Error('Remote storage unavailable');
  await row.update({status:'STORED',archiveId:output.archive.archiveId,bytes:output.buffer.length,digest:output.digest,finishedAt:new Date()});
  }catch(e){await row.update({status:'FAILED',failure:'BACKUP_FAILED',finishedAt:new Date()});logger.warn('Scheduled encrypted backup failed');}
  finally{if(dir)await fs.rm(dir,{recursive:true,force:true});}

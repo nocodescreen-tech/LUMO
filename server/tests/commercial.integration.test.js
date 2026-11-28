@@ -1061,6 +1061,24 @@ suite('Commercial PostgreSQL integration',()=>{
  expect(()=>archive.open(output.archive,foreign.id)).toThrow();
  }finally{if(previous===undefined)delete process.env.LUMO_BACKUP_KEY_HEX;else process.env.LUMO_BACKUP_KEY_HEX=previous;}
  });
+ test('backup key rotation preserves old archives and authenticates key identifiers',async()=>{
+ const archive=require('../utils/backupArchive'),crypto=require('crypto');
+ const names=['LUMO_BACKUP_KEY_HEX','LUMO_BACKUP_KEYS_JSON','LUMO_BACKUP_ACTIVE_KEY_ID'],prior=Object.fromEntries(names.map(n=>[n,process.env[n]]));
+ const legacy=crypto.randomBytes(32).toString('hex'),k1=crypto.randomBytes(32).toString('hex'),k2=crypto.randomBytes(32).toString('hex');
+ try{
+ delete process.env.LUMO_BACKUP_KEYS_JSON;delete process.env.LUMO_BACKUP_ACTIVE_KEY_ID;process.env.LUMO_BACKUP_KEY_HEX=legacy;
+ const payload={version:2,ownerId:a.id,archiveId:crypto.randomUUID(),data:{products:[]}};
+ const old=archive.seal(payload);expect(old.keyId).toBeUndefined();
+ process.env.LUMO_BACKUP_KEYS_JSON=JSON.stringify({k1});process.env.LUMO_BACKUP_ACTIVE_KEY_ID='k1';
+ const first=archive.seal(payload);expect(first.keyId).toBe('k1');expect(archive.open(old,a.id)).toEqual(payload);
+ process.env.LUMO_BACKUP_KEYS_JSON=JSON.stringify({k1,k2});process.env.LUMO_BACKUP_ACTIVE_KEY_ID='k2';
+ const next=archive.seal(payload);expect(next.keyId).toBe('k2');expect(archive.open(first,a.id)).toEqual(payload);expect(archive.open(next,a.id)).toEqual(payload);expect(archive.open(old,a.id)).toEqual(payload);
+ expect(()=>archive.open({...first,keyId:'k2'},a.id)).toThrow();expect(()=>archive.open({...first,keyId:'unknown'},a.id)).toThrow();expect(()=>archive.open(next,b.id)).toThrow();
+ const unlabelled={...next};delete unlabelled.keyId;expect(()=>archive.open(unlabelled,a.id)).toThrow();
+ process.env.LUMO_BACKUP_KEYS_JSON=JSON.stringify({k2});expect(()=>archive.open(first,a.id)).toThrow();expect(archive.open(next,a.id)).toEqual(payload);
+ process.env.LUMO_BACKUP_ACTIVE_KEY_ID='missing';expect(archive.ready()).toBe(false);expect(()=>archive.seal(payload)).toThrow();
+ }finally{for(const n of names){if(prior[n]===undefined)delete process.env[n];else process.env[n]=prior[n]}}
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
