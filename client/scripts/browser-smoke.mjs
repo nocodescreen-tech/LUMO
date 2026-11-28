@@ -41,10 +41,10 @@ try{
   await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
   if(width===360)await call('Network.emulateNetworkConditions',{offline:false,latency:150,downloadThroughput:125000,uploadThroughput:62500});
   else await call('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
-  for(const [route,selector] of [['/','.lc-hero h1'],['/login','input[type=email]'],['/register','form']]){
+  for(const [route,selector] of [['/','.lc-hero h1'],['/login','input[type=email]'],['/register','.ac-steps']]){
    const start=performance.now();
    await call('Page.navigate',{url:origin+route});
-   await wait(()=>evaluate('location.pathname==='+JSON.stringify(route)+'&&!!document.querySelector('+JSON.stringify(selector)+')'));
+   try{await wait(()=>evaluate('location.pathname==='+JSON.stringify(route)+'&&!!document.querySelector('+JSON.stringify(selector)+')'),45000)}catch(e){const state=await evaluate('({url:location.href,text:document.body.innerText.slice(0,400)})');throw Error('Route '+route+' width '+width+': '+JSON.stringify(state)+' '+e.message)}
    await sleep(250);
    const metrics=await evaluate('({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,heading:document.querySelector("h1")?.textContent||"",title:document.title})');
    const capture=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});

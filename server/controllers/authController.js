@@ -6,6 +6,7 @@ const { logActivite } = require('./activiteController');
 const crypto = require('crypto');
 const {sequelize}=require('../config/database');
 const {fail}=require('../utils/transactionSafety');
+const emailPattern=value=>String(value??'').replace(/[\\%_]/g,c=>'\\'+c);
 const hashMfa=value=>crypto.createHash('sha256').update(String(value)).digest('hex');
 const { sendEmail, getVerificationTemplate, getResetPasswordTemplate } = require('../utils/emailService');
 const { uploadImage } = require('../utils/cloudinary');
@@ -41,8 +42,7 @@ const registerAdmin = async (req, res, next) => {
     console.warn(`[LUMO_VAL_FAIL] ${error.details[0].message}`);
     return res.status(400).json({ 
       message: error.details[0].message,
-      field: error.details[0].path[0],
-      receivedData: { ...req.body, motDePasse: '***' } 
+      field: error.details[0].path[0] 
     });
   }
 
@@ -50,7 +50,7 @@ const registerAdmin = async (req, res, next) => {
 
   try {
     const { Op } = require('sequelize');
-    const userExists = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const userExists = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     if (userExists) return res.status(400).json({ message: 'Cet email est déjà utilisé par un autre compte' });
 
     // Check if it's the first user ever
@@ -131,9 +131,9 @@ const loginAdmin = async (req, res, next) => {
 
   const startTime = Date.now();
   try {
-    console.log(`[AUTH_PERF] Login start for ${email}`);
+    console.log('[AUTH_PERF] Login start');
     const { Op } = require('sequelize');
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     console.log(`[AUTH_PERF] DB FindUser: ${Date.now() - startTime}ms`);
 
     if (!user) {
@@ -262,7 +262,7 @@ const refreshAccessToken = async (req, res, next) => {
     const user = await User.findByPk(decoded.id);
     if (!user) return res.status(401).json({ message: 'Utilisateur non trouvé' });
 
-    if(user.isSuspended)return res.status(403).json({message:'Votre compte est suspendu'});
+    if(user.isSuspended|| (user.role!=='superadmin'&&(!user.isVerified||!user.isAdminValidated)))return res.status(403).json({message:'Compte indisponible'});
     if(user.parentId){const owner=await User.findByPk(user.parentId,{attributes:['id','role','parentId','isSuspended']});if(!owner||owner.parentId||owner.role!=='admin'||owner.isSuspended)return res.status(403).json({message:'Entreprise indisponible'});}
     const sessionId = decoded.sessionId;
     if(!sessionId||!(user.activeSessions||[]).some(s=>s.sessionId===sessionId))return res.status(401).json({message:'Session révoquée',code:'SESSION_REPLACED'});
@@ -382,7 +382,7 @@ const verifyEmail=async(req,res,next)=>{
  if(typeof email!=='string'||!/^\d{6}$/.test(String(code)))return res.status(400).json({message:'Code de vérification invalide'});
  try{
  const result=await sequelize.transaction(async transaction=>{
-  const user=await User.findOne({where:{email:{[Op.iLike]:email}},transaction,lock:transaction.LOCK.UPDATE});
+  const user=await User.findOne({where:{email:{[Op.iLike]:emailPattern(email)}},transaction,lock:transaction.LOCK.UPDATE});
   const [version,issued,hash]=String(user?.verificationCode||'').split(':');
   if(!user||user.isVerified||user.isSuspended||version!=='v1'||Date.now()-Number(issued)>15*60*1000||!Number.isFinite(Number(issued))||hash!==hashMfa(code))throw fail('Code invalide ou expiré; demandez un nouveau code',400);
   user.isVerified=true;user.isAdminValidated=true;user.verificationCode=null;
@@ -398,7 +398,7 @@ const verifyEmail=async(req,res,next)=>{
 const forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   try {
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     if (!user) return res.status(200).json({message:'Si ce compte existe, un code de récupération sera envoyé.'});
 
     // Générer un code OTP à 6 chiffres
@@ -435,7 +435,7 @@ const verifyResetCode = async (req, res, next) => {
     
     const user = await User.findOne({
       where: {
-        email: { [Op.iLike]: email },
+        email: { [Op.iLike]:emailPattern(email) },
         resetPasswordToken,
         resetPasswordExpire: { [require('sequelize').Op.gt]: Date.now() }
       }
@@ -455,7 +455,7 @@ const resetPassword=async(req,res,next)=>{
  if(typeof email!=='string'||!/^\d{6}$/.test(String(code))||typeof motDePasse!=='string'||!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,72}$/.test(motDePasse)||Buffer.byteLength(motDePasse)>72)return res.status(400).json({message:'Code ou mot de passe invalide'});
  try{
  const user=await sequelize.transaction(async transaction=>{
-  const row=await User.findOne({where:{email:{[Op.iLike]:email},resetPasswordToken:hashMfa(code),resetPasswordExpire:{[Op.gt]:new Date()}},transaction,lock:transaction.LOCK.UPDATE});
+  const row=await User.findOne({where:{email:{[Op.iLike]:emailPattern(email)},resetPasswordToken:hashMfa(code),resetPasswordExpire:{[Op.gt]:new Date()}},transaction,lock:transaction.LOCK.UPDATE});
   if(!row||row.isSuspended)throw fail('Session de récupération expirée');
   row.motDePasse=motDePasse;row.resetPasswordToken=null;row.resetPasswordExpire=null;row.activeSessions=[];row.twoFactorCode=null;row.twoFactorExpire=null;await row.save({transaction});return row;
  });
@@ -637,7 +637,7 @@ const resendCode = async (req, res, next) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email requis' });
 
-    const user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
+    const user = await User.findOne({ where: { email: { [Op.iLike]:emailPattern(email) } } });
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     if (user.isVerified) return res.status(400).json({ message: 'Compte déjà vérifié' });
 

@@ -952,6 +952,33 @@ suite('Commercial PostgreSQL integration',()=>{
  const report={commit:process.env.GITHUB_SHA||null,syntheticLegacySales:2403,acceptedSales:2400,batchSize:500,measurementsMs:{dashboard:dashboard.ms,chart:chart.ms,analytics:analytics.ms},invariants:'passed',scope:'isolated PostgreSQL; imported legacy fixtures have no journal postings'};
  console.log('LUMO_ANALYTICS_VOLUME '+JSON.stringify(report));fs.writeFileSync('commercial-analytics-volume.json',JSON.stringify(report,null,2));
  },120000);
+ test('security regression: original and v1 APIs, account and privilege boundaries, upload validation',async()=>{
+ const audit=express();audit.use(express.json());audit.use(require('cookie-parser')());
+ const router=express.Router();
+ const modules=[['auth','authRoutes'],['products','productRoutes'],['sales','SaleRoutes'],['clients','clientRoutes'],['suppliers','fournisseurRoutes'],['fournisseurs','fournisseurRoutes'],['purchases','purchaseRoutes'],['achats','purchaseRoutes'],['stats','statsRoutes'],['activities','activiteRoutes'],['activites','activiteRoutes'],['ai','aiRoutes'],['superadmin','superadminRoutes'],['notifications','notificationRoutes'],['cash','cashRoutes'],['cash-sessions','cashRoutes'],['finance','financeRoutes'],['workspace','workspaceRoutes'],['inventory','inventoryRoutes'],['repairs','repairRoutes'],['documents','documentRoutes'],['platform/billing','platformBillingRoutes'],['support','supportRoutes'],['backup','backupRoutes'],['subusers','subUserRoutes']];
+ for(const [prefix,file] of modules)router.use('/'+prefix,require('../routes/'+file));
+ audit.use('/api/v1',router);audit.use('/api',router);
+ audit.post('/upload-test',require('../middleware/uploadMiddleware').single('image'),(_req,res)=>res.sendStatus(204));
+ audit.use(errorHandler);
+ const routes=['auth/profile','products','sales','clients','suppliers','fournisseurs','purchases','achats','stats/dashboard','activities','activites','ai/insights','superadmin/console/overview','notifications/summary','cash/current','cash-sessions/current','finance/journal','workspace/context','workspace/executive','workspace/subscription','repairs','documents','platform/billing/plans','support','backup/history'];
+ for(const prefix of ['/api','/api/v1'])for(const endpoint of routes){const res=await request(audit).get(prefix+'/'+endpoint);expect({endpoint:prefix+'/'+endpoint,status:res.status}).toEqual({endpoint:prefix+'/'+endpoint,status:401});}
+ const actor=await User.create({nom:'Security reader',email:'security-reader@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:a.id,isVerified:true,isAdminValidated:true,permissions:['products'],activeSessions:[{sessionId:'security-reader-session'}]});
+ const token=generateToken(actor.id,'security-reader-session').accessToken;
+ for(const endpoint of ['finance/journal','workspace/context','workspace/executive','workspace/subscription','stats/dashboard','platform/billing/plans','superadmin/console/overview','backup/history','ai/insights','repairs','documents','support','sales','clients'])expect((await request(audit).get('/api/'+endpoint).set('Authorization','Bearer '+token)).status).toBe(403);
+ expect((await request(audit).get('/api/products').set('Authorization','Bearer '+token)).status).toBe(200);
+ await actor.update({isAdminValidated:false},{hooks:false});
+ expect((await request(audit).get('/api/products').set('Authorization','Bearer '+token)).status).toBe(403);
+ const refresh=generateToken(actor.id,'security-reader-session').refreshToken;
+ expect((await request(audit).post('/api/auth/refresh').send({refreshToken:refresh})).status).toBe(403);
+ const foreign=await request(audit).get('/api/clients/'+cb.id+'/sales').set('Authorization','Bearer '+ta);expect(foreign.status).toBe(404);
+ expect((await request(audit).get('/api/auth/profile').set('Authorization','Bearer '+generateToken(a.id,'test-session').refreshToken)).status).toBe(401);
+ const upload=(buffer,name,type)=>request(audit).post('/upload-test').attach('image',buffer,{filename:name,contentType:type});
+ expect((await upload(Buffer.from('not an image'),'image.png','image/png')).status).toBe(400);
+ expect((await upload(Buffer.from('not an image'),'image.png.exe','image/png')).status).toBe(400);
+ expect((await upload(Buffer.alloc(5*1024*1024+1),'large.png','image/png')).status).toBe(400);
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/X1sAAAAASUVORK5CYII=','base64');expect((await upload(png,'pixel.png','image/png')).status).toBe(204);
+ console.log('LUMO_SECURITY_REGRESSION '+JSON.stringify({anonymousRoutes:routes.length*2,staffDenied:14,verificationRevocation:'passed',uploadChecks:4,tenantBoundary:'passed'}));
+ },120000);
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
