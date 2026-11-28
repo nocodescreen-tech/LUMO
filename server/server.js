@@ -16,6 +16,9 @@ const Redis = require("ioredis");
 
 // Initialisation de l'application
 const app = express();
+app.disable('x-powered-by');
+// ERP responses must not be stored by browser or intermediary HTTP caches.
+app.use('/api',(_req,res,next)=>{res.set('Cache-Control','private, no-store');next()});
 
 // Sentry Initialization (Must be first)
 if (process.env.SENTRY_DSN) {
@@ -91,7 +94,8 @@ io.on('connection',socket=>{
  timer.unref?.();socket.once('disconnect',()=>clearInterval(timer));
 });
 
-setupSwagger(app);
+// Developer documentation is not public by default in production.
+if(config.env!=='production'||process.env.LUMO_PUBLIC_API_DOCS==='true')setupSwagger(app);
 
 // Middlewares de base
 app.use(require('./utils/operationalMetrics').observe);

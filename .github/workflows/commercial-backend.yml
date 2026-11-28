@@ -74,6 +74,60 @@ jobs:
           done
           docker exec "$PG_CONTAINER" psql -U lumo_test -d lumo_recovery_drill -At -v ON_ERROR_STOP=1 -c "SELECT tgname FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('lumo_journal_immutable','lumo_platform_audit_immutable','lumo_support_message_immutable','crm_event_immutable','crm_target_immutable','crm_opportunity_guard','saas_price_immutable','saas_payment_immutable','saas_event_immutable','saas_invoice_guard','plan_entitlement_immutable') ORDER BY tgname" | tee /tmp/lumo-recovery-triggers
           test "$(wc -l < /tmp/lumo-recovery-triggers)" -eq 11
+      - name: Isolated authenticated HTTP passive scan (ZAP)
+        timeout-minutes: 8
+        env:
+          NODE_ENV: production
+          DB_NAME: lumo_commercial_test
+          LUMO_DAST_LOCAL: '1'
+          LUMO_PUBLIC_API_DOCS: 'false'
+          LUMO_ALERT_CRON: 'false'
+          LUMO_PUBLIC_AI_ENABLED: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          tmp="$(mktemp -d)"
+          app_pid=""
+          zap_name="lumo-zap-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f "$zap_name" >/dev/null 2>&1 || true
+            if [ -n "$app_pid" ]; then kill "$app_pid" 2>/dev/null || true; fi
+            rm -rf -- "$tmp"
+          }
+          trap cleanup EXIT
+          export LUMO_DAST_FIXTURE_FILE="$tmp/fixtures.json"
+          export LUMO_DAST_REPORT="$PWD/commercial-dast.json"
+          export ZAP_LOCAL_KEY="$(node -e 'process.stdout.write(require("crypto").randomBytes(24).toString("hex"))')"
+          echo "::add-mask::$ZAP_LOCAL_KEY"
+          node scripts/dast-fixture.cjs > "$tmp/app.log" 2>&1 &
+          app_pid=$!
+          for i in $(seq 1 60); do
+            if [ -s "$LUMO_DAST_FIXTURE_FILE" ] && curl --silent --fail --max-time 2 http://127.0.0.1:18080/health >/dev/null; then break; fi
+            kill -0 "$app_pid" 2>/dev/null || { echo "Local fixture exited"; exit 1; }
+            sleep 1
+          done
+          test -s "$LUMO_DAST_FIXTURE_FILE"
+          docker pull ghcr.io/zaproxy/zaproxy:stable
+          image="$(docker image inspect ghcr.io/zaproxy/zaproxy:stable --format '{{index .RepoDigests 0}}')"
+          printf '%s\n' "$image" > commercial-zap-image.txt
+          docker run -d --rm --name "$zap_name" --network host "$image" zap.sh -daemon -host 127.0.0.1 -port 18090 -config api.key="$ZAP_LOCAL_KEY" -config connection.timeoutInSecs=10 >/dev/null
+          ready=0
+          for i in $(seq 1 90); do
+            if curl --silent --fail --max-time 2 "http://127.0.0.1:18090/JSON/core/view/version/?apikey=$ZAP_LOCAL_KEY" >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          node scripts/dast-passive.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: commercial-dast-passive
+          path: |
+            server/commercial-dast.json
+            server/commercial-zap-image.txt
+          if-no-files-found: warn
+          retention-days: 30
       - name: Record validation manifest
         run: |
           node -e 'const fs=require("fs"),crypto=require("crypto");const migrations=fs.readdirSync("migrations").filter(x=>/^\d+.*\.sql$/.test(x)).sort().map(name=>({name,sha256:crypto.createHash("sha256").update(fs.readFileSync("migrations/"+name)).digest("hex")}));fs.writeFileSync("release-validation.json",JSON.stringify({commit:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,packageVersion:require("./package.json").version,backendIntegration:"passed",isolatedRecoveryDrill:"passed",migrations},null,2))'
