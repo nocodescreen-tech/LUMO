@@ -1,7 +1,6 @@
 const express = require('express');
 const Sentry = require("@sentry/node");
 const compression = require('compression');
-const helmet = require('helmet');
 const { connectDB, sequelize } = require('./config/database');
 const config = require('./config');
 const securityMiddleware = require('./middleware/security');
@@ -17,6 +16,7 @@ const Redis = require("ioredis");
 // Initialisation de l'application
 const app = express();
 app.disable('x-powered-by');
+app.use(require('./middleware/backendHeaders'));
 // ERP responses must not be stored by browser or intermediary HTTP caches.
 app.use('/api',(_req,res,next)=>{res.set('Cache-Control','private, no-store');next()});
 

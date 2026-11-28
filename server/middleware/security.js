@@ -1,4 +1,3 @@
-const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const xss = require('xss-clean');
@@ -8,9 +7,6 @@ const cookieParser = require('cookie-parser');
 const {allowedOrigin,protectBrowserMutation}=require('./sessionOrigin');
 
 const securityMiddleware = (app) => {
-    // Set security HTTP headers
-    app.use(helmet());
-
     // Prevent XSS attacks
     app.use(xss());
 

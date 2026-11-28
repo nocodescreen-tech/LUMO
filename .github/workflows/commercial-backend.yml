@@ -42,7 +42,7 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci --legacy-peer-deps --no-audit --no-fund
       - run: find controllers middleware routes models utils migrations -name '*.js' -print0 | xargs -0 -n1 node --check
-      - run: npm test -- --runInBand tests/transactionSafety.unit.test.js tests/pagination.test.js tests/sessionOrigin.test.js tests/cacheMemory.test.js
+      - run: npm test -- --runInBand tests/transactionSafety.unit.test.js tests/pagination.test.js tests/sessionOrigin.test.js tests/cacheMemory.test.js tests/backendHeaders.test.js
       - run: npm test -- --runInBand tests/commercial.integration.test.js
 
       - uses: actions/upload-artifact@v4

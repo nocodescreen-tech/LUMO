@@ -11,11 +11,11 @@ async function run(){
   return {id:user.id,token:generateToken(user.id,'dast-'+label).accessToken};
  };
  const owner=await make('admin','owner'),other=await make('admin','other'),staff=await make('vendeur','staff',owner.id,['products']),platform=await make('superadmin','platform');
- await Product.create({nom:'DAST OWN CATALOG',prix:10,prixAchat:4,devise:'USD',stock:4,userId:owner.id});
- await Product.create({nom:'DAST FOREIGN CATALOG',prix:10,prixAchat:4,devise:'USD',stock:4,userId:other.id});
+ const ownProduct=await Product.create({nom:'DAST OWN CATALOG',prix:10,prixAchat:4,devise:'USD',stock:4,userId:owner.id});
+ const foreignProduct=await Product.create({nom:'DAST FOREIGN CATALOG',prix:10,prixAchat:4,devise:'USD',stock:4,userId:other.id});
  const app=require('../server');
  const server=app.listen(18080,'127.0.0.1',()=>{
-  fs.writeFileSync(env.LUMO_DAST_FIXTURE_FILE,JSON.stringify({owner,other,staff,platform}),{mode:0o600});
+  fs.writeFileSync(env.LUMO_DAST_FIXTURE_FILE,JSON.stringify({owner,other,staff,platform,products:{own:ownProduct.id,foreign:foreignProduct.id}}),{mode:0o600});
   console.log('Local synthetic API ready');
  });
  const close=()=>server.close(()=>process.exit(0));
