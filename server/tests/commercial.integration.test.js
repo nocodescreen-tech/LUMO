@@ -1041,6 +1041,26 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await send('disable',{motDePasse:'TestOnlyPassword123!',code:authenticator.generate(setup.body.secret)})).status).toBe(200);
  expect((await actor.reload()).twoFactorEnabled).toBe(false);
  });
+ test('expanded encrypted archive includes new tenant records and excludes other organizations',async()=>{
+ const {BudgetCenter,Opportunity,LeaveRequest}=require('../models');
+ const archive=require('../utils/backupArchive'),crypto=require('crypto');
+ const previous=process.env.LUMO_BACKUP_KEY_HEX;process.env.LUMO_BACKUP_KEY_HEX=crypto.randomBytes(32).toString('hex');
+ try{
+ const owner=await User.create({nom:'Archive owner',email:'archive-owner@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true});
+ const foreign=await User.create({nom:'Archive other',email:'archive-other@example.com',motDePasse:'TestOnlyPassword123!',role:'admin',isVerified:true,isAdminValidated:true});
+ const own=await BudgetCenter.create({userId:owner.id,actorId:owner.id,branchKey:0,department:'Admin',name:'Archive own'});
+ await BudgetCenter.create({userId:foreign.id,actorId:foreign.id,branchKey:0,department:'Admin',name:'Archive foreign'});
+ const opportunity=await Opportunity.create({userId:owner.id,assigneeId:owner.id,actorId:owner.id,title:'Archive CRM',contactName:'Synthetic',amount:10,currency:'USD',stage:'NEW'});
+ const staff=await User.create({nom:'Archive staff',email:'archive-staff@example.com',motDePasse:'TestOnlyPassword123!',role:'vendeur',parentId:owner.id,isVerified:true,isAdminValidated:true});
+ const leave=await LeaveRequest.create({userId:owner.id,staffId:staff.id,kind:'ANNUAL',startsOn:'2026-12-01',endsOn:'2026-12-02',note:'Synthetic',status:'PENDING'});
+ const output=await archive.create(owner.id),payload=archive.open(output.archive,owner.id);
+ expect(payload.data.budgetCenters.map(v=>v.id)).toEqual([own.id]);expect(payload.data.opportunities.map(v=>v.id)).toEqual([opportunity.id]);expect(payload.data.leaveRequests.map(v=>v.id)).toEqual([leave.id]);
+ for(const key of ['budgetRevisions','opportunityEvents','salesTargets','leaveEvents','notificationSettings','saasInvoices','saasPayments','saasInvoiceEvents'])expect(Array.isArray(payload.data[key])).toBe(true);
+ expect(JSON.stringify(payload.data.subUsers)).not.toContain('motDePasse');
+ expect(()=>archive.open({...output.archive,iv:output.archive.iv+'AAAA'},owner.id)).toThrow();
+ expect(()=>archive.open(output.archive,foreign.id)).toThrow();
+ }finally{if(previous===undefined)delete process.env.LUMO_BACKUP_KEY_HEX;else process.env.LUMO_BACKUP_KEY_HEX=previous;}
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
