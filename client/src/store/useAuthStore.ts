@@ -188,6 +188,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async (shouldRedirect = true) => {
+    const initialUserId=useAuthStore.getState().user?.id;
     clearLegacyAuthStorage();
     let token = getStoredToken();
     if (!token) {
@@ -223,7 +224,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       document.documentElement.setAttribute('data-theme', theme);
     } catch (err) {
-      // Token probably invalid
+      // Network or service failures are not proof that a valid session was revoked.
+      const status=(err as any)?.response?.status;
+      if(status!==401&&status!==403)throw err;
+      if(!getMemoryToken()||useAuthStore.getState().user?.id!==initialUserId)throw err;
       setStoredToken(null);
       clearLegacyAuthStorage();
       set({ token: null, user: null });

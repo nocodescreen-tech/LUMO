@@ -2,6 +2,8 @@ name: Commercial security qualification
 on:
   push:
     branches: [commercial-v2]
+  pull_request:
+    branches: [main, master]
   workflow_dispatch:
 permissions:
   contents: read

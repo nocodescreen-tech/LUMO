@@ -89,6 +89,7 @@ api.interceptors.response.use(
       // Keep the access token in memory only. The refresh token remains in the
       // httpOnly cookie and is not readable by JavaScript.
       setToken(data.token);
+      useAuthStore.setState({token:data.token});
 
       processQueue(null, data.token);
 
