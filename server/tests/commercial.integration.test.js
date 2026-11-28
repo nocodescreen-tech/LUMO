@@ -994,6 +994,20 @@ suite('Commercial PostgreSQL integration',()=>{
  await member.update({isAdminValidated:false},{hooks:false});expect(await socketIdentity(tokens.accessToken)).toBeNull();
  await member.update({isAdminValidated:true,activeSessions:[]},{hooks:false});expect(await socketIdentity(tokens.accessToken)).toBeNull();
  });
+ test('password change requires current credential and revokes other sessions',async()=>{
+ const actor=await User.create({nom:'Password fixture',email:'password-change@example.com',motDePasse:'TestOnlyPassword123!',isVerified:true,isAdminValidated:true,role:'admin',activeSessions:[{sessionId:'pwd-current'},{sessionId:'pwd-other'}]});
+ const current=generateToken(actor.id,'pwd-current'),other=generateToken(actor.id,'pwd-other');
+ const fixture=express();fixture.use(express.json());fixture.put('/profile',protect,require('../controllers/authController').updateProfile);fixture.use(errorHandler);
+ const change=body=>request(fixture).put('/profile').set('Authorization','Bearer '+current.accessToken).send(body);
+ expect((await change({motDePasse:'NewTestPassword456!'})).status).toBe(400);
+ expect((await change({motDePasse:'NewTestPassword456!',currentPassword:'wrong'})).status).toBe(403);
+ expect(await (await actor.reload()).matchMotDePasse('TestOnlyPassword123!')).toBe(true);
+ expect((await change({motDePasse:'NewTestPassword456!',currentPassword:'TestOnlyPassword123!'})).status).toBe(200);
+ await actor.reload();expect(await actor.matchMotDePasse('NewTestPassword456!')).toBe(true);expect(actor.activeSessions.map(v=>v.sessionId)).toEqual(['pwd-current']);
+ expect((await request(app).get('/test-products').set('Authorization','Bearer '+other.accessToken)).status).toBe(401);
+ expect((await request(app).post('/auth/refresh').set('X-Lumo-Client','1').set('Cookie','refreshToken='+other.refreshToken)).status).toBe(401);
+ expect((await request(app).get('/test-products').set('Authorization','Bearer '+current.accessToken)).status).toBe(200);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);

@@ -321,6 +321,7 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword,setCurrentPassword]=useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -436,6 +437,8 @@ const Settings = () => {
   const handleSave = async () => {
     if(saving)return;
     if (profileData.motDePasse) {
+      if(!currentPassword)return toast.error(language==='en'?'Current password required':'Mot de passe actuel requis');
+      if(new TextEncoder().encode(profileData.motDePasse).length>72)return toast.error(language==='en'?'Password exceeds 72 bytes':'Le mot de passe dépasse 72 octets');
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
       if (!passwordRegex.test(profileData.motDePasse)) {
         return toast.error("Le nouveau mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
@@ -460,7 +463,7 @@ const Settings = () => {
           backupTime,
           notificationSoundEnabled
         },
-        ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse } : {})
+        ...(profileData.motDePasse ? { motDePasse: profileData.motDePasse,currentPassword } : {})
       };
 
       await api.put('/auth/profile', payload);
@@ -470,7 +473,7 @@ const Settings = () => {
       // which re-renders the sidebar with the correct modules.
       await checkAuth(false);
 
-      setProfileData(prev => ({ ...prev, motDePasse: '' }));
+      setProfileData(prev => ({ ...prev, motDePasse: '' }));setCurrentPassword('');
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
       toast.success(t('settingsSaved'));
@@ -855,6 +858,7 @@ const Settings = () => {
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     </div>
+                    {profileData.motDePasse&&<label style={{display:'grid',gap:8,fontWeight:700,fontSize:'.88rem'}}>{language==='en'?'Current password':'Mot de passe actuel'}<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} style={{padding:14,borderRadius:12,border:'1px solid var(--border)',background:'var(--bg-main)',color:'var(--text-main)'}}/><small style={{color:'var(--text-muted)'}}>{language==='en'?'Other sessions will be revoked.':'Les autres sessions seront révoquées.'}</small></label>}
                     {profileData.motDePasse && (
                       <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                         {[

@@ -64,6 +64,8 @@ const securityMiddleware = (app) => {
     app.use('/api/auth/register', authLimiter);
     app.use('/api/v1/auth/forgot-password', authLimiter);
     app.use('/api/auth/forgot-password', authLimiter);
+    const passwordLimiter=rateLimit({windowMs:15*60*1000,max:10,standardHeaders:true,legacyHeaders:false,skip:req=>!req.body?.motDePasse,message:{message:'Trop de tentatives de changement de mot de passe.'}});
+    for(const prefix of ['/api/auth','/api/v1/auth'])app.use(prefix+'/profile',passwordLimiter);
     const otpLimiter=rateLimit({windowMs:15*60*1000,max:15,standardHeaders:true,legacyHeaders:false,message:{message:'Trop de tentatives. Réessayez plus tard.'}});
     for(const prefix of ['/api/auth','/api/v1/auth'])for(const route of ['/2fa/verify','/verify-email','/verify-reset-code','/reset-password','/resend-code'])app.use(prefix+route,otpLimiter);
 };

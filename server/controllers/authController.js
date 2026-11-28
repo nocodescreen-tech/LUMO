@@ -167,9 +167,13 @@ const loginAdmin = async (req, res, next) => {
     if (user.twoFactorEnabled) {
       const challenge=crypto.randomBytes(32).toString('hex');
       const emailCode=user.twoFactorSecret?null:crypto.randomInt(100000,1000000).toString();
-      user.twoFactorCode='login:'+hashMfa(challenge)+(emailCode?':'+hashMfa(emailCode):'');
-      user.twoFactorExpire=Date.now()+5*60*1000;
-      await user.save({hooks:false});
+      await sequelize.transaction(async transaction=>{
+       const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+       if(!locked||locked.motDePasse!==user.motDePasse||locked.isSuspended||!locked.twoFactorEnabled||locked.twoFactorSecret!==user.twoFactorSecret||(locked.role!=='superadmin'&&(!locked.isVerified||!locked.isAdminValidated)))throw fail('Identifiants ou état du compte modifiés, reconnectez-vous',401);
+       locked.twoFactorCode='login:'+hashMfa(challenge)+(emailCode?':'+hashMfa(emailCode):'');
+       locked.twoFactorExpire=Date.now()+5*60*1000;
+       await locked.save({hooks:false,transaction});
+      });
       if(emailCode)await sendEmail({email:user.email,subject:'Code de connexion LUMO',html:getVerificationTemplate(emailCode,user.nom)});
       return res.status(200).json({
         challenge,
@@ -184,20 +188,13 @@ const loginAdmin = async (req, res, next) => {
     const sessionId = crypto.randomBytes(16).toString('hex');
     const { accessToken, refreshToken } = generateToken(user.id, sessionId);
 
-    setRefreshTokenCookie(res, refreshToken);
-
-    // Manage concurrent sessions (limit to 5)
-    let sessions = user.activeSessions || [];
-    sessions.push({ 
-        sessionId, 
-        userAgent: req.headers['user-agent'], 
-        ip: req.ip,
-        createdAt: new Date() 
+    await sequelize.transaction(async transaction=>{
+      const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+      if(!locked||locked.motDePasse!==user.motDePasse||locked.isSuspended||locked.twoFactorEnabled||(locked.role!=='superadmin'&&(!locked.isVerified||!locked.isAdminValidated)))throw fail('Identifiants ou état du compte modifiés, reconnectez-vous',401);
+      locked.activeSessions=[...(locked.activeSessions||[]),{sessionId,userAgent:req.headers['user-agent'],ip:req.ip,createdAt:new Date()}].slice(-5);
+      await locked.save({hooks:false,transaction});
     });
-    if (sessions.length > 5) sessions.shift(); // Remove oldest
-    user.activeSessions = sessions;
-    user.changed('activeSessions', true);
-    await user.save({ hooks: false });
+    setRefreshTokenCookie(res,refreshToken);
 
     // Non-blocking activity log (Fire and Forget for better performance)
     logActivite(user.id, 'CONNEXION', 'Utilisateur s\'est connecté', req.ip, user.parentId || user.id, user.nom);
@@ -467,9 +464,21 @@ const resetPassword=async(req,res,next)=>{
 const updateProfile = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.user.id);
-    const { nom, telephone, email, entreprise, preferences, typeActivite, avatar, motDePasse } = req.body;
+    const { nom, telephone, email, entreprise, preferences, typeActivite, avatar, motDePasse, currentPassword } = req.body;
 
     if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+    // Require re-authentication before any profile mutation that changes credentials.
+    let sessionId=null;
+    if(motDePasse){
+      if(typeof currentPassword!=='string'||!currentPassword||Buffer.byteLength(currentPassword,'utf8')>1024)return res.status(400).json({message:'Mot de passe actuel requis'});
+      if(typeof motDePasse!=='string'||Buffer.byteLength(motDePasse,'utf8')>72)return res.status(400).json({message:'Le nouveau mot de passe ne doit pas dépasser 72 octets'});
+      if(!await user.matchMotDePasse(currentPassword))return res.status(403).json({message:'Mot de passe actuel incorrect'});
+      const decoded=require('jsonwebtoken').verify(req.headers.authorization.split(' ')[1],require('../config').jwt.secret,{algorithms:['HS256']});
+      sessionId=decoded.sessionId;
+      if(!sessionId)return res.status(401).json({message:'Session invalide'});
+    }
+    const originalHash=user.motDePasse;
 
     // Use explicit undefined checks to prevent falsy values (like "") from keeping old data
     if (nom !== undefined && nom !== null && nom.trim() !== '') user.nom = nom.trim();
@@ -499,7 +508,6 @@ const updateProfile = async (req, res, next) => {
           message: 'Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).'
         });
       }
-      user.motDePasse = motDePasse;
     }
 
     if (preferences?.exchangeRate !== undefined) {
@@ -509,7 +517,15 @@ const updateProfile = async (req, res, next) => {
       }
     }
 
-    const updatedUser = await user.save();
+    const updatedUser=motDePasse?await sequelize.transaction(async transaction=>{
+      const locked=await User.findByPk(user.id,{transaction,lock:transaction.LOCK.UPDATE});
+      if(!locked||locked.motDePasse!==originalHash||!(locked.activeSessions||[]).some(v=>v.sessionId===sessionId))throw fail('Session ou mot de passe modifié, reconnectez-vous',401);
+      for(const field of user.changed()||[])locked.set(field,user.get(field));
+      locked.motDePasse=motDePasse;
+      locked.activeSessions=(locked.activeSessions||[]).filter(v=>v.sessionId===sessionId);
+      locked.twoFactorCode=null;locked.twoFactorExpire=null;locked.resetPasswordToken=null;locked.resetPasswordExpire=null;
+      return locked.save({transaction});
+    }):await user.save();
     
     // Log activity
     await logActivite(
