@@ -147,9 +147,9 @@ const Register = () => {
     data.append('tauxDollar', formData.tauxDollar);
     
     if (formData.motDePasse) {
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,100}$/;
-        if (!passwordRegex.test(formData.motDePasse)) {
-            setError("Le mot de passe doit contenir entre 8 et 100 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#]).{8,72}$/;
+        if (!passwordRegex.test(formData.motDePasse)||new TextEncoder().encode(formData.motDePasse).length>72) {
+            setError("Le mot de passe doit contenir entre 8 et 72 caractères (72 octets maximum), une majuscule, une minuscule, un chiffre et un caractère spécial (@$!%*?&#).");
             toast.error(t('weakPassword'));
             setStep(2);
             setLoading(false);

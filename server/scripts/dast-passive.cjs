@@ -38,6 +38,7 @@ async function check(path,role,expected,options={}){
  if(r.status===200&&entry.method==='GET'&&path.includes('/products')){
   if(role==='owner'||role==='staff'){if(!r.body.includes('DAST OWN CATALOG')||r.body.includes('DAST FOREIGN CATALOG'))errors.push('Catalog isolation '+role)}
   if(role==='other'&&(!r.body.includes('DAST FOREIGN CATALOG')||r.body.includes('DAST OWN CATALOG')))errors.push('Catalog isolation other');
+  if(r.body.includes('Denied synthetic edit'))errors.push('Unexpected catalog change '+role);
   if(role==='staff'&&/"prixAchat"\s*:/.test(r.body))errors.push('Purchase cost field visible to staff');
  }
  if(r.status===200&&path.includes('/auth/profile')&&/"(?:motDePasse|twoFactorSecret|resetPasswordToken|verificationCode|activeSessions)"\s*:/.test(r.body))errors.push('Sensitive profile field present '+role);
@@ -56,7 +57,7 @@ async function main(){
    await check(prefix+'/platform/billing/plans','owner',403);await check(prefix+'/platform/billing/plans','staff',403);await check(prefix+'/platform/billing/plans','platform',200);
   }
   for(const prefix of ['/api','/api/v1']){
-   const productBody={nom:'Denied synthetic edit',prix:11,stock:4,devise:'USD'};
+   const productBody={nom:'Denied synthetic edit',prix:11,stock:4,categorie:'Test',devise:'USD'};
    await check(prefix+'/products/'+fixtures.products.foreign,'owner',404,{method:'PUT',body:productBody});
    await check(prefix+'/products/'+fixtures.products.own,'staff',403,{method:'PUT',body:productBody});
    await check(prefix+'/products/all','owner',409,{method:'DELETE'});

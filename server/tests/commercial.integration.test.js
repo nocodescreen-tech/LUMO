@@ -1008,6 +1008,19 @@ suite('Commercial PostgreSQL integration',()=>{
  expect((await request(app).post('/auth/refresh').set('X-Lumo-Client','1').set('Cookie','refreshToken='+other.refreshToken)).status).toBe(401);
  expect((await request(app).get('/test-products').set('Authorization','Bearer '+current.accessToken)).status).toBe(200);
  });
+ test('registration credential size and sale line limits are bounded',async()=>{
+ const {validateRegister,validateSale}=require('../middleware/validators');
+ const registration={nom:'Fixture',email:'fixture@example.com',entrepriseNom:'Shop',motDePasse:'ValidTest123!'};
+ expect(validateRegister(registration).error).toBeUndefined();
+ expect(validateRegister({...registration,motDePasse:'ValidTest123!'+'a'.repeat(70)}).error).toBeDefined();
+ expect(validateRegister({...registration,motDePasse:'ValidTest123!'+'é'.repeat(40)}).error).toBeDefined();
+ const item={id:pa.id,nom:'Fixture',prix:10,quantite:1};
+ const oversized={items:Array.from({length:501},()=>({...item})),montantTotal:5010,methodePaiement:'Cash',devise:'USD'};
+ expect(validateSale(oversized).error).toBeDefined();
+ const before=await Sale.count({where:{userId:a.id}});
+ expect((await post('/sales',oversized)).status).toBe(400);
+ expect(await Sale.count({where:{userId:a.id}})).toBe(before);
+ });
  test('revoked session denied',async()=>{
   const token=generateToken(b.id,'revoked').accessToken;
   const res=await request(app).get('/cash/current').set('Authorization','Bearer '+token);
